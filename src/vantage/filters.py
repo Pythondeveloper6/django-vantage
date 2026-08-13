@@ -57,17 +57,17 @@ if TYPE_CHECKING:
     from vantage.panels import ModelPanel
 
 __all__ = [
-    "BooleanFilter",
-    "ChoiceFilter",
-    "Choice",
     "DATE_PRESETS",
-    "DateFilter",
     "EMPTY",
     "FACETS_PARAM",
-    "FacetCost",
-    "Filter",
     "MAX_FACET_CHOICES",
     "MAX_FACET_QUERIES",
+    "BooleanFilter",
+    "Choice",
+    "ChoiceFilter",
+    "DateFilter",
+    "FacetCost",
+    "Filter",
     "NumericRangeFilter",
     "RelatedFilter",
     "apply_facet_counts",
@@ -465,8 +465,9 @@ class RelatedFilter(Filter):
         return [(str(obj.pk), str(obj)) for obj in objects] + self._empty_option()
 
     def facet_pairs(self) -> list[tuple[str, Q]] | None:
-        # Loading the options may downgrade the cost, so it has to happen first.
-        self.options()
+        if self.cost is not FacetCost.CHEAP:
+            return None  # checked before loading, so a skipped filter costs no query
+        self.options()  # cardinality is only known once loaded, and may downgrade cost
         return super().facet_pairs()
 
     def value_q(self, value: str) -> Q | None:
