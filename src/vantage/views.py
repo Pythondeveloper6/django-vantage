@@ -101,6 +101,12 @@ class PanelView(SiteView):
     def get_breadcrumbs(self):
         return [(self.panel.get_label_plural(), None)]
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Rendering a button the user cannot use is worse than not offering it.
+        context["allowed"] = self.permissions.allowed_actions(self.request, self.panel.model)
+        return context
+
 
 class ListView(PanelView):
     template_name = "vantage/list.html"

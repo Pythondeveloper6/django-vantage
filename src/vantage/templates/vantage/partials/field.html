@@ -1,10 +1,10 @@
-{# One field: label, control, help, errors.
+{% comment %} One field: label, control, help, errors.
 
    The control renders itself — the widget already carries the inferred type, constraint
    and data-vantage-kind attributes from WidgetSpec.html_attrs(), so re-emitting them
    here would be a second source of truth. Django's BoundField adds aria-invalid and
    aria-describedby when the field has errors; the ids below are the ones it points at,
-   which is why they must stay "{auto_id}_helptext" and "{auto_id}_error". #}
+   which is why they must stay "{auto_id}_helptext" and "{auto_id}_error". {% endcomment %}
 
 {% if field.readonly %}
   <div class="v-form-field{% if field.wide %} v-form-field-wide{% endif %}"

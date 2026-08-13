@@ -10,8 +10,10 @@
   strip always answers for the same rows the table is about.
 {% endcomment %}
 {% if analytics.deferred %}
-  {# Over budget. Offer the work rather than doing it: a list page must never be slower
-     because stats exist. #}
+  {% comment %}
+    Over budget. Offer the work rather than doing it: a list page must never be slower
+    because stats exist.
+  {% endcomment %}
   <div class="v-analytics-deferred">
     <div>
       <p class="v-analytics-deferred-title">Statistics are not computed for this view.</p>

@@ -32,9 +32,9 @@
         This permanently deletes <strong>{{ object }}</strong>. It cannot be undone.
       </p>
 
-      {# The cascade preview. A delete that silently takes 12 other rows with it is the
+      {% comment %} The cascade preview. A delete that silently takes 12 other rows with it is the
          single worst surprise an admin panel can hand someone, so the counts are stated
-         before the button and again on it. #}
+         before the button and again on it. {% endcomment %}
       {% if cascade.groups %}
         <h2 class="v-confirm-heading">These will be destroyed too</h2>
         <ul class="v-cascade">

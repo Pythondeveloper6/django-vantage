@@ -200,6 +200,10 @@ class TestCreate:
         assert "data-vantage-dirty" in body
         assert "beforeunload" in body
 
+    def test_no_template_comment_leaks_into_the_page(self, boss):
+        """Django's {# #} comments do not span lines; a multi-line one renders verbatim."""
+        assert "{#" not in boss.get(add_url(Post)).content.decode()
+
     def test_accepts_uploads(self, boss):
         """A form that decides its encoding per-page silently drops the first upload."""
         assert 'enctype="multipart/form-data"' in boss.get(add_url(Author)).content.decode()
@@ -328,6 +332,9 @@ class TestSaveModelHook:
 class TestDeleteConfirmation:
     def test_renders(self, boss, post):
         assert boss.get(delete_url(post)).status_code == 200
+
+    def test_no_template_comment_leaks_into_the_page(self, boss, post):
+        assert "{#" not in boss.get(delete_url(post)).content.decode()
 
     def test_lists_the_cascade_with_counts(self, boss, post):
         for i in range(3):
