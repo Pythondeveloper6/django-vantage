@@ -221,6 +221,10 @@ class ListView(PanelView):
         sort = self._resolve_sort(panel, request)
         if sort:
             queryset = queryset.order_by(*sort["order_by"])
+        elif self.showing_tree(request) and patterns.tree.depth_field:
+            # Only the library trees have a column that sorts parent-before-child.
+            # A plain self-FK is arranged in Python once the page is fetched.
+            queryset = queryset.order_by(*patterns.tree.ordering)
         return queryset, base, filters, query, sort
 
     def export(self, request):
@@ -252,7 +256,7 @@ class ListView(PanelView):
             panel=panel,
             columns=[self._column_header(panel, name, sort) for name in columns],
             sort=sort,
-            rows=[self._row(panel, obj, columns, link) for obj in page.object_list],
+            rows=self._rows(panel, page.object_list, columns, link, request),
             page=page,
             paginator=paginator,
             query=query,
@@ -261,6 +265,7 @@ class ListView(PanelView):
             analytics=self.get_analytics(queryset),
             searchable=bool(panel.get_list_search(request)),
             patterns=panel.get_patterns(),
+            showing_tree=self.showing_tree(request),
             showing_trash=self.showing_trash(request),
             trash_count=self.get_trash_count(panel, request),
             actions=resolve_actions(panel, request),
@@ -268,6 +273,23 @@ class ListView(PanelView):
             page_title=panel.get_label_plural(),
         )
         return context
+
+    def showing_tree(self, request) -> bool:
+        """Whether to render the hierarchy rather than a flat page of rows.
+
+        Off while searching, filtering or sorting: those all produce a subset, and a
+        tree drawn from a subset shows children whose parents are missing, which
+        reads as corruption rather than as a filtered view.
+        """
+        patterns = self.panel.get_patterns()
+        if patterns.tree is None or request.GET.get("flat") == "1":
+            return False
+        if request.GET.get("q") or request.GET.get("sort"):
+            return False
+        return not any(
+            key not in {"page", "trash", "flat", "_facets"} and value
+            for key, value in request.GET.items()
+        )
 
     def showing_trash(self, request) -> bool:
         """Whether this request is asking for the trash rather than the live list."""
@@ -368,6 +390,80 @@ class ListView(PanelView):
             # Clicking an active ascending column flips it; anything else starts ascending.
             "next": f"-{name}" if (active and not sort["descending"]) else name,
         }
+
+    def _rows(self, panel, objects, columns, link, request) -> list[dict]:
+        """Rows for the page, indented when rendering a hierarchy."""
+        if not self.showing_tree(request):
+            return [self._row(panel, obj, columns, link) for obj in objects]
+
+        pattern = panel.get_patterns().tree
+        objects = list(objects)
+
+        # mptt and treebeard store an orderable path, so the database already returned
+        # the rows in tree order. A plain self-FK has no such column - SQL cannot order
+        # parent-before-child without recursion - so the page is arranged here instead.
+        # That is correct within a page and honest across them: a child whose parent
+        # sits on another page renders as a root rather than being hidden.
+        if not pattern.depth_field:
+            objects = self._arrange(pattern, objects)
+
+        depths = self._depths(pattern, objects)
+        built = [self._row(panel, obj, columns, link) for obj in objects]
+        for row, obj in zip(built, objects, strict=True):
+            row["depth"] = depths.get(obj.pk, 0)
+        return built
+
+    @staticmethod
+    def _arrange(pattern, objects: list) -> list:
+        """Depth-first order: each row followed by its children."""
+        children: dict = {}
+        present = {obj.pk for obj in objects}
+        roots = []
+        for obj in objects:
+            parent = getattr(obj, f"{pattern.parent_field}_id", None)
+            if parent in present:
+                children.setdefault(parent, []).append(obj)
+            else:
+                roots.append(obj)
+
+        ordered: list = []
+        seen: set = set()
+
+        def walk(nodes):
+            for node in nodes:
+                if node.pk in seen:  # a cycle in the data must not loop here
+                    continue
+                seen.add(node.pk)
+                ordered.append(node)
+                walk(children.get(node.pk, ()))
+
+        walk(roots)
+        # Anything left is inside a cycle; showing it beats dropping it silently.
+        ordered.extend(obj for obj in objects if obj.pk not in seen)
+        return ordered
+
+    @staticmethod
+    def _depths(pattern, objects) -> dict:
+        """How deep each row sits, without a query per row.
+
+        mptt and treebeard already store the depth, so use it. For a plain self-FK,
+        walk the parent ids present on this page: a child whose parent is on another
+        page simply starts at zero, which is the honest answer rather than a
+        recursive lookup per row.
+        """
+        if pattern.depth_field:
+            return {obj.pk: getattr(obj, pattern.depth_field, 0) or 0 for obj in objects}
+
+        parents = {obj.pk: getattr(obj, f"{pattern.parent_field}_id", None) for obj in objects}
+        depths: dict = {}
+        for pk in parents:
+            depth, cursor, guard = 0, parents[pk], 0
+            while cursor in parents and guard < 32:
+                depth += 1
+                cursor = parents[cursor]
+                guard += 1
+            depths[pk] = depth
+        return depths
 
     @staticmethod
     def _row(panel, obj, columns: list[str], link: str) -> dict:
