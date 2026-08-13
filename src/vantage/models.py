@@ -1,10 +1,24 @@
-"""The database half of the settings cascade.
+"""The three things Vantage stores: its settings, what people did, and how they look.
 
-A project owner states their settings in ``settings.VANTAGE``; the person who actually
-runs the panel day to day is usually not the person who can edit that file. This model
-gives them a row that sits *underneath* attribute access on
-:data:`~vantage.conf.vantage_settings`, so the branding can be changed from the panel
-without a deploy, and without a single call site knowing a database is involved.
+Vantage configures itself from ``settings.VANTAGE``, so owning tables at all is a
+decision that has to be justified once per table. Three earn it.
+
+**The settings cascade.** A project owner states their settings in
+``settings.VANTAGE``; the person who actually runs the panel day to day is usually not
+the person who can edit that file. :class:`SiteConfiguration` gives them a row that
+sits *underneath* attribute access on :data:`~vantage.conf.vantage_settings`, so the
+branding can be changed from the panel without a deploy, and without a single call
+site knowing a database is involved.
+
+**The audit log.** :class:`VantageLogEntry` records what someone did *in the panel* —
+one generic-FK row per create, edit, delete or bulk action. It is deliberately not row
+history: django-simple-history is the tool for that, and requiring it would put a
+model and a migration in the *user's* app and roughly double their write volume. See
+:mod:`vantage.audit`.
+
+**Saved views.** :class:`SavedView`, :class:`SavedViewGrant` and
+:class:`SavedViewUserState` store a named filter/sort/search state for a list page.
+See :mod:`vantage.savedviews`.
 
 Three rules shape the schema.
 
@@ -30,6 +44,8 @@ import re
 from pathlib import Path
 
 from django.conf import settings as django_settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -46,7 +62,11 @@ from vantage.siteconfig import invalidate
 __all__ = [
     "ALLOWED_UPLOAD_SUFFIXES",
     "MAX_UPLOAD_BYTES",
+    "SavedView",
+    "SavedViewGrant",
+    "SavedViewUserState",
     "SiteConfiguration",
+    "VantageLogEntry",
     "validate_brand_color",
     "validate_branding_upload",
     "validate_css_length",
@@ -240,3 +260,322 @@ class SiteConfiguration(models.Model):
 def _invalidate(sender, **kwargs) -> None:
     """Saving the row must change the panel on the next read, not on the next restart."""
     invalidate()
+
+
+# ── the audit log ───────────────────────────────────────────────────────────
+
+
+class VantageLogEntry(models.Model):
+    """One thing a person did through the panel.
+
+    Scoped to *the panel*, not to the table. Row history — every write from every
+    management command, task and shell session — is a different feature with a
+    different cost, and django-simple-history already does it well. Requiring it would
+    add a model and a migration to the **user's** app and roughly double their write
+    volume, so this model is the smaller thing that answers the question people
+    actually ask of an admin panel: who changed this, and to what.
+
+    That scope is also why nothing here is wired to ``post_save``. A signal cannot see
+    who was logged in, and it would faithfully record writes that never came through
+    the panel — turning "what someone did in the admin" into a half-built,
+    twice-as-expensive row history that is wrong about the actor. Entries are written
+    from the form views and the action runner instead; see :mod:`vantage.audit`.
+    """
+
+    class Action(models.TextChoices):
+        CREATE = "create", "Created"
+        UPDATE = "update", "Updated"
+        DELETE = "delete", "Deleted"
+        ACTION = "action", "Ran an action"
+
+    # ── who ─────────────────────────────────────────────────────────────────
+
+    #: ``SET_NULL`` rather than ``CASCADE``: deleting a colleague must not delete the
+    #: record of what they did. That is the one deletion an audit log cannot survive.
+    actor = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    #: The username as it read at the time, kept for the same reason as
+    #: ``object_repr``: the row above can go to NULL, and "somebody deleted the March
+    #: invoices" is not an audit trail.
+    actor_repr = models.CharField(max_length=150, blank=True)
+
+    # ── what ────────────────────────────────────────────────────────────────
+
+    action = models.CharField(max_length=10, choices=Action.choices)
+    #: The bulk action's name, for ``action`` entries only. Kept separate from
+    #: ``action`` so filtering by "every delete" and by "every run of ``purge``" are
+    #: different questions with different answers.
+    action_name = models.CharField(max_length=100, blank=True)
+
+    # ── to what ─────────────────────────────────────────────────────────────
+
+    content_type = models.ForeignKey(
+        ContentType, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #: Text, not an integer: primary keys are UUIDs and character codes as often as
+    #: they are integers, and a composite key has to encode as a string anyway.
+    object_id = models.CharField(max_length=255, blank=True)
+    content_object = GenericForeignKey("content_type", "object_id")
+    #: ``str(obj)`` at the time of the write. The generic FK dangles the moment the row
+    #: is deleted — which is exactly when the log matters most — so the label is
+    #: copied rather than dereferenced.
+    object_repr = models.CharField(max_length=200, blank=True)
+
+    #: ``{"field": {"from": ..., "to": ...}}``. Never a sensitive field and never the
+    #: bytes of a file; :func:`vantage.audit.diff_from_form` is the only writer.
+    changes = models.JSONField(default=dict, blank=True)
+
+    # ── from where ──────────────────────────────────────────────────────────
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=400, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "log entry"
+        verbose_name_plural = "log entries"
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            # The per-record history panel. Both columns, because a generic FK with
+            # only ``object_id`` indexed matches every model's row 7.
+            models.Index(fields=["content_type", "object_id"], name="vantage_log_object_idx"),
+            # The audit page's default order, and its "what did this person do" filter.
+            models.Index(fields=["-created_at"], name="vantage_log_recent_idx"),
+            models.Index(fields=["actor", "-created_at"], name="vantage_log_actor_idx"),
+        ]
+
+    def __str__(self) -> str:
+        who = self.actor_repr or "Someone"
+        what = self.action_name or self.get_action_display().lower()
+        return f"{who} {what} {self.object_repr or 'a record'}"
+
+    @property
+    def model_label(self) -> str:
+        """``"shop.order"``, or an empty string once the content type is gone."""
+        return self.content_type.model if self.content_type_id else ""
+
+    @property
+    def change_list(self) -> list[dict]:
+        """The diff as an ordered list, because templates cannot iterate a dict's items
+        and sort them at the same time."""
+        return [
+            {"field": name, "from": delta.get("from"), "to": delta.get("to")}
+            for name, delta in sorted((self.changes or {}).items())
+        ]
+
+
+# ── saved views ─────────────────────────────────────────────────────────────
+
+
+class SavedView(models.Model):
+    """A named filter, sort and search state for one model's list page.
+
+    Two axes, kept apart on purpose. **Visibility** is who can see the view exists;
+    **edit scope** is who can change it. Airtable conflates them and then has to warn
+    its users that a personal view is not a security feature — because once "only I can
+    see it" and "only I can edit it" are the same switch, the first sentence has to
+    carry a promise the second one cannot keep. Neither axis is a security boundary
+    here either: a view is a stored query string, and the rows it returns are filtered
+    by :meth:`~vantage.permissions.PanelPermissions.filter_queryset` on every request
+    regardless of who saved it.
+
+    The state is stored as the panel's own filter grammar — the query parameters
+    :mod:`vantage.filters` reads — rather than as resolved SQL or resolved dates. A
+    relative window is stored as its ISO-8601 duration, so "last 7 days" still means
+    the last seven days a month from now.
+    """
+
+    class Visibility(models.TextChoices):
+        PRIVATE = "private", "Only me"
+        SHARED = "shared", "Everyone who can see this model"
+
+    class EditScope(models.TextChoices):
+        OWNER = "owner", "Only the owner"
+        EDITORS = "editors", "The owner and named editors"
+        EVERYONE = "everyone", "Anyone who can see it"
+
+    #: ``"shop.order"``, lowercased, matching ``Options.label_lower``. A label rather
+    #: than a ``ContentType`` FK: a view for a model that has since been deleted must
+    #: still be listable so it can be explained and removed, and a dangling FK to a
+    #: reaped content type cannot do that.
+    model_label = models.CharField(max_length=100)
+
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True)
+
+    owner = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="vantage_saved_views",
+    )
+
+    visibility = models.CharField(
+        max_length=10, choices=Visibility.choices, default=Visibility.PRIVATE
+    )
+    edit_scope = models.CharField(
+        max_length=10, choices=EditScope.choices, default=EditScope.OWNER
+    )
+    #: Freezes the configuration, not the data — and binds the creator too. A lock
+    #: only the owner can ignore is a lock that protects nobody from the one person
+    #: most likely to change the view by accident.
+    locked = models.BooleanField(default=False)
+
+    #: ``{"filters": {"status": ["paid"]}, "q": "", "sort": "-created_at"}``.
+    state = models.JSONField(default=dict, blank=True)
+
+    #: Optimistic locking. Bumped on every write to a shared view; a save carrying a
+    #: stale number is refused rather than silently overwriting whatever the other
+    #: person did in the meantime.
+    version = models.PositiveIntegerField(default=1)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = "saved view"
+        verbose_name_plural = "saved views"
+        ordering = ["name", "pk"]
+        indexes = [
+            models.Index(fields=["model_label"], name="vantage_view_model_idx"),
+            models.Index(fields=["owner", "model_label"], name="vantage_view_owner_idx"),
+        ]
+        constraints = [
+            # Two views called "Unpaid" on the same list page is a support ticket, not
+            # a feature. Scoped per owner, so your name for a view never collides with
+            # someone else's.
+            models.UniqueConstraint(
+                fields=["owner", "model_label", "name"],
+                name="vantage_view_unique_name_per_owner",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def is_shared(self) -> bool:
+        return self.visibility == self.Visibility.SHARED
+
+    @property
+    def autosaves(self) -> bool:
+        """Whether typing in the filter rail may quietly rewrite this view.
+
+        Only a locked-down personal view: private, owner-only, unlocked. Airtable's
+        entire personal/locked view feature line exists because collaborative views
+        autosave, and one person narrowing a filter silently changed what everyone
+        else was looking at. A shared view therefore never autosaves — not even for
+        its owner, because the owner is precisely the person whose habitual edits
+        would land on everyone else's screen.
+        """
+        return (
+            self.visibility == self.Visibility.PRIVATE
+            and self.edit_scope == self.EditScope.OWNER
+            and not self.locked
+        )
+
+
+class SavedViewGrant(models.Model):
+    """Names one user or one group as a viewer or an editor of a shared view.
+
+    Grants widen who may *see and edit the view*; they never widen who may see the
+    **rows**. That check happens again, server-side, on every request.
+    """
+
+    class Role(models.TextChoices):
+        VIEWER = "viewer", "Can use"
+        EDITOR = "editor", "Can use and change"
+
+    view = models.ForeignKey(SavedView, on_delete=models.CASCADE, related_name="grants")
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    group = models.ForeignKey(
+        "auth.Group", null=True, blank=True, on_delete=models.CASCADE, related_name="+"
+    )
+    role = models.CharField(max_length=10, choices=Role.choices, default=Role.VIEWER)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "saved view grant"
+        verbose_name_plural = "saved view grants"
+        constraints = [
+            # Exactly one subject. A grant with neither would silently apply to nobody
+            # and a grant with both would need a precedence rule nobody would guess.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(user__isnull=False, group__isnull=True)
+                    | models.Q(user__isnull=True, group__isnull=False)
+                ),
+                name="vantage_grant_user_xor_group",
+            ),
+            models.UniqueConstraint(
+                fields=["view", "user"],
+                condition=models.Q(user__isnull=False),
+                name="vantage_grant_unique_user",
+            ),
+            models.UniqueConstraint(
+                fields=["view", "group"],
+                condition=models.Q(group__isnull=False),
+                name="vantage_grant_unique_group",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.subject} — {self.get_role_display().lower()}"
+
+    @property
+    def subject(self) -> str:
+        if self.user_id:
+            return self.user.get_username()
+        return str(self.group)
+
+
+class SavedViewUserState(models.Model):
+    """One person's relationship with one view: pinned, default, last used.
+
+    Separate from :class:`SavedView` because it is the half that is *per viewer*. A
+    shared view has one configuration and as many of these rows as there are people
+    using it, which is what lets "make this my default" be a personal act rather than
+    a change to everyone else's screen.
+    """
+
+    view = models.ForeignKey(SavedView, on_delete=models.CASCADE, related_name="user_states")
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    pinned = models.BooleanField(default=False)
+    #: Opens instead of the bare list page. Enforced as one per user per model in
+    #: :func:`vantage.savedviews.set_default`, not by a constraint: the model label
+    #: lives on the view, and a constraint cannot reach through a join.
+    is_default = models.BooleanField(default=False)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "saved view state"
+        verbose_name_plural = "saved view states"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["view", "user"], name="vantage_view_state_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} · {self.view}"
