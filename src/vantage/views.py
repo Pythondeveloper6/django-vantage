@@ -119,12 +119,17 @@ class ListView(PanelView):
         columns = panel.get_list_display(request)
         link = panel.get_list_link(request)
 
+        sort = self._resolve_sort(panel, request)
+        if sort:
+            queryset = queryset.order_by(*sort["order_by"])
+
         paginator = Paginator(queryset, panel.get_per_page(request))
         page = paginator.get_page(request.GET.get("page"))
 
         context.update(
             panel=panel,
-            columns=[self._column_header(panel, name) for name in columns],
+            columns=[self._column_header(panel, name, sort) for name in columns],
+            sort=sort,
             rows=[self._row(panel, obj, columns, link) for obj in page.object_list],
             page=page,
             paginator=paginator,
@@ -144,7 +149,39 @@ class ListView(PanelView):
         return combined
 
     @staticmethod
-    def _column_header(panel, name: str) -> dict:
+    def _resolve_sort(panel, request) -> dict | None:
+        """Validate ``?sort=`` against real, sortable field paths.
+
+        A sort parameter goes straight into ``order_by``, so it is never trusted:
+        anything that does not resolve to a concrete single-valued field is dropped.
+        Sorting on a multi-valued path would silently duplicate rows.
+        """
+        from vantage.introspection import resolve_path
+
+        raw = request.GET.get("sort", "").strip()
+        if not raw:
+            return None
+
+        descending = raw.startswith("-")
+        path = raw.lstrip("-")
+        if path not in panel.get_list_display(request):
+            return None
+
+        hops = resolve_path(panel.model, path)
+        if not hops or any(hop.is_multivalued for hop in hops):
+            return None
+
+        prefix = "-" if descending else ""
+        # A tiebreaker on the primary key keeps pagination stable when the sort
+        # column has duplicate values, which is the usual case for a status column.
+        return {
+            "path": path,
+            "descending": descending,
+            "order_by": [f"{prefix}{path}", "-pk"],
+        }
+
+    @staticmethod
+    def _column_header(panel, name: str, sort: dict | None) -> dict:
         from vantage.introspection import resolve_path
 
         hops = resolve_path(panel.model, name)
@@ -152,7 +189,18 @@ class ListView(PanelView):
             label = str(getattr(hops[-1].field, "verbose_name", name))
         else:
             label = name.replace("_", " ")
-        return {"name": name, "label": label.capitalize()}
+
+        sortable = bool(hops) and not any(hop.is_multivalued for hop in hops)
+        active = bool(sort and sort["path"] == name)
+        return {
+            "name": name,
+            "label": label.capitalize(),
+            "sortable": sortable,
+            "active": active,
+            "descending": active and sort["descending"],
+            # Clicking an active ascending column flips it; anything else starts ascending.
+            "next": f"-{name}" if (active and not sort["descending"]) else name,
+        }
 
     @staticmethod
     def _row(panel, obj, columns: list[str], link: str) -> dict:
