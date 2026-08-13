@@ -12,10 +12,20 @@
 <style>{{ theme_css|safe }}</style>
 <link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
 <link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">
+{# Carries the skip link and the auth chrome; every panel screen needs the first. #}
+<link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
 {% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
 {% block head %}{% endblock %}
 </head>
 <body>
+{% comment %}
+  WCAG 2.4.1. First element in the body and therefore the first tab stop, ahead of
+  the banners: a skip link placed after the thing it skips is decoration. The target
+  carries tabindex="-1" because without it Safari and Chrome move the scroll position
+  and leave focus behind on <body>.
+{% endcomment %}
+<a class="v-skip-link" href="#v-content">Skip to main content</a>
+
 {% if settings.ENVIRONMENT %}<div class="v-env-banner">{{ settings.ENVIRONMENT }}</div>{% endif %}
 
 {% if impersonating %}
@@ -41,7 +51,12 @@
 {% endif %}
 
 <div class="v-shell">
-  <aside class="v-sidebar" id="v-sidebar">
+  {% comment %}
+    A <div>, not an <aside>. The nav inside already publishes the landmark; wrapping
+    it in a complementary one as well tells a screen reader that the panel's primary
+    navigation is a sidebar of tangential content, which is the opposite of true.
+  {% endcomment %}
+  <div class="v-sidebar" id="v-sidebar">
     <a class="v-brand" href="{% url 'vantage:dashboard' %}">
       {% if settings.LOGO %}
         <img src="{% asset settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
@@ -66,18 +81,27 @@
               {% icon item.icon|default:"box" %}
               <span>{{ item.label }}</span>
               {% if item.badge %}<span class="v-nav-count">{{ item.badge }}</span>{% endif %}
-              {% if item.external %}<span class="v-nav-external" aria-label="opens in a new tab">↗</span>{% endif %}
+              {% if item.external %}
+                {% comment %} aria-label on a plain <span> has no role to attach to and is widely
+                   ignored; visually hidden real text is announced everywhere. {% endcomment %}
+                <span class="v-sr-only">(opens in a new tab)</span>
+                <span class="v-nav-external" aria-hidden="true">↗</span>
+              {% endif %}
             </a>
           {% endfor %}
         </div>
       {% endfor %}
     </nav>
-  </aside>
+  </div>
 
   <div class="v-main">
     <header class="v-header">
+      {% comment %} aria-expanded is declared here, not only written by the script on first
+         click: a disclosure whose state appears after the first interaction is
+         announced as a plain button until then. {% endcomment %}
       <button class="v-btn v-btn-ghost v-btn-icon" id="v-sidebar-toggle"
-              aria-label="Toggle navigation" aria-controls="v-sidebar">
+              aria-label="Toggle navigation" aria-controls="v-sidebar"
+              aria-expanded="false">
         {% icon "menu" %}
       </button>
 
@@ -104,28 +128,53 @@
       {% endif %}
 
       {% if user.is_authenticated %}
-        <span class="v-muted">{{ user.get_username }}</span>
+        {% url 'password_change' as password_change_url %}
+        {% url 'logout' as logout_url %}
+        <span class="v-account v-muted">
+          <span class="v-sr-only">Signed in as</span>{{ user.get_username }}
+        </span>
+        {% comment %}
+          Resolved with `{% url ... as %}`, which yields "" rather than raising when
+          the project has not mounted vantage.authviews. The panel must not require
+          them; it just uses them when they are there.
+        {% endcomment %}
+        {% if password_change_url %}
+          <a class="v-btn v-btn-ghost v-btn-sm" href="{{ password_change_url }}">Password</a>
+        {% endif %}
+        {% if logout_url %}
+          <form class="v-signout" method="post" action="{{ logout_url }}">
+            {% csrf_token %}
+            <button class="v-btn v-btn-ghost v-btn-sm" type="submit">Sign out</button>
+          </form>
+        {% endif %}
       {% endif %}
     </header>
 
-    {% if messages %}
-      {% comment %}
-        Rendered in the shell rather than per page. A message set before a redirect
-        has to be displayed by whatever page the user lands on; if only some
-        templates render them, the rest silently consume the message and it
-        reappears later on an unrelated screen.
-      {% endcomment %}
-      <div class="v-toasts" role="status" aria-live="polite">
-        {% for message in messages %}
-          <div class="v-toast" data-level="{{ message.level_tag }}">
-            <span>{{ message }}</span>
-            <button type="button" class="v-toast-close" aria-label="Dismiss">&times;</button>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
+    {% comment %}
+      Rendered in the shell rather than per page. A message set before a redirect
+      has to be displayed by whatever page the user lands on; if only some
+      templates render them, the rest silently consume the message and it
+      reappears later on an unrelated screen.
 
-    <main class="v-content">
+      The container is always in the DOM, even with nothing in it. A live region
+      created at the same moment as its first message is not announced — assistive
+      technology has to be observing the node beforehand — so a container rendered
+      only `{% if messages %}` silently announces nothing, and gives script-inserted
+      toasts nowhere to land either. It collapses to zero height when empty.
+    {% endcomment %}
+    <div class="v-toasts" id="v-toasts" role="status" aria-live="polite">
+      {% for message in messages %}
+        <div class="v-toast" data-level="{{ message.level_tag }}">
+          {% comment %} The tint on the left edge is the only visual signal of severity, so the
+             word itself is carried in text for anyone the colour does not reach. {% endcomment %}
+          <span><span class="v-sr-only">{{ message.level_tag|capfirst }}:</span> {{ message }}</span>
+          <button type="button" class="v-toast-close"
+                  aria-label="Dismiss this message">&times;</button>
+        </div>
+      {% endfor %}
+    </div>
+
+    <main class="v-content" id="v-content" tabindex="-1">
       {% block content %}{% endblock %}
     </main>
   </div>

@@ -1,0 +1,186 @@
+# Continuous integration.
+#
+# Four jobs, in rough order of how fast they tell you something useful: lint, then the
+# test matrix, then the type check (advisory), then the packaging check.
+#
+# The packaging job is the one worth explaining. `vantage` is mostly not Python — 30
+# templates, 16 static files, a templatetags module — and every one is located by path
+# at runtime rather than imported. A wheel that dropped them would still import, still
+# pass `twine check`, still install cleanly, and 500 on the first page view. So the job
+# installs the built wheel into an empty virtualenv and renders a template out of it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A force-push should not leave the previous run burning minutes on a dead commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - run: uv sync --group dev --frozen
+
+      - name: ruff check
+        run: uv run --no-sync ruff check src tests
+
+      # Advisory. `ruff format` has never been applied to this repository, so gating on
+      # it today would fail every pull request for reasons unrelated to the change. It
+      # runs so the drift is visible and shrinking; promote it to a blocking step in the
+      # same commit that formats the tree.
+      - name: ruff format (advisory)
+        continue-on-error: true
+        run: uv run --no-sync ruff format --check --diff src tests
+
+  test:
+    name: py${{ matrix.python-version }} · Django ${{ matrix.django }}
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      # One red cell should not hide the other eight.
+      fail-fast: false
+      matrix:
+        # Both ends of the supported range on every interpreter the package claims.
+        # 5.2 is the LTS and is what most projects will actually be on; 6.1 is current.
+        # 6.0 is not a cell — it sits strictly between two that are tested and adding it
+        # buys a third of the runtime for close to nothing.
+        python-version: ["3.12", "3.13", "3.14"]
+        django: ["5.2", "6.1"]
+        experimental: [false]
+        include:
+          # Django main is 6.2 development. It exists to give advance warning of a
+          # deprecation, not to gate a merge, so it is allowed to fail and runs on one
+          # interpreter only — a break on main is a break on all three.
+          - python-version: "3.14"
+            django: "main"
+            experimental: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      # The matrix carries a version, not a requirement string, so the job name reads
+      # "Django 5.2" instead of "Django django>=5.2,<6.0". The mapping lives here.
+      - name: Resolve the Django requirement
+        run: |
+          case "${{ matrix.django }}" in
+            5.2)  spec="django>=5.2,<6.0" ;;
+            6.1)  spec="django>=6.1,<6.2" ;;
+            main) spec="https://github.com/django/django/archive/refs/heads/main.tar.gz" ;;
+            *)    echo "::error::unknown Django cell '${{ matrix.django }}'"; exit 1 ;;
+          esac
+          echo "DJANGO_SPEC=$spec" >> "$GITHUB_ENV"
+
+      - name: Create the environment
+        run: uv venv --python ${{ matrix.python-version }}
+
+      # The project is installed rather than run out of `src/`, so the suite exercises
+      # what would actually ship. Django is named last so this cell's version wins over
+      # whatever single version the lockfile happens to hold.
+      - name: Install
+        run: uv pip install -e . --group dev "$DJANGO_SPEC"
+
+      - name: Report the resolved versions
+        run: |
+          uv run --no-sync python -c "import sys; print('Python', sys.version)"
+          uv run --no-sync python -c "import django; print('Django', django.get_version())"
+
+      # Plain `pytest`. There is a machine-level hook on one contributor's workstation
+      # that requires an `ALLOW_TESTS=1` prefix; that is local to that machine and has
+      # no business here.
+      - name: pytest
+        run: uv run --no-sync pytest
+
+  typecheck:
+    # Advisory, and honestly so. `ty` reports 257 diagnostics against src/ today, the
+    # bulk of them `unresolved-attribute` on Django model and queryset descriptors that
+    # no static checker resolves without stubs. Publishing the number and letting it be
+    # driven down is worth more than a green tick over a check nobody runs.
+    name: ty (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - run: uv sync --group dev --frozen
+
+      - name: ty check
+        run: uv run --no-sync --with ty ty check src
+
+  build:
+    name: build & wheel contents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # setuptools-scm is not in use, but a shallow clone also hides the tags that
+          # make `git describe` meaningful in a failure report.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - name: Build
+        run: uv build
+
+      - name: twine check
+        run: uvx twine check --strict dist/*
+
+      # The real check: install the wheel into an empty venv, boot Django with `vantage`
+      # in INSTALLED_APPS, compile every shipped template through the app-dirs loader,
+      # render one for real, and resolve the static files through the finder. Run from a
+      # scratch directory so `src/` cannot stand in for anything the wheel left out.
+      - name: Verify the wheel is complete and installable
+        run: uv run --no-project python scripts/verify_wheel.py dist/*.whl --python 3.13
+
+      - name: List what shipped
+        run: |
+          echo '### Wheel contents' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          uv run --no-project python -m zipfile -l dist/*.whl >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error

@@ -1,0 +1,28 @@
+{% extends "vantage/base.html" %}
+
+{% comment %}
+  Say "not allowed", never "not found". Spec §15 makes the same point about empty
+  lists: showing zero results to someone who lacks permission is a lie that turns into
+  a support ticket. The same is true of a page — a user who is told the thing does not
+  exist will keep looking for it.
+
+  Mount with ``handler403 = "vantage.authviews.permission_denied"``.
+{% endcomment %}
+
+{% block title %}Not allowed · {{ settings.SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="v-error">
+  <p class="v-error-code">Error 403</p>
+  <h1 class="v-error-title">You do not have access to this</h1>
+  <p class="v-error-body">
+    {% if exception %}{{ exception }}{% else %}
+      This page exists, but your account is not permitted to open it. Ask whoever
+      administers this panel if you need it.
+    {% endif %}
+  </p>
+  <div class="v-error-actions">
+    <a class="v-btn v-btn-primary" href="{% url 'vantage:dashboard' %}">Back to the dashboard</a>
+  </div>
+</div>
+{% endblock %}

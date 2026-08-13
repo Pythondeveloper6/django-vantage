@@ -41,10 +41,15 @@
         <section class="v-card">
           <div class="v-card-head">
             <h2 class="v-card-title">{{ block.label }}</h2>
-            <span class="v-badge">{{ block.count }}</span>
+            {% comment %} A bare number beside a heading reads as "Orders 47" and could be
+               anything; the noun makes the count self-describing. {% endcomment %}
+            <span class="v-badge">{{ block.count }}<span class="v-sr-only"> records</span></span>
             {% if block.url %}
+              {% comment %} Every related block ships a "View all", so out of context the links
+                 are indistinguishable from one another. The hidden suffix is what a
+                 screen reader's link list needs to tell them apart. {% endcomment %}
               <a class="v-btn v-btn-ghost v-btn-sm v-card-action" href="{{ block.url }}">
-                View all
+                View all<span class="v-sr-only"> {{ block.label }}</span>
               </a>
             {% endif %}
           </div>
@@ -57,6 +62,9 @@
             {% endcomment %}
             <div class="v-table-wrap v-table-flush">
               <table class="v-table">
+                <caption class="v-sr-only">
+                  {{ block.label }} — first {{ block.rows|length }} of {{ block.count }}
+                </caption>
                 <thead>
                   <tr>{% for column in block.columns %}<th scope="col">{{ column.label }}</th>{% endfor %}</tr>
                 </thead>
@@ -77,7 +85,7 @@
             </div>
             {% if block.more %}
               <div class="v-card-body v-related-more">
-                <a href="{{ block.url }}">{{ block.more }} more…</a>
+                <a href="{{ block.url }}">{{ block.more }} more<span class="v-sr-only"> {{ block.label }}</span>…</a>
               </div>
             {% endif %}
           {% else %}

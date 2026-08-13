@@ -1,0 +1,158 @@
+# Publish to PyPI on a version tag.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+#  THIS WORKFLOW IS NOT ARMED. Read this before the first release.
+#
+#  The `publish-*` jobs below are commented out, because Trusted Publishing cannot be
+#  verified from a developer machine — it needs a publisher registered on PyPI against
+#  this exact repository, workflow filename and environment name, and there is no way
+#  to test that without attempting a real upload. Arming it without that registration
+#  produces a failed release on the first tag, which is the worst moment to find out.
+#
+#  To arm it:
+#
+#   1. On PyPI, create the project's *pending* publisher
+#      (https://pypi.org/manage/account/publishing/) with exactly:
+#         PyPI project name : django-vantage
+#         Owner             : mahmoudahmed
+#         Repository        : django-vantage
+#         Workflow name     : release.yml
+#         Environment name  : pypi
+#      Do the same on test.pypi.org with environment name `testpypi`.
+#   2. In this repository, create environments named `pypi` and `testpypi`
+#      (Settings → Environments). Add required reviewers to `pypi` if you want a human
+#      to approve every upload — recommended, and it costs one click per release.
+#   3. Uncomment the two publish jobs.
+#   4. Tag a `.dev` or `rc` version first and watch it land on TestPyPI before tagging
+#      a real one. A version number on PyPI can never be reused, only yanked.
+#
+#  No API token is involved anywhere in this file, and none should be added. A token in
+#  repository secrets is a long-lived credential that publishes on behalf of a human;
+#  Trusted Publishing mints a short-lived one scoped to this workflow.
+# ─────────────────────────────────────────────────────────────────────────────────────
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Lets the build-and-verify half be exercised without cutting a tag.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and verify the distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      # A tag that disagrees with the version in the package is how a release gets
+      # published under the wrong number, and it is unfixable afterwards.
+      - name: The tag must match the packaged version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          packaged=$(uv run --no-project --with . python -c "import vantage; print(vantage.__version__)")
+          echo "tag=$tag packaged=$packaged"
+          if [ "$tag" != "$packaged" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match vantage.__version__ ($packaged)"
+            exit 1
+          fi
+
+      - name: Build
+        run: uv build
+
+      - name: twine check
+        run: uvx twine check --strict dist/*
+
+      # Same gate as CI. A release is exactly the moment a wheel missing its templates
+      # would go unnoticed, because nobody renders a page before uploading.
+      - name: Verify the wheel is complete and installable
+        run: uv run --no-project python scripts/verify_wheel.py dist/*.whl --python 3.13
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # Uncomment once the pending publishers described at the top of this file exist.
+  #
+  # publish-testpypi:
+  #   name: Publish to TestPyPI
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   environment:
+  #     name: testpypi
+  #     url: https://test.pypi.org/p/django-vantage
+  #   permissions:
+  #     # The OIDC token Trusted Publishing exchanges for a short-lived upload token.
+  #     # Nothing else in this job needs a permission, so nothing else is granted.
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/download-artifact@v8
+  #       with:
+  #         name: dist
+  #         path: dist/
+  #     - uses: pypa/gh-action-pypi-publish@v1.14.2
+  #       with:
+  #         repository-url: https://test.pypi.org/legacy/
+  #         # Re-tagging after a failed run should not be blocked by the half that
+  #         # already uploaded.
+  #         skip-existing: true
+  #
+  # publish-pypi:
+  #   name: Publish to PyPI
+  #   needs: publish-testpypi
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/django-vantage
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/download-artifact@v8
+  #       with:
+  #         name: dist
+  #         path: dist/
+  #     - uses: pypa/gh-action-pypi-publish@v1.14.2
+  #       with:
+  #         # PEP 740 attestations, signed by the same OIDC identity. Free provenance.
+  #         attestations: true
+  #
+  # github-release:
+  #   name: Attach the distributions to the GitHub release
+  #   needs: publish-pypi
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/download-artifact@v8
+  #       with:
+  #         name: dist
+  #         path: dist/
+  #     - name: Create the release
+  #       env:
+  #         GH_TOKEN: ${{ github.token }}
+  #       run: |
+  #         gh release create "$GITHUB_REF_NAME" dist/* \
+  #           --repo "$GITHUB_REPOSITORY" \
+  #           --title "$GITHUB_REF_NAME" \
+  #           --notes "See CHANGELOG.md for what changed in this release."
+  # ───────────────────────────────────────────────────────────────────────────────────

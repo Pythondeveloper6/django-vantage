@@ -1,0 +1,112 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-jobs.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% comment %}
+  The backend is named on the page, not buried in the health check. "Running in the
+  background" is simply false on a project with no worker — the work happened in the
+  request that started it — and letting the page imply otherwise is how someone
+  concludes their queue is broken when they never had one.
+{% endcomment %}
+<p class="v-jobs-backend" data-deferred="{{ backend.deferred|yesno:'1,0' }}">
+  {% icon "activity" %}
+  {% if backend.deferred %}
+    Queued through <strong>{{ backend.label }}</strong>.
+  {% else %}
+    <span>{{ backend.hint }}</span>
+  {% endif %}
+</p>
+
+<div class="v-table-wrap">
+  {% if jobs %}
+    <table class="v-table v-jobs-table">
+      <thead>
+        <tr>
+          <th scope="col">Started</th>
+          {% if showing_everyone %}<th scope="col">Who</th>{% endif %}
+          <th scope="col">Action</th>
+          <th scope="col">Records</th>
+          <th scope="col">Progress</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in jobs %}
+          <tr data-job-row="{{ row.job.pk }}">
+            <td class="v-jobs-when">
+              <time datetime="{{ row.job.created_at|date:'c' }}">
+                {{ row.job.created_at|date:"Y-m-d H:i" }}
+              </time>
+            </td>
+            {% if showing_everyone %}<td>{{ row.job.actor_repr|default:"—" }}</td>{% endif %}
+            <td>
+              <span class="v-jobs-action">{{ row.job.action_label|default:row.job.action_name }}</span>
+              <code class="v-jobs-model">{{ row.job.resource_key }}</code>
+            </td>
+            <td class="v-jobs-count">{{ row.job.total|stringformat:"d" }}</td>
+            <td class="v-jobs-progress-cell">
+              {% include "vantage/partials/job_progress.html" with job=row.job status_url=row.status_url errors_url=row.errors_url %}
+            </td>
+            <td>
+              {% comment %}
+                Colour carries the status, never alone — the word is always present,
+                which is WCAG 1.4.1 and also the only thing that survives a printout.
+              {% endcomment %}
+              <span class="v-jobs-status" data-status="{{ row.job.status }}" data-job-badge>
+                {{ row.job.get_status_display }}
+              </span>
+              {% if row.job.error %}
+                <p class="v-jobs-error">{{ row.job.error }}</p>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {# Nothing has been queued yet — not an error, and there is nothing to create here. #}
+    <div class="v-empty">
+      {% icon "activity" class="v-empty-icon" %}
+      <p class="v-empty-title">No background jobs yet.</p>
+      <p class="v-empty-body">
+        A bulk action appears here when the selection is large enough to be worth
+        moving off the request. Smaller ones run immediately and are recorded in the
+        audit log instead.
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+  <div class="v-pagination">
+    <span class="v-pagination-info">
+      {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+    </span>
+    <div class="v-pagination-controls">
+      {% if page.has_previous %}
+        <a class="v-btn v-btn-secondary v-btn-sm"
+           href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+      {% else %}
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+      {% endif %}
+      {% if page.has_next %}
+        <a class="v-btn v-btn-secondary v-btn-sm"
+           href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+      {% else %}
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'vantage/vantage-jobs.js' %}" defer></script>{% endblock %}
