@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from django.urls import path
 
-from vantage import formviews, views
+from vantage import formviews, settingsview, views
 from vantage.palette import build_urls
 
 
@@ -17,6 +17,16 @@ def build(site) -> list:
     urlpatterns = [
         path("", views.DashboardView.as_view(site=site), name="dashboard"),
         path("_/theme/", views.ThemeView.as_view(site=site), name="theme"),
+        path(
+            "_/settings/",
+            settingsview.SiteSettingsView.as_view(site=site),
+            name="settings",
+        ),
+        path(
+            "_/impersonate/",
+            views.ImpersonateView.as_view(site=site),
+            name="impersonate",
+        ),
     ]
 
     # Custom pages come before model routes so a page may deliberately claim a path

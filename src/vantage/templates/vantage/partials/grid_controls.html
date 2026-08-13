@@ -1,0 +1,139 @@
+{% load static vantage %}
+{% comment %}
+  The grid's own toolbar: density, column visibility and order, the keyboard
+  preference and the cheat sheet.
+
+  Everything here is a preference — "how the rows look" — and none of it touches
+  "which rows", which stays in the query string. That is the line drawn in the
+  list-page decisions doc, and it is why nothing in this file submits a form: the
+  URL is not allowed to grow a `columns=` parameter.
+
+  The stylesheet and the script load from here rather than from the base template
+  because a page with no grid on it should pay for neither, and because the
+  partial is then the whole feature — the same arrangement the command palette uses.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-grid.css' %}">
+
+<div class="v-grid-controls" data-grid-controls>
+  <div class="v-grid-density" role="group" aria-label="Row density">
+    {% comment %}
+      Two buttons rather than a select: aria-pressed states the current density
+      without a label, and the pair is one tab stop's worth of typing to reach.
+    {% endcomment %}
+    <button type="button" class="v-grid-density-option" data-density-option="comfortable"
+            aria-pressed="true">Comfortable</button>
+    <button type="button" class="v-grid-density-option" data-density-option="compact"
+            aria-pressed="false">Compact</button>
+  </div>
+
+  <div class="v-grid-columns" data-columns>
+    <button type="button" class="v-btn v-btn-secondary v-btn-sm" data-columns-toggle
+            aria-expanded="false" aria-haspopup="dialog" aria-controls="v-grid-columns-panel">
+      {% icon "sliders" %}
+      <span>Columns</span>
+      {% comment %}
+        The count is not decoration. A hidden column is the top source of "where
+        did my data go" — the badge is the answer sitting next to the cause.
+      {% endcomment %}
+      <span class="v-grid-count" data-columns-count>· {{ columns|length }} of {{ columns|length }}</span>
+    </button>
+
+    <div class="v-grid-popover" id="v-grid-columns-panel" role="dialog"
+         aria-label="Show, hide and reorder columns" hidden>
+      <div class="v-grid-popover-head">
+        <div class="v-search v-grid-col-search">
+          {% icon "search" %}
+          <input class="v-input" type="search" data-columns-search
+                 placeholder="Find a column…" aria-label="Find a column">
+        </div>
+      </div>
+
+      {% comment %}
+        Built by the script from the table's own headers, so the list can never
+        drift from the columns actually rendered. Grouped own-fields first, then
+        one section per relation, because thirty-one columns are unscannable flat.
+      {% endcomment %}
+      <div class="v-grid-popover-body" data-columns-list></div>
+
+      <div class="v-grid-popover-foot">
+        {% comment %}
+          Drag-only reordering fails WCAG 2.5.7, and a keyboard path does not fix
+          it — the criterion is about pointer users without drag dexterity. So the
+          move buttons beside each column are the reorder mechanism, not a fallback.
+        {% endcomment %}
+        <span class="v-muted">Use the ↑ ↓ buttons to reorder.</span>
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-columns-reset>Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-grid-controls-spacer"></div>
+
+  {% comment %}
+    WCAG 2.1.4 asks for three things and this is the second: a way to turn the
+    single-character shortcuts off. Gmail ships shortcuts off by default for this
+    reason; here they are on, because scoping them to the grid (the first thing)
+    means they cannot fire while you are typing anywhere else.
+  {% endcomment %}
+  <label class="v-grid-pref">
+    <input type="checkbox" data-shortcuts-toggle checked>
+    <span>Keyboard shortcuts</span>
+  </label>
+
+  <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-cheatsheet-open
+          aria-haspopup="dialog">
+    Shortcuts <kbd>?</kbd>
+  </button>
+
+  <div class="v-sr-only" role="status" aria-live="polite" data-grid-live></div>
+</div>
+
+<dialog class="v-grid-cheatsheet" data-cheatsheet aria-labelledby="v-grid-cheatsheet-title">
+  <div class="v-grid-cheatsheet-panel">
+    <div class="v-grid-cheatsheet-head">
+      <h2 class="v-card-title" id="v-grid-cheatsheet-title">Keyboard shortcuts</h2>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-cheatsheet-close>Esc</button>
+    </div>
+
+    <p class="v-grid-cheatsheet-note">
+      Every key below works while the table has focus — press <kbd>Tab</kbd> until a row
+      is outlined. They are deliberately inert everywhere else on the page.
+    </p>
+
+    <div class="v-grid-cheatsheet-cols">
+      <section>
+        <h3 class="v-grid-cheatsheet-group">Moving</h3>
+        <dl class="v-grid-keys">
+          <div><dt><kbd>j</kbd> <kbd>↓</kbd></dt><dd>Next row</dd></div>
+          <div><dt><kbd>k</kbd> <kbd>↑</kbd></dt><dd>Previous row</dd></div>
+          <div><dt><kbd>Home</kbd></dt><dd>First row on this page</dd></div>
+          <div><dt><kbd>End</kbd></dt><dd>Last row on this page</dd></div>
+          <div><dt><kbd>[</kbd></dt><dd>Previous page</dd></div>
+          <div><dt><kbd>]</kbd></dt><dd>Next page</dd></div>
+          <div><dt><kbd>→</kbd> <kbd>←</kbd></dt><dd>Into the focused row's links and checkbox</dd></div>
+          <div><dt><kbd>Tab</kbd></dt><dd>Leave the table entirely</dd></div>
+        </dl>
+      </section>
+
+      <section>
+        <h3 class="v-grid-cheatsheet-group">Doing</h3>
+        <dl class="v-grid-keys">
+          <div><dt><kbd>Enter</kbd></dt><dd>Open the focused record</dd></div>
+          <div><dt><kbd>Space</kbd></dt><dd>Quick peek in the side drawer</dd></div>
+          <div><dt><kbd>x</kbd></dt><dd>Select or deselect the focused row</dd></div>
+          <div><dt><kbd>?</kbd></dt><dd>This list</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>Back one level — always</dd></div>
+        </dl>
+
+        <h3 class="v-grid-cheatsheet-group">In the peek drawer</h3>
+        <dl class="v-grid-keys">
+          <div><dt><kbd>j</kbd> <kbd>↓</kbd></dt><dd>Peek the next record</dd></div>
+          <div><dt><kbd>k</kbd> <kbd>↑</kbd></dt><dd>Peek the previous record</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>Close, and put focus back on the row</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>
+</dialog>
+
+<script src="{% static 'vantage/vantage-grid.js' %}" defer></script>

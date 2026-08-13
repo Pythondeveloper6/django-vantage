@@ -1428,3 +1428,33 @@ textarea {
 
 .v-erd-swatch[data-kind="m2m"] { border-block-start-style: dashed; }
 .v-erd-swatch[data-kind="o2o"] { border-block-start-color: var(--primary); }
+
+/* ── safety banners ───────────────────────────────────────────────────────── */
+
+.v-impersonation-banner,
+.v-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.v-impersonation-banner {
+  background: var(--warning);
+  color: var(--warning-foreground);
+}
+
+.v-impersonation-banner form { margin-inline-start: auto; }
+
+.v-readonly-banner {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border-block-end: 1px solid var(--border);
+}
+
+.v-readonly-banner svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}

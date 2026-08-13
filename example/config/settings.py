@@ -64,6 +64,9 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -104,6 +107,13 @@ VANTAGE = {
             "items": [
                 {"model": "shop.Customer", "icon": "users"},
                 {"model": "shop.Review", "label": "Feedback"},
+            ],
+        },
+        {
+            "group": "System",
+            "items": [
+                {"route": "vantage:settings", "label": "Settings", "icon": "sliders"},
+                {"page": "schema", "label": "Schema", "icon": "share-2"},
             ],
         },
         {
