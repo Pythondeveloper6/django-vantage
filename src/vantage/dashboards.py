@@ -519,7 +519,12 @@ class DefaultDashboard(Dashboard):
     """
 
     def get_widgets(self, request) -> list[Widget]:
-        panels = list(self.get_site().panels())
+        # Filter by permission BEFORE capping. Capping first means a user who can see
+        # only one model, and whose model sorts outside the first N, gets an entirely
+        # empty dashboard - the cap silently becomes an access rule.
+        from vantage.permissions import get_permissions
+
+        panels = get_permissions().visible_panels(request, list(self.get_site().panels()))
 
         widgets: list[Widget] = [
             StatCard(
