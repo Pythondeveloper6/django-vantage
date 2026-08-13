@@ -4,6 +4,8 @@ The panel is mounted at ``/admin/``. Everything else here exists only to give it
 login page to redirect anonymous visitors to.
 """
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.views.generic import RedirectView
@@ -40,3 +42,8 @@ urlpatterns = [
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("admin/", site.urls),
 ]
+
+if settings.DEBUG:
+    # Uploaded branding assets. Django serves these only with DEBUG on;
+    # a real deployment puts them behind its own web server.
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

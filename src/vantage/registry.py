@@ -36,6 +36,9 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         "contenttypes.contenttype",
         "auth.permission",
         "admin.logentry",
+        # Editable only through the settings screen, which gates on superuser.
+        # A generic CRUD form for it would route around that gate.
+        "vantage.siteconfiguration",
     }
 )
 

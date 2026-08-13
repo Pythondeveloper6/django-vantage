@@ -9,6 +9,7 @@ here is used, and adding one is a deliberate act.
 from __future__ import annotations
 
 from django import template
+from django.templatetags.static import static
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
@@ -34,6 +35,7 @@ ICONS: dict[str, str] = {
     "trending-up": '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
     "trending-down": '<path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/>',
     "share-2": '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/>',
+    "sliders": '<line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/>',
     "check": '<path d="M20 6 9 17l-5-5"/>',
     "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
@@ -93,3 +95,18 @@ def dict_get(mapping, key):
         return mapping.get(key)
     except AttributeError:
         return None
+
+
+@register.simple_tag(name="asset")
+def asset_tag(path) -> str:
+    """A branding asset, from either configuration source.
+
+    ``LOGO`` may be a static path written in ``settings.py`` or a media URL the
+    database layer already resolved. ``{% static %}`` mangles the second kind —
+    ``/media/vantage/logo.svg`` becomes ``/static/media/vantage/logo.svg`` — so
+    anything already resolved passes straight through.
+    """
+    text = str(path or "")
+    if not text or text.startswith(("/", "//", "http://", "https://", "data:")):
+        return text
+    return static(text)
