@@ -1,0 +1,52 @@
+{% comment %}
+  The 409 resolver.
+
+  A conflict dialog that only says "this record was changed by someone else" hands the
+  user a choice they have no information to make. The rows below are therefore a
+  field-level diff — yours on one side, theirs on the other, only for the fields you
+  actually touched — and the three controls are the three honest answers to it:
+
+  * **Keep mine** — re-submit your values against the version now in the database.
+    This is a deliberate overwrite, and it is spelled that way.
+  * **Use theirs** — abandon your edits for the conflicting fields and show what is
+    actually stored.
+  * **Merge** — the per-field radio buttons above. Choosing side by side is the only
+    resolution that is not a coin flip when two people changed two different columns of
+    the same row, which is by far the most common way this fires.
+
+  A `<dialog>` rather than a hand-rolled overlay: `showModal()` traps focus, handles
+  Esc, and returns focus to whatever opened it. This one *is* modal, and that is the
+  right call — unlike the peek drawer, there is nothing useful to do with the table
+  behind it until the question is answered.
+
+  The rows are built by vantage-inline.js from the JSON the server sent. Nothing here
+  is rendered from the page's own data, because by definition the page's data is the
+  stale half of the story.
+{% endcomment %}
+<dialog class="v-inline-conflict" data-inline-conflict
+        aria-labelledby="v-inline-conflict-title">
+  <div class="v-inline-conflict-panel">
+    <header class="v-inline-conflict-head">
+      <h2 class="v-card-title" id="v-inline-conflict-title">Someone else changed this</h2>
+      <p class="v-muted" data-conflict-summary></p>
+    </header>
+
+    <div class="v-inline-conflict-body" data-conflict-rows></div>
+
+    <footer class="v-inline-conflict-foot">
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-conflict-cancel>
+        Cancel
+      </button>
+      <div class="v-inline-conflict-spacer"></div>
+      <button type="button" class="v-btn v-btn-secondary v-btn-sm" data-conflict-theirs>
+        Use theirs
+      </button>
+      <button type="button" class="v-btn v-btn-secondary v-btn-sm" data-conflict-mine>
+        Keep mine
+      </button>
+      <button type="button" class="v-btn v-btn-primary v-btn-sm" data-conflict-merge>
+        Merge selected
+      </button>
+    </footer>
+  </div>
+</dialog>

@@ -22,6 +22,14 @@
   border-block-end: 1px solid var(--border);
 }
 
+/* The rail is narrow beside a table and full width beneath one, and it should look
+ * deliberate in both. Column flow rather than a media query on a breakpoint: the
+ * container is what decides, and `auto-fill` reads the container. */
+.v-listprefs-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
 /* ── sections ─────────────────────────────────────────────────────────────── */
 
 .v-listprefs-section {
@@ -33,6 +41,11 @@
 
 .v-listprefs-section:last-of-type {
   border-block-end: none;
+}
+
+/* Side by side, the sections need a rule between them as well as under them. */
+.v-listprefs-body > .v-listprefs-section + .v-listprefs-section {
+  border-inline-start: 1px solid var(--border);
 }
 
 .v-listprefs-head {

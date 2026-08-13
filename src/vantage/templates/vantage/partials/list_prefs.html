@@ -32,6 +32,13 @@
     everyone. Reset puts a section back to what the code declares.
   </p>
 
+  {% comment %}
+    One wrapper around the six forms so they can flow into columns on a wide screen.
+    The rail is narrow beside a table and wide beneath one, and this is the whole of
+    the difference between the two.
+  {% endcomment %}
+  <div class="v-listprefs-body">
+
   {% comment %} ── columns and page size ───────────────────────────────────── {% endcomment %}
   <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
         data-prefs-form>
@@ -388,6 +395,7 @@
       {% endif %}
     </div>
   </form>
+  </div>
 </details>
 
 <script src="{% static 'vantage/vantage-listprefs.js' %}" defer></script>

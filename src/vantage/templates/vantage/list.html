@@ -1,7 +1,15 @@
 {% extends "vantage/base.html" %}
-{% load vantage %}
+{% load static vantage vantage_inline %}
 
 {% block content %}
+{% comment %}
+  Resolved once, then handed to every tag that needs it. The allowlist behind it walks
+  the model's fields and re-derives what the change form would allow, so recomputing it
+  per cell on a fifty-row page would be a quiet cost on exactly the models that are
+  already the widest. Inside the block on purpose: a tag outside one never runs in a
+  template that extends another.
+{% endcomment %}
+{% inline_config panel as inline %}
 <div class="v-page-head">
   <div>
     <h1 class="v-page-title">{{ panel.get_label_plural }}</h1>
@@ -148,7 +156,8 @@
 {% endcomment %}
 <div class="v-grid" data-grid data-grid-model="{{ panel.slug }}"
      {% if page.has_previous %}data-prev-url="?{% querystring_replace page=page.previous_page_number %}"{% endif %}
-     {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}>
+     {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}
+     {% if inline.enabled and rows %}data-inline data-inline-save="{{ inline.save_url }}" data-inline-validate="{{ inline.validate_url }}"{% endif %}>
 
 {% if rows %}{% include "vantage/partials/grid_controls.html" %}{% endif %}
 
@@ -216,7 +225,7 @@
               {% if groups %}{% for g in groups %}{% if g.at == forloop.parentloop.counter0 %}
                 <tr class="v-group-row"><td colspan="{{ columns|length|add:1 }}">{{ g.label }}</td></tr>
               {% endif %}{% endfor %}{% endif %}
-              <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}
+              <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}{% inline_row_attrs inline row.obj %}
                   aria-rowindex="{{ page.start_index|add:forloop.counter0 }}"
                   tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">
                 {% if actions %}
@@ -226,8 +235,17 @@
                   </td>
                 {% endif %}
                 {% for cell in row.cells %}
+                  {% comment %}
+                    An editable column renders a control instead of a value. The tag
+                    returns nothing for every other column, so the ordinary rendering
+                    below is reached by falling through rather than by the template
+                    deciding anything about editability — that decision belongs to
+                    vantage.inline and is made again, server-side, on every write.
+                  {% endcomment %}
+                  {% inline_cell inline row.obj columns forloop.counter0 as editor %}
                   <td data-col-index="{{ forloop.counter0 }}">
-                    {% if cell.is_link and row.url %}
+                    {% if editor %}{{ editor }}
+                    {% elif cell.is_link and row.url %}
                       <a class="v-cell-link" href="{{ row.url }}" tabindex="-1">{{ cell.value }}</a>
                     {% else %}
                       {{ cell.value }}
@@ -288,6 +306,61 @@
       {% endif %}
     </div>
 </form>
+
+{% if inline.enabled and rows %}
+  {% comment %}
+    Loaded here rather than from base.html, the same arrangement the grid controls and
+    the command palette use: a page with nothing editable on it pays for neither file.
+  {% endcomment %}
+  <link rel="stylesheet" href="{% static 'vantage/vantage-inline.css' %}">
+
+  {% comment %}
+    An empty form, and it is load-bearing. Every inline control carries
+    form="v-inline-form", which re-parents it away from the bulk-action form it is
+    physically nested inside. Without that, pressing Enter in a cell implicitly submits
+    a bulk action, and every cell on the page rides along in the POST body.
+
+    It must sit outside #v-action-form: HTML forbids nesting forms, and the parser
+    silently drops the inner one, which would put every control back in the action form
+    without anything looking wrong.
+  {% endcomment %}
+  <form id="v-inline-form" class="v-inline-form" data-inline-sink
+        aria-hidden="true" onsubmit="return false"></form>
+
+  {% comment %}
+    The changeset bar. Persistent rather than a toast: it is the review step, and a
+    review step that fades after four seconds is not one. Hidden until something is
+    staged, and the count goes in the button's own label so nobody commits twelve edits
+    believing they are committing one.
+  {% endcomment %}
+  <div class="v-inline-bar" data-inline-bar hidden>
+    <span class="v-inline-bar-count" data-inline-count></span>
+    <span class="v-inline-bar-note" data-inline-note></span>
+    <div class="v-inline-bar-spacer"></div>
+    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-inline-discard>
+      Discard
+    </button>
+    <button type="button" class="v-btn v-btn-primary v-btn-sm" data-inline-save>
+      Save changes
+    </button>
+  </div>
+
+  {% comment %}
+    Announcements for cell mode and for the outcome of a save. A region of its own
+    rather than the grid's, so an edit never overwrites "row 4 of 55" mid-sentence.
+  {% endcomment %}
+  <div class="v-sr-only" role="status" aria-live="polite" data-inline-live></div>
+
+  {% include "vantage/partials/conflict.html" %}
+
+  {% comment %}
+    After vantage-grid.js in document order, which is what deferred scripts guarantee.
+    That ordering is not cosmetic: the grid's table-scoped keydown listener is
+    registered first, so a cell control that stops an arrow key from propagating is
+    stopping something that already exists rather than racing it.
+  {% endcomment %}
+  <script src="{% static 'vantage/vantage-inline.js' %}" defer></script>
+{% endif %}
 
 {% if rows %}
   {% comment %}

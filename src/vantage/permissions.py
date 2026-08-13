@@ -61,6 +61,9 @@ class PanelPermissions:
         # the deployment, not about who is asking.
         if self.is_read_only(action):
             return False
+        override = self.panel_override(request, model, action)
+        if override is not None:
+            return override
         if self.superuser_bypass and user.is_superuser:
             return True
         return user.has_perm(self.perm_name(model, action))
@@ -84,11 +87,34 @@ class PanelPermissions:
             return False
         if self.is_read_only(action):
             return False
+        override = self.panel_override(request, model, action, obj)
+        if override is not None:
+            return override
         if self.superuser_bypass and user.is_superuser:
             return True
         if not self.supports_object_permissions:
             return self.has_model_perm(request, model, action)
         return user.has_perm(self.perm_name(model, action), obj)
+
+    # ── the panel's own answer ──────────────────────────────────────────────
+
+    def panel_override(self, request, model: type[Model], action: str, obj=None) -> bool | None:
+        """Let a panel answer for itself via ``has_<action>_permission``.
+
+        ``contrib.admin`` users already know these methods, the API design lists them
+        as ``ModelPanel`` hooks, and the adapter in ``vantage.contrib.django_admin``
+        translates a ``ModelAdmin``'s versions straight into them. Returning ``None``
+        here means "no opinion", which is the case for every panel that does not
+        define one — so this costs an attribute lookup and nothing else.
+
+        Consulted *before* the superuser bypass, deliberately. An admin that says
+        nobody may delete these rows means nobody, and adopting it into Vantage must
+        not quietly widen it to every superuser.
+        """
+        hook = _panel_hook(model, action)
+        if hook is None:
+            return None
+        return bool(hook(request, obj))
 
     def filter_queryset(self, request, queryset: QuerySet, action: str = "view") -> QuerySet:
         """Narrow ``queryset`` to the rows this user may see.
@@ -158,6 +184,28 @@ class GuardianPermissions(PanelPermissions):
             accept_global_perms=True,
             with_superuser=True,
         )
+
+
+def _panel_hook(model: type[Model], action: str):
+    """``has_<action>_permission`` from the panel registered for ``model``, if any.
+
+    The resolver is handed a model, not a panel, so the panel has to be looked up. The
+    default site is tried first because it is the one virtually every project mounts;
+    other sites are consulted only for a hook the default site's panel does not
+    define. That order is the conservative one: a panel that denies something is
+    honoured wherever that model appears, rather than a second mounted site quietly
+    reopening what the first one closed.
+    """
+    from vantage.sites import all_sites
+    from vantage.sites import site as default_site
+
+    for candidate in (default_site, *all_sites):
+        if not candidate.is_registered(model):
+            continue
+        hook = getattr(candidate.get_panel(model), f"has_{action}_permission", None)
+        if hook is not None:
+            return hook
+    return None
 
 
 _cached: PanelPermissions | None = None
