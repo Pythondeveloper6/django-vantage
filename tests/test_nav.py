@@ -65,7 +65,9 @@ class TestDeclaredNav:
 
     @override_settings(
         VANTAGE={
-            "NAV": [{"group": "Content", "items": [{"model": "testapp.Post", "label": "Articles"}]}],
+            "NAV": [
+                {"group": "Content", "items": [{"model": "testapp.Post", "label": "Articles"}]}
+            ],
             "NAV_UNLISTED": "hide",
         }
     )
@@ -180,8 +182,8 @@ class TestDeclaredNavCannotGrantAccess:
     )
     def test_permissions_still_filter_a_declared_nav(self, client, db):
         """Naming a model in NAV must not make it reachable to someone without rights."""
-        from django.contrib.contenttypes.models import ContentType
         from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
 
         from tests.testapp.models import Post
 
