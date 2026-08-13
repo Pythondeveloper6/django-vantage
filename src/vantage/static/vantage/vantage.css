@@ -1458,3 +1458,19 @@ textarea {
   inline-size: 0.875rem;
   block-size: 0.875rem;
 }
+
+/* ── health page ──────────────────────────────────────────────────────────── */
+
+.v-health dt { display: flex; align-items: center; gap: 0.5rem; }
+
+.v-health-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.v-health-dot[data-status="ok"]   { background: var(--success); }
+.v-health-dot[data-status="warn"] { background: var(--warning); }
+.v-health-dot[data-status="fail"] { background: var(--destructive); }
