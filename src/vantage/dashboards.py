@@ -612,22 +612,30 @@ def dashboard_context(site, request, permissions=None) -> dict[str, Any]:
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 
-def creation_field(model: type[models.Model]) -> str | None:
-    """The name of the field recording when a row was created, if the model has one.
+def creation_field(model) -> str | None:
+    """The field recording when a row was created, or None.
 
-    ``auto_now_add`` is proof rather than a guess, so it wins over the naming
-    convention; both are checked because plenty of models backdate their own timestamps
-    and cannot use ``auto_now_add`` at all.
+    Deliberately NOT delegated to ``patterns.detect_timeline``. They answer different
+    questions: the detector picks the best field to *group by* and therefore prefers a
+    domain date such as ``published_at`` over an audit column, while "recent records"
+    and "new per week" need the date the row came into existence. ``auto_now_add`` is
+    proof of that and wins outright; the detector is only a fallback for models that
+    record creation without it.
     """
-    fields = {f.name: f for f in model._meta.concrete_fields}
-    for field in fields.values():
+    from vantage.introspection import concrete_fields
+
+    for field in concrete_fields(model):
         if getattr(field, "auto_now_add", False):
             return field.name
-    for name in CREATED_NAMES:
-        field = fields.get(name)
-        if isinstance(field, models.DateField):  # DateTimeField subclasses this
-            return name
+
+    from vantage.patterns import detect_timeline
+
+    timeline = detect_timeline(model)
+    # A nullable date is no good here: half the rows would fall outside every bucket.
+    if timeline and not timeline.nullable:
+        return timeline.field
     return None
+
 
 
 def _call(func, request):
