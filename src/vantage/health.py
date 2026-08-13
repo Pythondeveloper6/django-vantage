@@ -83,26 +83,20 @@ def check_cache() -> Check:
 
 
 def check_tasks() -> Check:
-    """Which background-task backend is available, if any."""
-    from django.apps import apps as django_apps
+    """Which background-task backend is available, if any.
 
-    if django_apps.is_installed("django_celery_results") or _importable("celery"):
-        return Check("Background tasks", "ok", "Celery detected.")
-    if _importable("django_rq"):
-        return Check("Background tasks", "ok", "RQ detected.")
-    try:
-        from django.conf import settings as django_settings
+    One detector, in ``vantage.jobs``, so the health page and the enqueue path can
+    never disagree about whether this deployment actually has a worker. Probing
+    ``settings.TASKS`` here reported "configured" on every Django 6.x project,
+    because it has a default — it said there was a worker when there was not.
+    """
+    from vantage.jobs import IN_PROCESS, detect_backend
 
-        if getattr(django_settings, "TASKS", None):
-            return Check("Background tasks", "ok", "Django Tasks configured.")
-    except Exception:
-        pass
-    return Check(
-        "Background tasks",
-        "info",
-        "None configured.",
-        hint="Bulk actions run in the request. Fine below a few thousand rows.",
-    )
+    backend = detect_backend()
+    if backend is not IN_PROCESS:
+        return Check("Background tasks", "ok", f"{backend.label} detected.")
+    return Check("Background tasks", "info", "None configured.", hint=backend.hint)
+
 
 
 def check_debug() -> Check:
