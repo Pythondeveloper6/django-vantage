@@ -52,11 +52,35 @@ class TestDetailPage:
         body = client_in.get(detail_url(post)).content.decode()
         assert "Long body text." in body
 
-    def test_counts_related_records_without_listing_them(self, client_in, post):
-        """A record with 50,000 children must still open."""
+    def test_previews_related_records(self, client_in, post):
         body = client_in.get(detail_url(post)).content.decode()
         assert "Comments" in body
-        assert "Reader 0" not in body
+        assert "Reader 0" in body
+
+    def test_the_preview_is_bounded_however_many_children_exist(self, client_in, post):
+        """Loading every child is what makes a big record impossible to open."""
+        from vantage.views import DetailView
+
+        for i in range(50):
+            Comment.objects.create(post=post, author_name=f"Extra {i}", body="b")
+        body = client_in.get(detail_url(post)).content.decode()
+        assert body.count("Extra ") <= DetailView.related_preview
+        assert "more…" in body
+
+    def test_the_preview_cost_does_not_grow_with_the_child_count(self, client_in, post):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as few:
+            client_in.get(detail_url(post))
+
+        Comment.objects.bulk_create(
+            Comment(post=post, author_name=f"Bulk {i}", body="b") for i in range(200)
+        )
+        with CaptureQueriesContext(connection) as many:
+            client_in.get(detail_url(post))
+
+        assert len(many) == len(few)
 
     def test_related_link_is_prefiltered_to_this_record(self, client_in, post):
         body = client_in.get(detail_url(post)).content.decode()
