@@ -1,4 +1,5 @@
 {% extends "vantage/base.html" %}
+{% load i18n %}
 
 {% comment %}
   Say "not allowed", never "not found". Spec §15 makes the same point about empty
@@ -9,20 +10,22 @@
   Mount with ``handler403 = "vantage.authviews.permission_denied"``.
 {% endcomment %}
 
-{% block title %}Not allowed · {{ settings.SITE_TITLE }}{% endblock %}
+{% block title %}{% blocktranslate with site_title=settings.SITE_TITLE %}Not allowed · {{ site_title }}{% endblocktranslate %}{% endblock %}
 
 {% block content %}
 <div class="v-error">
-  <p class="v-error-code">Error 403</p>
-  <h1 class="v-error-title">You do not have access to this</h1>
+  <p class="v-error-code">{% translate "Error 403" %}</p>
+  <h1 class="v-error-title">{% translate "You do not have access to this" %}</h1>
   <p class="v-error-body">
     {% if exception %}{{ exception }}{% else %}
-      This page exists, but your account is not permitted to open it. Ask whoever
-      administers this panel if you need it.
+      {% blocktranslate trimmed %}
+        This page exists, but your account is not permitted to open it. Ask whoever
+        administers this panel if you need it.
+      {% endblocktranslate %}
     {% endif %}
   </p>
   <div class="v-error-actions">
-    <a class="v-btn v-btn-primary" href="{% url 'vantage:dashboard' %}">Back to the dashboard</a>
+    <a class="v-btn v-btn-primary" href="{% url 'vantage:dashboard' %}">{% translate "Back to the dashboard" %}</a>
   </div>
 </div>
 {% endblock %}

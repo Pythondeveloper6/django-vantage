@@ -65,6 +65,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+from django.utils.functional import Promise
+from django.utils.translation import gettext_lazy as _
 
 from vantage.color import parse_hex
 
@@ -104,17 +106,19 @@ MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 #: understand rather than trying to rewrite them into safety, because a rewriter that
 #: is wrong once is worse than a refusal that is occasionally annoying. Serving media
 #: from a separate origin remains the defence in depth this cannot replace.
-_SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str], ...] = (
-    (re.compile(rb"<\s*(?:[a-z0-9]+:)?script\b", re.IGNORECASE), "a <script> element"),
-    (re.compile(rb"\son[a-z]+\s*=", re.IGNORECASE), "an inline event handler"),
+_SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str | Promise], ...] = (
+    # Translators: each of these names one thing found inside an uploaded SVG, and is
+    # substituted into "That SVG contains %(hazard)s, which would run as script ...".
+    (re.compile(rb"<\s*(?:[a-z0-9]+:)?script\b", re.IGNORECASE), _("a <script> element")),
+    (re.compile(rb"\son[a-z]+\s*=", re.IGNORECASE), _("an inline event handler")),
     (
         re.compile(rb"attributeName\s*=\s*[\"']?\s*on", re.IGNORECASE),
-        "an animation that writes an event handler",
+        _("an animation that writes an event handler"),
     ),
-    (re.compile(rb"javascript\s*:", re.IGNORECASE), "a javascript: URL"),
+    (re.compile(rb"javascript\s*:", re.IGNORECASE), _("a javascript: URL")),
     (
         re.compile(rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE),
-        "an embedded document",
+        _("an embedded document"),
     ),
 )
 
@@ -138,14 +142,23 @@ def validate_branding_upload(value) -> None:
     suffix = Path(name).suffix.lower()
     if suffix not in ALLOWED_UPLOAD_SUFFIXES:
         allowed = ", ".join(sorted(ALLOWED_UPLOAD_SUFFIXES))
+        # Two whole sentences rather than one with the filename swapped for a pronoun:
+        # a translator cannot inflect around a fragment they never see in context.
+        if name:
+            raise ValidationError(
+                _("%(name)s is not an image this panel will serve. Use one of: %(allowed)s.")
+                % {"name": name, "allowed": allowed}
+            )
         raise ValidationError(
-            f"{name or 'That file'} is not an image this panel will serve. Use one of: {allowed}."
+            _("That file is not an image this panel will serve. Use one of: %(allowed)s.")
+            % {"allowed": allowed}
         )
 
     size = getattr(value, "size", None) or 0
     if size > MAX_UPLOAD_BYTES:
         raise ValidationError(
-            f"That file is {size // 1024} KB. The limit is {MAX_UPLOAD_BYTES // 1024} KB."
+            _("That file is %(size)s KB. The limit is %(limit)s KB.")
+            % {"size": size // 1024, "limit": MAX_UPLOAD_BYTES // 1024}
         )
 
     if suffix != ".svg":
@@ -162,8 +175,11 @@ def validate_branding_upload(value) -> None:
     for pattern, description in _SVG_HAZARDS:
         if pattern.search(payload):
             raise ValidationError(
-                f"That SVG contains {description}, which would run as script on every "
-                "page of the panel. Export it without scripting, or upload a PNG."
+                _(
+                    "That SVG contains %(hazard)s, which would run as script on every "
+                    "page of the panel. Export it without scripting, or upload a PNG."
+                )
+                % {"hazard": description}
             )
 
 
@@ -178,7 +194,9 @@ def validate_brand_color(value: str) -> None:
 def validate_css_length(value: str) -> None:
     """The radius is interpolated straight into a ``<style>`` block, so it is not text."""
     if not _CSS_LENGTH.match(value.strip()):
-        raise ValidationError(f"{value!r} is not a CSS length like '0.5rem', '8px' or '0'.")
+        raise ValidationError(
+            _("%(value)r is not a CSS length like '0.5rem', '8px' or '0'.") % {"value": value}
+        )
 
 
 def _branding_field(**kwargs) -> models.FileField:
@@ -229,7 +247,11 @@ class SiteConfiguration(models.Model):
         max_length=8,
         null=True,
         blank=True,
-        choices=[("light", "Light"), ("dark", "Dark"), ("system", "Follow the device")],
+        choices=[
+            ("light", _("Light")),
+            ("dark", _("Dark")),
+            ("system", _("Follow the device")),
+        ],
     )
     theme_toggle = models.BooleanField(null=True, blank=True)
 
@@ -252,11 +274,11 @@ class SiteConfiguration(models.Model):
     )
 
     class Meta:
-        verbose_name = "site configuration"
-        verbose_name_plural = "site configuration"
+        verbose_name = _("site configuration")
+        verbose_name_plural = _("site configuration")
 
     def __str__(self) -> str:
-        return "Site configuration"
+        return str(_("Site configuration"))
 
     def save(self, *args, **kwargs) -> None:
         self.pk = self.SINGLETON_PK
@@ -300,10 +322,10 @@ class VantageLogEntry(models.Model):
     """
 
     class Action(models.TextChoices):
-        CREATE = "create", "Created"
-        UPDATE = "update", "Updated"
-        DELETE = "delete", "Deleted"
-        ACTION = "action", "Ran an action"
+        CREATE = "create", _("Created")
+        UPDATE = "update", _("Updated")
+        DELETE = "delete", _("Deleted")
+        ACTION = "action", _("Ran an action")
 
     # ── who ─────────────────────────────────────────────────────────────────
 
@@ -354,8 +376,8 @@ class VantageLogEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "log entry"
-        verbose_name_plural = "log entries"
+        verbose_name = _("log entry")
+        verbose_name_plural = _("log entries")
         ordering = ["-created_at", "-pk"]
         indexes = [
             # The per-record history panel. Both columns, because a generic FK with
@@ -408,13 +430,13 @@ class SavedView(models.Model):
     """
 
     class Visibility(models.TextChoices):
-        PRIVATE = "private", "Only me"
-        SHARED = "shared", "Everyone who can see this model"
+        PRIVATE = "private", _("Only me")
+        SHARED = "shared", _("Everyone who can see this model")
 
     class EditScope(models.TextChoices):
-        OWNER = "owner", "Only the owner"
-        EDITORS = "editors", "The owner and named editors"
-        EVERYONE = "everyone", "Anyone who can see it"
+        OWNER = "owner", _("Only the owner")
+        EDITORS = "editors", _("The owner and named editors")
+        EVERYONE = "everyone", _("Anyone who can see it")
 
     #: ``"shop.order"``, lowercased, matching ``Options.label_lower``. A label rather
     #: than a ``ContentType`` FK: a view for a model that has since been deleted must
@@ -463,8 +485,8 @@ class SavedView(models.Model):
     )
 
     class Meta:
-        verbose_name = "saved view"
-        verbose_name_plural = "saved views"
+        verbose_name = _("saved view")
+        verbose_name_plural = _("saved views")
         ordering = ["name", "pk"]
         indexes = [
             models.Index(fields=["model_label"], name="vantage_view_model_idx"),
@@ -513,8 +535,8 @@ class SavedViewGrant(models.Model):
     """
 
     class Role(models.TextChoices):
-        VIEWER = "viewer", "Can use"
-        EDITOR = "editor", "Can use and change"
+        VIEWER = "viewer", _("Can use")
+        EDITOR = "editor", _("Can use and change")
 
     view = models.ForeignKey(SavedView, on_delete=models.CASCADE, related_name="grants")
     user = models.ForeignKey(
@@ -531,8 +553,8 @@ class SavedViewGrant(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "saved view grant"
-        verbose_name_plural = "saved view grants"
+        verbose_name = _("saved view grant")
+        verbose_name_plural = _("saved view grants")
         constraints = [
             # Exactly one subject. A grant with neither would silently apply to nobody
             # and a grant with both would need a precedence rule nobody would guess.
@@ -586,8 +608,8 @@ class SavedViewUserState(models.Model):
     last_used_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "saved view state"
-        verbose_name_plural = "saved view states"
+        verbose_name = _("saved view state")
+        verbose_name_plural = _("saved view states")
         constraints = [
             models.UniqueConstraint(
                 fields=["view", "user"], name="vantage_view_state_unique"
@@ -699,8 +721,8 @@ class ListPreference(models.Model):
     )
 
     class Meta:
-        verbose_name = "list preference"
-        verbose_name_plural = "list preferences"
+        verbose_name = _("list preference")
+        verbose_name_plural = _("list preferences")
         ordering = ["resource_key", "pk"]
         indexes = [
             # The resolution query: both rows that can apply to one page, in one go.
@@ -790,15 +812,15 @@ class VantageJob(models.Model):
     """
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Queued"
-        RUNNING = "running", "Running"
-        SUCCEEDED = "succeeded", "Finished"
-        FAILED = "failed", "Failed"
+        PENDING = "pending", _("Queued")
+        RUNNING = "running", _("Running")
+        SUCCEEDED = "succeeded", _("Finished")
+        FAILED = "failed", _("Failed")
         #: Not a failure of the job — a refusal. The actor's permission was withdrawn
         #: between enqueue and execution, or part-way through it, and the run stopped
         #: where it stood. Distinct from FAILED because nothing went wrong: the answer
         #: changed, and the count already processed is real work that stands.
-        DENIED = "denied", "Stopped — permission withdrawn"
+        DENIED = "denied", _("Stopped — permission withdrawn")
 
     #: Statuses after which nothing more will happen. The progress bar polls until it
     #: sees one of these and then stops; a bar that polls forever is a bug, so the set
@@ -863,8 +885,8 @@ class VantageJob(models.Model):
     finished_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "background job"
-        verbose_name_plural = "background jobs"
+        verbose_name = _("background job")
+        verbose_name_plural = _("background jobs")
         ordering = ["-created_at", "-pk"]
         indexes = [
             # The jobs page: mine, newest first. Also the only query the progress

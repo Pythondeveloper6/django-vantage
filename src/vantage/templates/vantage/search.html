@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage i18n %}
 
 {% comment %}
   The no-JavaScript half of global search. Same querysets, same permission filtering,
@@ -17,8 +17,8 @@
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">Search</h1>
-    <p class="v-page-description">Across every section you can open.</p>
+    <h1 class="v-page-title">{% translate "Search" %}</h1>
+    <p class="v-page-description">{% translate "Across every section you can open." %}</p>
   </div>
 </div>
 
@@ -26,17 +26,17 @@
   <div class="v-search v-search-wide">
     {% icon "search" %}
     <input class="v-input" type="search" name="q" value="{{ query }}"
-           placeholder="Search everything…" aria-label="Search everything" autofocus>
+           placeholder="{% translate 'Search everything…' %}" aria-label="{% translate 'Search everything' %}" autofocus>
   </div>
-  <button class="v-btn v-btn-primary" type="submit">Search</button>
+  <button class="v-btn v-btn-primary" type="submit">{% translate "Search" %}</button>
   {% if query %}
-    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
+    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>
   {% endif %}
 </form>
 
 {% if query %}
   <p class="v-muted v-search-count" role="status">
-    {{ total }} result{{ total|pluralize }} for “{{ query }}”
+    {% blocktranslate count counter=total %}{{ counter }} result for “{{ query }}”{% plural %}{{ counter }} results for “{{ query }}”{% endblocktranslate %}
   </p>
 {% endif %}
 
@@ -45,7 +45,7 @@
     <div class="v-card-head">
       <h2 class="v-card-title">{% icon group.icon %}{{ group.label }}</h2>
       <a class="v-btn v-btn-ghost v-btn-sm" href="{{ group.url }}">
-        {% if group.truncated %}See all{% else %}Open list{% endif %}
+        {% if group.truncated %}{% translate "See all" %}{% else %}{% translate "Open list" %}{% endif %}
       </a>
     </div>
     <ul class="v-search-hits">
@@ -65,17 +65,19 @@
   <div class="v-empty">
     {% icon "search" class="v-empty-icon" %}
     {% if not query %}
-      <p class="v-empty-title">Search everything</p>
+      <p class="v-empty-title">{% translate "Search everything" %}</p>
       <p class="v-empty-body">
-        Type at least {{ min_length }} characters to look across every section you
-        have access to.
+        {% blocktranslate trimmed %}
+          Type at least {{ min_length }} characters to look across every section you
+          have access to.
+        {% endblocktranslate %}
       </p>
     {% elif query|length < min_length %}
-      <p class="v-empty-title">Keep typing</p>
-      <p class="v-empty-body">A search needs at least {{ min_length }} characters.</p>
+      <p class="v-empty-title">{% translate "Keep typing" %}</p>
+      <p class="v-empty-body">{% blocktranslate %}A search needs at least {{ min_length }} characters.{% endblocktranslate %}</p>
     {% else %}
-      <p class="v-empty-title">No matches for “{{ query }}”</p>
-      <p class="v-empty-body">Nothing you can open matches that. Try fewer words.</p>
+      <p class="v-empty-title">{% blocktranslate %}No matches for “{{ query }}”{% endblocktranslate %}</p>
+      <p class="v-empty-body">{% translate "Nothing you can open matches that. Try fewer words." %}</p>
     {% endif %}
   </div>
 {% endfor %}

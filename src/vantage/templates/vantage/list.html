@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage vantage_inline vantage_slots %}
+{% load static vantage vantage_inline vantage_slots i18n %}
 
 {% block content %}
 {% comment %}
@@ -22,21 +22,21 @@
       are looking at rather than the whole table.
     {% endcomment %}
     <details class="v-export">
-      <summary class="v-btn v-btn-ghost">Export</summary>
+      <summary class="v-btn v-btn-ghost">{% translate "Export" %}</summary>
       <div class="v-export-menu">
         <a href="?{% querystring_replace export="csv" page=None %}">CSV</a>
-        <a href="?{% querystring_replace export="tsv" page=None %}">TSV (spreadsheet)</a>
-        <a href="?{% querystring_replace export="json" page=None %}">JSON (one per line)</a>
+        <a href="?{% querystring_replace export="tsv" page=None %}">{% translate "TSV (spreadsheet)" %}</a>
+        <a href="?{% querystring_replace export="json" page=None %}">{% translate "JSON (one per line)" %}</a>
       </div>
     </details>
     {% if "add" in allowed %}
       <a class="v-btn v-btn-ghost" href="{% url "vantage:"|add:panel.slug|add:"-import" %}">
         {% icon "upload" %}
-        <span>Import CSV</span>
+        <span>{% translate "Import CSV" %}</span>
       </a>
       <a class="v-btn v-btn-primary" href="{% url "vantage:"|add:panel.slug|add:"-add" %}">
         {% icon "plus" %}
-        <span>Add {{ panel.get_label|lower }}</span>
+        <span>{% blocktranslate with label=panel.get_label|lower %}Add {{ label }}{% endblocktranslate %}</span>
       </a>
     {% endif %}
   </div>
@@ -50,19 +50,19 @@
   unnamed ones leave a screen-reader user unable to tell them apart.
 {% endcomment %}
 <form class="v-toolbar" method="get" role="search" id="v-list-search"
-      aria-label="Search {{ panel.get_label_plural|lower }}">
+      aria-label="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}">
   <div class="v-search">
     {% icon "search" %}
     <input class="v-input" type="search" name="q" value="{{ query }}"
-           placeholder="Search {{ panel.get_label_plural|lower }}…"
-           aria-label="Search {{ panel.get_label_plural|lower }}">
+           placeholder="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}…"
+           aria-label="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}">
   </div>
   {% include "vantage/partials/filter_state.html" %}
   {% if sort %}
     <input type="hidden" name="sort" value="{% if sort.descending %}-{% endif %}{{ sort.path }}">
   {% endif %}
   {% if query %}
-    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
+    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>
   {% endif %}
 </form>
 {% endif %}
@@ -73,7 +73,7 @@
 {% endcomment %}
 <div class="v-list-layout{% if not filters %} v-list-layout-bare{% endif %}">
   {% if filters %}
-    <aside class="v-list-rail" aria-label="Filters">
+    <aside class="v-list-rail" aria-label="{% translate "Filters" %}">
       {% include "vantage/partials/filters.html" %}
     </aside>
   {% endif %}
@@ -83,13 +83,13 @@
 
     {% if timeline_field %}
       <div class="v-group-control">
-        <span class="v-muted">Group by</span>
+        <span class="v-muted">{% translate "Group by" %}</span>
         {% for key, label in group_options %}
           <a class="v-group-chip{% if grouping == key %} v-group-chip-on{% endif %}"
              href="?{% querystring_replace group=key page=None %}">{{ label }}</a>
         {% endfor %}
         {% if grouping %}
-          <a class="v-group-chip" href="?{% querystring_replace group=None page=None %}">None</a>
+          <a class="v-group-chip" href="?{% querystring_replace group=None page=None %}">{% translate "None" %}</a>
         {% endif %}
       </div>
     {% endif %}
@@ -99,7 +99,7 @@
         Trash is a place you go to deliberately: the list means live records, so this
         is a tab rather than a filter chip.
       {% endcomment %}
-      <nav class="v-tabs" aria-label="Records or trash">
+      <nav class="v-tabs" aria-label="{% translate "Records or trash" %}">
         <a class="v-tab" href="?{% querystring_replace trash=None page=None %}"
            {% if not showing_trash %}aria-current="page"{% endif %}>
           {{ panel.get_label_plural }}
@@ -107,7 +107,7 @@
         <a class="v-tab" href="?{% querystring_replace trash=1 page=None %}"
            {% if showing_trash %}aria-current="page"{% endif %}>
           {% icon "trash" %}
-          <span>Trash</span>
+          <span>{% translate "Trash" %}</span>
           {% if trash_count %}<span class="v-badge">{{ trash_count }}</span>{% endif %}
         </a>
       </nav>
@@ -126,7 +126,7 @@
     </div>
     <div class="v-card-body">
       <p>{{ confirm_text }}</p>
-      <p class="v-muted">This will apply to {{ confirm_scope }}.</p>
+      <p class="v-muted">{% blocktranslate %}This will apply to {{ confirm_scope }}.{% endblocktranslate %}</p>
       <form method="post" class="v-confirm-actions">
         {% csrf_token %}
         <input type="hidden" name="action" value="{{ confirming.name }}">
@@ -138,9 +138,9 @@
         {% for pk in confirm_selection.excluded %}
           <input type="hidden" name="excluded" value="{{ pk }}">
         {% endfor %}
-        <a class="v-btn v-btn-ghost" href="{{ request.get_full_path }}">Cancel</a>
+        <a class="v-btn v-btn-ghost" href="{{ request.get_full_path }}">{% translate "Cancel" %}</a>
         <button class="v-btn {% if confirming.destructive %}v-btn-destructive{% else %}v-btn-primary{% endif %}">
-          {{ confirming.label }} {{ confirm_count }} record{{ confirm_count|pluralize }}
+          {% blocktranslate with label=confirming.label count counter=confirm_count %}{{ label }} {{ counter }} record{% plural %}{{ label }} {{ counter }} records{% endblocktranslate %}
         </button>
       </form>
     </div>
@@ -172,7 +172,7 @@
   <div class="v-action-bar" data-action-bar data-total="{{ paginator.count }}" hidden>
     <span class="v-action-count" data-selection-count></span>
     <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-select-all-matching hidden>
-      Select all matching
+      {% translate "Select all matching" %}
     </button>
     <div class="v-action-bar-spacer"></div>
     {% for act in actions %}
@@ -210,7 +210,7 @@
               {% if actions %}
                 <th scope="col" class="v-select-cell">
                   <input type="checkbox" data-select-page tabindex="-1"
-                         aria-label="Select all rows on this page">
+                         aria-label="{% translate "Select all rows on this page" %}">
                 </th>
               {% endif %}
               {% for column in columns %}
@@ -228,7 +228,7 @@
               {% endfor %}
               {% if has_row_actions %}
                 <th scope="col" class="v-row-actions-cell">
-                  <span class="v-sr-only">Actions</span>
+                  <span class="v-sr-only">{% translate "Actions" %}</span>
                 </th>
               {% endif %}
             </tr>
@@ -244,7 +244,7 @@
                 {% if actions %}
                   <td class="v-select-cell">
                     <input type="checkbox" name="selected" value="{{ row.pk }}" tabindex="-1"
-                           data-select-row aria-label="Select {{ row.obj }}">
+                           data-select-row aria-label="{% blocktranslate with obj=row.obj %}Select {{ obj }}{% endblocktranslate %}">
                   </td>
                 {% endif %}
                 {% for cell in row.cells %}
@@ -304,21 +304,21 @@
         <div class="v-empty">
           {% icon "search" class="v-empty-icon" %}
           {% if query %}
-            <p class="v-empty-title">No {{ panel.get_label_plural|lower }} match “{{ query }}”.</p>
-            <p class="v-empty-body">Try a different search, or clear it to see everything.</p>
-            <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear search</a>
+            <p class="v-empty-title">{% blocktranslate with label=panel.get_label_plural|lower %}No {{ label }} match “{{ query }}”.{% endblocktranslate %}</p>
+            <p class="v-empty-body">{% translate "Try a different search, or clear it to see everything." %}</p>
+            <a class="v-btn v-btn-secondary" href="{{ request.path }}">{% translate "Clear search" %}</a>
           {% else %}
-            <p class="v-empty-title">No {{ panel.get_label_plural|lower }} match these filters.</p>
-            <p class="v-empty-body">Remove the one responsible above, or clear them all.</p>
-            <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear all filters</a>
+            <p class="v-empty-title">{% blocktranslate with label=panel.get_label_plural|lower %}No {{ label }} match these filters.{% endblocktranslate %}</p>
+            <p class="v-empty-body">{% translate "Remove the one responsible above, or clear them all." %}</p>
+            <a class="v-btn v-btn-secondary" href="{{ request.path }}">{% translate "Clear all filters" %}</a>
           {% endif %}
         </div>
       {% else %}
         {# State 1: nothing exists yet. #}
         <div class="v-empty">
           {% icon "box" class="v-empty-icon" %}
-          <p class="v-empty-title">No {{ panel.get_label_plural|lower }} yet.</p>
-          <p class="v-empty-body">They will appear here once the first one is created.</p>
+          <p class="v-empty-title">{% blocktranslate with label=panel.get_label_plural|lower %}No {{ label }} yet.{% endblocktranslate %}</p>
+          <p class="v-empty-body">{% translate "They will appear here once the first one is created." %}</p>
         </div>
       {% endif %}
     </div>
@@ -355,10 +355,10 @@
     <span class="v-inline-bar-note" data-inline-note></span>
     <div class="v-inline-bar-spacer"></div>
     <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-inline-discard>
-      Discard
+      {% translate "Discard" %}
     </button>
     <button type="button" class="v-btn v-btn-primary v-btn-sm" data-inline-save>
-      Save changes
+      {% translate "Save changes" %}
     </button>
   </div>
 
@@ -390,17 +390,17 @@
     record and the drawer can never drift from the page it previews.
   {% endcomment %}
   <aside class="v-grid-drawer" data-grid-drawer role="dialog"
-         aria-label="Record preview" tabindex="-1" hidden>
+         aria-label="{% translate "Record preview" %}" tabindex="-1" hidden>
     <header class="v-grid-drawer-head">
-      <h2 class="v-grid-drawer-title" data-drawer-title>Preview</h2>
+      <h2 class="v-grid-drawer-title" data-drawer-title>{% translate "Preview" %}</h2>
       <div class="v-grid-drawer-nav">
         <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-drawer-prev
-                aria-label="Peek the previous record">↑</button>
+                aria-label="{% translate "Peek the previous record" %}">↑</button>
         <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-drawer-next
-                aria-label="Peek the next record">↓</button>
-        <a class="v-btn v-btn-secondary v-btn-sm" data-drawer-open href="#">Open</a>
+                aria-label="{% translate "Peek the next record" %}">↓</button>
+        <a class="v-btn v-btn-secondary v-btn-sm" data-drawer-open href="#">{% translate "Open" %}</a>
         <button type="button" class="v-btn v-btn-ghost v-btn-sm v-btn-icon"
-                data-drawer-close aria-label="Close preview">{% icon "x" %}</button>
+                data-drawer-close aria-label="{% translate "Close preview" %}">{% icon "x" %}</button>
       </div>
     </header>
     {% comment %}
@@ -415,20 +415,20 @@
     {% if page.paginator.num_pages > 1 %}
     <div class="v-pagination">
       <span class="v-pagination-info">
-        {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+        {% blocktranslate with start=page.start_index end=page.end_index total=paginator.count %}{{ start }}–{{ end }} of {{ total }}{% endblocktranslate %}
       </span>
       <div class="v-pagination-controls">
         {% if page.has_previous %}
           <a class="v-btn v-btn-secondary v-btn-sm"
-             href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+             href="?{% querystring_replace page=page.previous_page_number %}">{% translate "Previous" %}</a>
         {% else %}
-          <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+          <button class="v-btn v-btn-secondary v-btn-sm" disabled>{% translate "Previous" %}</button>
         {% endif %}
         {% if page.has_next %}
           <a class="v-btn v-btn-secondary v-btn-sm"
-             href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+             href="?{% querystring_replace page=page.next_page_number %}">{% translate "Next" %}</a>
         {% else %}
-          <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+          <button class="v-btn v-btn-secondary v-btn-sm" disabled>{% translate "Next" %}</button>
         {% endif %}
       </div>
     </div>

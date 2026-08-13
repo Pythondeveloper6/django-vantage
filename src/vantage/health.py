@@ -14,6 +14,8 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
+from django.utils.translation import gettext_lazy as _
+
 __all__ = ["Check", "run_checks"]
 
 
@@ -40,14 +42,15 @@ def check_migrations() -> Check:
     targets = executor.loader.graph.leaf_nodes()
     plan = executor.migration_plan(targets)
     if not plan:
-        return Check("Migrations", "ok", "All applied.")
-    names = ", ".join(f"{m.app_label}.{m.name}" for m, _ in plan[:5])
-    more = f" (+{len(plan) - 5} more)" if len(plan) > 5 else ""
+        return Check(_("Migrations"), "ok", _("All applied."))
+    names = ", ".join(f"{m.app_label}.{m.name}" for m, _unused in plan[:5])
+    more = _(" (+%(count)d more)") % {"count": len(plan) - 5} if len(plan) > 5 else ""
     return Check(
-        "Migrations",
+        _("Migrations"),
         "fail",
-        f"{len(plan)} unapplied: {names}{more}",
-        hint="Run manage.py migrate.",
+        _("%(count)d unapplied: %(names)s%(more)s")
+        % {"count": len(plan), "names": names, "more": more},
+        hint=_("Run manage.py migrate."),
     )
 
 

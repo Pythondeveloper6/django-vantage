@@ -1,4 +1,5 @@
 {% extends "vantage/base.html" %}
+{% load i18n %}
 
 {% comment %}
   Rendered inside the shell, because a 404 is an ordinary request that happened to end
@@ -8,17 +9,17 @@
   self-contained 500 template if this one cannot render.
 {% endcomment %}
 
-{% block title %}Not found · {{ settings.SITE_TITLE }}{% endblock %}
+{% block title %}{% blocktranslate with site_title=settings.SITE_TITLE %}Not found · {{ site_title }}{% endblocktranslate %}{% endblock %}
 
 {% block content %}
 <div class="v-error">
-  <p class="v-error-code">Error 404</p>
-  <h1 class="v-error-title">We could not find that page</h1>
+  <p class="v-error-code">{% translate "Error 404" %}</p>
+  <h1 class="v-error-title">{% translate "We could not find that page" %}</h1>
   <p class="v-error-body">
-    The address may be mistyped, or the record it pointed at may have been deleted.
+    {% translate "The address may be mistyped, or the record it pointed at may have been deleted." %}
   </p>
   <div class="v-error-actions">
-    <a class="v-btn v-btn-primary" href="{% url 'vantage:dashboard' %}">Back to the dashboard</a>
+    <a class="v-btn v-btn-primary" href="{% url 'vantage:dashboard' %}">{% translate "Back to the dashboard" %}</a>
   </div>
 </div>
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load vantage vantage_slots %}
+{% load vantage vantage_slots i18n %}
 
 {% block content %}
 <div class="v-page-head">
@@ -8,14 +8,14 @@
     <p class="v-page-description">{{ panel.get_label }} · <span class="v-mono">#{{ object.pk }}</span></p>
   </div>
   <div class="v-page-actions">
-    <a class="v-btn v-btn-ghost" href="{% url panel.list_url_name %}">Back to list</a>
+    <a class="v-btn v-btn-ghost" href="{% url panel.list_url_name %}">{% translate "Back to list" %}</a>
     {% if "delete" in allowed %}
       <a class="v-btn v-btn-secondary"
-         href="{% url "vantage:"|add:panel.slug|add:"-delete" object.pk %}">Delete</a>
+         href="{% url "vantage:"|add:panel.slug|add:"-delete" object.pk %}">{% translate "Delete" %}</a>
     {% endif %}
     {% if "change" in allowed %}
       <a class="v-btn v-btn-primary"
-         href="{% url "vantage:"|add:panel.slug|add:"-change" object.pk %}">Edit</a>
+         href="{% url "vantage:"|add:panel.slug|add:"-change" object.pk %}">{% translate "Edit" %}</a>
     {% endif %}
     {% slot "object_actions" %}
   </div>
@@ -23,7 +23,7 @@
 
 <div class="v-detail">
   <section class="v-card">
-    <div class="v-card-head"><h2 class="v-card-title">Details</h2></div>
+    <div class="v-card-head"><h2 class="v-card-title">{% translate "Details" %}</h2></div>
     <dl class="v-fields">
       {% for field in fields %}
         <div class="v-field">
@@ -46,13 +46,13 @@
             <h2 class="v-card-title">{{ block.label }}</h2>
             {% comment %} A bare number beside a heading reads as "Orders 47" and could be
                anything; the noun makes the count self-describing. {% endcomment %}
-            <span class="v-badge">{{ block.count }}<span class="v-sr-only"> records</span></span>
+            <span class="v-badge">{{ block.count }}<span class="v-sr-only"> {% translate "records" %}</span></span>
             {% if block.url %}
               {% comment %} Every related block ships a "View all", so out of context the links
                  are indistinguishable from one another. The hidden suffix is what a
                  screen reader's link list needs to tell them apart. {% endcomment %}
               <a class="v-btn v-btn-ghost v-btn-sm v-card-action" href="{{ block.url }}">
-                View all<span class="v-sr-only"> {{ block.label }}</span>
+                {% translate "View all" %}<span class="v-sr-only"> {{ block.label }}</span>
               </a>
             {% endif %}
           </div>
@@ -66,7 +66,7 @@
             <div class="v-table-wrap v-table-flush">
               <table class="v-table">
                 <caption class="v-sr-only">
-                  {{ block.label }} — first {{ block.rows|length }} of {{ block.count }}
+                  {% blocktranslate with label=block.label shown=block.rows|length total=block.count %}{{ label }} — first {{ shown }} of {{ total }}{% endblocktranslate %}
                 </caption>
                 <thead>
                   <tr>{% for column in block.columns %}<th scope="col">{{ column.label }}</th>{% endfor %}</tr>
@@ -88,12 +88,12 @@
             </div>
             {% if block.more %}
               <div class="v-card-body v-related-more">
-                <a href="{{ block.url }}">{{ block.more }} more<span class="v-sr-only"> {{ block.label }}</span>…</a>
+                <a href="{{ block.url }}">{% blocktranslate with more=block.more %}{{ more }} more{% endblocktranslate %}<span class="v-sr-only"> {{ block.label }}</span>…</a>
               </div>
             {% endif %}
           {% else %}
             <div class="v-card-body v-muted">
-              {% if block.count %}Not shown here.{% else %}None yet.{% endif %}
+              {% if block.count %}{% translate "Not shown here." %}{% else %}{% translate "None yet." %}{% endif %}
             </div>
           {% endif %}
         </section>
