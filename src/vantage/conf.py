@@ -75,6 +75,16 @@ DEFAULTS: dict[str, Any] = {
     "LIST_STATEMENT_TIMEOUT_MS": 10_000,
     "IMPORT_MAX_BYTES": 5 * 1024 * 1024,
     "IMPORT_MAX_ROWS": 5000,
+    # ── background jobs ─────────────────────────────────────────────────────
+    "JOBS": True,
+    # The line between running in the request and writing a job row, in seconds of
+    # estimated work.
+    "JOB_THRESHOLD_SECONDS": 2.0,
+    "JOB_CHUNK_SIZE": 500,
+    "JOB_MAX_STORED_ERRORS": 1000,
+    "JOB_RETENTION_DAYS": 30,
+    # Queue name for django.tasks / RQ. Celery uses its own routing.
+    "JOB_QUEUE": "default",
 }
 
 #: Values that must be one of a fixed set.

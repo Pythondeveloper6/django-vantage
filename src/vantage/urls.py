@@ -14,6 +14,7 @@ from vantage import (
     formviews,
     importviews,
     inline,
+    jobviews,
     listprefsview,
     savedviews,
     settingsview,
@@ -103,5 +104,6 @@ def build(site) -> list:
     urlpatterns += build_urls(site)
     urlpatterns += autocomplete.build_urls(site)
     urlpatterns += auditviews.build_urls(site)
+    urlpatterns += jobviews.build_urls(site)
     urlpatterns += savedviews.build_urls(site)
     return urlpatterns

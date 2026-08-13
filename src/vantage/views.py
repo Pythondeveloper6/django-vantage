@@ -182,7 +182,28 @@ class ListView(PanelView):
                 )
             )
 
-        from vantage import audit
+        from vantage import audit, jobs
+
+        # Under a couple of seconds of estimated work the action stays in the
+        # request; over it, the work moves off and the user gets a progress row.
+        if jobs.should_enqueue(chosen, count):
+            job = jobs.enqueue(
+                request=request, panel=self.panel, action=chosen,
+                selection=selection, count=count,
+            )
+            if job.is_terminal:
+                # No worker, so it ran here. Say what happened rather than promising
+                # progress on something already finished.
+                messages.success(
+                    request,
+                    f"{chosen.label}: {job.summary} ({selection.describe(job.total)})",
+                )
+            else:
+                messages.info(
+                    request,
+                    f"{chosen.label} is running over {selection.describe(job.total)}.",
+                )
+            return redirect(job.get_absolute_url())
 
         result = chosen.run(self.panel, request, queryset)
         audit.log_action(request, self.panel.model, chosen, count)

@@ -64,6 +64,13 @@ class Action:
     confirm: str | None = None
     #: Guard against a mis-click wiping a table. None means no ceiling.
     max_rows: int | None = None
+    #: ``"sql"`` for an action that is one ``queryset.update()`` or ``.delete()``;
+    #: ``"instances"`` for one that loads and saves each row. Declared rather than
+    #: inferred because ``queryset.update()`` bypasses ``save()``, signals and
+    #: ``auto_now``, and that must never be a silent choice. It is also how the job
+    #: layer costs the work: an SQL action over 40,000 rows still belongs in the
+    #: request; an instance action over 1,001 does not.
+    bulk_strategy: str = "instances"
     keywords: list[str] = field(default_factory=list)
 
     def needs_confirmation(self) -> bool:
@@ -92,6 +99,7 @@ def action(
     destructive: bool = False,
     confirm: str | None = None,
     max_rows: int | None = None,
+    bulk_strategy: str = "instances",
     keywords: list[str] | None = None,
 ):
     """Mark a panel method as an action.
@@ -108,6 +116,7 @@ def action(
             "destructive": destructive,
             "confirm": confirm,
             "max_rows": max_rows,
+            "bulk_strategy": bulk_strategy,
             "keywords": keywords or [],
         }
         return func
@@ -187,6 +196,7 @@ def _from_patterns(panel) -> list[Action]:
                 label=name.capitalize(),
                 icon="check" if name == "publish" else "x",
                 permission="change",
+                bulk_strategy="sql",
             )
         )
     return built
@@ -223,6 +233,7 @@ def _build(panel, entry: Any) -> Action | None:
             "destructive": False,
             "confirm": None,
             "max_rows": None,
+            "bulk_strategy": "instances",
             "keywords": [],
         }
     return Action(func=func, name=getattr(func, "__name__", str(entry)), **meta)
