@@ -96,7 +96,8 @@ class TestGamutClamping:
 
 class TestContrastRatio:
     def test_black_on_white_is_maximal(self):
-        assert contrast_ratio(hex_to_oklch("#000"), hex_to_oklch("#fff")) == pytest.approx(21, abs=0.1)
+        ratio = contrast_ratio(hex_to_oklch("#000"), hex_to_oklch("#fff"))
+        assert ratio == pytest.approx(21, abs=0.1)
 
     def test_a_colour_against_itself_is_one(self):
         colour = hex_to_oklch("#0ea5e9")
