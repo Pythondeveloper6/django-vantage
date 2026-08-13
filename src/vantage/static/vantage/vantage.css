@@ -1372,3 +1372,59 @@ textarea {
 
 .v-related-more a { color: var(--primary); }
 .v-related-more a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── schema map ───────────────────────────────────────────────────────────── */
+
+.v-erd-scroll { overflow-x: auto; padding: 1rem; }
+
+.v-erd { max-inline-size: none; }
+
+.v-erd-edges path {
+  stroke: var(--muted-foreground);
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.v-erd-edges path[data-kind="m2m"] { stroke-dasharray: 5 4; }
+.v-erd-edges path[data-kind="o2o"] { stroke: var(--primary); opacity: 0.8; }
+
+.v-erd-nodes rect {
+  fill: var(--card);
+  stroke: var(--border);
+  stroke-width: 1;
+  transition: stroke 0.12s;
+}
+
+.v-erd-nodes a:hover rect { stroke: var(--primary); stroke-width: 2; }
+.v-erd-nodes a:focus-visible rect { stroke: var(--ring); stroke-width: 2; }
+
+.v-erd-nodes text {
+  fill: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+
+.v-erd-nodes .v-erd-sub {
+  fill: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+
+.v-erd-key {
+  margin-inline-start: auto;
+  display: flex;
+  gap: 0.875rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-erd-key span { display: inline-flex; align-items: center; gap: 0.375rem; }
+
+.v-erd-swatch {
+  inline-size: 1.25rem;
+  block-size: 0;
+  border-block-start: 2px solid var(--muted-foreground);
+}
+
+.v-erd-swatch[data-kind="m2m"] { border-block-start-style: dashed; }
+.v-erd-swatch[data-kind="o2o"] { border-block-start-color: var(--primary); }

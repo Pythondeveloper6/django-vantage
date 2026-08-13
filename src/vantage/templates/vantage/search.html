@@ -7,8 +7,10 @@
 {% endcomment %}
 
 {% block head %}
-  {# Also linked by the palette partial; a repeated href costs one cache hit. The
-     results page must stay styled even where COMMAND_PALETTE is switched off. #}
+  {% comment %}
+    Also linked by the palette partial; a repeated href costs one cache hit. The
+    results page must stay styled even where COMMAND_PALETTE is switched off.
+  {% endcomment %}
   <link rel="stylesheet" href="{% static 'vantage/vantage-palette.css' %}">
 {% endblock %}
 

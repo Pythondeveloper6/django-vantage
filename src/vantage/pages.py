@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-__all__ = ["Page", "page_slug"]
+__all__ = ["Page", "SchemaPage", "page_slug"]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -112,3 +112,24 @@ class Page:
 
     def get_breadcrumbs(self) -> list[tuple[str, str | None]]:
         return [(self.get_title(), None)]
+
+
+class SchemaPage(Page):
+    """The relationship map, shipped as a built-in page.
+
+    Registered by the app config rather than left for projects to add, because a
+    schema view is only useful if it is always there — one a user has to switch on is
+    one they never remember exists.
+    """
+
+    title = "Schema"
+    icon = "share-2"
+    group = "System"
+    order = 90
+    path = "_/schema/"
+    template_name = "vantage/pages/schema.html"
+
+    def get_context(self, request):
+        from vantage.erd import build_graph
+
+        return {"graph": build_graph(self.site, request)}

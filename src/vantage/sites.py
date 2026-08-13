@@ -73,6 +73,23 @@ class VantageSite:
     def pages(self) -> list[type]:
         return list(self._pages)
 
+    # ── custom commands ─────────────────────────────────────────────────────
+
+    def register_command(self, command=None, **kwargs):
+        """Add an entry to the command palette.
+
+        Accepts a ``Command``, keyword arguments, or a decorated class — the same
+        three shapes ``register_page`` supports, so the two feel alike.
+        """
+        from vantage.palette import register_command
+
+        return register_command(self, command, **kwargs)
+
+    def commands(self, request):
+        from vantage.palette import build_commands
+
+        return build_commands(self, request)
+
     # ── mounting ────────────────────────────────────────────────────────────
 
     @property

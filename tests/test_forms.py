@@ -9,60 +9,16 @@ page for a record whose pk is the string ``"5/change"``).
 
 import pytest
 from django.contrib.auth.models import Permission, User
-from django.urls import include, path, reverse
+from django.urls import reverse
 
 from tests.testapp.models import Author, Category, Comment, Order, Post, Tag
-from vantage import formviews, site, views
+from vantage import formviews, site
 from vantage.permissions import PanelPermissions
 
-
-def _writable_urls(site):
-    """The routes this module is proposing for ``vantage.urls.build``."""
-    patterns = [
-        path("", views.DashboardView.as_view(site=site), name="dashboard"),
-        path("_/theme/", views.ThemeView.as_view(site=site), name="theme"),
-    ]
-    for panel in site.panels():
-        opts = panel.opts
-        prefix = f"{opts.app_label}/{opts.model_name}/"
-        patterns += [
-            path(
-                prefix,
-                views.ListView.as_view(site=site, panel=panel),
-                name=f"{panel.slug}-list",
-            ),
-            path(
-                f"{prefix}new/",
-                formviews.CreateView.as_view(site=site, panel=panel),
-                name=f"{panel.slug}-add",
-            ),
-            path(
-                f"{prefix}<path:pk>/change/",
-                formviews.UpdateView.as_view(site=site, panel=panel),
-                name=f"{panel.slug}-change",
-            ),
-            path(
-                f"{prefix}<path:pk>/delete/",
-                formviews.DeleteView.as_view(site=site, panel=panel),
-                name=f"{panel.slug}-delete",
-            ),
-            path(
-                f"{prefix}<path:pk>/",
-                views.DetailView.as_view(site=site, panel=panel),
-                name=f"{panel.slug}-detail",
-            ),
-        ]
-    return patterns
-
-
-urlpatterns = [path("admin/", include((_writable_urls(site), "vantage"), namespace="vantage"))]
-
+# These routes now live in ``vantage.urls.build``. This module originally carried its
+# own copy because the views were not yet wired; keeping one would mean every new
+# route silently breaks these tests instead of exercising the real urlconf.
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture(autouse=True)
-def writable_urlconf(settings):
-    settings.ROOT_URLCONF = "tests.test_forms"
 
 
 @pytest.fixture(autouse=True)

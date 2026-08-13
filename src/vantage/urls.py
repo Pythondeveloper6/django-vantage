@@ -9,6 +9,7 @@ from __future__ import annotations
 from django.urls import path
 
 from vantage import formviews, views
+from vantage.palette import build_urls
 
 
 def build(site) -> list:
@@ -67,4 +68,5 @@ def build(site) -> list:
             ]
         )
 
+    urlpatterns += build_urls(site)
     return urlpatterns

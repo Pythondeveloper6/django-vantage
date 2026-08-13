@@ -282,6 +282,11 @@ class TestFallbackPage:
     def test_anonymous_is_redirected(self, client, db):
         assert client.get(reverse("vantage:search")).status_code == 302
 
+    def test_no_comment_leaks_into_the_page(self, client, boss, content):
+        # ``{# … #}`` is single-line only; a multi-line one renders as visible text.
+        client.force_login(boss)
+        assert "{#" not in client.get(reverse("vantage:search")).content.decode()
+
 
 class TestCost:
     def test_one_query_per_searched_model(self, boss, content, django_assert_num_queries):

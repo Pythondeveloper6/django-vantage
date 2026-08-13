@@ -22,7 +22,12 @@
 </div>
 
 {% if searchable %}
-<form class="v-toolbar" method="get" role="search">
+{% comment %}
+  Labelled because the header palette is also a search landmark; two
+  unnamed ones leave a screen-reader user unable to tell them apart.
+{% endcomment %}
+<form class="v-toolbar" method="get" role="search" id="v-list-search"
+      aria-label="Search {{ panel.get_label_plural|lower }}">
   <div class="v-search">
     {% icon "search" %}
     <input class="v-input" type="search" name="q" value="{{ query }}"
