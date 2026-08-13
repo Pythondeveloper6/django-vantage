@@ -110,6 +110,11 @@ class PanelPermissions:
         Consulted *before* the superuser bypass, deliberately. An admin that says
         nobody may delete these rows means nobody, and adopting it into Vantage must
         not quietly widen it to every superuser.
+
+        The signature is ``(request, obj=None)`` for all four verbs, including ``add``
+        — ``contrib.admin`` omits ``obj`` on that one alone, and one uniform signature
+        is worth more than bug-compatibility with an inconsistency. The adapter bridges
+        the difference so an adopted ``has_add_permission(self, request)`` still works.
         """
         hook = _panel_hook(model, action)
         if hook is None:
