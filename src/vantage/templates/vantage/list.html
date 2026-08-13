@@ -159,7 +159,7 @@
 <div class="v-grid" data-grid data-grid-model="{{ panel.slug }}"
      {% if page.has_previous %}data-prev-url="?{% querystring_replace page=page.previous_page_number %}"{% endif %}
      {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}
-     {% if inline.enabled and rows %}data-inline data-inline-save="{{ inline.save_url }}" data-inline-validate="{{ inline.validate_url }}"{% endif %}>
+     {% if inline.enabled and rows %}data-inline data-inline-save-url="{{ inline.save_url }}" data-inline-validate-url="{{ inline.validate_url }}"{% endif %}>
 
 {% if rows %}{% include "vantage/partials/grid_controls.html" %}{% endif %}
 
