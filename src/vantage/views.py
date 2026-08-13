@@ -195,9 +195,21 @@ class ListView(PanelView):
         disagree about which rows the page is about.
         """
         panel = self.panel
-        queryset = self.permissions.filter_queryset(
-            request, panel.get_list_queryset(request), "view"
-        )
+        patterns = panel.get_patterns()
+
+        if self.showing_trash(request):
+            queryset = self.permissions.filter_queryset(
+                request, panel.get_trash_queryset(request), "view"
+            )
+        else:
+            queryset = self.permissions.filter_queryset(
+                request, panel.get_list_queryset(request), "view"
+            )
+            if patterns.soft_delete and not patterns.soft_delete.manager_hides_trashed:
+                # A model whose manager does not already exclude them: the list means
+                # live records, and the trash is a place you go to deliberately.
+                queryset = queryset.filter(patterns.soft_delete.live)
+
         query = request.GET.get("q", "").strip()
         if query:
             queryset = queryset.filter(self._search_q(panel, query, request))
@@ -248,11 +260,29 @@ class ListView(PanelView):
             has_active_filters=any(f.is_active for f in filters),
             analytics=self.get_analytics(queryset),
             searchable=bool(panel.get_list_search(request)),
+            patterns=panel.get_patterns(),
+            showing_trash=self.showing_trash(request),
+            trash_count=self.get_trash_count(panel, request),
             actions=resolve_actions(panel, request),
             summary=self.get_summary(panel, queryset, columns),
             page_title=panel.get_label_plural(),
         )
         return context
+
+    def showing_trash(self, request) -> bool:
+        """Whether this request is asking for the trash rather than the live list."""
+        return (
+            request.GET.get("trash") == "1"
+            and self.panel.get_patterns().soft_delete is not None
+        )
+
+    def get_trash_count(self, panel, request) -> int | None:
+        """How many soft-deleted rows there are, or None when the model has no trash."""
+        if panel.get_patterns().soft_delete is None:
+            return None
+        return self.permissions.filter_queryset(
+            request, panel.get_trash_queryset(request), "view"
+        ).count()
 
     @staticmethod
     def get_summary(panel, queryset, columns):

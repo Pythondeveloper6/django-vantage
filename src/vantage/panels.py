@@ -116,6 +116,38 @@ class ModelPanel:
         """URL segment identifying this panel: ``testapp.post`` -> ``testapp-post``."""
         return f"{self.opts.app_label}-{self.opts.model_name}"
 
+    def get_patterns(self):
+        """Modelling conventions detected on this model, computed once.
+
+        Detection is pure but walks the field list several times, and panels are
+        long-lived singletons, so it is memoised on the instance rather than redone
+        per request.
+        """
+        cached = getattr(self, "_patterns", None)
+        if cached is None:
+            from vantage.patterns import detect_all
+
+            cached = detect_all(self)
+            self._patterns = cached
+        return cached
+
+    def get_trash_queryset(self, request):
+        """Soft-deleted rows.
+
+        Starts from ``_base_manager`` when the model's default manager already hides
+        them: a trash view built on ``get_queryset()`` would filter a queryset that
+        can never contain what it is looking for, and silently show nothing.
+        """
+        pattern = self.get_patterns().soft_delete
+        if pattern is None:
+            return self.model._default_manager.none()
+        base = (
+            self.model._base_manager.all()
+            if pattern.manager_hides_trashed
+            else self.get_queryset(request)
+        )
+        return base.filter(pattern.trashed)
+
     @property
     def list_url_name(self) -> str:
         return f"vantage:{self.slug}-list"

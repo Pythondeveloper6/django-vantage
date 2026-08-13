@@ -48,11 +48,21 @@ def posts(db):
 
 @pytest.fixture
 def archives(db):
+    """Five soft-deleted archives.
+
+    Acting on them means acting from the trash view: now that soft-delete is detected,
+    the plain list shows live records only, so these are invisible there — which is the
+    behaviour, not a problem to work around.
+    """
     from django.utils import timezone
 
     return [
         Archive.objects.create(title=f"A{i}", deleted_at=timezone.now()) for i in range(5)
     ]
+
+
+def trash_url():
+    return reverse(LIST) + "?trash=1"
 
 
 class TestDeclaration:
@@ -148,22 +158,22 @@ class TestSelection:
 class TestRunningThroughTheView:
     def test_an_action_runs_over_the_selected_rows(self, boss, archives):
         ids = [str(a.pk) for a in archives[:2]]
-        response = boss.post(reverse(LIST), {"action": "restore", "selected": ids}, follow=True)
+        response = boss.post(trash_url(), {"action": "restore", "selected": ids}, follow=True)
         assert response.status_code == 200
         assert Archive.objects.filter(deleted_at=None).count() == 2
 
     def test_an_action_leaves_unselected_rows_alone(self, boss, archives):
         ids = [str(archives[0].pk)]
-        boss.post(reverse(LIST), {"action": "restore", "selected": ids}, follow=True)
+        boss.post(trash_url(), {"action": "restore", "selected": ids}, follow=True)
         assert Archive.objects.exclude(deleted_at=None).count() == 4
 
     def test_select_all_reaches_every_matching_row(self, boss, archives):
-        boss.post(reverse(LIST), {"action": "restore", "select_all": "1"}, follow=True)
+        boss.post(trash_url(), {"action": "restore", "select_all": "1"}, follow=True)
         assert Archive.objects.filter(deleted_at=None).count() == 5
 
     def test_select_all_honours_exclusions_through_the_view(self, boss, archives):
         boss.post(
-            reverse(LIST),
+            trash_url(),
             {"action": "restore", "select_all": "1", "excluded": [str(archives[0].pk)]},
             follow=True,
         )
@@ -172,13 +182,13 @@ class TestRunningThroughTheView:
     def test_the_resolved_scope_is_reported_back(self, boss, archives):
         """So a silently narrowed scope is impossible to miss."""
         response = boss.post(
-            reverse(LIST), {"action": "restore", "select_all": "1"}, follow=True
+            trash_url(), {"action": "restore", "select_all": "1"}, follow=True
         )
         assert "all 5 matching" in response.content.decode()
 
     def test_a_destructive_action_confirms_before_running(self, boss, archives):
         ids = [str(a.pk) for a in archives[:2]]
-        response = boss.post(reverse(LIST), {"action": "purge", "selected": ids})
+        response = boss.post(trash_url(), {"action": "purge", "selected": ids})
         assert response.status_code == 200
         assert "cannot be undone" in response.content.decode()
         assert Archive.objects.count() == 5  # nothing destroyed yet
@@ -186,7 +196,7 @@ class TestRunningThroughTheView:
     def test_a_confirmed_destructive_action_runs(self, boss, archives):
         ids = [str(a.pk) for a in archives[:2]]
         boss.post(
-            reverse(LIST),
+            trash_url(),
             {"action": "purge", "selected": ids, "confirmed": "1"},
             follow=True,
         )
@@ -195,7 +205,7 @@ class TestRunningThroughTheView:
     def test_max_rows_refuses_an_oversized_selection(self, boss, archives):
         """A guard against one mis-click wiping a table."""
         response = boss.post(
-            reverse(LIST), {"action": "purge", "select_all": "1", "confirmed": "1"}, follow=True
+            trash_url(), {"action": "purge", "select_all": "1", "confirmed": "1"}, follow=True
         )
         assert "limited to 3" in response.content.decode()
         assert Archive.objects.count() == 5
@@ -207,7 +217,7 @@ class TestRunningThroughTheView:
             staff.user_permissions.add(Permission.objects.get(content_type=ct, codename=codename))
         client.force_login(User.objects.get(pk=staff.pk))
         ids = [str(archives[0].pk)]
-        response = client.post(reverse(LIST), {"action": "purge", "selected": ids})
+        response = client.post(trash_url(), {"action": "purge", "selected": ids})
         assert response.status_code == 403
         assert Archive.objects.count() == 5
 
@@ -216,7 +226,7 @@ class TestRunningThroughTheView:
         assert response.status_code == 403
 
     def test_an_empty_selection_does_nothing(self, boss, archives):
-        response = boss.post(reverse(LIST), {"action": "restore"}, follow=True)
+        response = boss.post(trash_url(), {"action": "restore"}, follow=True)
         assert response.status_code == 200
         assert "Nothing was selected" in response.content.decode()
 
