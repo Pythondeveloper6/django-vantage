@@ -96,6 +96,7 @@ django-simple-history are all used when present and never required.
 | [Pages and dashboards](pages-and-dashboards.md) | Screens that are not models, and dashboard widgets |
 | [Settings](settings.md) | Every `VANTAGE` key, its default and its effect |
 | [Deployment](deployment.md) | What to check before pointing this at production |
+| [Accessibility](accessibility.md) | What is guaranteed, what you must supply, what is still broken |
 | [Extending](extending.md) | Slots, plugins, and adopting an existing `admin.py` |
 | [FAQ](faq.md) | How it differs from `django.contrib.admin`, what it does not do |
 

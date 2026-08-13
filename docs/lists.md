@@ -123,7 +123,7 @@ to a broader result set rather than to a 500.
 
 ```pycon
 >>> # ?status=nonsense  — the value is not one of the declared choices
-200            # every row; the filter simply did not apply
+200            # every row; the filter did not apply
 ```
 
 A path that resolves only partially — `created_at__year`, say — is rejected outright

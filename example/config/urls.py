@@ -1,46 +1,29 @@
 """URLs for the demo.
 
-The panel is mounted at ``/admin/``. Everything else here exists only to give it a
-login page to redirect anonymous visitors to.
+The panel is mounted at ``/admin/``; the auth pages come from the package itself, so
+this file shows the whole integration a real project needs.
 """
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
 from django.views.generic import RedirectView
 
 from vantage import site
-from vantage.conf import vantage_settings
-from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
 
-
-class DemoLoginView(auth_views.LoginView):
-    """Django's login view, handed the few context values the panel's stylesheet wants.
-
-    The token stylesheet is rendered per request rather than captured at import time,
-    so changing ``BRAND_COLOR`` in settings restyles the login page on the next
-    runserver reload along with the rest of the panel.
-    """
-
-    template_name = "registration/login.html"
-    redirect_authenticated_user = True
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update(
-            vantage=vantage_settings,
-            theme_css=render_theme_css(),
-            no_flash_script=NO_FLASH_SCRIPT,
-        )
-        return context
-
+handler403 = "vantage.authviews.permission_denied"
+handler404 = "vantage.authviews.page_not_found"
+handler500 = "vantage.authviews.server_error"
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/admin/")),
-    path("accounts/login/", DemoLoginView.as_view(), name="login"),
-    path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    # Vantage ships branded login, logout and password-change pages, so a project
+    # does not have to write them. There is no app_name and the route names are
+    # Django's own, which makes this a drop-in for
+    # include("django.contrib.auth.urls") — LOGIN_URL and redirect_to_login keep
+    # working untouched.
+    path("accounts/", include("vantage.authviews")),
     path("admin/", site.urls),
+    path("", RedirectView.as_view(url="/admin/")),
 ]
 
 if settings.DEBUG:

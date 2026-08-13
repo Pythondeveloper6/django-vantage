@@ -347,7 +347,7 @@ Two details worth stating.
 
 **A declared `NAV` can reorder, rename and hide — it can never grant access.** Every
 entry still passes through the permission layer, so a nav entry for a model you cannot
-open simply does not render.
+open does not render.
 
 **The default dashboard filters by permission *before* capping.** Capping first would
 mean a user who can see only one model, and whose model sorts outside the first twelve,
@@ -375,8 +375,10 @@ The same reasoning shapes two other refusals:
 ## Sign-in
 
 Every panel view requires an authenticated user with `is_staff`. Anonymous visitors are
-redirected to `settings.LOGIN_URL` with a `next` parameter. Vantage ships no login view
-of its own.
+redirected to `settings.LOGIN_URL` with a `next` parameter. Vantage ships styled
+sign-in, sign-out and change-password views over `django.contrib.auth`'s own forms —
+mount them, or keep your own. See
+[Signing in](getting-started.md#signing-in).
 
 ## See also
 

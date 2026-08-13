@@ -1,0 +1,22 @@
+# The CI workflows pin third-party actions to exact versions rather than a floating
+# major tag — astral-sh/setup-uv, for one, does not publish a floating major past v7 —
+# and an exact pin only stays safe if something moves it. That is this file's whole job.
+#
+# Python dependencies are deliberately not tracked here. The package declares one
+# runtime dependency (`Django>=5.2`) and the matrix already tests both ends of that
+# range, so a bot opening pull requests to bump a lockfile the library does not ship
+# would be noise.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # One pull request for all of them: they are reviewed together and it keeps the
+    # queue readable.
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

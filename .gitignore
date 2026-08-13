@@ -15,8 +15,12 @@ venv/
 .pytest_cache/
 .ruff_cache/
 .coverage
+coverage.xml
 htmlcov/
 .mypy_cache/
+.ty_cache/
+.tox/
+.nox/
 
 # Node (contributor-only asset build)
 node_modules/

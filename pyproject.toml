@@ -48,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Database :: Front-Ends",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Typing :: Typed",
     "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]

@@ -231,6 +231,55 @@ class TestBackendDetection:
         monkeypatch.setattr(jobs, "_celery_has_broker", lambda: True)
         assert jobs.detect_backend() is jobs.CELERY
 
+    def test_the_django_tasks_submit_path_actually_enqueues(self, db, boss, use_panel):
+        """Exercises the ``django.tasks`` call signature for real.
+
+        Detection would not pick this backend here — the configured one is
+        ``ImmediateBackend``, which is not a queue — but the enqueue call is the same
+        one a project with a worker makes, and getting its shape wrong is a failure
+        that only shows up in production. ``ImmediateBackend`` runs the task in-thread,
+        so the job also completes, which is the second half of the proof.
+        """
+        panel = use_panel(Promo, TouchPanel)
+        promos(3)
+        job = enqueue(panel, boss, name="touch")
+        VantageJob.objects.filter(pk=job.pk).update(
+            status=VantageJob.Status.PENDING, processed=0, backend="django_tasks"
+        )
+
+        jobs._submit_deferred(job.pk, "django_tasks")
+
+        job.refresh_from_db()
+        assert job.status == VantageJob.Status.SUCCEEDED
+        assert job.processed == 3
+        assert job.task_id  # the backend's own identifier, recorded
+
+    def test_a_deferred_backend_is_submitted_only_after_the_row_is_committed(
+        self, db, boss, django_capture_on_commit_callbacks, monkeypatch
+    ):
+        """A worker that reads the row before the transaction commits sees nothing."""
+        sent = []
+        monkeypatch.setattr(jobs, "_submit_deferred", lambda pk, name: sent.append((pk, name)))
+        job = VantageJob.objects.create(
+            actor=boss, resource_key="testapp.promo", action_name="touch", backend="celery"
+        )
+
+        with django_capture_on_commit_callbacks(execute=False) as callbacks:
+            jobs._submit(job)
+        assert sent == []
+        assert len(callbacks) == 1
+
+        callbacks[0]()
+        assert sent == [(job.pk, "celery")]
+
+    def test_the_in_process_runner_is_not_deferred_to_commit(self, db, boss, use_panel):
+        """Deferring it would mean it never ran inside a ``TestCase`` — or a request
+        that rolled back — which is the one case it exists to cover."""
+        panel = use_panel(Promo, TouchPanel)
+        promos(2)
+        job = enqueue(panel, boss, name="touch")
+        assert job.status == VantageJob.Status.SUCCEEDED
+
     def test_rq_requires_the_app_to_be_installed_not_merely_importable(self, monkeypatch):
         monkeypatch.setattr("vantage.health._importable", lambda name: name == "django_rq")
         monkeypatch.setattr(jobs, "_installed", lambda label: False)

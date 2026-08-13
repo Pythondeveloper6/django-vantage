@@ -360,7 +360,7 @@ a deletion. Those are different kinds of bad news, and collapsing them into one 
 would make a harmless nulled optional reference look like destruction.
 
 The count goes on the **button**, not only in the list above it. A confirmation whose
-button just says "Delete" is a confirmation people click without reading; putting the
+button says only "Delete" is a confirmation people click without reading; putting the
 number on the control being pressed is the last chance to notice that this order is
 taking twelve other rows with it.
 
