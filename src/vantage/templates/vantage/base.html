@@ -1,0 +1,88 @@
+{% load static vantage %}<!doctype html>
+<html lang="{{ language_code }}"{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ page_title }} · {{ settings.SITE_TITLE }}{% endblock %}</title>
+{% if settings.FAVICON %}<link rel="icon" href="{% static settings.FAVICON %}">{% endif %}
+
+{# Blocking and inline on purpose: a deferred script paints light first and flips. #}
+<script>{{ no_flash_script|safe }}</script>
+
+<style>{{ theme_css|safe }}</style>
+<link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
+{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% static settings.CUSTOM_CSS %}">{% endif %}
+{% block head %}{% endblock %}
+</head>
+<body>
+{% if settings.ENVIRONMENT %}<div class="v-env-banner">{{ settings.ENVIRONMENT }}</div>{% endif %}
+
+<div class="v-shell">
+  <aside class="v-sidebar" id="v-sidebar">
+    <a class="v-brand" href="{% url 'vantage:dashboard' %}">
+      {% if settings.LOGO %}
+        <img src="{% static settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
+      {% else %}
+        <span class="v-brand-mark" aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>
+        <span>{{ settings.SITE_TITLE }}</span>
+      {% endif %}
+    </a>
+
+    <nav class="v-nav" aria-label="Sections">
+      {% for group in nav %}
+        <div>
+          <div class="v-nav-group-label">{{ group.label }}</div>
+          {% for item in group.items %}
+            <a class="v-nav-item" href="{{ item.url }}"
+               {% if item|is_current:path %}aria-current="page"{% endif %}>
+              {% icon item.icon|default:"box" %}
+              <span>{{ item.label }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <div class="v-main">
+    <header class="v-header">
+      <button class="v-btn v-btn-ghost v-btn-icon" id="v-sidebar-toggle"
+              aria-label="Toggle navigation" aria-controls="v-sidebar">
+        {% icon "menu" %}
+      </button>
+
+      <nav class="v-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'vantage:dashboard' %}">{{ settings.SITE_TITLE }}</a>
+        {% for label, url in breadcrumbs %}
+          <span class="v-breadcrumb-sep" aria-hidden="true">{% icon "chevron-right" %}</span>
+          {% if url %}<a href="{{ url }}">{{ label }}</a>
+          {% else %}<span aria-current="page">{{ label }}</span>{% endif %}
+        {% endfor %}
+      </nav>
+
+      <div class="v-header-spacer"></div>
+
+      {% if settings.THEME_TOGGLE %}
+        <button class="v-btn v-btn-ghost v-btn-icon" data-vantage-theme-toggle
+                aria-label="Switch between light and dark theme"
+                formaction="{% url 'vantage:theme' %}">
+          <span data-theme-icon="light">{% icon "sun" %}</span>
+          <span data-theme-icon="dark" hidden>{% icon "moon" %}</span>
+        </button>
+      {% endif %}
+
+      {% if user.is_authenticated %}
+        <span class="v-muted">{{ user.get_username }}</span>
+      {% endif %}
+    </header>
+
+    <main class="v-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="{% static 'vantage/vantage.js' %}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

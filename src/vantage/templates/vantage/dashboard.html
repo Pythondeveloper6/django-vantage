@@ -1,0 +1,32 @@
+{% extends "vantage/base.html" %}
+{% load vantage %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ settings.SITE_TITLE }}</h1>
+    <p class="v-page-description">
+      {{ panels|length }} model{{ panels|length|pluralize }} registered.
+    </p>
+  </div>
+</div>
+
+<div class="v-stats">
+  {% for panel in panels %}
+    <a class="v-stat" href="{% url panel.list_url_name %}">
+      <div class="v-stat-label">{{ panel.get_label_plural }}</div>
+      <div class="v-stat-value">{{ panel.count }}</div>
+      <div class="v-stat-delta v-muted">{{ panel.get_group }}</div>
+    </a>
+  {% empty %}
+    <div class="v-empty">
+      {% icon "box" class="v-empty-icon" %}
+      <p class="v-empty-title">No models registered.</p>
+      <p class="v-empty-body">
+        Add an app to <code class="v-mono">INSTALLED_APPS</code> and its models appear here
+        automatically.
+      </p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
