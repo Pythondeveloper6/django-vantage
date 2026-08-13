@@ -15,15 +15,16 @@ queryset is validated before the generator starts.
 from __future__ import annotations
 
 import csv
+import json
 from collections.abc import Iterator
 from typing import Any
 
 from django.http import StreamingHttpResponse
 from django.utils.text import slugify
 
-__all__ = ["FORMATS", "stream_csv"]
+__all__ = ["FORMATS", "stream_csv", "stream_export", "stream_json", "stream_tsv"]
 
-FORMATS = ("csv",)
+FORMATS = ("csv", "json", "tsv")
 
 #: Rows per database round trip. Large enough that the query overhead disappears,
 #: small enough that a wide model does not spike memory.
@@ -74,6 +75,53 @@ def _rows(queryset, columns: list[str], headers: list[str]) -> Iterator[list[str
         yield [_cell(_resolve(obj, column)) for column in columns]
 
 
+def stream_export(fmt: str, queryset, columns, headers, filename):
+    """Dispatch to the writer for ``fmt``."""
+    return {"csv": stream_csv, "tsv": stream_tsv, "json": stream_json}[fmt](
+        queryset, columns, headers, filename
+    )
+
+
+def _attach(response, filename: str, extension: str):
+    response["Content-Disposition"] = (
+        f'attachment; filename="{slugify(filename)}.{extension}"'
+    )
+    # Nothing downstream should cache a per-user, permission-scoped extract.
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def stream_json(queryset, columns: list[str], headers: list[str], filename: str):
+    """Newline-delimited JSON: one object per line.
+
+    NDJSON rather than one big array because a streamed array cannot be closed if
+    the queryset raises halfway, leaving a file that is silently truncated and
+    invalid. Every line here is independently parseable, so a partial download is
+    obviously partial rather than quietly wrong.
+    """
+
+    def lines():
+        for obj in queryset.iterator(chunk_size=CHUNK_SIZE):
+            row = {
+                header: _cell(_resolve(obj, column))
+                for header, column in zip(headers, columns, strict=True)
+            }
+            yield json.dumps(row, ensure_ascii=False) + "\n"
+
+    response = StreamingHttpResponse(lines(), content_type="application/x-ndjson")
+    return _attach(response, filename, "ndjson")
+
+
+def stream_tsv(queryset, columns: list[str], headers: list[str], filename: str):
+    """Tab-separated, for pasting straight into a spreadsheet."""
+    writer = csv.writer(_Echo(), delimiter="\t", quoting=csv.QUOTE_MINIMAL)
+    response = StreamingHttpResponse(
+        (writer.writerow(row) for row in _rows(queryset, columns, headers)),
+        content_type="text/tab-separated-values; charset=utf-8",
+    )
+    return _attach(response, filename, "tsv")
+
+
 def stream_csv(queryset, columns: list[str], headers: list[str], filename: str):
     """A ``StreamingHttpResponse`` of ``queryset`` as CSV."""
     writer = csv.writer(_Echo())
@@ -81,7 +129,4 @@ def stream_csv(queryset, columns: list[str], headers: list[str], filename: str):
         (writer.writerow(row) for row in _rows(queryset, columns, headers)),
         content_type="text/csv; charset=utf-8",
     )
-    response["Content-Disposition"] = f'attachment; filename="{slugify(filename)}.csv"'
-    # Nothing downstream should cache a per-user, permission-scoped extract.
-    response["Cache-Control"] = "no-store"
-    return response
+    return _attach(response, filename, "csv")

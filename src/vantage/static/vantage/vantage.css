@@ -1524,3 +1524,33 @@ textarea {
 }
 
 .v-tab svg { inline-size: 0.875rem; block-size: 0.875rem; }
+
+/* ── export menu ──────────────────────────────────────────────────────────── */
+
+.v-export { position: relative; }
+.v-export summary { list-style: none; cursor: pointer; }
+.v-export summary::-webkit-details-marker { display: none; }
+
+.v-export-menu {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + 0.25rem);
+  z-index: 40;
+  min-inline-size: 12rem;
+  padding: 0.25rem;
+  display: grid;
+  gap: 0.125rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.v-export-menu a {
+  padding: 0.4375rem 0.625rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.v-export-menu a:hover { background: var(--muted); }
