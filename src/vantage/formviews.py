@@ -169,6 +169,12 @@ class PanelFormView(PanelView):
             else:
                 obj.save()
             form.save_m2m()
+        # Outside the transaction on purpose: catching a logging error *inside* an
+        # atomic block still marks it for rollback, so a swallowed exception here
+        # would destroy the write it was recording.
+        from vantage import audit
+
+        audit.log_form_save(self.request, obj, form, self.change)
         return obj
 
     # ── presentation ────────────────────────────────────────────────────────
@@ -469,6 +475,11 @@ class DeleteView(RecordView):
             return self.render_to_response(self.get_context_data(cascade=cascade), status=409)
 
         label = str(self.object)
+        # Before the delete: Model.delete() blanks the pk, so an entry written
+        # afterwards would snapshot a record with no identity.
+        from vantage import audit
+
+        audit.log_delete(request, self.object)
         with transaction.atomic(using=router.db_for_write(self.panel.model)):
             self.object.delete()
         messages.success(request, self.get_success_message(label, cascade))

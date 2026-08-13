@@ -1,0 +1,393 @@
+{% load static vantage %}{% comment %}
+  The per-list customisation rail.
+
+  Six independent forms, one per section, each a plain POST. No JavaScript is involved
+  and none is required: every control is a checkbox, a number box or a select, and the
+  page it posts to answers with a redirect back to the list. The script loaded at the
+  bottom adds reordering buttons and a select-all, and nothing else — take it away and
+  the rail still does everything it claims to.
+
+  Six forms rather than one, for the same reason `vantage/settings.html` uses one form
+  and six reset *buttons*: a form cannot nest, and each section here has its own reset
+  and its own scope. Saving the columns must not also rewrite the filters with whatever
+  happened to be on screen, and separate forms make that structural rather than
+  something the view has to remember.
+
+  Ordering without JavaScript is a number box per row. Unattractive, and the only thing
+  that works with scripting off; the enhancement script hides them behind ↑/↓ buttons.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-listprefs.css' %}">
+
+<details class="v-filters v-listprefs" data-list-prefs>
+  <summary class="v-filters-summary">
+    {% icon "sliders" %}
+    <span>Customise</span>
+    {% if list_prefs.spec.stored %}
+      <span class="v-badge" data-tone="primary">Tuned</span>
+    {% endif %}
+  </summary>
+
+  <p class="v-listprefs-intro">
+    Changes here affect this list only, and only for you — unless you save them for
+    everyone. Reset puts a section back to what the code declares.
+  </p>
+
+  {% comment %} ── columns and page size ───────────────────────────────────── {% endcomment %}
+  <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
+        data-prefs-form>
+    {% csrf_token %}
+    <input type="hidden" name="section" value="columns">
+    <input type="hidden" name="next" value="{{ list_prefs.next }}">
+
+    <div class="v-listprefs-head">
+      <h3 class="v-listprefs-title">Columns</h3>
+      {% if list_prefs.overridden.columns %}
+        <span class="v-listprefs-flag">tuned</span>
+      {% endif %}
+    </div>
+
+    <div class="v-listprefs-options" data-prefs-sortable>
+      {% for column in list_prefs.columns %}
+        <label class="v-filter-option" data-prefs-row>
+          <input type="checkbox" name="columns" value="{{ column.name }}"
+                 {% if column.selected %}checked{% endif %}>
+          <span class="v-filter-option-label">{{ column.label }}</span>
+          <input class="v-input v-input-sm v-listprefs-order" type="number" min="1"
+                 name="order__{{ column.name }}" value="{{ column.position }}"
+                 data-prefs-position
+                 aria-label="Position of {{ column.label }}">
+        </label>
+      {% endfor %}
+    </div>
+
+    <label class="v-listprefs-field">
+      <span class="v-listprefs-label">Rows per page</span>
+      <input class="v-input v-input-sm" type="number" min="1" max="500"
+             name="per_page" value="{{ list_prefs.per_page }}">
+    </label>
+
+    {% comment %}
+      Four buttons, one name. Only the pressed submit sends a value, so the scope has
+      to ride on the button rather than in a hidden field — and one parameter means the
+      permission check for "for everyone" has exactly one door to guard.
+    {% endcomment %}
+    <div class="v-listprefs-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+      {% endif %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% comment %} ── search ──────────────────────────────────────────────────── {% endcomment %}
+  {% if list_prefs.search_options %}
+    <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
+          data-prefs-form>
+      {% csrf_token %}
+      <input type="hidden" name="section" value="search">
+      <input type="hidden" name="next" value="{{ list_prefs.next }}">
+
+      <div class="v-listprefs-head">
+        <h3 class="v-listprefs-title">Search</h3>
+        {% if list_prefs.overridden.search %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+      </div>
+
+      <label class="v-filter-option v-listprefs-toggle">
+        <input type="checkbox" name="search_enabled" data-prefs-toggle
+               {% if list_prefs.spec.search_enabled %}checked{% endif %}>
+        <span class="v-filter-option-label">Show the search box</span>
+      </label>
+
+      <div class="v-listprefs-options" data-prefs-dependent>
+        {% for option in list_prefs.search_options %}
+          <label class="v-filter-option">
+            <input type="checkbox" name="search_fields" value="{{ option.name }}"
+                   {% if option.selected %}checked{% endif %}>
+            <span class="v-filter-option-label">{{ option.label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+    <div class="v-listprefs-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+      {% endif %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+      {% endif %}
+    </div>
+    </form>
+  {% endif %}
+
+  {% comment %} ── filters ─────────────────────────────────────────────────── {% endcomment %}
+  {% if list_prefs.filter_options %}
+    <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
+          data-prefs-form>
+      {% csrf_token %}
+      <input type="hidden" name="section" value="filters">
+      <input type="hidden" name="next" value="{{ list_prefs.next }}">
+
+      <div class="v-listprefs-head">
+        <h3 class="v-listprefs-title">Filters</h3>
+        {% if list_prefs.overridden.filters %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+      </div>
+
+      <label class="v-filter-option v-listprefs-toggle">
+        <input type="checkbox" name="filters_enabled" data-prefs-toggle
+               {% if list_prefs.spec.filters_enabled %}checked{% endif %}>
+        <span class="v-filter-option-label">Show the filter rail</span>
+      </label>
+
+      <div class="v-listprefs-options" data-prefs-dependent data-prefs-sortable>
+        {% for option in list_prefs.filter_options %}
+          <label class="v-filter-option" data-prefs-row>
+            <input type="checkbox" name="filter_fields" value="{{ option.name }}"
+                   {% if option.selected %}checked{% endif %}>
+            <span class="v-filter-option-label">{{ option.label }}</span>
+            <input class="v-input v-input-sm v-listprefs-order" type="number" min="1"
+                   name="order__{{ option.name }}" value="{{ option.position }}"
+                   data-prefs-position
+                   aria-label="Position of {{ option.label }}">
+          </label>
+        {% endfor %}
+      </div>
+
+      <label class="v-listprefs-field">
+        <span class="v-listprefs-label">Counts beside each option</span>
+        {% comment %}
+          Tri-state, and the middle one is the default: a count costs an aggregate per
+          render, so forcing them on for a list nobody has measured is a performance
+          decision taken by accident.
+        {% endcomment %}
+        <select class="v-select v-input-sm" name="facet_counts">
+          <option value="">Only when asked for (?_facets)</option>
+          <option value="on" {% if list_prefs.spec.facet_counts %}selected{% endif %}>Always</option>
+          <option value="off" {% if list_prefs.spec.facet_counts is False %}selected{% endif %}>Never</option>
+        </select>
+      </label>
+
+    <div class="v-listprefs-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+      {% endif %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+      {% endif %}
+    </div>
+    </form>
+  {% endif %}
+
+  {% comment %} ── statistics ──────────────────────────────────────────────── {% endcomment %}
+  <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
+        data-prefs-form>
+    {% csrf_token %}
+    <input type="hidden" name="section" value="stats">
+    <input type="hidden" name="next" value="{{ list_prefs.next }}">
+
+    <div class="v-listprefs-head">
+      <h3 class="v-listprefs-title">Statistics</h3>
+      {% if list_prefs.overridden.stats %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+    </div>
+
+    <label class="v-filter-option v-listprefs-toggle">
+      <input type="checkbox" name="stats_enabled" data-prefs-toggle
+             {% if list_prefs.spec.stats_enabled %}checked{% endif %}>
+      <span class="v-filter-option-label">Show the stat strip</span>
+    </label>
+
+    <div class="v-listprefs-options" data-prefs-dependent>
+      {% for option in list_prefs.stat_options %}
+        <label class="v-filter-option">
+          <input type="checkbox" name="stat_keys" value="{{ option.key }}"
+                 {% if option.selected %}checked{% endif %}>
+          <span class="v-filter-option-label">{{ option.label }}</span>
+        </label>
+      {% endfor %}
+      {% for option in list_prefs.extra_stats %}
+        <label class="v-filter-option">
+          <input type="checkbox" name="extra_stats" value="{{ option.index }}" checked>
+          <span class="v-filter-option-label">{{ option.label }}</span>
+          <span class="v-listprefs-tag">yours</span>
+        </label>
+      {% endfor %}
+      {% if not list_prefs.stat_options and not list_prefs.extra_stats %}
+        <p class="v-filter-note">No statistics are declared for this list yet.</p>
+      {% endif %}
+    </div>
+
+    <fieldset class="v-listprefs-add">
+      <legend class="v-listprefs-label">Add one</legend>
+      <select class="v-select v-input-sm" name="add_stat_aggregate"
+              aria-label="Aggregate for the new statistic">
+        <option value="">—</option>
+        {% for name in list_prefs.aggregates %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+      </select>
+      <select class="v-select v-input-sm" name="add_stat_field"
+              aria-label="Column for the new statistic">
+        <option value="">rows</option>
+        {% for measure in list_prefs.measures %}
+          <option value="{{ measure.name }}">{{ measure.label }}</option>
+        {% endfor %}
+      </select>
+      <input class="v-input v-input-sm" type="text" name="add_stat_label" maxlength="60"
+             placeholder="Label (optional)" aria-label="Label for the new statistic">
+    </fieldset>
+
+    <div class="v-listprefs-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+      {% endif %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% comment %} ── charts ──────────────────────────────────────────────────── {% endcomment %}
+  <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
+        data-prefs-form>
+    {% csrf_token %}
+    <input type="hidden" name="section" value="charts">
+    <input type="hidden" name="next" value="{{ list_prefs.next }}">
+
+    <div class="v-listprefs-head">
+      <h3 class="v-listprefs-title">Charts</h3>
+      {% if list_prefs.overridden.charts %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+    </div>
+
+    <label class="v-filter-option v-listprefs-toggle">
+      <input type="checkbox" name="charts_enabled" data-prefs-toggle
+             {% if list_prefs.spec.charts_enabled %}checked{% endif %}>
+      <span class="v-filter-option-label">Show charts</span>
+    </label>
+
+    <div class="v-listprefs-options" data-prefs-dependent>
+      {% for option in list_prefs.chart_options %}
+        <label class="v-filter-option">
+          <input type="checkbox" name="chart_keys" value="{{ option.key }}"
+                 {% if option.selected %}checked{% endif %}>
+          <span class="v-filter-option-label">{{ option.label }}</span>
+        </label>
+      {% endfor %}
+      {% for option in list_prefs.extra_charts %}
+        <label class="v-filter-option">
+          <input type="checkbox" name="extra_charts" value="{{ option.index }}" checked>
+          <span class="v-filter-option-label">{{ option.label }}</span>
+          <span class="v-listprefs-tag">yours</span>
+        </label>
+      {% endfor %}
+      {% if not list_prefs.chart_options and not list_prefs.extra_charts %}
+        <p class="v-filter-note">No charts are declared for this list yet.</p>
+      {% endif %}
+    </div>
+
+    {% if list_prefs.dates or list_prefs.groups %}
+      <fieldset class="v-listprefs-add">
+        <legend class="v-listprefs-label">Add one</legend>
+        <select class="v-select v-input-sm" name="add_chart_mode"
+                aria-label="Kind of chart to add">
+          <option value="">—</option>
+          {% if list_prefs.dates %}<option value="timeseries">Over time</option>{% endif %}
+          {% if list_prefs.groups %}<option value="breakdown">Broken down by</option>{% endif %}
+        </select>
+        {% if list_prefs.dates %}
+          <select class="v-select v-input-sm" name="add_chart_date"
+                  aria-label="Date field to chart over">
+            {% for date in list_prefs.dates %}
+              <option value="{{ date.name }}">{{ date.label }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        {% if list_prefs.groups %}
+          <select class="v-select v-input-sm" name="add_chart_group"
+                  aria-label="Field to break down by">
+            {% for group in list_prefs.groups %}
+              <option value="{{ group.name }}">{{ group.label }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        <select class="v-select v-input-sm" name="add_chart_aggregate"
+                aria-label="Aggregate for the new chart">
+          {% for name in list_prefs.aggregates %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+        </select>
+        <select class="v-select v-input-sm" name="add_chart_field"
+                aria-label="Column for the new chart">
+          <option value="">rows</option>
+          {% for measure in list_prefs.measures %}
+            <option value="{{ measure.name }}">{{ measure.label }}</option>
+          {% endfor %}
+        </select>
+      </fieldset>
+    {% endif %}
+
+    <div class="v-listprefs-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+      {% endif %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% comment %} ── summary bar ─────────────────────────────────────────────── {% endcomment %}
+  <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
+        data-prefs-form>
+    {% csrf_token %}
+    <input type="hidden" name="section" value="summary">
+    <input type="hidden" name="next" value="{{ list_prefs.next }}">
+
+    <div class="v-listprefs-head">
+      <h3 class="v-listprefs-title">Summary bar</h3>
+      {% if list_prefs.overridden.summary %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+    </div>
+
+    <label class="v-filter-option v-listprefs-toggle">
+      <input type="checkbox" name="summary_enabled" data-prefs-toggle
+             {% if list_prefs.spec.summary_enabled %}checked{% endif %}>
+      <span class="v-filter-option-label">Show the footer totals</span>
+    </label>
+
+    <div class="v-listprefs-options" data-prefs-dependent>
+      {% for option in list_prefs.summary_options %}
+        <label class="v-listprefs-field">
+          <span class="v-listprefs-label">{{ option.label }}</span>
+          <select class="v-select v-input-sm" name="summary__{{ option.name }}">
+            <option value="">Use the code default{% if option.inherited %} ({{ option.inherited }}){% endif %}</option>
+            {% for name in list_prefs.aggregates %}
+              <option value="{{ name }}" {% if option.current == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+            <option value="none" {% if option.current == "none" %}selected{% endif %}>No total</option>
+          </select>
+        </label>
+      {% empty %}
+        <p class="v-filter-note">No numeric columns to total on this list.</p>
+      {% endfor %}
+    </div>
+
+    <div class="v-listprefs-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+      {% endif %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      {% if list_prefs.may_set_default %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+      {% endif %}
+    </div>
+  </form>
+</details>
+
+<script src="{% static 'vantage/vantage-listprefs.js' %}" defer></script>

@@ -13,6 +13,10 @@
       Export CSV
     </a>
     {% if "add" in allowed %}
+      <a class="v-btn v-btn-ghost" href="{% url "vantage:"|add:panel.slug|add:"-import" %}">
+        {% icon "upload" %}
+        <span>Import CSV</span>
+      </a>
       <a class="v-btn v-btn-primary" href="{% url "vantage:"|add:panel.slug|add:"-add" %}">
         {% icon "plus" %}
         <span>Add {{ panel.get_label|lower }}</span>
@@ -56,6 +60,27 @@
   {% endif %}
 
   <div class="v-list-main">
+    {% include "vantage/partials/saved_views.html" %}
+
+    {% if patterns.soft_delete %}
+      {% comment %}
+        Trash is a place you go to deliberately: the list means live records, so this
+        is a tab rather than a filter chip.
+      {% endcomment %}
+      <div class="v-tabs" role="tablist" aria-label="Records or trash">
+        <a class="v-tab" role="tab" href="?{% querystring_replace trash=None page=None %}"
+           aria-selected="{% if showing_trash %}false{% else %}true{% endif %}">
+          {{ panel.get_label_plural }}
+        </a>
+        <a class="v-tab" role="tab" href="?{% querystring_replace trash=1 page=None %}"
+           aria-selected="{% if showing_trash %}true{% else %}false{% endif %}">
+          {% icon "trash" %}
+          <span>Trash</span>
+          {% if trash_count %}<span class="v-badge">{{ trash_count }}</span>{% endif %}
+        </a>
+      </div>
+    {% endif %}
+
     {% include "vantage/partials/filter_chips.html" %}
 
     {% if analytics.stats or analytics.charts or analytics.deferred %}
@@ -167,7 +192,7 @@
           </thead>
           <tbody>
             {% for row in rows %}
-              <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}
+              <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}
                   aria-rowindex="{{ page.start_index|add:forloop.counter0 }}"
                   tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">
                 {% if actions %}
