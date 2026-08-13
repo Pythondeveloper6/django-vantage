@@ -18,11 +18,18 @@ class SimpleVantageConfig(AppConfig):
 
     def ready(self) -> None:
         from vantage.checks import check_panels, check_vantage_settings
+        from vantage.contrib.django_admin import check_admin_adapter
         from vantage.nav import check_nav
+        from vantage.plugins import check_plugins
 
         checks.register(check_vantage_settings, "vantage")
         checks.register(check_panels, "vantage")
         checks.register(check_nav, "vantage")
+        # Registered even without autodiscovery: a plugin registered by hand, or an
+        # admin adopted by hand, still has to report what it could not do. Neither
+        # import reaches django.contrib.admin — the adapter is lazy about it.
+        checks.register(check_plugins, "vantage")
+        checks.register(check_admin_adapter, "vantage")
 
 
 class VantageConfig(SimpleVantageConfig):
@@ -33,12 +40,19 @@ class VantageConfig(SimpleVantageConfig):
     def ready(self) -> None:
         super().ready()
         from vantage.pages import HealthPage, SchemaPage
+        from vantage.plugins import load_plugins
         from vantage.sites import site
 
         # Built-in pages register before autodiscovery so a project can unregister
         # or replace one from its own panel.py.
         site.register_page(SchemaPage)
         site.register_page(HealthPage)
+
+        # Plugins next, and before autodiscovery for the same reason: a project's
+        # panel.py is its last word, so it must be able to unregister or replace
+        # anything an installed package added. Nothing here can raise — a plugin
+        # that fails is reported by manage.py check, not by breaking manage.py.
+        load_plugins(site)
 
         # Explicit configuration first, so it always wins over inference.
         # ``autodiscover_modules`` snapshots and restores the registry if a

@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load vantage %}
+{% load vantage vantage_slots %}
 
 {% block content %}
 <div class="v-page-head">
@@ -17,6 +17,7 @@
       <a class="v-btn v-btn-primary"
          href="{% url "vantage:"|add:panel.slug|add:"-change" object.pk %}">Edit</a>
     {% endif %}
+    {% slot "object_actions" %}
   </div>
 </div>
 
@@ -32,6 +33,8 @@
       {% endfor %}
     </dl>
   </section>
+
+  {% slot "detail_sidebar" %}
 
   {% include "vantage/partials/history.html" %}
 

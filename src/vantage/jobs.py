@@ -69,16 +69,16 @@ from vantage.actions import Selection
 from vantage.models import VantageJob
 
 __all__ = [
-    "Backend",
     "CHUNK_SIZE",
     "COST_PER_ROW",
     "DEFAULT_THRESHOLD_SECONDS",
     "MAX_STORED_ERRORS",
+    "Backend",
+    "JobRequest",
     "detect_backend",
     "enqueue",
     "error_csv_bytes",
     "error_csv_rows",
-    "JobRequest",
     "estimate_seconds",
     "jobs_enabled",
     "run_job",
@@ -475,7 +475,9 @@ def run_job(job_id: int) -> VantageJob | None:
         _finish(job, VantageJob.Status.DENIED, error=str(exc))
     except JobBroken as exc:
         _finish(job, VantageJob.Status.FAILED, error=str(exc))
-    except Exception as exc:  # noqa: BLE001 - a worker must never die on one job
+    # A worker must never die on one job: an unhandled exception here would leave the
+    # row stuck in "running" forever and, on some backends, retry it until it gave up.
+    except Exception as exc:
         _finish(job, VantageJob.Status.FAILED, error=f"{type(exc).__name__}: {exc}")
     return job
 
@@ -710,7 +712,9 @@ def _attempt(db: str | None, work: Callable[[], Any]) -> tuple[Any, str | None]:
             return work(), None
     except ValidationError as exc:
         return None, "; ".join(exc.messages)
-    except Exception as exc:  # noqa: BLE001 - the message is the product here
+    # Broad on purpose: the message *is* the product. Narrowing this would turn an
+    # unexpected exception type into a dead worker instead of a row in the report.
+    except Exception as exc:
         return None, str(exc).strip() or type(exc).__name__
 
 
@@ -730,7 +734,8 @@ def _log(job: VantageJob, request, panel, action) -> None:
 
     try:
         audit.log_action(request, panel.model, action, job.succeeded)
-    except Exception:  # noqa: BLE001 - a failed audit write must not fail the job
+    # A failed audit write must not fail a job that has already done its work.
+    except Exception:
         pass
 
 
