@@ -33,7 +33,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import FieldError
-from django.db.models import F, Max, Min, Q, QuerySet
+from django.db.models import Count, F, Max, Min, Q, QuerySet
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
 
@@ -43,6 +43,7 @@ __all__ = [
     "Budget",
     "Chart",
     "ChartResult",
+    "ChartSet",
     "Stat",
     "StatResult",
     "StatSet",
@@ -480,16 +481,40 @@ def _reject_sliced(queryset: QuerySet) -> None:
         )
 
 
+def _filter_condition(expression: Any) -> Q | None:
+    """The ``Q`` behind an aggregate's ``filter=``, whatever Django stores it as.
+
+    Django 6.1 wraps it in an internal ``AggregateFilter`` expression; earlier versions
+    keep the bare ``Q``. Reading through ``.condition`` covers both.
+    """
+    existing = getattr(expression, "filter", None)
+    if existing is None:
+        return None
+    return getattr(existing, "condition", existing)
+
+
+def _as_aggregate_filter(condition: Q) -> Any:
+    """Wrap a ``Q`` the way the installed Django wraps one.
+
+    Asking a throwaway aggregate to do the wrapping keeps this on the public
+    constructor and correct across the versions the package supports, rather than
+    hard-coding an internal class that exists in some of them.
+    """
+    return Count("pk", filter=condition).filter
+
+
 def _with_window(expression: Any, window: Q) -> Any:
     """The same aggregate, restricted to a period, without rebuilding it.
 
     Folding the period into each aggregate's ``FILTER (WHERE ...)`` clause is what lets
     every trending stat share one query for the previous period, instead of one query
-    per stat.
+    per stat — and it composes with a ``filter=`` the author already wrote instead of
+    replacing it.
     """
     clone = expression.copy()
-    existing = getattr(clone, "filter", None)
-    clone.filter = (existing & window) if existing is not None else window
+    existing = _filter_condition(expression)
+    condition = (existing & window) if existing is not None else window
+    clone.filter = _as_aggregate_filter(condition)
     return clone
 
 
@@ -663,7 +688,9 @@ def _compute_callable(queryset: QuerySet, baseline: QuerySet | None, stat: Stat)
     trend = None
     if stat.trend:
         source = baseline if baseline is not None else queryset
-        span = source.order_by().aggregate(low=Min(stat.trend), high=Max(stat.trend))
+        # The span comes from the queryset on screen; the comparison period is drawn
+        # from the baseline, which is the only queryset that still contains it.
+        span = queryset.order_by().aggregate(low=Min(stat.trend), high=Max(stat.trend))
         window = _previous_window(span["low"], span["high"])
         if window:
             start, end = window
@@ -845,7 +872,9 @@ def _compute_breakdown(queryset: QuerySet, chart: Chart) -> ChartResult:
         queryset.order_by()
         .values(chart.group_by)
         .annotate(vantage_value=chart.value)
-        .order_by("-vantage_value")[: MAX_GROUPS_SCANNED + 1]
+        # The group value breaks ties, so a redraw of the same data never reshuffles
+        # the segments under the reader.
+        .order_by("-vantage_value", chart.group_by)[: MAX_GROUPS_SCANNED + 1]
     )
     if len(rows) > MAX_GROUPS_SCANNED and not chart.allow_high_cardinality:
         return ChartResult(
