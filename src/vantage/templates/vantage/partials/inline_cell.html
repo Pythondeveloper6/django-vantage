@@ -1,0 +1,28 @@
+{% comment %}
+  One editable cell.
+
+  The control is the *same widget the change form would render* — same `step`, same
+  `maxlength`, same choice list — because it came out of the same ModelForm. Nothing
+  about the value is coerced here, and nothing about it is validated here; both happen
+  on the server, through that form, on the way in.
+
+  Three elements, in this order and no other:
+
+  * the control, `tabindex="-1"` so the table keeps exactly one tab stop (APG grid),
+    and re-parented to the empty `#v-inline-form` so pressing Enter in a cell cannot
+    submit the bulk-action form it is physically nested inside;
+  * a status dot, purely decorative, that marks the cell as staged, rejected or saved;
+  * an error slot, empty and hidden until the server has something to say about this
+    field. It is `aria-describedby`'d from the control, so the message is announced
+    with the field rather than floating unattached in the table.
+
+  A rejected cell keeps the user's value. Reverting it here would be the "helpful"
+  behaviour that loses typed work silently — the Revert button next to the message is
+  the same action, made deliberate.
+{% endcomment %}
+<span class="v-inline-cell" data-inline-cell data-field="{{ field.name }}"
+      data-kind="{{ field.kind }}" data-label="{{ field.label }}">
+  {{ control }}
+  <span class="v-inline-mark" data-inline-mark aria-hidden="true"></span>
+  <span class="v-inline-error" id="{{ error_id }}" data-inline-error hidden></span>
+</span>

@@ -578,13 +578,23 @@ def override(panel, request, getter: str) -> Any:
     ``None`` — not an empty list, not a default — is what preserves the per-attribute
     fallthrough the panel class promises.
 
-    A call with no request never reads the database. There is no user to read a row
-    for, no request to cache it on, and the callers that pass nothing are ``check``,
-    ``scaffold`` and the registry, every one of which is asking what the *code* says.
+    **It reads an already-resolved spec and never goes to the database itself.** The
+    page that owns the rail is the page that turns it on, by calling :func:`resolve`
+    once before it asks the panel anything. Two consequences, both wanted:
+
+    * A panel getter is free again everywhere else. ``check``, ``scaffold``, the
+      registry and a dashboard's table card all ask a panel questions, and none of them
+      should pay a query — or silently answer differently — because somebody hid a
+      column on a list page yesterday.
+    * A dashboard card over Orders keeps showing what the dashboard declares. Preferences
+      are scoped to the list page they are edited on, which is the only place they can
+      be seen and undone.
     """
     if request is None or _suspended():
         return None
-    return resolve(panel, request).override_for(getter)
+    cache = getattr(request, _CACHE_ATTR, None)
+    spec = cache.get(resource_key(panel)) if cache else None
+    return spec.override_for(getter) if spec is not None else None
 
 
 def resolve(panel, request=None) -> ListSpec:
@@ -593,6 +603,10 @@ def resolve(panel, request=None) -> ListSpec:
     The cascade in one function: read both rows that can apply, take the user's value
     where there is one, the site-wide value where there is not, and the panel's own
     answer where there is neither.
+
+    Calling this is also what arms :func:`override` for the rest of the request, so a
+    view calls it once, early, before it asks the panel anything — see
+    ``ListView.get``. One query, whatever else the page goes on to ask.
     """
     key = resource_key(panel)
     cache = _cache(request)
