@@ -262,6 +262,10 @@ class ListView(PanelView):
             columns=[self._column_header(panel, name, sort) for name in columns],
             sort=sort,
             rows=self._rows(panel, page.object_list, columns, link, request),
+            grouping=self.grouping(request),
+            group_options=[("day", "Day"), ("week", "Week"), ("month", "Month"), ("year", "Year")],
+            groups=self._groups(panel, page.object_list, request),
+            timeline_field=self._timeline_field(panel),
             page=page,
             paginator=paginator,
             query=query,
@@ -281,6 +285,25 @@ class ListView(PanelView):
 
         context.update(savedviews.list_context(request, panel))
         return context
+
+    #: Grouping keys the list page accepts, mapped to the truncation to apply.
+    GROUPINGS = {"day": "day", "week": "week", "month": "month", "year": "year"}
+
+    @staticmethod
+    def _timeline_field(panel) -> str | None:
+        timeline = panel.get_patterns().timeline
+        return timeline.field if timeline else None
+
+    def grouping(self, request) -> str | None:
+        """Which time bucket to group rows into, if any.
+
+        Only offered when the model has a creation-ish date, and never while a tree
+        is being drawn - two competing orderings would fight over the same rows.
+        """
+        wanted = request.GET.get("group")
+        if wanted not in self.GROUPINGS or self.showing_tree(request):
+            return None
+        return wanted if self.panel.get_patterns().timeline else None
 
     def showing_tree(self, request) -> bool:
         """Whether to render the hierarchy rather than a flat page of rows.
@@ -420,6 +443,56 @@ class ListView(PanelView):
         for row, obj in zip(built, objects, strict=True):
             row["depth"] = depths.get(obj.pk, 0)
         return built
+
+    def _groups(self, panel, objects, request) -> list[dict] | None:
+        """Row indices where a new time bucket starts, with its label.
+
+        Computed from the rows already fetched rather than by a second grouped query:
+        the page is at most a couple of hundred rows, and a query would have to
+        re-apply every filter to stay consistent with what is on screen.
+        """
+        bucket = self.grouping(request)
+        if not bucket:
+            return None
+
+        field = panel.get_patterns().timeline.field
+        groups: list[dict] = []
+        previous = object()
+
+        for index, obj in enumerate(objects):
+            value = getattr(obj, field, None)
+            key = self._bucket_key(value, bucket)
+            if key != previous:
+                groups.append({"at": index, "label": self._bucket_label(value, bucket)})
+                previous = key
+        return groups
+
+    @staticmethod
+    def _bucket_key(value, bucket: str):
+        if value is None:
+            return None
+        if bucket == "day":
+            return value.date() if hasattr(value, "date") else value
+        if bucket == "week":
+            date = value.date() if hasattr(value, "date") else value
+            return date.isocalendar()[:2]
+        if bucket == "month":
+            return (value.year, value.month)
+        return value.year
+
+    @staticmethod
+    def _bucket_label(value, bucket: str) -> str:
+        if value is None:
+            return "No date"
+        date = value.date() if hasattr(value, "date") else value
+        if bucket == "day":
+            return date.strftime("%A, %d %B %Y")
+        if bucket == "week":
+            year, week = date.isocalendar()[:2]
+            return f"Week {week}, {year}"
+        if bucket == "month":
+            return date.strftime("%B %Y")
+        return str(date.year)
 
     @staticmethod
     def _arrange(pattern, objects: list) -> list:
