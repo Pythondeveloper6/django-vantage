@@ -878,6 +878,13 @@ class VantageJob(models.Model):
     def __str__(self) -> str:
         return f"{self.action_label or self.action_name} · {self.resource_key}"
 
+    def get_absolute_url(self) -> str:
+        """The jobs page, anchored on this row. There is no per-job page: one job is
+        three numbers and a sentence, which is a row, not a screen."""
+        from django.urls import reverse
+
+        return f"{reverse('vantage:jobs')}#job-{self.pk}"
+
     # ── reading ─────────────────────────────────────────────────────────────
 
     @property
@@ -891,7 +898,7 @@ class VantageJob(models.Model):
 
     @property
     def percent(self) -> int:
-        """0–100, and never a lie by rounding.
+        """Nought to a hundred, and never a lie by rounding.
 
         A job that has finished reads 100 even if ``total`` was re-resolved smaller
         part-way through, and a job with nine of ten thousand rows done reads 0 rather
@@ -917,8 +924,3 @@ class VantageJob(models.Model):
         if getattr(user, "is_superuser", False):
             return True
         return self.actor_id is not None and self.actor_id == user.pk
-
-    def get_absolute_url(self) -> str:
-        from django.urls import reverse
-
-        return f"{reverse('vantage:jobs')}#job-{self.pk}"

@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage vantage_inline %}
+{% load static vantage vantage_inline vantage_slots %}
 
 {% block content %}
 {% comment %}
@@ -41,6 +41,8 @@
     {% endif %}
   </div>
 </div>
+
+{% slot "before_list" %}
 
 {% if searchable %}
 {% comment %}
@@ -196,6 +198,11 @@
           focusable thing inside a cell is taken out of the tab order and reached with
           the arrow keys instead. That is the APG grid contract: Tab enters, Tab leaves.
         {% endcomment %}
+        {% comment %}
+          Resolved once rather than per row: the column only exists when something
+          fills it, and an empty trailing cell on every row is worse than none.
+        {% endcomment %}
+        {% slot_filled "row_actions" as has_row_actions %}
         <table class="v-table" role="grid" aria-rowcount="{{ paginator.count }}"
                aria-label="{{ panel.get_label_plural }}">
           <thead>
@@ -219,6 +226,11 @@
                   {% else %}{{ column.label }}{% endif %}
                 </th>
               {% endfor %}
+              {% if has_row_actions %}
+                <th scope="col" class="v-row-actions-cell">
+                  <span class="v-sr-only">Actions</span>
+                </th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>
@@ -253,6 +265,9 @@
                     {% endif %}
                   </td>
                 {% endfor %}
+                {% if has_row_actions %}
+                  <td class="v-row-actions-cell">{% slot "row_actions" object=row.obj %}</td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>
@@ -275,6 +290,7 @@
                     {% endwith %}
                   </td>
                 {% endfor %}
+                {% if has_row_actions %}<td></td>{% endif %}
               </tr>
             </tfoot>
           {% endif %}
@@ -419,4 +435,6 @@
     {% endif %}
   </div>
 </div>
+
+{% slot "after_list" %}
 {% endblock %}

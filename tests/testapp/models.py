@@ -284,3 +284,27 @@ class Upload(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class LedgerEntry(models.Model):
+    """Deliberately dull, and the only model here meant to be created in bulk.
+
+    The scale tests need a table with tens of thousands of rows in it, so every column
+    is cheap to generate and none of them is interesting. The field mix is chosen to
+    cover each way a keyset ordering can be refused: ``reference`` is unique and
+    non-null, so it is a total order on its own; ``bucket`` repeats, so it is not;
+    ``settled_on`` is nullable, so a cursor over it would silently drop rows.
+    """
+
+    reference = models.CharField(max_length=40, unique=True)
+    bucket = models.CharField(max_length=20)
+    amount = models.IntegerField(default=0)
+    settled_on = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        verbose_name_plural = "ledger entries"
+
+    def __str__(self):
+        return self.reference

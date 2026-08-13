@@ -65,7 +65,10 @@ class TestDetailPage:
             Comment.objects.create(post=post, author_name=f"Extra {i}", body="b")
         body = client_in.get(detail_url(post)).content.decode()
         assert body.count("Extra ") <= DetailView.related_preview
-        assert "more…" in body
+        # Assert the affordance, not its wording: there must be a way through to the
+        # rest, and it must say how many were held back.
+        assert "v-related-more" in body
+        assert str(50 - DetailView.related_preview) in body
 
     def test_the_preview_cost_does_not_grow_with_the_child_count(self, client_in, post):
         from django.db import connection
