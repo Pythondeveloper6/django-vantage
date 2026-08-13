@@ -24,7 +24,8 @@ passed in by the caller rather than looked up here.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
@@ -37,7 +38,6 @@ from django.core.validators import (
     MinValueValidator,
 )
 from django.db import models
-from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.forms.models import modelform_factory
 
 from vantage.inference import DISPLAY_NAMES, SENSITIVE, TRAILING_NAMES
@@ -202,11 +202,6 @@ def classify(field: Any) -> FieldKind:
             return FieldKind.RELATION_MANY
         return FieldKind.RELATION_ONE
 
-    # A reverse relation that is not a relation is not a thing, but ForeignObjectRel is
-    # not a Field either, and nothing below this line may assume Field's attributes.
-    if isinstance(field, ForeignObjectRel):  # pragma: no cover - unreachable in practice
-        return FieldKind.RELATION_MANY
-
     if getattr(field, "choices", None):
         # An explicit choice list outranks the storage type: a CharField with choices
         # is a picker, and rendering it as free text loses the whole constraint.
@@ -337,9 +332,9 @@ class WidgetSpec:
         if kind is FieldKind.BOOLEAN:
             # A nullable boolean has three states; a checkbox can only report two, and
             # would silently rewrite every unset value to False on first save.
-            return forms.NullBooleanSelect(attrs=attrs) if self.nullable else forms.CheckboxInput(
-                attrs=attrs
-            )
+            if self.nullable:
+                return forms.NullBooleanSelect(attrs=attrs)
+            return forms.CheckboxInput(attrs=attrs)
         if kind in (FieldKind.CHOICE, FieldKind.RELATION_ONE):
             return forms.Select(attrs=attrs)
         if kind is FieldKind.RELATION_MANY:
@@ -397,9 +392,12 @@ def infer_widget(field: Any, *, related_count: int | None = None) -> WidgetSpec:
     if kind is FieldKind.DURATION and not help_text:
         help_text = DURATION_HELP
 
+    # A tri-state boolean is a <select>, not a checkbox, so it has no input type.
+    nullable = kind is FieldKind.BOOLEAN and bool(getattr(field, "null", False))
+
     return WidgetSpec(
         kind=kind,
-        input_type=INPUT_TYPES.get(kind) if not _is_nullable_boolean(field, kind) else None,
+        input_type=None if nullable else INPUT_TYPES.get(kind),
         attrs=attrs,
         choices=_freeze_choices(choices) if choices and kind is FieldKind.CHOICE else None,
         multiple=kind is FieldKind.RELATION_MANY,
@@ -408,13 +406,9 @@ def infer_widget(field: Any, *, related_count: int | None = None) -> WidgetSpec:
         placeholder=PLACEHOLDERS.get(kind),
         help_text=help_text,
         required=not getattr(field, "blank", False),
-        nullable=_is_nullable_boolean(field, kind),
+        nullable=nullable,
         label=_label(field),
     )
-
-
-def _is_nullable_boolean(field: Any, kind: FieldKind) -> bool:
-    return kind is FieldKind.BOOLEAN and bool(getattr(field, "null", False))
 
 
 def _label(field: Any) -> str:

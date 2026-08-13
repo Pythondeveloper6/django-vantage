@@ -775,3 +775,18 @@ textarea {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.v-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+}
+
+.v-sort:hover {
+  color: var(--foreground);
+}
+
+.v-table thead th[aria-sort] {
+  color: var(--foreground);
+}

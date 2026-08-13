@@ -54,34 +54,35 @@ TAG_NAMES = [
     "Clearance", "Bulk case", "Seasonal", "Fragile",
 ]
 
-#: (name, leaf category) pairs, written out rather than generated so the catalogue
-#: reads like a catalogue.
+#: (name, leaf category, trade cost) written out rather than generated. Randomised
+#: prices would have put a £300 box of filter papers next to a £4 espresso grinder,
+#: and the first thing a reader does with a demo is sanity-check the numbers.
 PRODUCTS = [
-    ("Colombian Dark Roast 1kg", "Coffee"),
-    ("Ethiopian Yirgacheffe 500g", "Coffee"),
-    ("Brazilian Santos Beans 1kg", "Coffee"),
-    ("Decaf House Blend 500g", "Coffee"),
-    ("Espresso Bar Blend 3kg", "Coffee"),
-    ("Assam Breakfast Loose Leaf", "Tea"),
-    ("Sencha Green Tea 250g", "Tea"),
-    ("Earl Grey Tea Bags x400", "Tea"),
-    ("Peppermint Infusion x200", "Tea"),
-    ("Strong Wholemeal Flour 16kg", "Baking"),
-    ("Caster Sugar 10kg", "Baking"),
-    ("Dried Active Yeast 500g", "Baking"),
-    ("Belgian Couverture 70% 5kg", "Baking"),
-    ("Vanilla Extract 1L", "Baking"),
-    ("Seville Orange Marmalade x12", "Preserves"),
-    ("Raspberry Conserve x12", "Preserves"),
-    ("Wildflower Honey 5kg", "Preserves"),
-    ("Piccalilli Jars x12", "Preserves"),
-    ("Commercial Grinder EK-40", "Brewing kit"),
-    ("Pour-over Server 1.2L", "Brewing kit"),
-    ("Filter Papers x1000", "Brewing kit"),
-    ("Milk Jug 900ml", "Brewing kit"),
-    ("Group Head Brushes x6", "Cleaning"),
-    ("Backflush Detergent 1kg", "Cleaning"),
-    ("Descaler Sachets x50", "Cleaning"),
+    ("Colombian Dark Roast 1kg", "Coffee", "14.20"),
+    ("Ethiopian Yirgacheffe 500g", "Coffee", "11.75"),
+    ("Brazilian Santos Beans 1kg", "Coffee", "12.40"),
+    ("Decaf House Blend 500g", "Coffee", "9.30"),
+    ("Espresso Bar Blend 3kg", "Coffee", "38.00"),
+    ("Assam Breakfast Loose Leaf", "Tea", "8.60"),
+    ("Sencha Green Tea 250g", "Tea", "10.15"),
+    ("Earl Grey Tea Bags x400", "Tea", "16.80"),
+    ("Peppermint Infusion x200", "Tea", "7.45"),
+    ("Strong Wholemeal Flour 16kg", "Baking", "13.90"),
+    ("Caster Sugar 10kg", "Baking", "9.80"),
+    ("Dried Active Yeast 500g", "Baking", "6.25"),
+    ("Belgian Couverture 70% 5kg", "Baking", "47.50"),
+    ("Vanilla Extract 1L", "Baking", "29.60"),
+    ("Seville Orange Marmalade x12", "Preserves", "18.40"),
+    ("Raspberry Conserve x12", "Preserves", "19.95"),
+    ("Wildflower Honey 5kg", "Preserves", "42.30"),
+    ("Piccalilli Jars x12", "Preserves", "17.10"),
+    ("Commercial Grinder EK-40", "Brewing kit", "615.00"),
+    ("Pour-over Server 1.2L", "Brewing kit", "22.75"),
+    ("Filter Papers x1000", "Brewing kit", "13.50"),
+    ("Milk Jug 900ml", "Brewing kit", "8.95"),
+    ("Group Head Brushes x6", "Cleaning", "11.20"),
+    ("Backflush Detergent 1kg", "Cleaning", "15.60"),
+    ("Descaler Sachets x50", "Cleaning", "24.40"),
 ]
 
 REVIEW_HEADLINES = [
@@ -192,8 +193,8 @@ class Command(BaseCommand):
     def _products(self, rng, categories, tags):
         now = timezone.now()
         products = []
-        for index, (name, category_name) in enumerate(PRODUCTS):
-            cost = Decimal(str(round(rng.uniform(2.5, 240.0), 2)))
+        for index, (name, category_name, trade_cost) in enumerate(PRODUCTS):
+            cost = Decimal(trade_cost)
             markup = Decimal(str(round(rng.uniform(1.25, 1.9), 2)))
             price = (cost * markup).quantize(Decimal("0.01"))
             chosen_tags = rng.sample(tags, rng.randint(1, 3))
