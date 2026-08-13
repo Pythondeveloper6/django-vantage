@@ -9,8 +9,10 @@ Note that ``ProductPanel`` sets ``list_display`` and nothing else: its filters a
 search are still inferred. Overriding one attribute never costs you the others.
 """
 
+from django.db.models import Avg, Count, Q, Sum
+
 from shop.models import Order, Product
-from vantage import ModelPanel, register
+from vantage import Chart, ModelPanel, Stat, register
 
 
 @register(Order)
@@ -26,6 +28,21 @@ class OrderPanel(ModelPanel):
     list_filter = ["status", "created_at", "customer"]
     list_search = ["number", "customer__name", "customer__email"]
     list_per_page = 25
+
+    #: Declared in Python and computed against whatever the page is currently
+    #: filtered to. Narrow the list with the status filter or the search box and
+    #: every number below follows.
+    list_stats = [
+        Stat("Revenue", Sum("total"), format="currency", trend="created_at"),
+        Stat("Orders", Count("id")),
+        Stat("Average order", Avg("total"), format="currency"),
+        Stat("Refunded", Count("id", filter=Q(status="refunded")), tone="destructive"),
+    ]
+
+    list_charts = [
+        Chart.timeseries("Revenue over time", date="created_at", value=Sum("total")),
+        Chart.breakdown("By status", group_by="status", value=Count("id"), kind="donut"),
+    ]
 
 
 @register(Product)
