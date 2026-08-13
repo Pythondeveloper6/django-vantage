@@ -73,3 +73,5 @@ known-first-party = ["vantage"]
 # Throwaway models declared inside a test to exercise one introspection edge case
 # do not need a __str__.
 "tests/test_*.py" = ["DJ008"]
+# Inline SVG path data is one long literal per icon; wrapping it would corrupt it.
+"src/vantage/templatetags/vantage.py" = ["E501", "RUF003"]

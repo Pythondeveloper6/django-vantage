@@ -1,0 +1,78 @@
+"""Template helpers.
+
+Icons are inlined rather than fetched. A strict CSP is normal in an admin panel, an
+icon font is a render-blocking request for something that must not flash, and an
+external sprite is one more thing to serve. The set is deliberately small: every icon
+here is used, and adding one is a deliberate act.
+"""
+
+from __future__ import annotations
+
+from django import template
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+
+register = template.Library()
+
+#: Lucide path data (MIT). Rendered inside a shared 24×24 stroked <svg>.
+ICONS: dict[str, str] = {
+    "box": '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "layout-dashboard": '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+    "menu": '<path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/>',
+    "moon": '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    "search": '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    "file-text": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+    "shopping-cart": '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+    "tag": '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+    "message-square": '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    "folder": '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    "archive": '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+    "shield": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+    "trending-up": '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
+}
+
+SVG = (
+    '<svg class="{}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">{}</svg>'
+)
+
+
+@register.simple_tag(name="icon")
+def icon_tag(name: str | None, **attrs) -> str:
+    """``{% icon "search" %}`` or ``{% icon "box" class="v-empty-icon" %}``.
+
+    ``class`` arrives through ``**attrs`` because it is a Python reserved word and
+    cannot be a named parameter.
+
+    An unknown name falls back to a generic mark rather than raising: a missing icon
+    should never take a page down.
+    """
+    paths = ICONS.get(name or "", ICONS["box"])
+    return format_html(SVG, attrs.get("class", ""), mark_safe(paths))
+
+
+@register.filter
+def is_current(item, path: str) -> bool:
+    """Whether a nav item covers the request path."""
+    return item.is_current(path)
+
+
+@register.simple_tag(takes_context=True, name="querystring_replace")
+def querystring_replace(context, **kwargs) -> str:
+    """Rebuild the query string with some parameters changed.
+
+    Preserving the rest is what keeps a filtered, searched view intact when the user
+    pages through it — losing it is the classic pagination bug.
+    """
+    request = context.get("request")
+    params = request.GET.copy() if request else {}
+    for key, value in kwargs.items():
+        if value is None:
+            params.pop(key, None)
+        else:
+            params[key] = value
+    return params.urlencode() if hasattr(params, "urlencode") else ""
