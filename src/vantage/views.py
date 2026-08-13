@@ -176,7 +176,10 @@ class ListView(PanelView):
                 )
             )
 
+        from vantage import audit
+
         result = chosen.run(self.panel, request, queryset)
+        audit.log_action(request, self.panel.model, chosen, count)
         # Report the scope that was actually resolved. Django's own admin once let
         # select-across silently fall back to page one on a destructive action.
         getattr(messages, result.level, messages.info)(
@@ -272,6 +275,9 @@ class ListView(PanelView):
             summary=self.get_summary(panel, queryset, columns),
             page_title=panel.get_label_plural(),
         )
+        from vantage import savedviews
+
+        context.update(savedviews.list_context(request, panel))
         return context
 
     def showing_tree(self, request) -> bool:
@@ -541,6 +547,9 @@ class DetailView(PanelView):
             related=related,
             page_title=str(obj),
         )
+        from vantage import audit
+
+        context.update(audit.history_context(self.request, obj))
         return context
 
 

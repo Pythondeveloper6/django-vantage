@@ -1,0 +1,200 @@
+/* django-vantage — the per-list customisation rail.
+ *
+ * Loaded only by list pages, on top of vantage.css. The container deliberately reuses
+ * `.v-filters` and `.v-filter-option` rather than restating them: this rail sits
+ * directly beneath the filter rail on the same page, and two panels that are almost
+ * but not quite alike read as a bug in the design rather than as two features.
+ *
+ * Everything here is either a token from vantage/theme.py or a length. No colour is
+ * spelled out, so a BRAND_COLOR change and a theme switch both reach this file for
+ * free.
+ */
+
+.v-listprefs {
+  margin-block-start: 1rem;
+}
+
+.v-listprefs-intro {
+  padding: 0 0.875rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  border-block-end: 1px solid var(--border);
+}
+
+/* ── sections ─────────────────────────────────────────────────────────────── */
+
+.v-listprefs-section {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-listprefs-section:last-of-type {
+  border-block-end: none;
+}
+
+.v-listprefs-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.v-listprefs-title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+/* A section changed here is doing something a reader of panels.py cannot see, so it
+ * says so — the same promise the settings screen makes about settings.py. */
+.v-listprefs-flag {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-radius: 999px;
+  padding: 0.0625rem 0.4375rem;
+}
+
+.v-listprefs-tag {
+  margin-inline-start: auto;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+/* ── controls ─────────────────────────────────────────────────────────────── */
+
+.v-listprefs-options {
+  display: grid;
+  gap: 0.125rem;
+  max-block-size: 14rem;
+  overflow-y: auto;
+}
+
+/* The section's own on/off switch sits above the list it governs, separated from it,
+ * because it is not one more item in that list. */
+.v-listprefs-toggle {
+  font-weight: 600;
+  padding-inline: 0;
+}
+
+.v-listprefs-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.v-listprefs-label {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v-listprefs-field .v-select,
+.v-listprefs-field .v-input {
+  inline-size: auto;
+  max-inline-size: 60%;
+}
+
+.v-listprefs-order {
+  inline-size: 3.25rem;
+  margin-inline-start: auto;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-listprefs-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.v-listprefs-add .v-select,
+.v-listprefs-add .v-input {
+  flex: 1 1 6rem;
+  min-inline-size: 0;
+}
+
+.v-listprefs-add legend {
+  padding: 0;
+}
+
+/* ── section footer ───────────────────────────────────────────────────────── */
+
+.v-listprefs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.v-listprefs-actions .v-btn {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* ── the scripted enhancement ─────────────────────────────────────────────── */
+
+/* Hidden only once the script has said so. The number boxes are the no-JavaScript way
+ * to reorder, so they must stay visible in every state where the buttons that replace
+ * them do not exist — including the seconds before a deferred script runs. */
+[data-prefs-enhanced] .v-listprefs-order {
+  display: none;
+}
+
+.v-listprefs-move {
+  display: none;
+  flex: none;
+  padding: 0;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+[data-prefs-enhanced] .v-listprefs-move {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v-listprefs-move:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.v-listprefs-move:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.v-listprefs-move:first-of-type {
+  margin-inline-start: auto;
+}
+
+/* A section switched off dims the controls it governs rather than removing them: the
+ * reader still needs to see what will come back when they switch it on again. */
+[data-prefs-dependent][data-prefs-off] {
+  opacity: 0.45;
+}

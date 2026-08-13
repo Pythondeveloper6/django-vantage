@@ -39,6 +39,13 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # Editable only through the settings screen, which gates on superuser.
         # A generic CRUD form for it would route around that gate.
         "vantage.siteconfiguration",
+        # An editable audit log is not an audit log, and a generic CRUD form for
+        # a saved view routes around every permission rule in savedviews.py.
+        "vantage.vantagelogentry",
+        "vantage.savedview",
+        "vantage.savedviewgrant",
+        "vantage.savedviewuserstate",
+        "vantage.listpreference",
     }
 )
 
