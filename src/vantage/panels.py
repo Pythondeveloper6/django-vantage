@@ -60,6 +60,9 @@ class ModelPanel:
     #: ``django.contrib.admin`` intact.
     search_fields: list[str] | None = None
 
+    #: Swap in a subclass to extend validation for your own panel base class.
+    checks_class: type | None = None
+
     def __init__(self, model: type[models.Model], site: VantageSite | None = None) -> None:
         self.model = model
         self.site = site
@@ -69,6 +72,12 @@ class ModelPanel:
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__} for {self.opts.label}>"
+
+    def check(self, **kwargs) -> list:
+        """Validate this panel's configuration. Called by ``manage.py check``."""
+        from vantage.panel_checks import ModelPanelChecks
+
+        return (self.checks_class or ModelPanelChecks)().check(self, **kwargs)
 
     # ── identity helpers ────────────────────────────────────────────────────
 
