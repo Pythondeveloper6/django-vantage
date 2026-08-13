@@ -248,6 +248,7 @@ class TestPerAttributeFallthrough:
     def test_the_getter_override_is_none_when_nothing_is_stored(self, panel, rf, person):
         """``None``, not a default: it is what makes ``panels.py`` still decide."""
         request = get_request(rf, person)
+        listprefs.resolve(panel, request)
         assert listprefs.override(panel, request, "list_display") is None
         assert listprefs.override(panel, request, "list_filter") is None
         assert listprefs.override(panel, request, "list_search") is None
@@ -256,6 +257,7 @@ class TestPerAttributeFallthrough:
     def test_the_getter_override_carries_the_stored_value(self, panel, rf, person):
         write(panel, person, columns=["total"], per_page=7)
         request = get_request(rf, person)
+        listprefs.resolve(panel, request)
         assert listprefs.override(panel, request, "list_display") == ["total"]
         assert listprefs.override(panel, request, "per_page") == 7
         assert listprefs.override(panel, request, "list_filter") is None
@@ -263,6 +265,7 @@ class TestPerAttributeFallthrough:
     def test_switching_a_section_off_overrides_with_an_empty_list(self, panel, rf, person):
         write(panel, person, filters_enabled=False, search_enabled=False)
         request = get_request(rf, person)
+        listprefs.resolve(panel, request)
         assert listprefs.override(panel, request, "list_filter") == []
         assert listprefs.override(panel, request, "list_search") == []
 
@@ -763,7 +766,9 @@ class TestDatabaseUnavailable:
     def test_the_getter_override_is_none_with_no_table(self, panel, rf, person):
         write(panel, person, columns=["total"])
         with hidden_table():
-            assert listprefs.override(panel, get_request(rf, person), "list_display") is None
+            request = get_request(rf, person)
+            listprefs.resolve(panel, request)
+            assert listprefs.override(panel, request, "list_display") is None
 
     def test_a_test_without_a_database_still_resolves(self, panel, rf):
         """No ``db`` fixture: pytest-django blocks the connection outright, and drawing
@@ -902,3 +907,51 @@ class TestTheSchemaAndTheLayerAgree:
         from vantage.summary import SUMMARY_FUNCTIONS
 
         assert set(listprefs.AGGREGATES) == set(SUMMARY_FUNCTIONS)
+
+
+class TestPreferencesApplyWhereTheRailIs:
+    """``override`` reads a spec somebody already resolved, and never resolves one.
+
+    The list page calls :func:`~vantage.listprefs.resolve` once, early, and that is what
+    arms the getters for the rest of the request. Everything else that asks a panel a
+    question — ``check``, ``scaffold``, the registry, a dashboard's table card — gets
+    the code's answer and pays no query for it.
+    """
+
+    def test_an_unprimed_getter_override_is_none(self, panel, rf, person):
+        write(panel, person, columns=["total"])
+        assert listprefs.override(panel, get_request(rf, person), "list_display") is None
+
+    def test_an_unprimed_getter_override_costs_no_queries(
+        self, panel, rf, person, django_assert_num_queries
+    ):
+        write(panel, person, columns=["total"])
+        request = get_request(rf, person)
+        with django_assert_num_queries(0):
+            listprefs.override(panel, request, "list_display")
+            listprefs.override(panel, request, "list_filter")
+
+    def test_resolving_arms_it_for_the_rest_of_the_request(self, panel, rf, person):
+        write(panel, person, columns=["total"])
+        request = get_request(rf, person)
+        listprefs.resolve(panel, request)
+        assert listprefs.override(panel, request, "list_display") == ["total"]
+
+    def test_priming_is_per_model_not_per_panel_object(self, panel, bare, rf, person):
+        """The cache is keyed by the resource key, which is the model.
+
+        Two panel objects for one model are the same list as far as a stored preference
+        is concerned — the row names the model, so it has to be.
+        """
+        write(panel, person, columns=["total"])
+        request = get_request(rf, person)
+        listprefs.resolve(panel, request)
+        assert listprefs.override(bare, request, "list_display") == ["total"]
+
+    def test_another_models_panel_is_untouched(self, panel, rf, person):
+        from tests.testapp.models import Post
+
+        write(panel, person, columns=["total"])
+        request = get_request(rf, person)
+        listprefs.resolve(panel, request)
+        assert listprefs.override(ModelPanel(Post, site), request, "list_display") is None
