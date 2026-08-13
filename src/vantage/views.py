@@ -18,7 +18,7 @@ from django.views.generic import TemplateView
 
 from vantage.actions import Selection, resolve_actions
 from vantage.conf import vantage_settings
-from vantage.export import FORMATS, stream_csv
+from vantage.export import FORMATS, stream_export
 from vantage.filters import apply_filters, build_filters, facets_requested
 from vantage.nav import build_nav, resolve_theme
 from vantage.permissions import get_permissions
@@ -235,7 +235,9 @@ class ListView(PanelView):
         queryset, _, _, _, _ = self.build_queryset(request)
         columns = panel.get_list_display(request)
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
-        return stream_csv(queryset, columns, headers, panel.get_label_plural())
+        return stream_export(
+            request.GET["export"], queryset, columns, headers, panel.get_label_plural()
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

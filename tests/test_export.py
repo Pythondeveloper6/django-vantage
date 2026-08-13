@@ -113,3 +113,38 @@ class TestExportGuards:
     def test_booleans_are_written_readably(self, client_in, posts):
         rows = read(client_in.get(reverse("vantage:testapp-author-list"), {"export": "csv"}))
         assert any("true" in row for row in rows[1:])
+
+
+class TestOtherFormats:
+    def test_json_streams_one_object_per_line(self, client_in, posts):
+        """NDJSON, not one array: a streamed array cannot be closed if the queryset
+        raises halfway, leaving a file that is silently truncated but parses as
+        nothing. Every line here is independently parseable."""
+        import json as jsonlib
+
+        response = client_in.get(reverse(LIST), {"export": "json"})
+        lines = b"".join(response.streaming_content).decode().strip().splitlines()
+        assert len(lines) == 3
+        assert jsonlib.loads(lines[0])["Title"] in {"Alpha", "Beta", "Gamma"}
+
+    def test_json_is_offered_as_ndjson(self, client_in, posts):
+        response = client_in.get(reverse(LIST), {"export": "json"})
+        assert ".ndjson" in response["Content-Disposition"]
+        assert response["Content-Type"] == "application/x-ndjson"
+
+    def test_tsv_uses_tabs(self, client_in, posts):
+        response = client_in.get(reverse(LIST), {"export": "tsv"})
+        body = b"".join(response.streaming_content).decode()
+        assert "\t" in body.splitlines()[0]
+
+    def test_every_format_honours_the_active_search(self, client_in, posts):
+        for fmt in ("csv", "tsv", "json"):
+            response = client_in.get(reverse(LIST), {"export": fmt, "q": "Alpha"})
+            body = b"".join(response.streaming_content).decode()
+            assert "Alpha" in body
+            assert "Gamma" not in body, fmt
+
+    def test_every_format_is_uncached(self, client_in, posts):
+        for fmt in ("csv", "tsv", "json"):
+            response = client_in.get(reverse(LIST), {"export": fmt})
+            assert response["Cache-Control"] == "no-store", fmt
