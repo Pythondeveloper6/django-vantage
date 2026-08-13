@@ -35,6 +35,15 @@ def _tone_for(value: str) -> str | None:
     return None
 
 
+def _money_fields(panel) -> dict[str, int]:
+    """Column name -> decimal places, for the columns detected as currency."""
+    cached = getattr(panel, "_money", None)
+    if cached is None:
+        cached = {m.name: m.decimal_places for m in panel.get_patterns().money}
+        panel._money = cached
+    return cached
+
+
 def render_cell(panel, obj, name: str) -> SafeString | str:
     """Render one cell of ``obj`` for the column ``name``."""
     # A panel method wins, so a project can always override rendering in Python.
@@ -53,6 +62,16 @@ def render_cell(panel, obj, name: str) -> SafeString | str:
         value = getattr(value, hop.name, None)
 
     field = hops[-1].field
+
+    # Currency before the generic numeric path: a bare Decimal reads as data, and a
+    # column of unaligned unformatted numbers is the thing people complain about
+    # first. The symbol is deliberately not guessed - only the shape is fixed.
+    if len(hops) == 1 and name in _money_fields(panel) and value is not None:
+        places = _money_fields(panel)[name]
+        return format_html(
+            '<span class="v-money">{}</span>', f"{value:,.{places}f}"
+        )
+
     return _render_value(value, field, obj, hops[0])
 
 

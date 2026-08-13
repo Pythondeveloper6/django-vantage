@@ -1474,3 +1474,8 @@ textarea {
 .v-health-dot[data-status="ok"]   { background: var(--success); }
 .v-health-dot[data-status="warn"] { background: var(--warning); }
 .v-health-dot[data-status="fail"] { background: var(--destructive); }
+
+.v-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

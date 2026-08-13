@@ -252,3 +252,48 @@ class TestConfirmationText:
 
     def test_ordinary_actions_do_not(self):
         assert not Action(func=lambda *a: None, name="x", label="X").needs_confirmation()
+
+
+class TestPatternDerivedActions:
+    """A publishable model gets publish/unpublish without anyone writing them."""
+
+    def test_offered_when_the_panel_declares_nothing(self, db):
+        from tests.testapp.models import Promo
+
+        names = {a.name for a in resolve_actions(ModelPanel(Promo))}
+        assert names == {"publish", "unpublish"}
+
+    def test_not_offered_when_the_model_is_not_publishable(self, db):
+        assert resolve_actions(ModelPanel(Author)) == []
+
+    def test_a_panel_with_its_own_actions_is_left_alone(self, db):
+        """Silently adding two more to an author's list reads as a bug."""
+        from tests.testapp.models import Promo
+
+        class Explicit(ModelPanel):
+            @action("Only this")
+            def only_this(self, request, queryset):
+                return "ok"
+
+        assert [a.name for a in resolve_actions(Explicit(Promo))] == ["only_this"]
+
+    @pytest.mark.django_db
+    def test_publishing_writes_the_detected_value(self, rf):
+        from tests.testapp.models import Promo
+
+        Promo.objects.create(headline="One", is_published=False)
+        panel = ModelPanel(Promo)
+        act = next(a for a in resolve_actions(panel) if a.name == "publish")
+        act.run(panel, rf.post("/"), Promo.objects.all())
+        assert Promo.objects.filter(is_published=True).count() == 1
+
+    @pytest.mark.django_db
+    def test_a_timestamp_pattern_publishes_with_now_not_a_fixed_value(self, rf):
+        """A pure detector must not read the clock, so the action supplies it."""
+        from tests.testapp.models import Release
+
+        Release.objects.create(version="1.0", published_at=None)
+        panel = ModelPanel(Release)
+        act = next(a for a in resolve_actions(panel) if a.name == "publish")
+        act.run(panel, rf.post("/"), Release.objects.all())
+        assert Release.objects.get(version="1.0").published_at is not None
