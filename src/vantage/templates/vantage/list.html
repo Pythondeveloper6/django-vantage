@@ -34,8 +34,8 @@
           <tr>
             {% for cell in row.cells %}
               <td>
-                {% if cell.is_link %}
-                  <span class="v-cell-link">{{ cell.value }}</span>
+                {% if cell.is_link and row.url %}
+                  <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
                 {% else %}
                   {{ cell.value }}
                 {% endif %}

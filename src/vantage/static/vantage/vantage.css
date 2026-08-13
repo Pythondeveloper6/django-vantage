@@ -706,3 +706,72 @@ textarea {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
+
+/* ── detail page ──────────────────────────────────────────────────────────── */
+
+.v-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .v-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
+.v-fields {
+  display: grid;
+}
+
+.v-field {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) 1fr;
+  gap: 1rem;
+  padding: 0.6875rem 1.25rem;
+  border-block-end: 1px solid var(--border);
+  align-items: baseline;
+}
+
+.v-field:last-child {
+  border-block-end: none;
+}
+
+.v-field dt {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.v-field dd {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 40rem) {
+  .v-field {
+    grid-template-columns: 1fr;
+    gap: 0.125rem;
+  }
+}
+
+.v-related {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.v-related li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.v-related a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
