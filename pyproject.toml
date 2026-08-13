@@ -50,6 +50,7 @@ include = ["src/vantage", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["."]
 python_files = ["test_*.py"]
 testpaths = ["tests"]
 addopts = "--strict-markers -q"
