@@ -1,0 +1,194 @@
+/* Dashboard grid and the card shapes only the dashboard uses.
+ *
+ * A separate stylesheet, loaded only by the dashboard, because every other page in the
+ * panel pays for what vantage.css carries. Stat cards, charts, tables and badges are
+ * *not* redefined here: those live in vantage.css and the dashboard reuses them, so a
+ * chart looks the same wherever it appears and there is one place to change it.
+ *
+ * Every colour is a token. Nothing here hard-codes a hue, so the whole grid follows
+ * BRAND_COLOR and both themes without a second declaration.
+ */
+
+/* ── grid ─────────────────────────────────────────────────────────────────── */
+
+/* Four columns, so a card can be a quarter, a third of the eye's width, a half or the
+ * full row. Widths are declared in Python as 1–4 and land here as a data attribute:
+ * the template never computes a class name and the grid never needs to know how many
+ * cards there are. */
+.v-dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.v-widget {
+  min-inline-size: 0; /* without this a wide table stretches its column instead of scrolling */
+  display: flex;
+}
+
+.v-widget > * {
+  inline-size: 100%;
+}
+
+.v-widget[data-width="2"] { grid-column: span 2; }
+.v-widget[data-width="3"] { grid-column: span 3; }
+.v-widget[data-width="4"] { grid-column: span 4; }
+
+/* Tablet: halve the grid. A card asking for three or four columns takes the whole row
+ * rather than being squeezed into a shape it was not designed for. */
+@media (max-width: 64rem) {
+  .v-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .v-widget[data-width="3"],
+  .v-widget[data-width="4"] {
+    grid-column: span 2;
+  }
+}
+
+/* Phone: one column, every declared width ignored. A two-column stat card on a 360px
+ * screen is not a layout, it is a stripe. */
+@media (max-width: 40rem) {
+  .v-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .v-widget[data-width="2"],
+  .v-widget[data-width="3"],
+  .v-widget[data-width="4"] {
+    grid-column: span 1;
+  }
+}
+
+/* ── cards ────────────────────────────────────────────────────────────────── */
+
+.v-widget-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* keeps the table's corners inside the card's radius */
+}
+
+.v-widget-body {
+  padding: 1rem 1.125rem;
+}
+
+.v-widget-note {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-widget-error {
+  color: var(--destructive);
+  font-weight: 550;
+}
+
+.v-widget-reason {
+  margin-block-start: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+
+/* One card failing is a partial failure, not a page failure — the same statement the
+ * stat card makes, made in the same way. */
+.v-widget-failed {
+  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+}
+
+.v-widget-more {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--primary);
+}
+
+.v-widget-more:hover {
+  text-decoration: underline;
+}
+
+/* A linked stat card must still be one card: the anchor is layout-transparent and the
+ * hover lift belongs to the stat inside it. */
+.v-widget-stat-link {
+  display: block;
+}
+
+.v-widget-stat-link .v-stat {
+  block-size: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.v-widget-stat-link:hover .v-stat {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+  box-shadow: var(--shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-widget-stat-link .v-stat {
+    transition: none;
+  }
+}
+
+/* ── table card ───────────────────────────────────────────────────────────── */
+
+/* The card scrolls its own table. The page must never scroll sideways because one
+ * widget had a wide column. */
+.v-widget-table-wrap {
+  overflow-x: auto;
+}
+
+.v-widget-table {
+  table-layout: auto;
+}
+
+.v-widget-table th,
+.v-widget-table td {
+  padding: 0.5rem 1.125rem;
+  white-space: nowrap;
+}
+
+.v-widget-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+/* ── list card ────────────────────────────────────────────────────────────── */
+
+.v-widget-list {
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.v-widget-list-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1.125rem;
+}
+
+.v-widget-list-row + .v-widget-list-row {
+  border-block-start: 1px solid var(--border);
+}
+
+.v-widget-list dt {
+  color: var(--muted-foreground);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.v-widget-list dt a:hover {
+  text-decoration: underline;
+}
+
+.v-widget-list dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.v-widget-list dd[data-tone="primary"] { color: var(--primary); }
+.v-widget-list dd[data-tone="success"] { color: var(--success); }
+.v-widget-list dd[data-tone="warning"] { color: var(--warning); }
+.v-widget-list dd[data-tone="destructive"] { color: var(--destructive); }

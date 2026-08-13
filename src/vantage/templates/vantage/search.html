@@ -1,0 +1,80 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% comment %}
+  The no-JavaScript half of global search. Same querysets, same permission filtering,
+  same caps as the palette — only the rendering differs.
+{% endcomment %}
+
+{% block head %}
+  {# Also linked by the palette partial; a repeated href costs one cache hit. The
+     results page must stay styled even where COMMAND_PALETTE is switched off. #}
+  <link rel="stylesheet" href="{% static 'vantage/vantage-palette.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">Search</h1>
+    <p class="v-page-description">Across every section you can open.</p>
+  </div>
+</div>
+
+<form class="v-toolbar" method="get" role="search">
+  <div class="v-search v-search-wide">
+    {% icon "search" %}
+    <input class="v-input" type="search" name="q" value="{{ query }}"
+           placeholder="Search everything…" aria-label="Search everything" autofocus>
+  </div>
+  <button class="v-btn v-btn-primary" type="submit">Search</button>
+  {% if query %}
+    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
+  {% endif %}
+</form>
+
+{% if query %}
+  <p class="v-muted v-search-count" role="status">
+    {{ total }} result{{ total|pluralize }} for “{{ query }}”
+  </p>
+{% endif %}
+
+{% for group in groups %}
+  <section class="v-card v-search-group">
+    <div class="v-card-head">
+      <h2 class="v-card-title">{% icon group.icon %}{{ group.label }}</h2>
+      <a class="v-btn v-btn-ghost v-btn-sm" href="{{ group.url }}">
+        {% if group.truncated %}See all{% else %}Open list{% endif %}
+      </a>
+    </div>
+    <ul class="v-search-hits">
+      {% for hit in group.hits %}
+        <li>
+          <a href="{{ hit.url }}">
+            <span class="v-search-hit-label">{{ hit.label }}</span>
+            {% if hit.sublabel %}
+              <span class="v-search-hit-sub">{{ hit.sublabel }}</span>
+            {% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% empty %}
+  <div class="v-empty">
+    {% icon "search" class="v-empty-icon" %}
+    {% if not query %}
+      <p class="v-empty-title">Search everything</p>
+      <p class="v-empty-body">
+        Type at least {{ min_length }} characters to look across every section you
+        have access to.
+      </p>
+    {% elif query|length < min_length %}
+      <p class="v-empty-title">Keep typing</p>
+      <p class="v-empty-body">A search needs at least {{ min_length }} characters.</p>
+    {% else %}
+      <p class="v-empty-title">No matches for “{{ query }}”</p>
+      <p class="v-empty-body">Nothing you can open matches that. Try fewer words.</p>
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}
