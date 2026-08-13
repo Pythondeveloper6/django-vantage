@@ -1479,3 +1479,18 @@ textarea {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* ── hierarchy indentation ────────────────────────────────────────────────── */
+/* The row carries data-depth; the indent is inline-start so RTL mirrors it. */
+
+.v-table tbody tr[data-depth] td:first-child {
+  padding-inline-start: calc(0.875rem + var(--v-depth, 0) * 1.25rem);
+}
+
+.v-table tbody tr[data-depth="0"] td:first-child { font-weight: 550; }
+
+.v-tree-guide {
+  color: var(--muted-foreground);
+  margin-inline-end: 0.375rem;
+  opacity: 0.6;
+}
