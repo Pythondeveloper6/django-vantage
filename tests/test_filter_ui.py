@@ -115,7 +115,10 @@ class TestFilterRail:
         """The rail restates the search; the search has to restate the rail."""
         params = {"status": ["draft", "review"], "sort": "title"}
         body = client_in.get(reverse(LIST_URL), params).content.decode()
-        search_form = body[body.index('role="search"') : body.index("</form>")]
+        # Anchored on the list's own form: the header palette is also a search
+        # landmark and appears earlier in the document.
+        start = body.index('id="v-list-search"')
+        search_form = body[start : body.index("</form>", start)]
         assert '<input type="hidden" name="status" value="draft">' in search_form
         assert '<input type="hidden" name="status" value="review">' in search_form
         assert '<input type="hidden" name="sort" value="title">' in search_form

@@ -32,7 +32,12 @@ class VantageConfig(SimpleVantageConfig):
 
     def ready(self) -> None:
         super().ready()
+        from vantage.pages import SchemaPage
         from vantage.sites import site
+
+        # Built-in pages register before autodiscovery so a project can unregister
+        # or replace one from its own panel.py.
+        site.register_page(SchemaPage)
 
         # Explicit configuration first, so it always wins over inference.
         # ``autodiscover_modules`` snapshots and restores the registry if a
