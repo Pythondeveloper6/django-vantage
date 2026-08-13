@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage vantage_slots %}
 
 {% comment %}
   The dashboard is a grid of cards the project declared in Python. Everything here
@@ -21,6 +21,8 @@
     {% endif %}
   </div>
 </div>
+
+{% slot "dashboard_top" %}
 
 {% if widgets %}
   <div class="v-dashboard">

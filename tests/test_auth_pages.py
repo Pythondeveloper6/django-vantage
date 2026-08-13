@@ -31,8 +31,10 @@ handler403 = "vantage.authviews.permission_denied"
 handler404 = "vantage.authviews.page_not_found"
 handler500 = "vantage.authviews.server_error"
 
-#: Every test in this module runs against the urlconf above.
-pytestmark = [override_settings(ROOT_URLCONF="tests.test_auth_pages")]
+@pytest.fixture(autouse=True)
+def _mounted(settings):
+    """Every test in this module runs against the urlconf declared above."""
+    settings.ROOT_URLCONF = "tests.test_auth_pages"
 
 
 @pytest.fixture
@@ -215,11 +217,13 @@ class TestErrorPages:
         assert "<html" in html
 
     def test_500_inlines_its_own_styling(self):
-        """No {% static %}: the file that renders when everything is broken cannot
-        depend on the static pipeline having been collected."""
+        """No static tag: the file that renders when everything else is broken cannot
+        depend on the static pipeline having been collected, on the token stylesheet
+        having been generated, or on a urlconf still resolving."""
         source = loader.get_template("vantage/500.html").template.source
         assert "{% static" not in source
         assert "{% url" not in source
+        assert "{% load" not in source
         assert "<style>" in source
 
     def test_the_500_handler_returns_a_500(self):
@@ -227,14 +231,19 @@ class TestErrorPages:
         assert response.status_code == 500
         assert b"Something went wrong" in response.content
 
-    def test_a_shell_that_cannot_render_still_produces_an_error_page(self, client, db):
-        """An unmounted panel makes base.html's {% url 'vantage:dashboard' %} raise.
+    def test_a_shell_that_cannot_render_still_produces_an_error_page(self, monkeypatch):
+        """An unmounted panel, a dead database, a broken nav — any of them make the
+        shell raise while rendering a 404.
 
         An error page that errors is the one failure with no floor under it, so the
         handler drops to the self-contained template rather than to a stack trace.
         """
-        with override_settings(ROOT_URLCONF="tests.test_auth_pages_bare"):
-            response = authviews.page_not_found(RequestFactory().get("/nope/"))
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("the database is gone")
+
+        monkeypatch.setattr(authviews, "shell_context", boom)
+        response = authviews.page_not_found(RequestFactory().get("/nope/"))
         assert response.status_code == 404
         assert b"We could not find that page" in response.content
         assert b"v-sidebar" not in response.content

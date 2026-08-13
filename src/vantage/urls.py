@@ -13,6 +13,7 @@ from vantage import (
     autocomplete,
     formviews,
     importviews,
+    inline,
     listprefsview,
     savedviews,
     settingsview,
@@ -52,6 +53,8 @@ def build(site) -> list:
     # Before the panel loop: the detail route's <path:pk> is greedy and would
     # otherwise swallow 'import/' as a primary key.
     urlpatterns.extend(importviews.build_import_urls(site))
+    # Same reason, same place: '_inline' is not a primary key.
+    urlpatterns.extend(inline.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts

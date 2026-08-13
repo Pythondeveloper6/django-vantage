@@ -40,6 +40,13 @@ DEFAULTS: dict[str, Any] = {
     # "append" keeps them reachable, so adding a model never silently hides it.
     "NAV_UNLISTED": "append",
     "DASHBOARD": None,
+    # ── plugins ─────────────────────────────────────────────────────────────
+    # None means "load every plugin on the vantage.plugins entry-point group",
+    # which is what makes `pip install` enough. A list becomes an allowlist.
+    "PLUGINS": None,
+    # Never loaded, whatever PLUGINS says. Separate from the allowlist because
+    # switching a broken plugin off must not mean enumerating the good ones.
+    "PLUGINS_EXCLUDE": [],
     # ── behaviour ───────────────────────────────────────────────────────────
     "PERMISSIONS": None,  # dotted path to a PanelPermissions subclass
     # Who may change the settings from inside the panel. None means superusers only,

@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage vantage_slots %}
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
@@ -23,6 +23,8 @@
       <a class="v-btn v-btn-secondary" href="{{ cancel_url }}">Cancel</a>
     </div>
   </div>
+
+{% slot "before_form" %}
 
   {% if messages %}
     <ul class="v-form-messages">
@@ -53,6 +55,8 @@
       </div>
     </section>
   {% endfor %}
+
+  {% slot "after_form" %}
 
   <div class="v-form-bar">
     <span class="v-form-bar-hint v-muted" data-vantage-dirty-hint hidden>Unsaved changes</span>

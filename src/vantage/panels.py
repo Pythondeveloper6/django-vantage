@@ -162,6 +162,21 @@ class ModelPanel:
             return self.icon
         return GUESSED_ICONS.get(self.opts.model_name, "box")
 
+    # ── template slots ──────────────────────────────────────────────────────
+
+    def slot(self, name: str, context: dict | None = None):
+        """HTML for the named template slot, on this model's pages only.
+
+        The per-model half of :mod:`vantage.slots`. Registering a contribution with
+        ``model=`` covers content the *project* owns; this covers content the *panel*
+        owns, which is the case where naming the model twice is pure ceremony. Return
+        ``None`` — as the default does — to contribute nothing.
+
+        Output is escaped unless marked safe, and an exception here is logged to the
+        ``vantage.slots`` logger and skipped rather than taking the page down.
+        """
+        return None
+
     # ── resolved configuration ──────────────────────────────────────────────
     #
     # Each getter falls back to inference independently. This is what makes

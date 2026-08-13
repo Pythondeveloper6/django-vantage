@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-STYLES = sorted((Path(__file__).resolve().parent.parent / "src/vantage/static/vantage").glob("*.css"))
+STATIC = Path(__file__).resolve().parent.parent / "src/vantage/static/vantage"
+STYLES = sorted(STATIC.glob("*.css"))
 
 #: `margin-left`, `padding-right`, `left:`, and friends. Logical equivalents
 #: (`margin-inline-start`, `inset-inline-start`) mirror under `dir="rtl"`; these do not.
@@ -49,7 +50,11 @@ def test_there_are_stylesheets_to_check():
 def test_no_physical_directions(path):
     """RTL works by setting dir='rtl' and nothing else — but only if nothing is
     pinned to left or right."""
-    offenders = [f"{path.name}:{n}: {line.strip()}" for n, line in significant_lines(path) if PHYSICAL.search(line)]
+    offenders = [
+        f"{path.name}:{n}: {line.strip()}"
+        for n, line in significant_lines(path)
+        if PHYSICAL.search(line)
+    ]
     assert not offenders, "use logical properties (inline-start/end):\n" + "\n".join(offenders)
 
 
@@ -82,15 +87,14 @@ def test_animations_respect_reduced_motion(path):
     text = path.read_text(encoding="utf-8")
     if "animation:" not in text and "@keyframes" not in text:
         pytest.skip("no animation in this stylesheet")
-    base = (Path(__file__).resolve().parent.parent / "src/vantage/static/vantage/vantage.css").read_text()
+    base = (STATIC / "vantage.css").read_text(encoding="utf-8")
     assert "prefers-reduced-motion" in text or "prefers-reduced-motion" in base
 
 
 # ── template comment hygiene ─────────────────────────────────────────────────
 
-TEMPLATES = sorted(
-    (Path(__file__).resolve().parent.parent / "src/vantage/templates").rglob("*.html")
-)
+TEMPLATE_ROOT = Path(__file__).resolve().parent.parent / "src/vantage/templates"
+TEMPLATES = sorted(TEMPLATE_ROOT.rglob("*.html"))
 
 MULTILINE_COMMENT = re.compile(r"\{#[^#]*?\n", re.DOTALL)
 

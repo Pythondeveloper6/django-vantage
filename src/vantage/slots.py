@@ -252,8 +252,15 @@ def is_filled(name: str, context: Any = None) -> bool:
     request = data.get("request")
     panel = data.get("panel")
 
-    if callable(getattr(panel, "slot", None)):
-        return True
+    # Call it, do not merely look for it. Every panel inherits a ``slot`` hook that
+    # returns None by default, so testing for the method's existence reports every
+    # slot as filled — and an empty trailing column on every row is exactly what this
+    # function exists to prevent.
+    hook = getattr(panel, "slot", None)
+    if callable(hook):
+        contributed = _guard(lambda: hook(name), f"{type(panel).__name__}.slot")
+        if contributed:
+            return True
     for contribution in contributions(name):
         if not _in_scope(contribution, panel):
             continue

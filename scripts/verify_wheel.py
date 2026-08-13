@@ -198,9 +198,34 @@ def smoke(wheel: Path, python_version: str) -> None:
         run([str(python), str(script)])
 
 
+def resolve_wheel(given: Path) -> Path:
+    """Accept a file, a directory, or a glob.
+
+    tox runs commands without a shell, so `dist/*.whl` arrives here unexpanded; and it
+    is easier to type `dist` than the full versioned filename. Expanding here rather
+    than at each call site means the callers do not each get it subtly different.
+    """
+    if given.is_file():
+        return given
+
+    candidates = sorted(given.glob("*.whl")) if given.is_dir() else sorted(Path().glob(str(given)))
+    if not candidates:
+        raise SystemExit(f"FAIL: no wheel matched {given}")
+    if len(candidates) > 1:
+        joined = "\n  ".join(str(c) for c in candidates)
+        raise SystemExit(f"FAIL: {given} matched several wheels; name one:\n  {joined}")
+    return candidates[0]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("wheel", type=Path, help="path to the built .whl")
+    parser.add_argument(
+        "wheel",
+        type=Path,
+        nargs="?",
+        default=Path("dist"),
+        help="the built .whl, or a directory or glob containing exactly one (default: dist)",
+    )
     parser.add_argument(
         "--inspect-only",
         action="store_true",
@@ -213,12 +238,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not args.wheel.is_file():
-        raise SystemExit(f"FAIL: no such wheel: {args.wheel}")
-
-    inspect(args.wheel)
+    wheel = resolve_wheel(args.wheel)
+    inspect(wheel)
     if not args.inspect_only:
-        smoke(args.wheel, args.python)
+        smoke(wheel, args.python)
     print("wheel verification passed")
     return 0
 
