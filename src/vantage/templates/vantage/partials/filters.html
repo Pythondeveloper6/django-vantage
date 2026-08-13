@@ -74,8 +74,7 @@
                 {% endif %}
                 {% for choice in choices %}
                   <label class="v-filter-option">
-                    <input type="{% if filt.multi %}checkbox{% else %}radio{% endif %}"
-                           name="{{ filt.parameter_name }}" value="{{ choice.value }}"
+                    <input type="{% if filt.multi %}checkbox{% else %}radio{% endif %}" name="{{ filt.parameter_name }}" value="{{ choice.value }}"
                            {% if choice.selected %}checked{% endif %}>
                     <span class="v-filter-option-label">{{ choice.label }}</span>
                     {% if choice.count is not None %}
