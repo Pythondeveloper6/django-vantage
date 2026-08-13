@@ -52,6 +52,8 @@ DEFAULTS: dict[str, Any] = {
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
     "DEFAULT_PER_PAGE": 50,
+    "IMPORT_MAX_BYTES": 5 * 1024 * 1024,
+    "IMPORT_MAX_ROWS": 5000,
 }
 
 #: Values that must be one of a fixed set.

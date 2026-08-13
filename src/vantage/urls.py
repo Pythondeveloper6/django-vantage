@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from django.urls import path
 
-from vantage import formviews, settingsview, views
+from vantage import formviews, importviews, settingsview, views
 from vantage.palette import build_urls
 
 
@@ -39,6 +39,10 @@ def build(site) -> list:
                 name=f"page-{page.get_slug()}",
             )
         )
+
+    # Before the panel loop: the detail route's <path:pk> is greedy and would
+    # otherwise swallow 'import/' as a primary key.
+    urlpatterns.extend(importviews.build_import_urls(site))
 
     for panel in site.panels():
         opts = panel.opts

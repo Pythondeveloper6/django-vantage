@@ -75,3 +75,6 @@ known-first-party = ["vantage"]
 "tests/test_*.py" = ["DJ008"]
 # Inline SVG path data is one long literal per icon; wrapping it would corrupt it.
 "src/vantage/templatetags/vantage.py" = ["E501", "RUF003"]
+# Migrations are generated; reformatting them by hand invites drift from what
+# makemigrations would produce next time.
+"src/vantage/migrations/*.py" = ["E501", "RUF012"]

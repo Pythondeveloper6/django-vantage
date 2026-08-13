@@ -1,0 +1,88 @@
+{% comment %}
+  The per-record history panel. Rendered only when the viewer may read the audit log —
+  `history` is None otherwise, not an empty list, because "nobody has touched this
+  record" and "you may not see who has" must not look the same.
+
+  When django-simple-history is installed and covers this model, its timeline renders
+  *alongside* ours rather than instead of it. The two answer different questions:
+  theirs is what the row looked like at each point, ours is who touched it, from where,
+  and through which panel. Neither is a substitute for the other, which is exactly why
+  we ship our own instead of requiring theirs.
+{% endcomment %}
+{% if history is not None %}
+  <section class="v-card v-history">
+    <div class="v-card-head">
+      <h2 class="v-card-title">History</h2>
+      {% if history %}<span class="v-badge">{{ history|length }}</span>{% endif %}
+    </div>
+
+    {% if history %}
+      <ol class="v-history-list">
+        {% for entry in history %}
+          <li class="v-history-item" data-action="{{ entry.action }}">
+            <div class="v-history-head">
+              <span class="v-audit-verb" data-action="{{ entry.action }}">{{ entry.get_action_display }}</span>
+              <span class="v-history-who">{{ entry.actor_repr|default:"Someone" }}</span>
+              <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">
+                {{ entry.created_at|date:"Y-m-d H:i" }}
+              </time>
+            </div>
+            {% if entry.action_name %}
+              <p class="v-history-note">Ran <code>{{ entry.action_name }}</code>.</p>
+            {% endif %}
+            {% if entry.change_list %}
+              <dl class="v-diff">
+                {% for change in entry.change_list %}
+                  <div class="v-diff-row">
+                    <dt>{{ change.field }}</dt>
+                    <dd>
+                      {% if change.from is not None %}<del>{{ change.from }}</del>{% endif %}
+                      {% if change.from is not None and change.to is not None %}
+                        <span class="v-diff-arrow" aria-hidden="true">→</span>
+                      {% endif %}
+                      {% if change.to is not None %}<ins>{{ change.to }}</ins>{% endif %}
+                      {% if change.from is None and change.to is None %}
+                        <span class="v-diff-redacted">changed — value not recorded</span>
+                      {% endif %}
+                    </dd>
+                  </div>
+                {% endfor %}
+              </dl>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+      {% if history|length >= history_limit and audit_url %}
+        <div class="v-card-body v-muted">
+          Showing the most recent {{ history_limit }}.
+          <a href="{{ audit_url }}">Open the full audit log</a>.
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="v-card-body v-muted">
+        Nothing has been done to this record through the panel.
+      </div>
+    {% endif %}
+
+    {% if history_timeline %}
+      <div class="v-card-body v-history-external">
+        <h3 class="v-history-subtitle">Row history</h3>
+        <p class="v-muted v-history-source">From django-simple-history.</p>
+        <ol class="v-history-list">
+          {% for revision in history_timeline %}
+            <li class="v-history-item">
+              <div class="v-history-head">
+                <span class="v-audit-verb">{{ revision.type }}</span>
+                <span class="v-history-who">{{ revision.user|default:"—" }}</span>
+                <time class="v-history-when" datetime="{{ revision.date|date:'c' }}">
+                  {{ revision.date|date:"Y-m-d H:i" }}
+                </time>
+              </div>
+              {% if revision.reason %}<p class="v-history-note">{{ revision.reason }}</p>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
