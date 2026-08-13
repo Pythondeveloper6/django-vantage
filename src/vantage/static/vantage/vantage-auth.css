@@ -1,0 +1,225 @@
+/* Sign-in chrome, error pages, and the shell's accessibility affordances.
+ *
+ * Loaded by base.html as well as by the standalone auth pages, because the skip link
+ * belongs to every panel screen and there is no cheaper place to put one rule than
+ * beside the pages that are already loading this file.
+ *
+ * Same contract as the rest of the package: every colour comes from a token in
+ * theme.py, every direction is logical so dir="rtl" is the only RTL switch. The one
+ * page that opts out is vantage/500.html, which inlines its own CSS because it has to
+ * render with no static files, no database and no context.
+ */
+
+/* ── skip link ────────────────────────────────────────────────────────────── */
+
+/* WCAG 2.4.1. Off-screen until focused rather than display:none, because a hidden
+ * element is not focusable and a skip link nobody can reach is worse than none. */
+.v-skip-link {
+  position: absolute;
+  z-index: 100;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  padding: 0.625rem 1rem;
+  border-end-end-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+  transform: translateY(-140%);
+}
+
+.v-skip-link:focus {
+  transform: none;
+}
+
+/* The skip target. Focused programmatically via tabindex="-1", and browsers draw
+ * nothing for that, so the ring is suppressed rather than left as a stray box. */
+.v-content:focus {
+  outline: none;
+}
+
+/* ── header account controls ──────────────────────────────────────────────── */
+
+.v-signout {
+  display: flex;
+}
+
+.v-account {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* ── auth pages ───────────────────────────────────────────────────────────── */
+
+.v-auth {
+  display: grid;
+  min-block-size: 100dvh;
+  background: var(--sidebar);
+  color: var(--foreground);
+}
+
+.v-auth-main {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+}
+
+.v-auth-inner {
+  inline-size: 100%;
+  max-inline-size: 23rem;
+}
+
+/* The optional LOGIN_IMAGE panel. The form comes first in the source so keyboard and
+ * screen-reader users reach it immediately; the grid puts the picture beside it, and
+ * below a laptop width drops the picture entirely rather than stacking decoration
+ * above the only thing on the page anyone came for. */
+@media (min-width: 60rem) {
+  .v-auth[data-split] {
+    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  }
+}
+
+.v-auth-art {
+  display: none;
+  overflow: hidden;
+  background: var(--muted);
+}
+
+@media (min-width: 60rem) {
+  .v-auth-art {
+    display: block;
+  }
+}
+
+.v-auth-art img {
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  object-fit: cover;
+}
+
+.v-auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  margin-block-end: 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.v-auth-brand img {
+  block-size: 2rem;
+  inline-size: auto;
+}
+
+.v-auth-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.v-auth-field {
+  display: grid;
+  gap: 0.375rem;
+  margin-block-end: 0.875rem;
+}
+
+.v-auth-field label {
+  font-weight: 500;
+}
+
+.v-auth-help {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+/* Two rules at once.
+ *
+ * WCAG 1.4.1 — never colour alone: the leading word carries the meaning and the tint
+ * only reinforces it. The per-field message below is likewise preceded by a visually
+ * hidden field name, so it still makes sense read out of context.
+ *
+ * WCAG 1.4.3 — the text is --foreground, not --destructive. Measured, --destructive
+ * against --card reaches only 3.56:1 in the dark theme, which is short of AA for
+ * body text. The token is fine as a border or a fill and wrong as small red words on
+ * a dark card, so it is used for the frame and the frame only. */
+.v-auth-alert {
+  margin-block-end: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--destructive);
+  border-inline-start-width: 3px;
+  border-radius: var(--radius);
+  color: var(--foreground);
+}
+
+.v-auth-alert-label {
+  font-weight: 600;
+}
+
+.v-auth-error {
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  padding-inline-start: 0.5rem;
+  border-inline-start: 2px solid var(--destructive);
+}
+
+.v-auth-submit {
+  inline-size: 100%;
+  justify-content: center;
+  margin-block-start: 0.25rem;
+}
+
+/* A password form is a column of short inputs; letting it span a wide dashboard
+ * makes the label-to-field distance a usability problem of its own. */
+.v-auth-narrow {
+  max-inline-size: 34rem;
+}
+
+.v-auth-foot {
+  margin-block-start: 1rem;
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ── error pages inside the shell ─────────────────────────────────────────── */
+
+.v-error {
+  max-inline-size: 34rem;
+  margin-inline: auto;
+  padding-block: 3rem 2rem;
+  text-align: center;
+}
+
+.v-error-code {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.v-error-title {
+  margin-block: 0.5rem 0.625rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.v-error-body {
+  color: var(--muted-foreground);
+}
+
+.v-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-block-start: 1.5rem;
+}

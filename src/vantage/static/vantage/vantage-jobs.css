@@ -1,0 +1,164 @@
+/* django-vantage — the background-jobs page and its progress bars.
+ *
+ * Every colour is a semantic token from vantage/theme.py, so both themes and every
+ * derived brand palette get this for free and nothing here hard-codes a hue.
+ *
+ * The bar's fill is driven by a custom property rather than an inline width, for one
+ * concrete reason: the polling script sets a single number and the stylesheet decides
+ * what that number means. Widths, transitions and the reduced-motion opt-out stay in
+ * CSS, where they can be overridden, instead of being written into the element by
+ * JavaScript where they cannot.
+ */
+
+/* ── the backend notice ───────────────────────────────────────────────────── */
+
+.v-jobs-backend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+/* No worker configured is worth noticing without being an error: the feature works,
+ * it just works in the request. Amber, not red. */
+.v-jobs-backend[data-deferred="0"] {
+  color: var(--warning);
+}
+
+/* ── the table ────────────────────────────────────────────────────────────── */
+
+.v-jobs-when,
+.v-jobs-count {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-jobs-count {
+  text-align: end;
+}
+
+.v-jobs-action {
+  font-weight: 600;
+}
+
+.v-jobs-model {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.v-jobs-progress-cell {
+  min-width: 14rem;
+  width: 40%;
+}
+
+.v-jobs-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--destructive);
+}
+
+/* ── status ───────────────────────────────────────────────────────────────── */
+
+/* The word is always present; the colour only ever repeats it. A status legible only
+ * by hue fails WCAG 1.4.1, and fails anyone reading a screenshot in greyscale. */
+.v-jobs-status {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.v-jobs-status[data-status="running"] {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.v-jobs-status[data-status="succeeded"] {
+  background: color-mix(in oklab, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.v-jobs-status[data-status="failed"] {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
+}
+
+.v-jobs-status[data-status="denied"] {
+  background: color-mix(in oklab, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+/* ── the bar ──────────────────────────────────────────────────────────────── */
+
+.v-job-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.v-job-bar {
+  position: relative;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+}
+
+.v-job-bar-fill {
+  display: block;
+  height: 100%;
+  /* The script sets --v-job-percent to a bare number; the unit belongs here. */
+  width: calc(var(--v-job-percent, 0) * 1%);
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 240ms ease-out;
+}
+
+/* A finished job's bar is not "in progress" any more, and colouring it by outcome is
+ * the fastest way to scan a page of them. */
+.v-job-progress[data-job-status="succeeded"] .v-job-bar-fill {
+  background: var(--success);
+}
+
+.v-job-progress[data-job-status="failed"] .v-job-bar-fill,
+.v-job-progress[data-job-status="denied"] .v-job-bar-fill {
+  background: var(--warning);
+}
+
+.v-job-counts {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.v-job-errors {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--destructive);
+}
+
+.v-job-errors svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* An animated bar that cannot be switched off is a vestibular hazard, and a progress
+ * bar is exactly the long-lived motion the criterion is about. The number still
+ * updates; it simply stops sliding. */
+@media (prefers-reduced-motion: reduce) {
+  .v-job-bar-fill {
+    transition: none;
+  }
+}

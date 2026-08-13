@@ -46,6 +46,7 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         "vantage.savedviewgrant",
         "vantage.savedviewuserstate",
         "vantage.listpreference",
+        "vantage.vantagejob",
     }
 )
 

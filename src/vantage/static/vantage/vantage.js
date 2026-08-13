@@ -52,15 +52,7 @@
       });
     });
 
-    var toggle = document.getElementById("v-sidebar-toggle");
-    var sidebar = document.getElementById("v-sidebar");
-    if (toggle && sidebar) {
-      toggle.addEventListener("click", function () {
-        var open = sidebar.getAttribute("data-open") === "true";
-        sidebar.setAttribute("data-open", open ? "false" : "true");
-        toggle.setAttribute("aria-expanded", open ? "false" : "true");
-      });
-    }
+    initSidebar();
 
     document.querySelectorAll(".v-toast-close").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -92,6 +84,61 @@
         search.focus();
         search.select();
       }
+    });
+  }
+
+  var SIDEBAR_KEY = "vantage-sidebar-collapsed";
+
+  function initSidebar() {
+    var toggle = document.getElementById("v-sidebar-toggle");
+    var sidebar = document.getElementById("v-sidebar");
+    var shell = sidebar && sidebar.closest(".v-shell");
+    if (!toggle || !sidebar || !shell) return;
+
+    // Two behaviours behind one control, because they are the same intent at
+    // different widths: on a narrow screen the sidebar is an overlay that opens and
+    // shuts; on a wide one it collapses to an icon rail and stays put.
+    function narrow() {
+      return window.matchMedia("(max-width: 60rem)").matches;
+    }
+
+    function collapsed() {
+      return shell.getAttribute("data-collapsed") === "true";
+    }
+
+    function paint() {
+      var isCollapsed = collapsed();
+      toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      toggle.setAttribute(
+        "aria-label",
+        isCollapsed ? "Expand navigation" : "Collapse navigation"
+      );
+    }
+
+    try {
+      if (localStorage.getItem(SIDEBAR_KEY) === "1") {
+        shell.setAttribute("data-collapsed", "true");
+      }
+    } catch (e) {
+      /* Safari private mode. The sidebar simply starts expanded. */
+    }
+    paint();
+
+    toggle.addEventListener("click", function () {
+      if (narrow()) {
+        var open = sidebar.getAttribute("data-open") === "true";
+        sidebar.setAttribute("data-open", open ? "false" : "true");
+        toggle.setAttribute("aria-expanded", open ? "false" : "true");
+        return;
+      }
+      var next = !collapsed();
+      shell.setAttribute("data-collapsed", next ? "true" : "false");
+      try {
+        localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+      } catch (e) {
+        /* Not persisting is survivable; not collapsing would not be. */
+      }
+      paint();
     });
   }
 

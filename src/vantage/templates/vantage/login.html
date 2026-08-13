@@ -1,0 +1,93 @@
+{% load static vantage %}<!doctype html>
+{% comment %}
+  The sign-in page the package ships, so a project never has to write one.
+
+  Standalone rather than an extension of base.html: an anonymous visitor has no
+  sidebar, no breadcrumb and no nav to render, and a shell full of links they cannot
+  follow is noise on the one screen that has to be obvious.
+
+  No skip link here on purpose. WCAG 2.4.1 is about bypassing *repeated* blocks; this
+  page has one landmark and the first tab stop is already the username field.
+{% endcomment %}
+<html lang="{{ language_code|default:"en" }}"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Sign in · {{ settings.SITE_TITLE }}{% endblock %}</title>
+{% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
+
+{# Blocking and inline on purpose: a deferred script paints light first and flips. #}
+<script>{{ no_flash_script|safe }}</script>
+
+<style>{{ theme_css|safe }}</style>
+<link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
+{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
+</head>
+<body>
+<div class="v-auth"{% if settings.LOGIN_IMAGE %} data-split{% endif %}>
+  <main class="v-auth-main">
+    <div class="v-auth-inner">
+      <div class="v-auth-brand">
+        {% if settings.LOGO %}
+          <img src="{% asset settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
+        {% else %}
+          <span class="v-auth-mark" aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>
+          <span>{{ settings.SITE_TITLE }}</span>
+        {% endif %}
+      </div>
+
+      <div class="v-card">
+        <div class="v-card-head">
+          <h1 class="v-card-title">Sign in</h1>
+        </div>
+        <div class="v-card-body">
+          {% if form.non_field_errors %}
+            {% comment %}
+              role="alert" rather than a bare styled box: after a failed POST the page
+              reloads and a screen reader user otherwise lands on a form with no idea
+              why they are back on it.
+            {% endcomment %}
+            <div class="v-auth-alert" role="alert">
+              <span class="v-auth-alert-label">Sign-in failed.</span>
+              {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+            </div>
+          {% endif %}
+
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+              <div class="v-auth-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                  <p class="v-auth-help" id="{{ field.auto_id }}_help">{{ field.help_text }}</p>
+                {% endif %}
+                {% if field.errors %}
+                  <p class="v-auth-error" id="{{ field.auto_id }}_error">
+                    <span class="v-sr-only">{{ field.label }}:</span>
+                    {% for error in field.errors %}{{ error }} {% endfor %}
+                  </p>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <button class="v-btn v-btn-primary v-auth-submit" type="submit">Sign in</button>
+          </form>
+        </div>
+      </div>
+
+      {% block auth_footer %}{% endblock %}
+    </div>
+  </main>
+
+  {% if settings.LOGIN_IMAGE %}
+    {% comment %} Decoration, so alt="" — announcing a stock photograph before the password box
+       is a cost with no reader on the other end. {% endcomment %}
+    <div class="v-auth-art">
+      <img src="{% asset settings.LOGIN_IMAGE %}" alt="">
+    </div>
+  {% endif %}
+</div>
+</body>
+</html>

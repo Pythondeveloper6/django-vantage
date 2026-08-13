@@ -1,0 +1,53 @@
+{% load static vantage %}<!doctype html>
+{% comment %}
+  Shown after a sign-out that has nowhere else to go — i.e. when the project has set
+  no LOGOUT_REDIRECT_URL. Confirming out loud matters: a silent bounce back to the
+  login form is indistinguishable from a session that expired on its own, and the
+  difference decides whether the user retries or calls support.
+{% endcomment %}
+<html lang="{{ language_code|default:"en" }}"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Signed out · {{ settings.SITE_TITLE }}{% endblock %}</title>
+{% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
+
+<script>{{ no_flash_script|safe }}</script>
+
+<style>{{ theme_css|safe }}</style>
+<link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
+{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
+</head>
+<body>
+<div class="v-auth">
+  <main class="v-auth-main">
+    <div class="v-auth-inner">
+      <div class="v-auth-brand">
+        {% if settings.LOGO %}
+          <img src="{% asset settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
+        {% else %}
+          <span class="v-auth-mark" aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>
+          <span>{{ settings.SITE_TITLE }}</span>
+        {% endif %}
+      </div>
+
+      <div class="v-card">
+        <div class="v-card-head">
+          <h1 class="v-card-title">Signed out</h1>
+        </div>
+        <div class="v-card-body">
+          <p class="v-muted">Your session has ended. Nothing else on this device is signed in.</p>
+          {% url 'login' as login_url %}
+          {% if login_url %}
+            <p class="v-auth-foot">
+              <a class="v-btn v-btn-primary v-auth-submit" href="{{ login_url }}">Sign in again</a>
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+{% comment %}
+  DELIBERATELY SELF-CONTAINED. This template must render with no database, no context
+  processors, no template context at all, and no static files — that is the whole
+  point of a 500 page. By the time it is reached, the settings cache, the panel
+  registry, the session backend or the database may be exactly what has failed, so:
+
+    * no load tag, no static tag, no url tag — the test suite greps for all three;
+    * nothing read from settings, user or request;
+    * every colour written out literally instead of read from a --token, because the
+      token stylesheet is generated in Python from settings and inlined by a view.
+      This is the one file in the package allowed to hard-code colour, and the values
+      below are copied from theme.py's LIGHT_NEUTRALS/DARK_NEUTRALS on purpose.
+
+  ``vantage.authviews.server_error`` renders it with ``Template.render()`` and no
+  arguments, which is what proves the above rather than merely asserting it.
+
+  It doubles as the last-resort fallback for 403 and 404 when the shell itself cannot
+  render, which is why the three strings below are overridable and default to the 500
+  wording.
+{% endcomment %}
+<html lang="{{ language_code|default:"en" }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ error_title|default:"Something went wrong" }}</title>
+
+{% comment %} Copied from theme.py's NO_FLASH_SCRIPT rather than interpolated, for the same
+   reason as everything else on this page: importing it would mean importing the
+   package, and the package is a suspect. It reads localStorage and nothing else. {% endcomment %}
+<script>
+(function () {
+  try {
+    var saved = localStorage.getItem('vantage-theme');
+    if (saved === 'dark' || saved === 'light') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  } catch (e) {}
+})();
+</script>
+
+<style>
+  :root {
+    --bg: oklch(1 0 0);
+    --fg: oklch(0.145 0.004 285);
+    --muted: oklch(0.53 0.014 285);
+    --line: oklch(0.92 0.004 286);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: oklch(0.145 0.004 285);
+      --fg: oklch(0.985 0 0);
+      --muted: oklch(0.705 0.015 286);
+      --line: oklch(0.28 0.006 286);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: oklch(0.145 0.004 285);
+    --fg: oklch(0.985 0 0);
+    --muted: oklch(0.705 0.015 286);
+    --line: oklch(0.28 0.006 286);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-block-size: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 2rem 1.5rem;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-inline-size: 32rem; text-align: center; }
+  .code {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    margin: 0.5rem 0 0.625rem;
+    font-size: 1.375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  p.body { margin: 0; color: var(--muted); }
+  a {
+    display: inline-block;
+    margin-block-start: 1.5rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="code">{{ error_code|default:"Error 500" }}</p>
+  <h1>{{ error_title|default:"Something went wrong" }}</h1>
+  <p class="body">
+    {{ error_body|default:"The server hit an error handling that request. It has been logged; nothing you did caused it and trying again is safe." }}
+  </p>
+  <a href="/">Return to the start</a>
+</main>
+</body>
+</html>
