@@ -13,6 +13,10 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import models
 
+from vantage import inference
+from vantage.conf import vantage_settings
+from vantage.optimizer import plan_related
+
 if TYPE_CHECKING:
     from vantage.sites import VantageSite
 
@@ -95,8 +99,70 @@ class ModelPanel:
         """URL segment identifying this panel: ``testapp.post`` -> ``testapp-post``."""
         return f"{self.opts.app_label}-{self.opts.model_name}"
 
+    # ── resolved configuration ──────────────────────────────────────────────
+    #
+    # Each getter falls back to inference independently. This is what makes
+    # setting ``list_display`` override the columns and nothing else — the rule
+    # that keeps partial configuration from silently costing a user the rest of
+    # the intelligence. Override a getter for logic that inference cannot express.
+
+    def get_list_display(self, request=None) -> list[str]:
+        if self.list_display is not None:
+            return list(self.list_display)
+        return inference.infer_list_display(self.model)
+
+    def get_list_link(self, request=None) -> str:
+        if self.list_link is not None:
+            return self.list_link
+        # An explicit list_display without an explicit list_link should link its
+        # first column, not a column inference would have chosen but the user
+        # then removed.
+        if self.list_display:
+            inferred = inference.infer_list_link(self.model)
+            return inferred if inferred in self.list_display else self.list_display[0]
+        return inference.infer_list_link(self.model)
+
+    def get_list_filter(self, request=None) -> list[str]:
+        if self.list_filter is not None:
+            return list(self.list_filter)
+        return inference.infer_list_filter(self.model)
+
+    def get_list_search(self, request=None) -> list[str]:
+        if self.list_search is not None:
+            return list(self.list_search)
+        return inference.infer_list_search(self.model)
+
+    def get_ordering(self, request=None) -> list[str]:
+        if self.ordering is not None:
+            return list(self.ordering)
+        return inference.infer_ordering(self.model)
+
+    def get_per_page(self, request=None) -> int:
+        if self.list_per_page is not None:
+            return self.list_per_page
+        return vantage_settings.DEFAULT_PER_PAGE
+
     # ── overridable hooks ───────────────────────────────────────────────────
 
     def get_queryset(self, request):
         """The base queryset for every view. Override to scope rows per tenant/user."""
         return self.model._default_manager.all()
+
+    def get_list_queryset(self, request):
+        """The list-page queryset, with query optimisation already applied.
+
+        The optimisation is derived from what the page actually renders, so a column
+        added to ``list_display`` cannot reintroduce an N+1 — the promise the test
+        suite asserts with ``assertNumQueries``.
+        """
+        queryset = self.get_queryset(request)
+        paths = [*self.get_list_display(request), *self.get_list_search(request)]
+        select, prefetch = plan_related(self.model, paths)
+        if select:
+            queryset = queryset.select_related(*sorted(select))
+        if prefetch:
+            queryset = queryset.prefetch_related(*sorted(prefetch))
+        ordering = self.get_ordering(request)
+        if ordering:
+            queryset = queryset.order_by(*ordering)
+        return queryset
