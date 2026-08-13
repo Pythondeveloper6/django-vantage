@@ -11,8 +11,8 @@ search are still inferred. Overriding one attribute never costs you the others.
 
 from django.db.models import Avg, Count, Q, Sum
 
-from shop.models import Order, Product
-from vantage import Chart, ModelPanel, Stat, register
+from shop.models import Order, Product, Review
+from vantage import Chart, ModelPanel, Stat, action, register
 
 
 @register(Order)
@@ -54,3 +54,35 @@ class ProductPanel(ModelPanel):
     #: Deliberately drops ``cost`` and reorders the rest — margin is a back-office
     #: number, not something to scan a catalogue by.
     list_display = ["name", "sku", "category", "status", "price", "stock"]
+
+
+@register(Review)
+class ReviewPanel(ModelPanel):
+    """Shows the action API: three bulk operations declared as ordinary methods."""
+
+    icon = "message-square"
+    group = "People"
+    label_plural = "Feedback"
+
+    list_display = ["headline", "product", "customer", "rating", "is_published", "created_at"]
+    list_filter = ["is_published", "rating", "created_at"]
+
+    @action("Publish", icon="check", permission="change")
+    def publish(self, request, queryset):
+        return f"Published {queryset.update(is_published=True)} reviews."
+
+    @action("Unpublish", icon="x", permission="change")
+    def unpublish(self, request, queryset):
+        return f"Unpublished {queryset.update(is_published=False)} reviews."
+
+    @action(
+        "Delete",
+        icon="trash",
+        permission="delete",
+        destructive=True,
+        max_rows=500,
+        confirm="Permanently delete {count} reviews? This cannot be undone.",
+    )
+    def delete_selected(self, request, queryset):
+        deleted, _ = queryset.delete()
+        return f"Deleted {deleted} records."

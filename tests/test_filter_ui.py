@@ -111,6 +111,15 @@ class TestFilterRail:
         body = body_of(client_in, page="1")
         assert 'name="page"' not in body
 
+    def test_the_search_box_carries_the_filters_back(self, client_in, posts):
+        """The rail restates the search; the search has to restate the rail."""
+        params = {"status": ["draft", "review"], "sort": "title"}
+        body = client_in.get(reverse(LIST_URL), params).content.decode()
+        search_form = body[body.index('role="search"') : body.index("</form>")]
+        assert '<input type="hidden" name="status" value="draft">' in search_form
+        assert '<input type="hidden" name="status" value="review">' in search_form
+        assert '<input type="hidden" name="sort" value="title">' in search_form
+
     def test_no_filters_means_no_rail_and_no_dead_column(self, client_in, db):
         """Tag has nothing filterable; the table should get the whole width."""
         body = client_in.get(reverse("vantage:testapp-tag-list")).content.decode()

@@ -23,6 +23,7 @@ __all__ = [
     "Stat",
     "VantageSite",
     "__version__",
+    "action",
     "register",
     "site",
 ]
@@ -56,6 +57,10 @@ def __getattr__(name: str):
         from vantage.panels import ModelPanel
 
         return ModelPanel
+    if name == "action":
+        from vantage.actions import action
+
+        return action
     if name == "Page":
         from vantage.pages import Page
 

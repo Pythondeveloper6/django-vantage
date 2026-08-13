@@ -117,4 +117,6 @@ VANTAGE = {
     # Anything the declaration does not mention still appears, so registering a new
     # model never makes it silently unreachable. Set this to "hide" for a strict nav.
     "NAV_UNLISTED": "append",
+    # Comment this out and the dashboard generates itself from the registry instead.
+    "DASHBOARD": "shop.dashboard.ShopDashboard",
 }

@@ -76,6 +76,8 @@
       }, 6000);
     });
 
+    initSelection();
+
     // "/" focuses search, the convention every data-heavy app shares. Scoped so it
     // never fires while the user is typing somewhere else (WCAG 2.1.4).
     document.addEventListener("keydown", function (event) {
@@ -91,6 +93,80 @@
         search.select();
       }
     });
+  }
+
+  function initSelection() {
+    var bar = document.querySelector("[data-action-bar]");
+    if (!bar) return;
+
+    var form = document.getElementById("v-action-form");
+    var pageBox = form.querySelector("[data-select-page]");
+    var rows = Array.prototype.slice.call(form.querySelectorAll("[data-select-row]"));
+    var countEl = form.querySelector("[data-selection-count]");
+    var allMatching = form.querySelector("[data-select-all-matching]");
+    var allFlag = form.querySelector("[data-select-all]");
+    var total = Number(bar.getAttribute("data-total") || rows.length);
+    var acrossPages = false;
+
+    function selected() {
+      return rows.filter(function (row) { return row.checked; });
+    }
+
+    function paint() {
+      var chosen = selected().length;
+      bar.hidden = chosen === 0 && !acrossPages;
+
+      if (acrossPages) {
+        countEl.textContent = "All " + total + " matching records selected";
+      } else {
+        countEl.textContent = chosen + (chosen === 1 ? " record" : " records") + " selected";
+      }
+
+      // Offering "select all matching" before the page is fully ticked would be
+      // ambiguous about what it adds to.
+      allMatching.hidden = acrossPages || chosen === 0 || chosen < rows.length || total <= rows.length;
+      allFlag.value = acrossPages ? "1" : "";
+
+      if (pageBox) {
+        pageBox.checked = chosen > 0 && chosen === rows.length;
+        pageBox.indeterminate = chosen > 0 && chosen < rows.length;
+      }
+    }
+
+    if (pageBox) {
+      pageBox.addEventListener("change", function () {
+        acrossPages = false;
+        rows.forEach(function (row) { row.checked = pageBox.checked; });
+        paint();
+      });
+    }
+
+    rows.forEach(function (row) {
+      row.addEventListener("change", function () {
+        // Unticking a row after "select all matching" narrows the set rather than
+        // discarding it: that is the common case, not an edge one.
+        if (acrossPages && !row.checked) {
+          var excluded = document.createElement("input");
+          excluded.type = "hidden";
+          excluded.name = "excluded";
+          excluded.value = row.value;
+          excluded.setAttribute("data-exclusion", row.value);
+          form.appendChild(excluded);
+        } else if (acrossPages && row.checked) {
+          var stale = form.querySelector('[data-exclusion="' + row.value + '"]');
+          if (stale) stale.remove();
+        }
+        paint();
+      });
+    });
+
+    allMatching.addEventListener("click", function () {
+      acrossPages = true;
+      rows.forEach(function (row) { row.checked = true; });
+      paint();
+    });
+
+    paint();
   }
 
   if (document.readyState === "loading") {

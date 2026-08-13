@@ -1,0 +1,25 @@
+{% load vantage_list %}{% comment %}
+  The active filter selection as hidden inputs, for forms that are not the rail.
+
+  A GET form replaces the entire query string. The search box therefore has to restate
+  the filters, exactly as the rail restates the search — otherwise the two controls
+  silently cancel each other out, which is the same bug in both directions.
+{% endcomment %}
+{% facets_on as facets %}
+{% if facets %}<input type="hidden" name="_facets" value="1">{% endif %}
+{% for filt in filters %}
+  {% if filt.is_active %}
+    {% if filt.low_parameter %}
+      {% if filt.low is not None %}
+        <input type="hidden" name="{{ filt.low_parameter }}" value="{{ filt.low }}">
+      {% endif %}
+      {% if filt.high is not None %}
+        <input type="hidden" name="{{ filt.high_parameter }}" value="{{ filt.high }}">
+      {% endif %}
+    {% else %}
+      {% for value in filt.values %}
+        <input type="hidden" name="{{ filt.parameter_name }}" value="{{ value }}">
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+{% endfor %}

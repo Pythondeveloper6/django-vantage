@@ -16,6 +16,7 @@ from django.http import HttpResponse
 from django.utils.translation import get_language, get_language_bidi
 from django.views.generic import TemplateView
 
+from vantage.actions import Selection, resolve_actions
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_csv
 from vantage.filters import apply_filters, build_filters, facets_requested
@@ -116,6 +117,58 @@ class ListView(PanelView):
             return self.export(request)
         return super().get(request, *args, **kwargs)
 
+    def post(self, request, *args, **kwargs):
+        """Run a bulk action, or render its confirmation step."""
+        from django.contrib import messages
+        from django.shortcuts import redirect
+
+        available = {a.name: a for a in resolve_actions(self.panel, request)}
+        chosen = available.get(request.POST.get("action", ""))
+        if chosen is None:
+            # Either a stale form or an action the user may not run. Both deserve the
+            # same answer: nothing happens, and we do not say which it was.
+            raise PermissionDenied("That action is not available.")
+
+        selection = Selection.from_request(request)
+        if selection.is_empty:
+            messages.warning(request, "Nothing was selected.")
+            return redirect(request.get_full_path())
+
+        queryset, _, _, _, _ = self.build_queryset(request)
+        queryset = selection.apply(queryset)
+        count = queryset.count()
+
+        if count == 0:
+            messages.warning(request, "Those records no longer match.")
+            return redirect(request.get_full_path())
+
+        if chosen.max_rows is not None and count > chosen.max_rows:
+            messages.error(
+                request,
+                f"{chosen.label} is limited to {chosen.max_rows} records at a time; "
+                f"{count} were selected.",
+            )
+            return redirect(request.get_full_path())
+
+        if chosen.needs_confirmation() and request.POST.get("confirmed") != "1":
+            return self.render_to_response(
+                self.get_context_data(
+                    confirming=chosen,
+                    confirm_count=count,
+                    confirm_scope=selection.describe(count),
+                    confirm_text=chosen.confirmation_text(count),
+                    confirm_selection=selection,
+                )
+            )
+
+        result = chosen.run(self.panel, request, queryset)
+        # Report the scope that was actually resolved. Django's own admin once let
+        # select-across silently fall back to page one on a destructive action.
+        getattr(messages, result.level, messages.info)(
+            request, f"{result.message} ({selection.describe(count)})"
+        )
+        return redirect(result.redirect or request.get_full_path())
+
     def build_queryset(self, request):
         """The rows the page is showing: permissions, search, filters and sort.
 
@@ -180,6 +233,7 @@ class ListView(PanelView):
             has_active_filters=any(f.is_active for f in filters),
             analytics=self.get_analytics(queryset),
             searchable=bool(panel.get_list_search(request)),
+            actions=resolve_actions(panel, request),
             page_title=panel.get_label_plural(),
         )
         return context

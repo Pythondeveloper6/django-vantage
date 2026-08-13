@@ -1,0 +1,328 @@
+/* Command palette and global search.
+ *
+ * Every colour is a token from vantage/theme.py, same as vantage.css — nothing here
+ * is hard-coded, so one BRAND_COLOR still restyles the whole panel. Logical
+ * properties throughout, so RTL needs no second rule.
+ *
+ * The dialog is a real <dialog> opened with showModal(): the top layer, the backdrop
+ * and the focus trap are the platform's, not ours, and a focus trap nobody wrote is
+ * a focus trap nobody can get wrong.
+ */
+
+/* ── header trigger ───────────────────────────────────────────────────────── */
+
+.v-palette-trigger {
+  display: flex;
+  align-items: center;
+}
+
+.v-palette-trigger .v-input {
+  padding-inline-end: 3rem;
+  cursor: text;
+}
+
+.v-palette-kbd {
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  padding: 0.0625rem 0.3125rem;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
+@media (max-width: 40rem) {
+  .v-palette-kbd {
+    display: none;
+  }
+}
+
+/* ── dialog shell ─────────────────────────────────────────────────────────── */
+
+.v-palette {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  inline-size: min(40rem, calc(100vw - 2rem));
+  max-inline-size: none;
+  margin-block-start: 10vh;
+  margin-inline: auto;
+  overflow: visible;
+}
+
+.v-palette::backdrop {
+  background: oklch(0 0 0 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.v-palette[open] .v-palette-panel {
+  animation: v-palette-in 0.12s ease-out;
+}
+
+@keyframes v-palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-palette[open] .v-palette-panel {
+    animation: none;
+  }
+}
+
+.v-palette-panel {
+  display: flex;
+  flex-direction: column;
+  max-block-size: min(30rem, 70vh);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+/* ── input row ────────────────────────────────────────────────────────────── */
+
+.v-palette-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-inline: 0.875rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-palette-head > svg {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--muted-foreground);
+}
+
+.v-palette-input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 3rem;
+  border: 0;
+  background: transparent;
+  font-size: 0.9375rem;
+  outline: none;
+}
+
+.v-palette-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.v-palette-dismiss {
+  flex: none;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.v-palette-dismiss:hover {
+  color: var(--foreground);
+}
+
+/* ── results ──────────────────────────────────────────────────────────────── */
+
+.v-palette-list {
+  flex: 1;
+  margin: 0;
+  padding: 0.375rem;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* WCAG 2.4.11: a highlighted row scrolled to must not park under the sticky
+     section heading above it. */
+  scroll-padding-block-start: 2rem;
+}
+
+.v-palette-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v-palette-section {
+  position: sticky;
+  inset-block-start: 0;
+  padding: 0.375rem 0.625rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: var(--popover);
+}
+
+.v-palette-option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  scroll-margin-block: 2.25rem;
+}
+
+.v-palette-option[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.v-palette-option svg {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--muted-foreground);
+}
+
+.v-palette-option[aria-selected="true"] svg {
+  color: inherit;
+}
+
+.v-palette-label {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v-palette-sub {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  margin-inline-start: 0.375rem;
+}
+
+.v-palette-option[aria-selected="true"] .v-palette-sub {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.v-palette-hint {
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-palette-option[aria-selected="true"] .v-palette-hint {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.v-palette-match {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.v-palette-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+/* ── footer ───────────────────────────────────────────────────────────────── */
+
+.v-palette-foot {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  border-block-start: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.v-palette-foot kbd {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+}
+
+.v-palette-busy {
+  margin-inline-start: auto;
+}
+
+@media (max-width: 30rem) {
+  .v-palette-foot span:not(.v-palette-busy) {
+    display: none;
+  }
+}
+
+/* ── server-rendered results page ─────────────────────────────────────────── */
+
+.v-search-wide {
+  max-inline-size: 32rem;
+}
+
+.v-search-count {
+  margin-block-end: 1rem;
+}
+
+.v-search-group {
+  margin-block-end: 1rem;
+}
+
+.v-search-group .v-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.v-search-group .v-card-title svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--muted-foreground);
+}
+
+.v-search-hits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v-search-hits li + li {
+  border-block-start: 1px solid var(--border);
+}
+
+.v-search-hits a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  padding: 0.625rem 1rem;
+}
+
+.v-search-hits a:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.v-search-hit-label {
+  font-weight: 500;
+}
+
+.v-search-hit-sub {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.v-search-hits a:hover .v-search-hit-sub {
+  color: inherit;
+  opacity: 0.75;
+}
