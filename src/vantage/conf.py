@@ -47,6 +47,7 @@ DEFAULTS: dict[str, Any] = {
     # permission string ("vantage.change_siteconfiguration") or a callable taking the
     # request widens it. Never itself editable from the UI — that would be a self-grant.
     "SETTINGS_PERMISSION": None,
+    "LIST_PREFS_PERMISSION": None,
     "READ_ONLY": False,
     "ENVIRONMENT": None,
     "AUDIT_LOG": True,

@@ -76,6 +76,8 @@
   {% endif %}
 
   <div class="v-list-main">
+    {% if list_prefs %}{% include "vantage/partials/list_prefs.html" %}{% endif %}
+
     {% include "vantage/partials/saved_views.html" %}
 
     {% if timeline_field %}

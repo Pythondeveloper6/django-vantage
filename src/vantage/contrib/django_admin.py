@@ -174,14 +174,6 @@ def admin_installed() -> bool:
     return django_apps.is_installed("django.contrib.admin")
 
 
-def _require_admin(what: str):
-    if not admin_installed():
-        raise ImproperlyConfigured(
-            f"{what} needs 'django.contrib.admin' in INSTALLED_APPS. Pass the admin "
-            f"objects explicitly if you are adapting an AdminSite you built yourself."
-        )
-
-
 # ── translation ─────────────────────────────────────────────────────────────
 
 
@@ -405,11 +397,23 @@ def _str_column(model, methods: dict) -> str:
 
     ``getattr(panel, "__str__")`` is the panel's own ``__str__``, which takes no
     argument, so the name cannot be passed through unchanged. The model name is used
-    instead because it is what the column header should say anyway.
+    instead, because it is what the column header should say anyway.
+
+    The collision checks are not paranoia. A model called ``Order`` would otherwise
+    define a column named ``order`` — which is also ``ModelPanel.order``, the nav sort
+    weight — and the panel would appear to work right up until the sidebar tried to
+    sort a bound method.
     """
-    name = model._meta.model_name
-    if resolve_path(model, name):
-        name = f"{name}_display"
+    stem = model._meta.model_name
+    for candidate in (stem, f"{stem}_display", f"{stem}_str"):
+        if resolve_path(model, candidate) or hasattr(ModelPanel, candidate):
+            continue
+        if candidate in methods:
+            return candidate
+        name = candidate
+        break
+    else:  # pragma: no cover - three collisions on one model
+        name = f"{stem}_str_column"
 
     def column(self, obj):
         return str(obj)
@@ -746,12 +750,18 @@ def _declared(admin_obj, attr: str):
     admin has ``list_display = ("__str__",)``; copying that onto a panel would replace
     a table of inferred columns with a single column of ``str(obj)``, on every model,
     for every project that adopted — the worst possible first impression.
+
+    Declaration is a question about the *class*, and asking the instance gets it wrong:
+    ``ModelAdmin.__init__`` merges the global widget defaults into
+    ``self.formfield_overrides``, so every admin alive looks like it customised them.
+    The value still comes from the instance, so anything ``__init__`` computed is kept.
     """
     value = getattr(admin_obj, attr, _MISSING)
     if value is _MISSING:
         return None
+    declared = getattr(type(admin_obj), attr, _MISSING)
     default = getattr(_admin_base(), attr, _MISSING)
-    if _same(value, default):
+    if _same(declared, default):
         return None
     return value
 
@@ -777,23 +787,34 @@ def _has_media(admin_obj) -> bool:
 
 
 def _as_instance(admin: Any, model: type):
+    """A ``ModelAdmin`` instance to read from — the class alone is not enough.
+
+    No ``is_installed`` gate here, unlike :func:`adopt_admin_site`: the caller has
+    handed over a ``ModelAdmin`` subclass, so ``contrib.admin`` is importable by
+    construction. Only *discovering* the default admin site needs the app installed.
+    """
     if not isinstance(admin, type):
         return admin
-    _require_admin(f"Translating the {admin.__name__} class")
     from django.contrib.admin import AdminSite
 
     return admin(model, AdminSite())
 
 
 def _model_for_admin(admin: Any) -> type:
+    """Which model a ``ModelAdmin`` class configures.
+
+    Only a *registered* admin knows: the class itself carries no model, which is why
+    the answer has to come from the registry — and why the error, when it cannot, says
+    exactly what to type instead.
+    """
     if not isinstance(admin, type):
         return admin.model
-    _require_admin(f"Looking up the model for {admin.__name__}")
-    from django.contrib import admin as contrib_admin
+    if admin_installed():
+        from django.contrib import admin as contrib_admin
 
-    for model, registered in contrib_admin.site._registry.items():
-        if type(registered) is admin:
-            return model
+        for model, registered in contrib_admin.site._registry.items():
+            if type(registered) is admin:
+                return model
     raise ImproperlyConfigured(
         f"{admin.__name__} is not registered with django.contrib.admin, so the model it "
         f"configures cannot be worked out. Pass it: @from_admin({admin.__name__}, MyModel)."

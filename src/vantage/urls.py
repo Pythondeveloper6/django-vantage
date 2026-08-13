@@ -13,6 +13,7 @@ from vantage import (
     autocomplete,
     formviews,
     importviews,
+    listprefsview,
     savedviews,
     settingsview,
     views,
@@ -72,6 +73,12 @@ def build(site) -> list:
                 # The pk converter is `path:` so a composite key can be encoded with
                 # separators. That makes it greedy, so every sub-route must be
                 # declared BEFORE the bare detail route or it swallows them.
+                # Also before "<path:pk>", and for the same reason.
+                path(
+                    f"{prefix}_prefs/",
+                    listprefsview.ListPrefsView.as_view(site=site, panel=panel),
+                    name=f"{panel.slug}-prefs",
+                ),
                 path(
                     f"{prefix}<path:pk>/edit/",
                     formviews.UpdateView.as_view(site=site, panel=panel),

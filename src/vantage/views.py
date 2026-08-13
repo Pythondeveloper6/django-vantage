@@ -16,10 +16,11 @@ from django.http import HttpResponse
 from django.utils.translation import get_language, get_language_bidi
 from django.views.generic import TemplateView
 
+from vantage import listprefs
 from vantage.actions import Selection, resolve_actions
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
-from vantage.filters import apply_filters, build_filters, facets_requested
+from vantage.filters import apply_filters, build_filters
 from vantage.nav import build_nav, resolve_theme
 from vantage.permissions import get_permissions
 from vantage.safety import (
@@ -128,12 +129,17 @@ class ListView(PanelView):
     template_name = "vantage/list.html"
 
     def get(self, request, *args, **kwargs):
+        # Before anything asks the panel a question. Resolving is what arms the
+        # per-list preferences for this request, and the export below reads the
+        # columns, so priming here is also what keeps the file and the page identical.
+        listprefs.resolve(self.panel, request)
         if request.GET.get("export") in FORMATS:
             return self.export(request)
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         """Run a bulk action, or render its confirmation step."""
+        listprefs.resolve(self.panel, request)
         from django.contrib import messages
         from django.shortcuts import redirect
 
@@ -245,8 +251,9 @@ class ListView(PanelView):
         request = self.request
 
         queryset, base, filters, query, sort = self.build_queryset(request)
+        spec = listprefs.resolve(panel, request)
 
-        if filters and facets_requested(request):
+        if filters and spec.facets_on(request):
             from vantage.filters import apply_facet_counts
 
             apply_facet_counts(filters, base)
@@ -271,14 +278,15 @@ class ListView(PanelView):
             query=query,
             filters=filters,
             has_active_filters=any(f.is_active for f in filters),
-            analytics=self.get_analytics(queryset),
+            analytics=self.get_analytics(spec, queryset),
             searchable=bool(panel.get_list_search(request)),
             patterns=panel.get_patterns(),
             showing_tree=self.showing_tree(request),
             showing_trash=self.showing_trash(request),
             trash_count=self.get_trash_count(panel, request),
             actions=resolve_actions(panel, request),
-            summary=self.get_summary(panel, queryset, columns),
+            summary=self.get_summary(spec, queryset),
+            list_prefs=listprefs.panel_context(panel, request, spec),
             page_title=panel.get_label_plural(),
         )
         from vantage import savedviews
@@ -338,28 +346,19 @@ class ListView(PanelView):
         ).count()
 
     @staticmethod
-    def get_summary(panel, queryset, columns):
+    def get_summary(spec, queryset):
         """The footer bar, keyed by column so the template can align it."""
-        from vantage.summary import compute_summary, infer_summaries
+        return listprefs.summary(spec, queryset)
 
-        summaries = infer_summaries(panel, columns)
-        return {cell.column: cell for cell in compute_summary(queryset, summaries)}
-
-    def get_analytics(self, queryset) -> dict:
+    @staticmethod
+    def get_analytics(spec, queryset) -> dict:
         """Stat cards and charts over the filtered rows.
 
-        Computed from the same queryset the table is about, before pagination — never
-        from the rendered rows, which would silently answer for the current page only.
+        *Which* stats and charts is the resolved spec's answer, so switching the strip
+        off from the rail removes its queries and not merely its markup.
         """
-        from vantage.stats import compute_panel
+        return listprefs.analytics(spec, queryset)
 
-        stats = self.panel.list_stats or ()
-        charts = self.panel.list_charts or ()
-        if not stats and not charts:
-            return {"stats": [], "charts": [], "deferred": False, "reason": None}
-        return compute_panel(queryset, stats=stats, charts=charts)
-
-    # ── helpers ─────────────────────────────────────────────────────────────
 
     @staticmethod
     def _search_q(panel, query: str, request) -> Q:
