@@ -83,3 +83,12 @@ def querystring_replace(context, **kwargs) -> str:
         else:
             params[key] = value
     return params.urlencode() if hasattr(params, "urlencode") else ""
+
+
+@register.filter(name="dict_get")
+def dict_get(mapping, key):
+    """``{{ summary|dict_get:column.name }}`` — the template language has no subscript."""
+    try:
+        return mapping.get(key)
+    except AttributeError:
+        return None

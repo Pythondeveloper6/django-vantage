@@ -431,7 +431,16 @@
     setBusy(false);
     input.setAttribute("aria-expanded", "false");
     input.removeAttribute("aria-activedescendant");
-    // showModal() returns focus to whatever opened the dialog on its own.
+
+    // The browser restores focus to whatever opened the dialog, which for a
+    // shortcut-opened one is <body>: focus lost, and the next Tab restarts from the
+    // top of the page. Deferred by a task because the close event fires *before* the
+    // restore, so this has to check where focus actually landed rather than guess.
+    window.setTimeout(function () {
+      if (!trigger) return;
+      var landed = document.activeElement;
+      if (!landed || landed === document.body) trigger.focus();
+    }, 0);
   });
 
   // A click on the backdrop lands on the dialog element itself; the panel stops it.

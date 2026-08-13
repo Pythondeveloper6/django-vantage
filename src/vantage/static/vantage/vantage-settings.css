@@ -1,0 +1,169 @@
+/* django-vantage settings screen.
+ *
+ * Loaded only by this one page, on top of vantage-form.css — the controls are ordinary
+ * form controls and should look like every other form in the panel. What is here is
+ * only the part that is specific to editing settings: the palette preview, and the
+ * markers that tell a value set here apart from a value inherited from settings.py.
+ *
+ * Every colour is a token from vantage/theme.py. The swatches are the one exception,
+ * and they are inline styles because their whole job is to show a computed value.
+ */
+
+.v-settings-stamp {
+  font-size: 0.8125rem;
+}
+
+/* ── section heads ────────────────────────────────────────────────────────── */
+
+.v-settings-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.v-settings-head .v-form-help {
+  margin-block-start: 0.25rem;
+}
+
+/* ── inherited vs overridden ──────────────────────────────────────────────── */
+
+/* A field set here is doing something a reader of settings.py cannot see, so it says
+ * so. Without this the screen cannot answer "why is the title not what the file says". */
+.v-settings-flag {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-radius: 999px;
+  padding: 0.0625rem 0.4375rem;
+}
+
+.v-settings-inherited code {
+  color: var(--muted-foreground);
+}
+
+.v-settings-current {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.v-settings-current a {
+  color: var(--primary);
+}
+
+.v-settings-error {
+  font-size: 0.75rem;
+  color: var(--destructive);
+}
+
+/* ── the colour control ───────────────────────────────────────────────────── */
+
+.v-settings-color {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.v-settings-color .v-input {
+  font-family: var(--font-mono);
+}
+
+/* The native picker is a companion to the text box, not a replacement: the text box is
+ * the one that can be emptied, and emptying it is how a field is handed back to code. */
+.v-settings-picker {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  flex: none;
+  padding: 0.125rem;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  cursor: pointer;
+}
+
+/* ── palette preview ──────────────────────────────────────────────────────── */
+
+.v-settings-preview {
+  border-block-start: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.v-settings-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.v-settings-preview-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.v-settings-swatches {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.v-settings-swatch-label {
+  inline-size: 3rem;
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-settings-swatch {
+  inline-size: 2.5rem;
+  block-size: 1.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+/* A palette is abstract until something is wearing it. */
+.v-settings-sample {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+}
+
+.v-settings-sample-button {
+  padding: 0.4375rem 0.875rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: var(--preview-primary, var(--primary));
+  color: var(--preview-on-primary, var(--primary-foreground));
+}
+
+.v-settings-sample-link {
+  font-size: 0.8125rem;
+  color: var(--preview-primary, var(--primary));
+}
+
+/* The contrast warning is advice, not a failure: the colour was accepted. */
+.v-settings-warning {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--warning-foreground);
+  background: var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.625rem;
+}
+
+.v-settings-note code {
+  color: var(--muted-foreground);
+}
