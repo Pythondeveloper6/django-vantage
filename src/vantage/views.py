@@ -370,6 +370,58 @@ def _related_url(site, rel, obj) -> str | None:
     return f"{base}?{rel.field.name}={obj.pk}"
 
 
+class PageView(SiteView):
+    """Renders a custom :class:`~vantage.pages.Page`."""
+
+    page_class = None
+
+    def get_page(self):
+        return self.page_class(self.site)
+
+    def check_permission(self, request):
+        if self.get_page().has_permission(request):
+            return None
+        raise PermissionDenied(
+            f"You do not have permission to view {self.page_class.get_title()}."
+        )
+
+    def get_template_names(self):
+        return self.get_page().get_template_names()
+
+    def get_breadcrumbs(self):
+        return self.get_page().get_breadcrumbs()
+
+    def get_context_data(self, **kwargs):
+        page = self.get_page()
+        context = super().get_context_data(**kwargs)
+        context.update(
+            page=page,
+            page_title=page.get_title(),
+            page_description=page.description,
+        )
+        # The page's own keys go on top, so a page can override anything the shell
+        # supplied. Its data is the reason the page exists.
+        context.update(page.get_context(self.request))
+        # The generic renderer needs an ordered view of the data; a page with its own
+        # template ignores this entirely.
+        context.setdefault("page_data", _as_rows(page.get_context(self.request)))
+        return context
+
+
+def _as_rows(data: dict) -> list[dict]:
+    """Shape an arbitrary context dict for the generic page renderer.
+
+    Scalars become stat cards and everything else becomes a labelled block, which is
+    enough to make a page with no template of its own worth looking at.
+    """
+    rows = []
+    for key, value in data.items():
+        label = str(key).replace("_", " ").capitalize()
+        scalar = isinstance(value, (str, int, float, bool)) or value is None
+        rows.append({"key": key, "label": label, "value": value, "scalar": scalar})
+    return rows
+
+
 class ThemeView(SiteView):
     """Persist a theme choice. Posted to by the toggle."""
 

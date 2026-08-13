@@ -1,0 +1,76 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">Delete {{ panel.get_label|lower }}?</h1>
+    <p class="v-page-description">
+      {{ object }} · <span class="v-mono">#{{ object.pk }}</span>
+    </p>
+  </div>
+</div>
+
+{% if messages %}
+  <ul class="v-form-messages">
+    {% for message in messages %}
+      <li class="v-form-alert" data-tone="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<section class="v-card v-confirm">
+  <div class="v-card-body">
+    {% if cascade.is_blocked %}
+      <p class="v-confirm-lede">{{ cascade.blocked_by }}</p>
+    {% else %}
+      <p class="v-confirm-lede">
+        This permanently deletes <strong>{{ object }}</strong>. It cannot be undone.
+      </p>
+
+      {# The cascade preview. A delete that silently takes 12 other rows with it is the
+         single worst surprise an admin panel can hand someone, so the counts are stated
+         before the button and again on it. #}
+      {% if cascade.groups %}
+        <h2 class="v-confirm-heading">These will be destroyed too</h2>
+        <ul class="v-cascade">
+          {% for group in cascade.groups %}
+            <li>
+              <span>{{ group.label }}</span>
+              <span class="v-badge" data-tone="destructive">{{ group.count }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="v-muted">Nothing else references this record.</p>
+      {% endif %}
+
+      {% if cascade.cleared %}
+        <h2 class="v-confirm-heading">These survive, but lose a reference</h2>
+        <ul class="v-cascade">
+          {% for group in cascade.cleared %}
+            <li>
+              <span>{{ group.label }}</span>
+              <span class="v-badge" data-tone="warning">{{ group.count }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="v-card-body v-confirm-actions">
+    <a class="v-btn v-btn-secondary" href="{{ cancel_url }}">Cancel</a>
+    {% if not cascade.is_blocked %}
+      <form method="post">
+        {% csrf_token %}
+        <button class="v-btn v-btn-destructive" type="submit">{{ confirm_label }}</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

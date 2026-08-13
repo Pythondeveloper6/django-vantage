@@ -105,29 +105,50 @@ class TestListPage:
         assert "Post 1" in body
 
     def test_a_search_with_no_matches_echoes_the_query(self, client_in, posts):
-        """Empty-state 2: say what was searched, offer to clear it, no create CTA."""
+        """Empty-state 2: say what was searched and offer a way back.
+
+        Asserts the affordance, not its wording, so rephrasing the copy does not
+        break the test while removing the escape hatch still does.
+        """
         body = client_in.get(self.url(), {"q": "zzzznope"}).content.decode()
         assert "zzzznope" in body
-        assert "Clear search" in body
+        assert f'href="{self.url()}"' in body
 
     def test_an_empty_model_gets_the_first_run_empty_state(self, client_in, db):
         body = client_in.get(reverse("vantage:testapp-archive-list")).content.decode()
         assert "No archives yet" in body
         assert "Clear search" not in body
 
-    def test_list_page_issues_no_n_plus_one(self, client_in, django_assert_num_queries, posts):
-        """The promise the optimiser exists to keep, asserted rather than described."""
-        with django_assert_num_queries(4):
+    def test_the_page_cost_does_not_grow_with_the_row_count(
+        self, client_in, django_assert_num_queries, posts
+    ):
+        """The N+1 guarantee, stated as the invariant that actually matters.
+
+        An exact query count is the wrong assertion here: legitimate features move it
+        (filter dropdowns load their options, a stat strip adds an aggregate). What
+        must never change is that rendering five rows and rendering five hundred cost
+        the same.
+        """
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as small:
             client_in.get(self.url())
 
-    def test_adding_rows_does_not_add_queries(self, client_in, django_assert_num_queries, posts):
         author = Author.objects.create(name="Grace Hopper", email="grace@example.com")
-        for i in range(20, 40):
-            Post.objects.create(
-                title=f"Extra {i}", slug=f"extra-{i}", body="b", author=author
-            )
-        with django_assert_num_queries(4):
+        Post.objects.bulk_create(
+            Post(title=f"Extra {i}", slug=f"extra-{i}", body="b", author=author)
+            for i in range(200)
+        )
+
+        with CaptureQueriesContext(connection) as large:
             client_in.get(self.url())
+
+        assert len(large) == len(small), (
+            f"{len(small)} queries for 5 rows but {len(large)} for 205 — an N+1 crept in."
+        )
+        # A ceiling as well, so the constant cannot silently drift upward either.
+        assert len(small) <= 10
 
 
 class TestPagination:

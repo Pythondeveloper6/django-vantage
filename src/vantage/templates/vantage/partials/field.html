@@ -1,0 +1,51 @@
+{# One field: label, control, help, errors.
+
+   The control renders itself — the widget already carries the inferred type, constraint
+   and data-vantage-kind attributes from WidgetSpec.html_attrs(), so re-emitting them
+   here would be a second source of truth. Django's BoundField adds aria-invalid and
+   aria-describedby when the field has errors; the ids below are the ones it points at,
+   which is why they must stay "{auto_id}_helptext" and "{auto_id}_error". #}
+
+{% if field.readonly %}
+  <div class="v-form-field{% if field.wide %} v-form-field-wide{% endif %}"
+       data-vantage-kind="{{ field.kind }}">
+    <span class="v-form-label">{{ field.label }}</span>
+    <p class="v-form-static">{{ field.value }}</p>
+    {% if field.help_text %}<p class="v-form-help">{{ field.help_text }}</p>{% endif %}
+  </div>
+
+{% elif field.kind == "boolean" %}
+  <div class="v-form-field v-form-field-check" data-vantage-kind="boolean">
+    {{ field.bound }}
+    <label class="v-form-label" for="{{ field.bound.id_for_label }}">{{ field.bound.label }}</label>
+    {% if field.bound.help_text %}
+      <p class="v-form-help" id="{{ field.bound.auto_id }}_helptext">{{ field.bound.help_text }}</p>
+    {% endif %}
+    {% if field.bound.errors %}
+      <ul class="v-form-errors" id="{{ field.bound.auto_id }}_error">
+        {% for error in field.bound.errors %}<li>{{ error }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+{% else %}
+  <div class="v-form-field{% if field.wide %} v-form-field-wide{% endif %}"
+       data-vantage-kind="{{ field.kind }}"
+       {% if field.bound.errors %}data-invalid="true"{% endif %}>
+    <label class="v-form-label" for="{{ field.bound.id_for_label }}">
+      {{ field.bound.label }}
+      {% if field.bound.field.required %}
+        <span class="v-form-required" title="Required">*<span class="v-sr-only"> required</span></span>
+      {% endif %}
+    </label>
+    {{ field.bound }}
+    {% if field.bound.help_text %}
+      <p class="v-form-help" id="{{ field.bound.auto_id }}_helptext">{{ field.bound.help_text }}</p>
+    {% endif %}
+    {% if field.bound.errors %}
+      <ul class="v-form-errors" id="{{ field.bound.auto_id }}_error">
+        {% for error in field.bound.errors %}<li>{{ error }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+{% endif %}

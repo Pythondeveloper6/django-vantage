@@ -1,0 +1,30 @@
+{% load vantage %}{% comment %}
+  One pinned stat card.
+
+  Decision 15's sixth state applies per card, not per strip: a stat whose callable blew
+  up renders as an errored card and its neighbours still show their numbers. Destroying
+  four working figures because the fifth failed is the behaviour being avoided.
+{% endcomment %}
+<div class="v-stat{% if stat.error %} v-stat-failed{% endif %}"
+     {% if stat.tone %}data-tone="{{ stat.tone }}"{% endif %}
+     {% if stat.error %}data-error="true"{% endif %}>
+  <div class="v-stat-label">{{ stat.label }}</div>
+  {% if stat.error %}
+    <div class="v-stat-value" aria-hidden="true">—</div>
+    <p class="v-stat-note">Could not be computed.</p>
+  {% else %}
+    <div class="v-stat-value">{{ stat.display }}</div>
+    {% if stat.trend %}
+      <span class="v-stat-delta" data-direction="{{ stat.trend.direction }}">
+        {% if stat.trend.direction == "up" %}{% icon "trending-up" %}
+        {% elif stat.trend.direction == "down" %}{% icon "trending-down" %}{% endif %}
+        <span>{{ stat.trend.delta_display }}</span>
+        {% if stat.trend.percent_display %}
+          <span class="v-stat-percent">{{ stat.trend.percent_display }}</span>
+        {% endif %}
+        <span class="v-sr-only">versus the preceding period</span>
+      </span>
+    {% endif %}
+    {% if stat.description %}<p class="v-stat-note">{{ stat.description }}</p>{% endif %}
+  {% endif %}
+</div>

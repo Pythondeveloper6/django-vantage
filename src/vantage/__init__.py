@@ -19,6 +19,7 @@ __version__ = "0.1.0.dev0"
 __all__ = [
     "Chart",
     "ModelPanel",
+    "Page",
     "Stat",
     "VantageSite",
     "__version__",
@@ -55,6 +56,10 @@ def __getattr__(name: str):
         from vantage.panels import ModelPanel
 
         return ModelPanel
+    if name == "Page":
+        from vantage.pages import Page
+
+        return Page
     if name in ("Stat", "Chart"):
         from vantage import stats
 
