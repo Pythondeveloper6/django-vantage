@@ -1,4 +1,4 @@
-{% load static vantage %}<!doctype html>
+{% load static vantage i18n %}<!doctype html>
 {% comment %}
   The sign-in page the package ships, so a project never has to write one.
 
@@ -13,7 +13,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Sign in · {{ settings.SITE_TITLE }}{% endblock %}</title>
+<title>{% block title %}{% blocktranslate with site_title=settings.SITE_TITLE %}Sign in · {{ site_title }}{% endblocktranslate %}{% endblock %}</title>
 {% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
 
 {# Blocking and inline on purpose: a deferred script paints light first and flips. #}
@@ -39,7 +39,7 @@
 
       <div class="v-card">
         <div class="v-card-head">
-          <h1 class="v-card-title">Sign in</h1>
+          <h1 class="v-card-title">{% translate "Sign in" %}</h1>
         </div>
         <div class="v-card-body">
           {% if form.non_field_errors %}
@@ -49,7 +49,7 @@
               why they are back on it.
             {% endcomment %}
             <div class="v-auth-alert" role="alert">
-              <span class="v-auth-alert-label">Sign-in failed.</span>
+              <span class="v-auth-alert-label">{% translate "Sign-in failed." %}</span>
               {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
             </div>
           {% endif %}
@@ -72,7 +72,7 @@
               </div>
             {% endfor %}
             <input type="hidden" name="next" value="{{ next }}">
-            <button class="v-btn v-btn-primary v-auth-submit" type="submit">Sign in</button>
+            <button class="v-btn v-btn-primary v-auth-submit" type="submit">{% translate "Sign in" %}</button>
           </form>
         </div>
       </div>

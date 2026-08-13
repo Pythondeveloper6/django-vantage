@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage vantage_slots %}
+{% load static vantage vantage_slots i18n %}
 
 {% comment %}
   The dashboard is a grid of cards the project declared in Python. Everything here
@@ -33,10 +33,12 @@
 {% else %}
   <div class="v-empty">
     {% icon "layout-dashboard" class="v-empty-icon" %}
-    <p class="v-empty-title">Nothing to show yet.</p>
+    <p class="v-empty-title">{% translate "Nothing to show yet." %}</p>
     <p class="v-empty-body">
-      Register a model, or point <code class="v-mono">VANTAGE["DASHBOARD"]</code> at a
-      <code class="v-mono">Dashboard</code> subclass to declare your own cards.
+      {% blocktranslate trimmed %}
+        Register a model, or point <code class="v-mono">VANTAGE["DASHBOARD"]</code> at a
+        <code class="v-mono">Dashboard</code> subclass to declare your own cards.
+      {% endblocktranslate %}
     </p>
   </div>
 {% endif %}

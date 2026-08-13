@@ -1,4 +1,4 @@
-{% load static vantage %}{% comment %}
+{% load static vantage i18n %}{% comment %}
   The per-list customisation rail.
 
   Six independent forms, one per section, each a plain POST. No JavaScript is involved
@@ -21,16 +21,18 @@
 <details class="v-listprefs v-listprefs-docked" data-list-prefs>
   <summary class="v-btn v-btn-ghost v-listprefs-trigger">
     {% icon "sliders" %}
-    <span>Customise</span>
+    <span>{% translate "Customise" %}</span>
     {% if list_prefs.spec.stored %}
-      <span class="v-badge" data-tone="primary">Tuned</span>
+      <span class="v-badge" data-tone="primary">{% translate "Tuned" %}</span>
     {% endif %}
   </summary>
 
   <div class="v-listprefs-panel">
   <p class="v-listprefs-intro">
-    Changes here affect this list only, and only for you — unless you save them for
-    everyone. Reset puts a section back to what the code declares.
+    {% blocktranslate trimmed %}
+      Changes here affect this list only, and only for you — unless you save them for
+      everyone. Reset puts a section back to what the code declares.
+    {% endblocktranslate %}
   </p>
 
   {% comment %}
@@ -48,9 +50,9 @@
     <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
     <div class="v-listprefs-head">
-      <h3 class="v-listprefs-title">Columns</h3>
+      <h3 class="v-listprefs-title">{% translate "Columns" %}</h3>
       {% if list_prefs.overridden.columns %}
-        <span class="v-listprefs-flag">tuned</span>
+        <span class="v-listprefs-flag">{% translate "tuned" %}</span>
       {% endif %}
     </div>
 
@@ -63,13 +65,13 @@
           <input class="v-input v-input-sm v-listprefs-order" type="number" min="1"
                  name="order__{{ column.name }}" value="{{ column.position }}"
                  data-prefs-position
-                 aria-label="Position of {{ column.label }}">
+                 aria-label="{% blocktranslate with label=column.label %}Position of {{ label }}{% endblocktranslate %}">
         </label>
       {% endfor %}
     </div>
 
     <label class="v-listprefs-field">
-      <span class="v-listprefs-label">Rows per page</span>
+      <span class="v-listprefs-label">{% translate "Rows per page" %}</span>
       <input class="v-input v-input-sm" type="number" min="1" max="500"
              name="per_page" value="{{ list_prefs.per_page }}">
     </label>
@@ -80,13 +82,13 @@
       permission check for "for everyone" has exactly one door to guard.
     {% endcomment %}
     <div class="v-listprefs-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
       {% endif %}
-      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
       {% endif %}
     </div>
   </form>
@@ -100,14 +102,14 @@
       <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
       <div class="v-listprefs-head">
-        <h3 class="v-listprefs-title">Search</h3>
-        {% if list_prefs.overridden.search %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+        <h3 class="v-listprefs-title">{% translate "Search" %}</h3>
+        {% if list_prefs.overridden.search %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
       </div>
 
       <label class="v-filter-option v-listprefs-toggle">
         <input type="checkbox" name="search_enabled" data-prefs-toggle
                {% if list_prefs.spec.search_enabled %}checked{% endif %}>
-        <span class="v-filter-option-label">Show the search box</span>
+        <span class="v-filter-option-label">{% translate "Show the search box" %}</span>
       </label>
 
       <div class="v-listprefs-options" data-prefs-dependent>
@@ -121,13 +123,13 @@
       </div>
 
     <div class="v-listprefs-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
       {% endif %}
-      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
       {% endif %}
     </div>
     </form>
@@ -142,14 +144,14 @@
       <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
       <div class="v-listprefs-head">
-        <h3 class="v-listprefs-title">Filters</h3>
-        {% if list_prefs.overridden.filters %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+        <h3 class="v-listprefs-title">{% translate "Filters" %}</h3>
+        {% if list_prefs.overridden.filters %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
       </div>
 
       <label class="v-filter-option v-listprefs-toggle">
         <input type="checkbox" name="filters_enabled" data-prefs-toggle
                {% if list_prefs.spec.filters_enabled %}checked{% endif %}>
-        <span class="v-filter-option-label">Show the filter rail</span>
+        <span class="v-filter-option-label">{% translate "Show the filter rail" %}</span>
       </label>
 
       <div class="v-listprefs-options" data-prefs-dependent data-prefs-sortable>
@@ -161,33 +163,33 @@
             <input class="v-input v-input-sm v-listprefs-order" type="number" min="1"
                    name="order__{{ option.name }}" value="{{ option.position }}"
                    data-prefs-position
-                   aria-label="Position of {{ option.label }}">
+                   aria-label="{% blocktranslate with label=option.label %}Position of {{ label }}{% endblocktranslate %}">
           </label>
         {% endfor %}
       </div>
 
       <label class="v-listprefs-field">
-        <span class="v-listprefs-label">Counts beside each option</span>
+        <span class="v-listprefs-label">{% translate "Counts beside each option" %}</span>
         {% comment %}
           Tri-state, and the middle one is the default: a count costs an aggregate per
           render, so forcing them on for a list nobody has measured is a performance
           decision taken by accident.
         {% endcomment %}
         <select class="v-select v-input-sm" name="facet_counts">
-          <option value="">Only when asked for (?_facets)</option>
-          <option value="on" {% if list_prefs.spec.facet_counts %}selected{% endif %}>Always</option>
-          <option value="off" {% if list_prefs.spec.facet_counts is False %}selected{% endif %}>Never</option>
+          <option value="">{% translate "Only when asked for (?_facets)" %}</option>
+          <option value="on" {% if list_prefs.spec.facet_counts %}selected{% endif %}>{% translate "Always" %}</option>
+          <option value="off" {% if list_prefs.spec.facet_counts is False %}selected{% endif %}>{% translate "Never" %}</option>
         </select>
       </label>
 
     <div class="v-listprefs-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
       {% endif %}
-      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
       {% endif %}
     </div>
     </form>
@@ -201,14 +203,14 @@
     <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
     <div class="v-listprefs-head">
-      <h3 class="v-listprefs-title">Statistics</h3>
-      {% if list_prefs.overridden.stats %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+      <h3 class="v-listprefs-title">{% translate "Statistics" %}</h3>
+      {% if list_prefs.overridden.stats %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
     </div>
 
     <label class="v-filter-option v-listprefs-toggle">
       <input type="checkbox" name="stats_enabled" data-prefs-toggle
              {% if list_prefs.spec.stats_enabled %}checked{% endif %}>
-      <span class="v-filter-option-label">Show the stat strip</span>
+      <span class="v-filter-option-label">{% translate "Show the stat strip" %}</span>
     </label>
 
     <div class="v-listprefs-options" data-prefs-dependent>
@@ -223,40 +225,40 @@
         <label class="v-filter-option">
           <input type="checkbox" name="extra_stats" value="{{ option.index }}" checked>
           <span class="v-filter-option-label">{{ option.label }}</span>
-          <span class="v-listprefs-tag">yours</span>
+          <span class="v-listprefs-tag">{% translate "yours" %}</span>
         </label>
       {% endfor %}
       {% if not list_prefs.stat_options and not list_prefs.extra_stats %}
-        <p class="v-filter-note">No statistics are declared for this list yet.</p>
+        <p class="v-filter-note">{% translate "No statistics are declared for this list yet." %}</p>
       {% endif %}
     </div>
 
     <fieldset class="v-listprefs-add">
-      <legend class="v-listprefs-label">Add one</legend>
+      <legend class="v-listprefs-label">{% translate "Add one" %}</legend>
       <select class="v-select v-input-sm" name="add_stat_aggregate"
-              aria-label="Aggregate for the new statistic">
+              aria-label="{% translate "Aggregate for the new statistic" %}">
         <option value="">—</option>
         {% for name in list_prefs.aggregates %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
       </select>
       <select class="v-select v-input-sm" name="add_stat_field"
-              aria-label="Column for the new statistic">
-        <option value="">rows</option>
+              aria-label="{% translate "Column for the new statistic" %}">
+        <option value="">{% translate "rows" %}</option>
         {% for measure in list_prefs.measures %}
           <option value="{{ measure.name }}">{{ measure.label }}</option>
         {% endfor %}
       </select>
       <input class="v-input v-input-sm" type="text" name="add_stat_label" maxlength="60"
-             placeholder="Label (optional)" aria-label="Label for the new statistic">
+             placeholder="{% translate "Label (optional)" %}" aria-label="{% translate "Label for the new statistic" %}">
     </fieldset>
 
     <div class="v-listprefs-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
       {% endif %}
-      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
       {% endif %}
     </div>
   </form>
@@ -269,14 +271,14 @@
     <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
     <div class="v-listprefs-head">
-      <h3 class="v-listprefs-title">Charts</h3>
-      {% if list_prefs.overridden.charts %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+      <h3 class="v-listprefs-title">{% translate "Charts" %}</h3>
+      {% if list_prefs.overridden.charts %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
     </div>
 
     <label class="v-filter-option v-listprefs-toggle">
       <input type="checkbox" name="charts_enabled" data-prefs-toggle
              {% if list_prefs.spec.charts_enabled %}checked{% endif %}>
-      <span class="v-filter-option-label">Show charts</span>
+      <span class="v-filter-option-label">{% translate "Show charts" %}</span>
     </label>
 
     <div class="v-listprefs-options" data-prefs-dependent>
@@ -291,26 +293,26 @@
         <label class="v-filter-option">
           <input type="checkbox" name="extra_charts" value="{{ option.index }}" checked>
           <span class="v-filter-option-label">{{ option.label }}</span>
-          <span class="v-listprefs-tag">yours</span>
+          <span class="v-listprefs-tag">{% translate "yours" %}</span>
         </label>
       {% endfor %}
       {% if not list_prefs.chart_options and not list_prefs.extra_charts %}
-        <p class="v-filter-note">No charts are declared for this list yet.</p>
+        <p class="v-filter-note">{% translate "No charts are declared for this list yet." %}</p>
       {% endif %}
     </div>
 
     {% if list_prefs.dates or list_prefs.groups %}
       <fieldset class="v-listprefs-add">
-        <legend class="v-listprefs-label">Add one</legend>
+        <legend class="v-listprefs-label">{% translate "Add one" %}</legend>
         <select class="v-select v-input-sm" name="add_chart_mode"
-                aria-label="Kind of chart to add">
+                aria-label="{% translate "Kind of chart to add" %}">
           <option value="">—</option>
-          {% if list_prefs.dates %}<option value="timeseries">Over time</option>{% endif %}
-          {% if list_prefs.groups %}<option value="breakdown">Broken down by</option>{% endif %}
+          {% if list_prefs.dates %}<option value="timeseries">{% translate "Over time" %}</option>{% endif %}
+          {% if list_prefs.groups %}<option value="breakdown">{% translate "Broken down by" %}</option>{% endif %}
         </select>
         {% if list_prefs.dates %}
           <select class="v-select v-input-sm" name="add_chart_date"
-                  aria-label="Date field to chart over">
+                  aria-label="{% translate "Date field to chart over" %}">
             {% for date in list_prefs.dates %}
               <option value="{{ date.name }}">{{ date.label }}</option>
             {% endfor %}
@@ -318,19 +320,19 @@
         {% endif %}
         {% if list_prefs.groups %}
           <select class="v-select v-input-sm" name="add_chart_group"
-                  aria-label="Field to break down by">
+                  aria-label="{% translate "Field to break down by" %}">
             {% for group in list_prefs.groups %}
               <option value="{{ group.name }}">{{ group.label }}</option>
             {% endfor %}
           </select>
         {% endif %}
         <select class="v-select v-input-sm" name="add_chart_aggregate"
-                aria-label="Aggregate for the new chart">
+                aria-label="{% translate "Aggregate for the new chart" %}">
           {% for name in list_prefs.aggregates %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
         </select>
         <select class="v-select v-input-sm" name="add_chart_field"
-                aria-label="Column for the new chart">
-          <option value="">rows</option>
+                aria-label="{% translate "Column for the new chart" %}">
+          <option value="">{% translate "rows" %}</option>
           {% for measure in list_prefs.measures %}
             <option value="{{ measure.name }}">{{ measure.label }}</option>
           {% endfor %}
@@ -339,13 +341,13 @@
     {% endif %}
 
     <div class="v-listprefs-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
       {% endif %}
-      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
       {% endif %}
     </div>
   </form>
@@ -358,14 +360,14 @@
     <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
     <div class="v-listprefs-head">
-      <h3 class="v-listprefs-title">Summary bar</h3>
-      {% if list_prefs.overridden.summary %}<span class="v-listprefs-flag">tuned</span>{% endif %}
+      <h3 class="v-listprefs-title">{% translate "Summary bar" %}</h3>
+      {% if list_prefs.overridden.summary %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
     </div>
 
     <label class="v-filter-option v-listprefs-toggle">
       <input type="checkbox" name="summary_enabled" data-prefs-toggle
              {% if list_prefs.spec.summary_enabled %}checked{% endif %}>
-      <span class="v-filter-option-label">Show the footer totals</span>
+      <span class="v-filter-option-label">{% translate "Show the footer totals" %}</span>
     </label>
 
     <div class="v-listprefs-options" data-prefs-dependent>
@@ -373,26 +375,26 @@
         <label class="v-listprefs-field">
           <span class="v-listprefs-label">{{ option.label }}</span>
           <select class="v-select v-input-sm" name="summary__{{ option.name }}">
-            <option value="">Use the code default{% if option.inherited %} ({{ option.inherited }}){% endif %}</option>
+            <option value="">{% translate "Use the code default" %}{% if option.inherited %} ({{ option.inherited }}){% endif %}</option>
             {% for name in list_prefs.aggregates %}
               <option value="{{ name }}" {% if option.current == name %}selected{% endif %}>{{ name }}</option>
             {% endfor %}
-            <option value="none" {% if option.current == "none" %}selected{% endif %}>No total</option>
+            <option value="none" {% if option.current == "none" %}selected{% endif %}>{% translate "No total" %}</option>
           </select>
         </label>
       {% empty %}
-        <p class="v-filter-note">No numeric columns to total on this list.</p>
+        <p class="v-filter-note">{% translate "No numeric columns to total on this list." %}</p>
       {% endfor %}
     </div>
 
     <div class="v-listprefs-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">Save</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">Save for everyone</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
       {% endif %}
-      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>Reset</button>
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
       {% if list_prefs.may_set_default %}
-        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>Reset for everyone</button>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
       {% endif %}
     </div>
   </form>

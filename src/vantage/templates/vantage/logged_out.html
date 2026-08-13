@@ -1,4 +1,4 @@
-{% load static vantage %}<!doctype html>
+{% load static vantage i18n %}<!doctype html>
 {% comment %}
   Shown after a sign-out that has nowhere else to go — i.e. when the project has set
   no LOGOUT_REDIRECT_URL. Confirming out loud matters: a silent bounce back to the
@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Signed out · {{ settings.SITE_TITLE }}{% endblock %}</title>
+<title>{% block title %}{% blocktranslate with site_title=settings.SITE_TITLE %}Signed out · {{ site_title }}{% endblocktranslate %}{% endblock %}</title>
 {% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
 
 <script>{{ no_flash_script|safe }}</script>
@@ -34,14 +34,14 @@
 
       <div class="v-card">
         <div class="v-card-head">
-          <h1 class="v-card-title">Signed out</h1>
+          <h1 class="v-card-title">{% translate "Signed out" %}</h1>
         </div>
         <div class="v-card-body">
-          <p class="v-muted">Your session has ended. Nothing else on this device is signed in.</p>
+          <p class="v-muted">{% translate "Your session has ended. Nothing else on this device is signed in." %}</p>
           {% url 'login' as login_url %}
           {% if login_url %}
             <p class="v-auth-foot">
-              <a class="v-btn v-btn-primary v-auth-submit" href="{{ login_url }}">Sign in again</a>
+              <a class="v-btn v-btn-primary v-auth-submit" href="{{ login_url }}">{% translate "Sign in again" %}</a>
             </p>
           {% endif %}
         </div>
