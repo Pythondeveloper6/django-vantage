@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-vantage"
+version = "0.1.0.dev0"
+description = "A smart, beautiful admin panel for Django. Zero config to start, one line to override anything."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Mahmoud Ahmed", email = "pythondeveloper6@gmail.com" }]
+keywords = ["django", "admin", "dashboard", "admin-panel", "htmx", "tailwind"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+dependencies = ["Django>=5.2"]
+
+[project.urls]
+Homepage = "https://github.com/mahmoudahmed/django-vantage"
+Documentation = "https://github.com/mahmoudahmed/django-vantage#readme"
+Source = "https://github.com/mahmoudahmed/django-vantage"
+Issues = "https://github.com/mahmoudahmed/django-vantage/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "model-bakery>=1.20",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vantage"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/vantage", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "--strict-markers -q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ", "C4", "RUF"]
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["vantage"]
