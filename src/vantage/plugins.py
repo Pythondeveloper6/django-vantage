@@ -249,13 +249,25 @@ def _setting(name: str):
     """Read a plugin setting, tolerating a settings layer that has not heard of it.
 
     ``vantage_settings`` rejects unknown keys by design, so this asks with a fallback
-    exactly as :func:`vantage.importer.limit` does: discovery works with its defaults
-    today, and honours ``VANTAGE["PLUGINS"]`` the moment that name is added to
-    :data:`vantage.conf.DEFAULTS`, with no change here.
+    exactly as :func:`vantage.importer.limit` does: it works with its defaults today,
+    and reads through the settings layer — picking up derivation and the database
+    override with it — the moment the name is added to :data:`vantage.conf.DEFAULTS`.
+
+    The raw read is the bridge for the interim. Honouring an allowlist is a safety
+    feature, and a safety feature that silently does nothing until a second commit
+    lands is worse than one that does not exist.
     """
+    from django.conf import settings as django_settings
+
     from vantage.conf import vantage_settings
 
-    return getattr(vantage_settings, name, None)
+    value = getattr(vantage_settings, name, _UNSET)
+    if value is not _UNSET:
+        return value
+    return (getattr(django_settings, "VANTAGE", None) or {}).get(name)
+
+
+_UNSET = object()
 
 
 def _entry_points(group: str):
