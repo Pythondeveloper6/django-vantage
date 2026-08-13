@@ -8,6 +8,7 @@ mount it at another URL.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from weakref import WeakSet
 
 from django.db import models
 
@@ -17,6 +18,10 @@ from vantage.registry import Registry
 if TYPE_CHECKING:
     from vantage.panels import ModelPanel
 
+#: Every live site, so system checks can validate all of them. A ``WeakSet`` so
+#: sites created inside tests are collected rather than accumulating.
+all_sites: WeakSet[VantageSite] = WeakSet()
+
 
 class VantageSite:
     """A mountable admin panel: a registry, a navigation tree, and custom pages."""
@@ -25,6 +30,7 @@ class VantageSite:
         self.name = name
         self.registry = Registry(site=self)
         self._pages: list[type] = []
+        all_sites.add(self)
 
     @property
     def _registry(self) -> dict:
