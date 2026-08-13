@@ -200,6 +200,8 @@ class GlobalSearch:
 
     def as_dict(self, query: str) -> dict:
         """The JSON payload the palette consumes."""
+        from vantage.palette import icon_paths
+
         query = (query or "").strip()
         groups = self.search(query)
         return {
@@ -208,6 +210,7 @@ class GlobalSearch:
             "total": sum(len(group.hits) for group in groups),
             "truncated": any(group.truncated for group in groups),
             "groups": [group.as_dict() for group in groups],
+            "icons": icon_paths(group.icon for group in groups),
         }
 
     # ── internals ───────────────────────────────────────────────────────────
