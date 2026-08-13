@@ -190,9 +190,21 @@ class TestThreshold:
         assert jobs.should_enqueue(act, 200_000) is True
 
     def test_an_undeclared_strategy_is_assumed_expensive(self):
-        """Guessing cheap and being wrong is a timeout; guessing expensive is a row."""
+        """Guessing cheap and being wrong is a timeout; guessing expensive is a row.
+
+        Written before ``bulk_strategy`` was declared on ``Action``, when the point
+        was that a missing attribute still costs the expensive way. It is now a real
+        field defaulting to the same answer, so the assertion moved from "the
+        attribute is absent" to "an action that says nothing is costed as instances".
+        """
         act = self.small()
-        assert not hasattr(act, "bulk_strategy")
+        assert act.bulk_strategy == "instances"
+        assert jobs.estimate_seconds(act, 100) == pytest.approx(0.2)
+
+    def test_an_action_object_with_the_field_stripped_still_costs_the_safe_way(self):
+        """jobs.py reads it defensively, so an Action from an older release is safe."""
+        act = self.small()
+        del act.bulk_strategy
         assert jobs.estimate_seconds(act, 100) == pytest.approx(0.2)
 
     def test_switching_jobs_off_keeps_everything_inline(self, monkeypatch):
