@@ -60,6 +60,19 @@ DEFAULTS: dict[str, Any] = {
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
     "DEFAULT_PER_PAGE": 50,
+    # ── scale ───────────────────────────────────────────────────────────────
+    # Rows counted exactly before the page reports "N+". COUNT(*) on Postgres is a
+    # full relation scan and does not care that you are showing 25 rows.
+    "LIST_COUNT_CAP": 10_000,
+    # Planner estimates above the cap. Postgres only, and unrestricted users only:
+    # a whole-table estimate over-reports to someone whose rows are filtered.
+    "LIST_COUNT_ESTIMATES": True,
+    "LIST_ESTIMATE_CACHE_SECONDS": 300,
+    # Offset depth above which keyset paging is warranted. 0 disables it.
+    "LIST_KEYSET_THRESHOLD": 50_000,
+    # Per-statement ceiling, so a pathological filter errors rather than pinning a
+    # worker. 0 disables it.
+    "LIST_STATEMENT_TIMEOUT_MS": 10_000,
     "IMPORT_MAX_BYTES": 5 * 1024 * 1024,
     "IMPORT_MAX_ROWS": 5000,
 }

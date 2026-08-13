@@ -103,16 +103,16 @@ class JobsView(JobsBase):
 
 
 class JobStatusView(JobsBase):
-    """The polled endpoint. JSON, one indexed row, no rendering.
+    """The polled endpoint: one indexed row in, six numbers out, no template.
 
-    ``.values()`` rather than a model instance: this is the most frequently hit route
-    in the package by request count, and it has no business hydrating a model, running
-    ``select_related`` or touching a template to answer six numbers.
+    By request count this is the busiest route in the package — one hit per running
+    job per browser per second and a half — so it renders nothing, follows no
+    relations, and touches exactly the row it was asked about.
     """
 
     def get(self, request, *args, **kwargs):
         job = self.get_job()
-        return JsonResponse(
+        response = JsonResponse(
             {
                 "id": job.pk,
                 "status": job.status,
@@ -134,6 +134,10 @@ class JobStatusView(JobsBase):
                 ),
             }
         )
+        # A progress reading that a proxy is allowed to keep is a bar that stops
+        # moving for reasons nobody can see from the browser.
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class JobErrorsView(JobsBase):

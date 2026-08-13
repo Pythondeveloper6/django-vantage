@@ -66,7 +66,7 @@ pick whichever of near-white or near-black reads better on it, and if that pair 
 still below 4.5:1, walk the lightness away from the target in both directions and take
 whichever reaches AA with the **smaller** move.
 
-Some hues — saturated yellows especially — simply cannot hold text at a mid lightness,
+Some hues — saturated yellows especially — cannot hold text at a mid lightness,
 so the primary has to move. Moving it is the correct failure mode; shipping an
 unreadable button is not.
 
@@ -336,5 +336,6 @@ override.
 ## See also
 
 - [Settings](settings.md) — every key, with defaults
+- [Accessibility](accessibility.md) — the contrast guarantee in its wider context
 - [Analytics](analytics.md#charts) — charts follow `--primary` and `currentColor`
 - [Deployment](deployment.md#static-files) — serving the CSS
