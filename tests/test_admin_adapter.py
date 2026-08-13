@@ -22,12 +22,13 @@ from django.test import override_settings
 from django.urls import path, reverse
 
 from tests.testapp.models import Author, Comment, Order, Post
-from vantage import ModelPanel, site as default_site
+from vantage import ModelPanel
+from vantage import site as default_site
 from vantage.contrib import django_admin
 from vantage.contrib.django_admin import (
     Adoption,
-    adopt_admin_site,
     admin_installed,
+    adopt_admin_site,
     check_admin_adapter,
     from_admin,
     panel_from_admin,
