@@ -81,4 +81,40 @@ VANTAGE = {
     "BRAND_RADIUS": "0.625rem",
     "THEME": "system",
     "ENVIRONMENT": "Demo data — nothing here is real",
+    # The sidebar, stated rather than derived: groups in the order you want them,
+    # items in the order you want them, renamed where the model name is not the word
+    # your team uses, plus links to anywhere else.
+    #
+    # Declaring a nav can reorder, rename and hide — it can never grant access. Every
+    # entry is still filtered through the permission layer, so signing in as `editor`
+    # shows a shorter sidebar than `admin` from this same declaration.
+    "NAV": [
+        {"route": "vantage:dashboard", "label": "Overview", "icon": "layout-dashboard"},
+        {
+            "group": "Commerce",
+            "items": [
+                {"model": "shop.Order", "badge": "live"},
+                {"model": "shop.Product", "label": "Catalogue"},
+                "shop.Category",
+                "shop.Tag",
+            ],
+        },
+        {
+            "group": "People",
+            "items": [
+                {"model": "shop.Customer", "icon": "users"},
+                {"model": "shop.Review", "label": "Feedback"},
+            ],
+        },
+        {
+            "group": "Elsewhere",
+            "icon": "shield",
+            "items": [
+                {"url": "https://docs.djangoproject.com/", "label": "Django docs"},
+            ],
+        },
+    ],
+    # Anything the declaration does not mention still appears, so registering a new
+    # model never makes it silently unreachable. Set this to "hide" for a strict nav.
+    "NAV_UNLISTED": "append",
 }

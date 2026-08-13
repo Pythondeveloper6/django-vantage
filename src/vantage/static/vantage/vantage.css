@@ -790,3 +790,20 @@ textarea {
 .v-table thead th[aria-sort] {
   color: var(--foreground);
 }
+
+.v-nav-group-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.v-nav-group-label svg {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+
+.v-nav-external {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}

@@ -18,9 +18,11 @@ class SimpleVantageConfig(AppConfig):
 
     def ready(self) -> None:
         from vantage.checks import check_panels, check_vantage_settings
+        from vantage.nav import check_nav
 
         checks.register(check_vantage_settings, "vantage")
         checks.register(check_panels, "vantage")
+        checks.register(check_nav, "vantage")
 
 
 class VantageConfig(SimpleVantageConfig):
