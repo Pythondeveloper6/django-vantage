@@ -17,6 +17,7 @@ from django.utils.translation import get_language, get_language_bidi
 from django.views.generic import TemplateView
 
 from vantage.conf import vantage_settings
+from vantage.export import FORMATS, stream_csv
 from vantage.nav import build_nav, resolve_theme
 from vantage.permissions import get_permissions
 from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
@@ -103,25 +104,44 @@ class PanelView(SiteView):
 class ListView(PanelView):
     template_name = "vantage/list.html"
 
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("export") in FORMATS:
+            return self.export(request)
+        return super().get(request, *args, **kwargs)
+
+    def build_queryset(self, request):
+        """The rows the page is showing: permissions, search and sort applied.
+
+        Shared with the export so the two can never disagree.
+        """
+        panel = self.panel
+        queryset = self.permissions.filter_queryset(
+            request, panel.get_list_queryset(request), "view"
+        )
+        query = request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(self._search_q(panel, query, request))
+        sort = self._resolve_sort(panel, request)
+        if sort:
+            queryset = queryset.order_by(*sort["order_by"])
+        return queryset, query, sort
+
+    def export(self, request):
+        panel = self.panel
+        queryset, _, _ = self.build_queryset(request)
+        columns = panel.get_list_display(request)
+        headers = [self._column_header(panel, name, None)["label"] for name in columns]
+        return stream_csv(queryset, columns, headers, panel.get_label_plural())
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         panel = self.panel
         request = self.request
 
-        queryset = self.permissions.filter_queryset(
-            request, panel.get_list_queryset(request), "view"
-        )
-
-        query = request.GET.get("q", "").strip()
-        if query:
-            queryset = queryset.filter(self._search_q(panel, query, request))
+        queryset, query, sort = self.build_queryset(request)
 
         columns = panel.get_list_display(request)
         link = panel.get_list_link(request)
-
-        sort = self._resolve_sort(panel, request)
-        if sort:
-            queryset = queryset.order_by(*sort["order_by"])
 
         paginator = Paginator(queryset, panel.get_per_page(request))
         page = paginator.get_page(request.GET.get("page"))
