@@ -26,6 +26,20 @@ class VantageSite:
         self.registry = Registry(site=self)
         self._pages: list[type] = []
 
+    @property
+    def _registry(self) -> dict:
+        """Django's ``autodiscover_modules(register_to=...)`` contract.
+
+        It snapshots ``_registry`` before importing each ``panel.py`` and restores it
+        if the import raises, so a broken panel module cannot leave the site half
+        registered. ``AdminSite`` satisfies the same contract.
+        """
+        return self.registry._panels
+
+    @_registry.setter
+    def _registry(self, value: dict) -> None:
+        self.registry._panels = value
+
     # ── model registration (delegates to the registry) ──────────────────────
 
     def register(self, model, panel_class=None):
