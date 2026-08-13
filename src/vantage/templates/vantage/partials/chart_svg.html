@@ -1,0 +1,48 @@
+{% comment %}
+  One chart, drawn on the server as inline SVG.
+
+  Geometry arrives from {% chart_svg %}; nothing here computes anything. The colours
+  are `currentColor` and `var(--primary)` only, so the chart follows the theme and a
+  BRAND_COLOR change without a second stylesheet, and `viewBox` plus a width of 100%
+  makes it responsive without a resize listener.
+
+  `role="img"` plus an aria-label is what a screen reader gets *instead of* the
+  graphic, so the label states the shape and the extremes rather than the pixels.
+{% endcomment %}
+{% if kind == "donut" and donut.segments %}
+  <svg class="v-chart-svg v-chart-donut" viewBox="0 0 {{ donut_box }} {{ donut_box }}"
+       role="img" aria-label="{{ aria_label }}" focusable="false">
+    <title>{{ label }}</title>
+    <circle class="v-chart-track" cx="{{ donut_centre }}" cy="{{ donut_centre }}"
+            r="{{ donut_radius }}" fill="none" stroke-width="{{ donut_stroke }}"></circle>
+    {% for segment in donut.segments %}
+      <circle cx="{{ donut_centre }}" cy="{{ donut_centre }}" r="{{ donut_radius }}"
+              fill="none" stroke="var(--primary)" stroke-opacity="{{ segment.opacity }}"
+              stroke-width="{{ donut_stroke }}"
+              stroke-dasharray="{{ segment.dash }} {{ segment.gap }}"
+              stroke-dashoffset="{{ segment.offset }}"></circle>
+    {% endfor %}
+    <text class="v-chart-total" x="{{ donut_centre }}" y="{{ donut_centre }}"
+          text-anchor="middle" dominant-baseline="central">{{ donut_total }}</text>
+  </svg>
+{% elif kind == "bar" and bars %}
+  <svg class="v-chart-svg" viewBox="0 0 {{ width }} {{ height }}"
+       role="img" aria-label="{{ aria_label }}" focusable="false">
+    <title>{{ label }}</title>
+    {% for bar in bars %}
+      <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}"
+            rx="1.5" fill="var(--primary)"></rect>
+    {% endfor %}
+  </svg>
+{% elif line %}
+  <svg class="v-chart-svg" viewBox="0 0 {{ width }} {{ height }}"
+       role="img" aria-label="{{ aria_label }}" focusable="false">
+    <title>{{ label }}</title>
+    <path d="{{ line.area }}" fill="var(--primary)" fill-opacity="0.12"></path>
+    {# currentColor, so the stroke inherits whatever the card sets — including a
+       muted colour when the chart is rendered inside a disabled or errored region. #}
+    <polyline points="{{ line.polyline }}" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <circle cx="{{ line.last.x }}" cy="{{ line.last.y }}" r="2.5" fill="currentColor"></circle>
+  </svg>
+{% endif %}

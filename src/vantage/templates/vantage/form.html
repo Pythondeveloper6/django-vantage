@@ -1,0 +1,109 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+{% endblock %}
+
+{% block content %}
+{# enctype is unconditional: a panel gains a FileField the day someone adds one, and a
+   form that silently drops the upload because the encoding was decided at template
+   time is a bug nobody reports as one. #}
+<form class="v-form" method="post" enctype="multipart/form-data" data-vantage-dirty>
+  {% csrf_token %}
+
+  <div class="v-page-head">
+    <div>
+      <h1 class="v-page-title">{{ page_title }}</h1>
+      <p class="v-page-description">
+        {{ panel.get_label }}{% if object.pk %} · <span class="v-mono">#{{ object.pk }}</span>{% endif %}
+      </p>
+    </div>
+    <div class="v-page-actions">
+      <a class="v-btn v-btn-secondary" href="{{ cancel_url }}">Cancel</a>
+    </div>
+  </div>
+
+  {% if messages %}
+    <ul class="v-form-messages">
+      {% for message in messages %}
+        <li class="v-form-alert" data-tone="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if form.errors %}
+    <div class="v-form-alert" data-tone="error" role="alert" tabindex="-1" id="v-form-summary">
+      <p class="v-form-alert-title">This {{ panel.get_label|lower }} was not saved.</p>
+      {% if form.non_field_errors %}
+        <ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      {% else %}
+        <p>Check the highlighted fields below.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% for section in sections %}
+    <section class="v-card v-form-card" data-section="{{ section.key }}">
+      <div class="v-card-head"><h2 class="v-card-title">{{ section.title }}</h2></div>
+      <div class="v-card-body v-form-grid">
+        {% for entry in section.fields %}
+          {% include "vantage/partials/field.html" with field=entry %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+
+  <div class="v-form-bar">
+    <span class="v-form-bar-hint v-muted" data-vantage-dirty-hint hidden>Unsaved changes</span>
+    <a class="v-btn v-btn-ghost" href="{{ cancel_url }}">Cancel</a>
+    <button class="v-btn v-btn-primary" type="submit">{{ submit_label }}</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Unsaved-changes guard. Compares a snapshot taken at load against the current state,
+ * rather than latching on the first input event — a keystroke that was then undone is
+ * not an unsaved change, and a guard that cries wolf gets clicked through. Submitting
+ * disarms it, or every successful save would prompt on its own redirect. */
+(function () {
+  var form = document.querySelector('form[data-vantage-dirty]');
+  if (!form) return;
+  var hint = form.querySelector('[data-vantage-dirty-hint]');
+  var armed = true;
+
+  function serialize() {
+    var parts = [];
+    Array.prototype.forEach.call(form.elements, function (el) {
+      if (!el.name || el.disabled) return;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        parts.push(el.name + '=' + (el.checked ? el.value : ''));
+      } else if (el.multiple && el.selectedOptions) {
+        parts.push(el.name + '=' + Array.prototype.map.call(
+          el.selectedOptions, function (option) { return option.value; }).join(','));
+      } else {
+        parts.push(el.name + '=' + el.value);
+      }
+    });
+    return parts.join('&');
+  }
+
+  var snapshot = serialize();
+  function dirty() { return armed && serialize() !== snapshot; }
+
+  form.addEventListener('input', function () { if (hint) hint.hidden = !dirty(); });
+  form.addEventListener('change', function () { if (hint) hint.hidden = !dirty(); });
+  form.addEventListener('submit', function () {
+    armed = false;
+    if (hint) hint.hidden = true;
+  });
+  window.addEventListener('beforeunload', function (event) {
+    if (!dirty()) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+})();
+</script>
+{% endblock %}
