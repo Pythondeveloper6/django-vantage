@@ -1,0 +1,138 @@
+{% load vantage vantage_list %}{% comment %}
+  One dashboard card.
+
+  A switch on `card.kind` and nothing else: every widget arrived here as plain data
+  from vantage.dashboards, so this template computes nothing and can render a card
+  whose Python failed just as happily as one whose Python worked.
+
+  The error branch comes first and is deliberately per-card. A dashboard aggregates
+  other people's queries; the one that 500s because a single custom aggregate broke is
+  the one nobody leaves open on a second monitor.
+{% endcomment %}
+<div class="v-widget" data-kind="{{ card.kind }}" data-width="{{ card.width }}">
+{% if card.error %}
+  <section class="v-card v-widget-card v-widget-failed">
+    <header class="v-card-head">
+      <span class="v-card-title">{{ card.label }}</span>
+    </header>
+    <div class="v-widget-body">
+      <p class="v-widget-note v-widget-error">This card could not be computed.</p>
+      <p class="v-widget-note v-widget-reason">{{ card.error }}</p>
+    </div>
+  </section>
+
+{% elif card.kind == "stat" %}
+  {% if card.url %}
+    <a class="v-widget-stat-link" href="{{ card.url }}">
+      {% include "vantage/partials/stat_card.html" with stat=card.stat %}
+    </a>
+  {% else %}
+    {% include "vantage/partials/stat_card.html" with stat=card.stat %}
+  {% endif %}
+
+{% elif card.kind == "chart" %}
+  {% comment %}
+    The same markup the list page's analytics strip uses, so a chart looks identical
+    wherever it appears and there is one place to change how charts are drawn.
+  {% endcomment %}
+  <figure class="v-card v-chart v-widget-card{% if card.chart.error %} v-chart-failed{% endif %}">
+    <figcaption class="v-chart-head">
+      <span class="v-card-title">{{ card.label }}</span>
+      {% if card.chart.bucket %}<span class="v-badge">by {{ card.chart.bucket }}</span>{% endif %}
+    </figcaption>
+    <div class="v-chart-body">
+      {% if card.chart.error %}
+        <p class="v-chart-note v-chart-error">{{ card.chart.error }}</p>
+      {% elif card.chart.empty %}
+        <p class="v-chart-note">No data yet.</p>
+      {% else %}
+        {% chart_svg card.chart %}
+        {% if card.chart.kind == "donut" or card.chart.kind == "bar" %}
+          <ul class="v-chart-legend">
+            {% for label in card.chart.labels|slice:":6" %}
+              <li><span class="v-chart-swatch" data-index="{{ forloop.counter0 }}"
+                        aria-hidden="true"></span>{{ label }}</li>
+            {% endfor %}
+          </ul>
+        {% elif card.chart.labels %}
+          <div class="v-chart-axis">
+            <span>{{ card.chart.labels|first }}</span>
+            <span>{{ card.chart.labels|last }}</span>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  </figure>
+
+{% elif card.kind == "table" %}
+  <section class="v-card v-widget-card">
+    <header class="v-card-head">
+      <span class="v-card-title">{{ card.label }}</span>
+      {% if card.url %}
+        <a class="v-widget-more" href="{{ card.url }}">View all</a>
+      {% endif %}
+    </header>
+    {% if card.rows %}
+      <div class="v-widget-table-wrap">
+        <table class="v-table v-widget-table">
+          <thead>
+            <tr>{% for column in card.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in card.rows %}
+              <tr>
+                {% for cell in row.cells %}
+                  <td>
+                    {% if cell.is_link and row.url %}
+                      <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
+                    {% else %}{{ cell.value }}{% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="v-widget-body">
+        <p class="v-widget-note">Nothing here yet.</p>
+      </div>
+    {% endif %}
+  </section>
+
+{% elif card.kind == "list" %}
+  <section class="v-card v-widget-card">
+    <header class="v-card-head">
+      <span class="v-card-title">{{ card.label }}</span>
+    </header>
+    {% if card.items %}
+      <dl class="v-widget-list">
+        {% for item in card.items %}
+          <div class="v-widget-list-row">
+            <dt>{% if item.url %}<a href="{{ item.url }}">{{ item.label }}</a>
+                {% else %}{{ item.label }}{% endif %}</dt>
+            <dd {% if item.tone %}data-tone="{{ item.tone }}"{% endif %}>{{ item.value }}</dd>
+          </div>
+        {% endfor %}
+      </dl>
+    {% else %}
+      <div class="v-widget-body">
+        <p class="v-widget-note">Nothing here yet.</p>
+      </div>
+    {% endif %}
+  </section>
+
+{% elif card.kind == "template" %}
+  {% comment %}
+    Already rendered to a string in Python, so a template that raises becomes an error
+    card rather than an exception escaping mid-page.
+  {% endcomment %}
+  {{ card.html }}
+
+{% else %}
+  <section class="v-card v-widget-card">
+    <header class="v-card-head"><span class="v-card-title">{{ card.label }}</span></header>
+    <div class="v-widget-body">{{ card.html }}</div>
+  </section>
+{% endif %}
+</div>

@@ -1287,3 +1287,40 @@ textarea {
   from { opacity: 0; transform: translateY(0.5rem); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ── bulk actions ─────────────────────────────────────────────────────────── */
+
+.v-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  margin-block-end: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.v-action-bar-spacer { margin-inline-start: auto; }
+
+.v-action-count {
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-select-cell {
+  inline-size: 2.5rem;
+  text-align: center;
+}
+
+.v-select-cell input { cursor: pointer; }
+
+.v-confirm { margin-block-end: 1rem; border-color: var(--destructive); }
+
+.v-confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}

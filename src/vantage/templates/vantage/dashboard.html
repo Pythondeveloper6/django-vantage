@@ -1,32 +1,41 @@
 {% extends "vantage/base.html" %}
-{% load vantage %}
+{% load static vantage %}
+
+{% comment %}
+  The dashboard is a grid of cards the project declared in Python. Everything here
+  arrived as plain data from vantage.dashboards.Dashboard.render() — already permission
+  filtered, already computed, already isolated from its neighbours' failures — so this
+  file lays cards out and does nothing else.
+{% endcomment %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-dashboard.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">{{ settings.SITE_TITLE }}</h1>
-    <p class="v-page-description">
-      {{ panels|length }} model{{ panels|length|pluralize }} registered.
-    </p>
+    <h1 class="v-page-title">{{ dashboard.get_title }}</h1>
+    {% if dashboard.description %}
+      <p class="v-page-description">{{ dashboard.description }}</p>
+    {% endif %}
   </div>
 </div>
 
-<div class="v-stats">
-  {% for panel in panels %}
-    <a class="v-stat" href="{% url panel.list_url_name %}">
-      <div class="v-stat-label">{{ panel.get_label_plural }}</div>
-      <div class="v-stat-value">{{ panel.count }}</div>
-      <div class="v-stat-delta v-muted">{{ panel.get_group }}</div>
-    </a>
-  {% empty %}
-    <div class="v-empty">
-      {% icon "box" class="v-empty-icon" %}
-      <p class="v-empty-title">No models registered.</p>
-      <p class="v-empty-body">
-        Add an app to <code class="v-mono">INSTALLED_APPS</code> and its models appear here
-        automatically.
-      </p>
-    </div>
-  {% endfor %}
-</div>
+{% if widgets %}
+  <div class="v-dashboard">
+    {% for card in widgets %}
+      {% include "vantage/partials/widget.html" with card=card %}
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="v-empty">
+    {% icon "layout-dashboard" class="v-empty-icon" %}
+    <p class="v-empty-title">Nothing to show yet.</p>
+    <p class="v-empty-body">
+      Register a model, or point <code class="v-mono">VANTAGE["DASHBOARD"]</code> at a
+      <code class="v-mono">Dashboard</code> subclass to declare your own cards.
+    </p>
+  </div>
+{% endif %}
 {% endblock %}

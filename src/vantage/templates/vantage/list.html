@@ -29,6 +29,10 @@
            placeholder="Search {{ panel.get_label_plural|lower }}…"
            aria-label="Search {{ panel.get_label_plural|lower }}">
   </div>
+  {% include "vantage/partials/filter_state.html" %}
+  {% if sort %}
+    <input type="hidden" name="sort" value="{% if sort.descending %}-{% endif %}{{ sort.path }}">
+  {% endif %}
   {% if query %}
     <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
   {% endif %}
@@ -53,7 +57,55 @@
       {% include "vantage/partials/analytics.html" %}
     {% endif %}
 
-    <div class="v-table-wrap">
+    {% if confirming %}
+  <div class="v-card v-confirm">
+    <div class="v-card-head">
+      <h2 class="v-card-title">{{ confirming.label }}?</h2>
+    </div>
+    <div class="v-card-body">
+      <p>{{ confirm_text }}</p>
+      <p class="v-muted">This will apply to {{ confirm_scope }}.</p>
+      <form method="post" class="v-confirm-actions">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{{ confirming.name }}">
+        <input type="hidden" name="confirmed" value="1">
+        <input type="hidden" name="select_all" value="{% if confirm_selection.select_all %}1{% endif %}">
+        {% for pk in confirm_selection.ids %}
+          <input type="hidden" name="selected" value="{{ pk }}">
+        {% endfor %}
+        {% for pk in confirm_selection.excluded %}
+          <input type="hidden" name="excluded" value="{{ pk }}">
+        {% endfor %}
+        <a class="v-btn v-btn-ghost" href="{{ request.get_full_path }}">Cancel</a>
+        <button class="v-btn {% if confirming.destructive %}v-btn-destructive{% else %}v-btn-primary{% endif %}">
+          {{ confirming.label }} {{ confirm_count }} record{{ confirm_count|pluralize }}
+        </button>
+      </form>
+    </div>
+  </div>
+{% endif %}
+
+<form method="post" id="v-action-form">
+{% csrf_token %}
+<input type="hidden" name="select_all" value="" data-select-all>
+
+{% if actions %}
+  <div class="v-action-bar" data-action-bar data-total="{{ paginator.count }}" hidden>
+    <span class="v-action-count" data-selection-count></span>
+    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-select-all-matching hidden>
+      Select all matching
+    </button>
+    <div class="v-action-bar-spacer"></div>
+    {% for act in actions %}
+      <button class="v-btn v-btn-sm {% if act.destructive %}v-btn-destructive{% else %}v-btn-secondary{% endif %}"
+              name="action" value="{{ act.name }}">
+        {% if act.icon %}{% icon act.icon %}{% endif %}{{ act.label }}
+      </button>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="v-table-wrap">
       {% if rows %}
         <table class="v-table" aria-rowcount="{{ paginator.count }}">
           <thead>
