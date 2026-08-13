@@ -29,10 +29,8 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect, JsonResponse
 
 from vantage.color import (
-    BLACK,
     LIGHT_TARGET,
     WCAG_AA,
-    WHITE,
     accessible_pair,
     clamp_to_gamut,
     contrast_ratio,
@@ -148,19 +146,22 @@ def brand_report(color: str) -> BrandReport:
     primary, foreground = accessible_pair(seed, LIGHT_TARGET)
 
     ratio = contrast_ratio(primary, foreground)
-    # The best any text colour could manage on the colour as asked for, which is the
-    # number that explains why the derivation moved.
-    requested_ratio = max(contrast_ratio(requested, WHITE), contrast_ratio(requested, BLACK))
+    # What the colour as asked for would have scored, measured against the same text
+    # colour the panel will actually use. Derived from the same call rather than
+    # recomputed against pure white and black, which flatters it by a few tenths and
+    # would let the warning claim a number above 4.5 while explaining a move made
+    # because the number was below it.
+    requested_ratio = contrast_ratio(requested, foreground)
     adjusted = abs(primary.l - requested.l) > 0.005
 
     warning = None
     if adjusted:
         warning = (
-            f"{color} cannot carry readable text at the lightness the panel uses for "
-            f"buttons — the best contrast available there is {requested_ratio:.1f}:1, and "
-            f"WCAG AA needs {WCAG_AA}:1. The derived button colour was "
-            f"{'darkened' if primary.l < requested.l else 'lightened'} to reach "
-            f"{ratio:.1f}:1. Your colour is stored exactly as you entered it."
+            f"{color} cannot carry readable text at the lightness this panel uses for "
+            f"buttons: it scores {requested_ratio:.1f}:1 against the text colour that "
+            f"would sit on it, and WCAG AA needs {WCAG_AA}:1. The derived button colour "
+            f"was {'darkened' if primary.l < requested.l else 'lightened'} until it "
+            f"reached {ratio:.1f}:1. Your colour is stored exactly as you entered it."
         )
 
     return BrandReport(
