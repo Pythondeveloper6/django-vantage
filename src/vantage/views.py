@@ -18,6 +18,7 @@ from django.views.generic import TemplateView
 
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_csv
+from vantage.filters import apply_filters, build_filters, facets_requested
 from vantage.nav import build_nav, resolve_theme
 from vantage.permissions import get_permissions
 from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
@@ -110,9 +111,14 @@ class ListView(PanelView):
         return super().get(request, *args, **kwargs)
 
     def build_queryset(self, request):
-        """The rows the page is showing: permissions, search and sort applied.
+        """The rows the page is showing: permissions, search, filters and sort.
 
-        Shared with the export so the two can never disagree.
+        Returns the *unfiltered* base alongside the final queryset, because the facet
+        engine needs the base to compute a disjunctive count — the count for an
+        unticked option has to ignore its own filter or it always reads zero.
+
+        Shared with the export and the analytics strip so none of the three can
+        disagree about which rows the page is about.
         """
         panel = self.panel
         queryset = self.permissions.filter_queryset(
@@ -121,14 +127,19 @@ class ListView(PanelView):
         query = request.GET.get("q", "").strip()
         if query:
             queryset = queryset.filter(self._search_q(panel, query, request))
+
+        base = queryset
+        filters = build_filters(panel, request)
+        queryset = apply_filters(queryset, filters)
+
         sort = self._resolve_sort(panel, request)
         if sort:
             queryset = queryset.order_by(*sort["order_by"])
-        return queryset, query, sort
+        return queryset, base, filters, query, sort
 
     def export(self, request):
         panel = self.panel
-        queryset, _, _ = self.build_queryset(request)
+        queryset, _, _, _, _ = self.build_queryset(request)
         columns = panel.get_list_display(request)
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
         return stream_csv(queryset, columns, headers, panel.get_label_plural())
@@ -138,7 +149,12 @@ class ListView(PanelView):
         panel = self.panel
         request = self.request
 
-        queryset, query, sort = self.build_queryset(request)
+        queryset, base, filters, query, sort = self.build_queryset(request)
+
+        if filters and facets_requested(request):
+            from vantage.filters import apply_facet_counts
+
+            apply_facet_counts(filters, base)
 
         columns = panel.get_list_display(request)
         link = panel.get_list_link(request)
@@ -154,10 +170,27 @@ class ListView(PanelView):
             page=page,
             paginator=paginator,
             query=query,
+            filters=filters,
+            has_active_filters=any(f.is_active for f in filters),
+            analytics=self.get_analytics(queryset),
             searchable=bool(panel.get_list_search(request)),
             page_title=panel.get_label_plural(),
         )
         return context
+
+    def get_analytics(self, queryset) -> dict:
+        """Stat cards and charts over the filtered rows.
+
+        Computed from the same queryset the table is about, before pagination — never
+        from the rendered rows, which would silently answer for the current page only.
+        """
+        from vantage.stats import compute_panel
+
+        stats = self.panel.list_stats or ()
+        charts = self.panel.list_charts or ()
+        if not stats and not charts:
+            return {"stats": [], "charts": [], "deferred": False, "reason": None}
+        return compute_panel(queryset, stats=stats, charts=charts)
 
     # ── helpers ─────────────────────────────────────────────────────────────
 
