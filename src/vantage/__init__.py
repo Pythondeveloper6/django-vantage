@@ -23,7 +23,11 @@ __all__ = [
     "ListCard",
     "ModelPanel",
     "Page",
+    "Row",
+    "Section",
     "Stat",
+    "Tab",
+    "Tabs",
     "VantageSite",
     "__version__",
     "action",
@@ -71,6 +75,10 @@ def __getattr__(name: str):
         from vantage import dashboards
 
         return getattr(dashboards, name)
+    if name in ("Tabs", "Tab", "Section", "Row"):
+        from vantage import layout
+
+        return getattr(layout, name)
     if name == "action":
         from vantage.actions import action
 

@@ -241,11 +241,14 @@ from vantage import Tabs, Tab, Section, Row
 layout = Tabs(
     Tab("Content",
         Section(Row("title", "slug"), "body"),
-        Section("Publishing", Row("status", "published_at"), collapsed=True),
+        Section(Row("status", "published_at"), title="Publishing", collapsed=True),
     ),
     Tab("SEO", Section("meta_title", "meta_description")),
 )
 ```
+
+`title` is keyword-only: a leading positional string would make `Section("Publishing", "status")`
+and `Section("title", "body")` indistinguishable, and either reading is wrong half the time.
 
 Conditional visibility is declared on the container: `Section(..., show_if=Q(status="published"))`.
 The condition is evaluated client-side against current form state, and re-validated server-side.
