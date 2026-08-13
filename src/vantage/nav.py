@@ -71,15 +71,17 @@ def _panel_item(panel) -> NavItem | None:
 
 
 def _page_item(page) -> NavItem | None:
+    """``page`` is the registered class, not an instance."""
+    slug = page.get_slug()
     try:
-        url = reverse(f"vantage:page-{page.slug}")
+        url = reverse(f"vantage:page-{slug}")
     except NoReverseMatch:  # pragma: no cover
         return None
     return NavItem(
-        label=page.title,
+        label=page.get_title(),
         url=url,
         icon=getattr(page, "icon", None),
-        key=f"page:{page.slug}",
+        key=f"page:{slug}",
     )
 
 
@@ -211,7 +213,7 @@ def _resolve_item(spec: Any, panels_by_label: dict, pages_by_slug: dict) -> NavI
 def _declared_nav(site, request, declaration) -> list[NavGroup]:
     panels = _visible_panels(site, request)
     panels_by_label = {p.opts.label_lower: p for p in panels}
-    pages_by_slug = {p.slug: p for p in site.pages()}
+    pages_by_slug = {p.get_slug(): p for p in site.pages()}
 
     groups: list[NavGroup] = []
     claimed: set[str] = set()

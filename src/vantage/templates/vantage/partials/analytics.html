@@ -1,0 +1,74 @@
+{% load vantage vantage_list %}{% comment %}
+  The analytics strip, above the table.
+
+  Decision 1: this is the *opt-in* affordance. It renders only because the panel author
+  wrote `list_stats` or `list_charts`, and it is capped at one row of cards, because the
+  failure mode being avoided is Filament's — 140px of chrome above the thing the user
+  came for, on every page load, whether or not it earns the space.
+
+  Every figure here is computed from the filtered queryset before pagination, so the
+  strip always answers for the same rows the table is about.
+{% endcomment %}
+{% if analytics.deferred %}
+  {# Over budget. Offer the work rather than doing it: a list page must never be slower
+     because stats exist. #}
+  <div class="v-analytics-deferred">
+    <div>
+      <p class="v-analytics-deferred-title">Statistics are not computed for this view.</p>
+      {% if analytics.reason %}
+        <p class="v-analytics-deferred-reason">{{ analytics.reason }}.</p>
+      {% endif %}
+    </div>
+    <a class="v-btn v-btn-secondary v-btn-sm"
+       href="?{% querystring_replace _analytics="1" page=None %}">Compute</a>
+  </div>
+{% else %}
+  {% if analytics.stats %}
+    <div class="v-stats v-stats-row">
+      {% for stat in analytics.stats|slice:":4" %}
+        {% include "vantage/partials/stat_card.html" with stat=stat %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if analytics.charts %}
+    <div class="v-charts">
+      {% for chart in analytics.charts %}
+        <figure class="v-card v-chart{% if chart.error %} v-chart-failed{% endif %}">
+          <figcaption class="v-chart-head">
+            <span class="v-card-title">{{ chart.label }}</span>
+            {% if chart.bucket %}
+              <span class="v-badge">by {{ chart.bucket }}</span>
+            {% endif %}
+          </figcaption>
+          <div class="v-chart-body">
+            {% if chart.error %}
+              <p class="v-chart-note v-chart-error">{{ chart.error }}</p>
+            {% elif chart.empty %}
+              <p class="v-chart-note">No data in range.</p>
+            {% else %}
+              {% chart_svg chart %}
+              {% if chart.kind == "donut" or chart.kind == "bar" %}
+                <ul class="v-chart-legend">
+                  {% for label in chart.labels|slice:":6" %}
+                    <li><span class="v-chart-swatch" data-index="{{ forloop.counter0 }}"
+                              aria-hidden="true"></span>{{ label }}</li>
+                  {% endfor %}
+                </ul>
+              {% elif chart.labels %}
+                <div class="v-chart-axis">
+                  <span>{{ chart.labels|first }}</span>
+                  <span>{{ chart.labels|last }}</span>
+                </div>
+              {% endif %}
+              {% if chart.truncated %}
+                <p class="v-chart-note">Showing part of the data; the rest is grouped or
+                  beyond the point limit.</p>
+              {% endif %}
+            {% endif %}
+          </div>
+        </figure>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endif %}

@@ -1,0 +1,100 @@
+{% load vantage vantage_list %}{% comment %}
+  The filter rail.
+
+  A plain GET form, submitted by a button: no JavaScript is involved and none is
+  required, so the page filters with scripting off and every state it can reach is a
+  URL that can be bookmarked, shared or opened in a second tab.
+
+  Search and sort ride along as hidden inputs — a form submission replaces the whole
+  query string, so anything not restated here would be silently dropped, which is the
+  classic "filtering cleared my search" bug. `page` is deliberately *not* carried:
+  changing the predicate invalidates which page you were on.
+
+  Counts are opt-in (`?_facets=1`) because they cost an aggregate per render. The rail
+  works identically without them; they are a refinement, not the feature.
+{% endcomment %}
+{% facets_on as facets %}
+<details class="v-filters" open>
+  <summary class="v-filters-summary">
+    {% icon "filter" %}
+    <span>Filters</span>
+    {% if has_active_filters %}<span class="v-badge" data-tone="primary">On</span>{% endif %}
+  </summary>
+
+  <div class="v-filters-tools">
+    {% if facets %}
+      <a class="v-filters-link" href="?{% querystring_replace _facets=None page=None %}">Hide counts</a>
+    {% else %}
+      <a class="v-filters-link" href="?{% querystring_replace _facets="1" page=None %}">Show counts</a>
+    {% endif %}
+    {% if has_active_filters %}
+      <a class="v-filters-link" href="?{% filters_clear_url filters %}">Clear all filters</a>
+    {% endif %}
+  </div>
+
+  <form class="v-filter-form" method="get" action="{{ request.path }}">
+    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+    {% if sort %}
+      <input type="hidden" name="sort" value="{% if sort.descending %}-{% endif %}{{ sort.path }}">
+    {% endif %}
+    {% if facets %}<input type="hidden" name="_facets" value="1">{% endif %}
+
+    {% for filt in filters %}
+      <fieldset class="v-filter">
+        <legend class="v-filter-legend">{{ filt.label }}</legend>
+
+        {% if filt.low_parameter %}
+          {# A continuous range has no options to tick and nothing to count. #}
+          <div class="v-filter-range">
+            <label class="v-sr-only" for="v-{{ filt.parameter_name }}-min">
+              {{ filt.label }} minimum</label>
+            <input class="v-input v-input-sm" type="number" step="any"
+                   id="v-{{ filt.parameter_name }}-min"
+                   name="{{ filt.low_parameter }}" placeholder="Min"
+                   value="{{ filt.low|default_if_none:'' }}">
+            <span class="v-filter-range-sep" aria-hidden="true">–</span>
+            <label class="v-sr-only" for="v-{{ filt.parameter_name }}-max">
+              {{ filt.label }} maximum</label>
+            <input class="v-input v-input-sm" type="number" step="any"
+                   id="v-{{ filt.parameter_name }}-max"
+                   name="{{ filt.high_parameter }}" placeholder="Max"
+                   value="{{ filt.high|default_if_none:'' }}">
+          </div>
+        {% else %}
+          {% with choices=filt.choices %}
+            {% if choices %}
+              <div class="v-filter-options">
+                {% if not filt.multi %}
+                  {# Single-select needs an explicit way back to "no opinion"; without
+                     it a radio group is a one-way door. #}
+                  <label class="v-filter-option">
+                    <input type="radio" name="{{ filt.parameter_name }}" value=""
+                           {% if not filt.is_active %}checked{% endif %}>
+                    <span class="v-filter-option-label">Any</span>
+                  </label>
+                {% endif %}
+                {% for choice in choices %}
+                  <label class="v-filter-option">
+                    <input type="{% if filt.multi %}checkbox{% else %}radio{% endif %}"
+                           name="{{ filt.parameter_name }}" value="{{ choice.value }}"
+                           {% if choice.selected %}checked{% endif %}>
+                    <span class="v-filter-option-label">{{ choice.label }}</span>
+                    {% if choice.count is not None %}
+                      <span class="v-filter-count">{{ choice.count }}</span>
+                    {% endif %}
+                  </label>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="v-filter-note">Too many values to list here.</p>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      </fieldset>
+    {% endfor %}
+
+    <div class="v-filter-actions">
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit">Apply filters</button>
+    </div>
+  </form>
+</details>

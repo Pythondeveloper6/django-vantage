@@ -29,77 +29,102 @@
 </form>
 {% endif %}
 
-<div class="v-table-wrap">
-  {% if rows %}
-    <table class="v-table" aria-rowcount="{{ paginator.count }}">
-      <thead>
-        <tr>
-          {% for column in columns %}
-            <th scope="col" {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
-              {% if column.sortable %}
-                <a class="v-sort" href="?{% querystring_replace sort=column.next page=None %}">
-                  {{ column.label }}
-                  {% if column.active %}<span aria-hidden="true">{% if column.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
-                </a>
-              {% else %}{{ column.label }}{% endif %}
-            </th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            {% for cell in row.cells %}
-              <td>
-                {% if cell.is_link and row.url %}
-                  <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
-                {% else %}
-                  {{ cell.value }}
-                {% endif %}
-              </td>
-            {% endfor %}
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% elif query %}
-    {# State 2: filters returned nothing. Echo the query back and offer to clear it -
-       never a create CTA, which would imply the list is empty when it is not. #}
-    <div class="v-empty">
-      {% icon "search" class="v-empty-icon" %}
-      <p class="v-empty-title">No {{ panel.get_label_plural|lower }} match “{{ query }}”.</p>
-      <p class="v-empty-body">Try a different search, or clear it to see everything.</p>
-      <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear search</a>
-    </div>
-  {% else %}
-    {# State 1: nothing exists yet. #}
-    <div class="v-empty">
-      {% icon "box" class="v-empty-icon" %}
-      <p class="v-empty-title">No {{ panel.get_label_plural|lower }} yet.</p>
-      <p class="v-empty-body">They will appear here once the first one is created.</p>
-    </div>
+{# The rail sits beside the table on a wide screen and stacks above it on a narrow one,
+   which is the grid doing it — no second markup path and no breakpoint-specific DOM. #}
+<div class="v-list-layout{% if not filters %} v-list-layout-bare{% endif %}">
+  {% if filters %}
+    <aside class="v-list-rail" aria-label="Filters">
+      {% include "vantage/partials/filters.html" %}
+    </aside>
   {% endif %}
-</div>
 
-{% if page.paginator.num_pages > 1 %}
-<div class="v-pagination">
-  <span class="v-pagination-info">
-    {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
-  </span>
-  <div class="v-pagination-controls">
-    {% if page.has_previous %}
-      <a class="v-btn v-btn-secondary v-btn-sm"
-         href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
-    {% else %}
-      <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+  <div class="v-list-main">
+    {% include "vantage/partials/filter_chips.html" %}
+
+    {% if analytics.stats or analytics.charts or analytics.deferred %}
+      {% include "vantage/partials/analytics.html" %}
     {% endif %}
-    {% if page.has_next %}
-      <a class="v-btn v-btn-secondary v-btn-sm"
-         href="?{% querystring_replace page=page.next_page_number %}">Next</a>
-    {% else %}
-      <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+
+    <div class="v-table-wrap">
+      {% if rows %}
+        <table class="v-table" aria-rowcount="{{ paginator.count }}">
+          <thead>
+            <tr>
+              {% for column in columns %}
+                <th scope="col" {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                  {% if column.sortable %}
+                    <a class="v-sort" href="?{% querystring_replace sort=column.next page=None %}">
+                      {{ column.label }}
+                      {% if column.active %}<span aria-hidden="true">{% if column.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+                    </a>
+                  {% else %}{{ column.label }}{% endif %}
+                </th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                {% for cell in row.cells %}
+                  <td>
+                    {% if cell.is_link and row.url %}
+                      <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
+                    {% else %}
+                      {{ cell.value }}
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif query or has_active_filters %}
+        {# State 2: the predicate returned nothing. Echo it back and offer to undo it -
+           never a create CTA, which would imply the list is empty when it is not. The
+           chips above are the "remove the one responsible" half of the same state. #}
+        <div class="v-empty">
+          {% icon "search" class="v-empty-icon" %}
+          {% if query %}
+            <p class="v-empty-title">No {{ panel.get_label_plural|lower }} match “{{ query }}”.</p>
+            <p class="v-empty-body">Try a different search, or clear it to see everything.</p>
+            <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear search</a>
+          {% else %}
+            <p class="v-empty-title">No {{ panel.get_label_plural|lower }} match these filters.</p>
+            <p class="v-empty-body">Remove the one responsible above, or clear them all.</p>
+            <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear all filters</a>
+          {% endif %}
+        </div>
+      {% else %}
+        {# State 1: nothing exists yet. #}
+        <div class="v-empty">
+          {% icon "box" class="v-empty-icon" %}
+          <p class="v-empty-title">No {{ panel.get_label_plural|lower }} yet.</p>
+          <p class="v-empty-body">They will appear here once the first one is created.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if page.paginator.num_pages > 1 %}
+    <div class="v-pagination">
+      <span class="v-pagination-info">
+        {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+      </span>
+      <div class="v-pagination-controls">
+        {% if page.has_previous %}
+          <a class="v-btn v-btn-secondary v-btn-sm"
+             href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+        {% else %}
+          <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+        {% endif %}
+        {% if page.has_next %}
+          <a class="v-btn v-btn-secondary v-btn-sm"
+             href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+        {% else %}
+          <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+        {% endif %}
+      </div>
+    </div>
     {% endif %}
   </div>
 </div>
-{% endif %}
 {% endblock %}

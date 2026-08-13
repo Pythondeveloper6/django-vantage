@@ -1,0 +1,52 @@
+{% extends "vantage/base.html" %}
+
+{# The fallback renderer. A page with its own template never reaches this file;
+   this exists so the FIRST page someone writes is worth looking at before they
+   have written any HTML at all. #}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    {% if page_description %}<p class="v-page-description">{{ page_description }}</p>{% endif %}
+  </div>
+</div>
+
+{% if page_data %}
+  <div class="v-stats">
+    {% for row in page_data %}{% if row.scalar %}
+      <div class="v-stat">
+        <div class="v-stat-label">{{ row.label }}</div>
+        <div class="v-stat-value">{{ row.value|default_if_none:"—" }}</div>
+      </div>
+    {% endif %}{% endfor %}
+  </div>
+
+  {% for row in page_data %}{% if not row.scalar %}
+    <section class="v-card" style="margin-block-end:1rem">
+      <div class="v-card-head"><h2 class="v-card-title">{{ row.label }}</h2></div>
+      <div class="v-card-body">
+        {% if row.value.items %}
+          <dl class="v-fields">
+            {% for k, v in row.value.items %}
+              <div class="v-field"><dt>{{ k }}</dt><dd>{{ v }}</dd></div>
+            {% endfor %}
+          </dl>
+        {% else %}
+          <ul class="v-related">
+            {% for entry in row.value %}<li><span>{{ entry }}</span></li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}{% endfor %}
+{% else %}
+  <div class="v-card"><div class="v-empty">
+    <p class="v-empty-title">This page returned no data.</p>
+    <p class="v-empty-body">
+      Return a dict from <code class="v-mono">get_context()</code>, or add a template at
+      <code class="v-mono">vantage/pages/{{ page.get_slug }}.html</code>.
+    </p>
+  </div></div>
+{% endif %}
+{% endblock %}

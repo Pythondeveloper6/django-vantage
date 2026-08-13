@@ -18,6 +18,17 @@ def build(site) -> list:
         path("_/theme/", views.ThemeView.as_view(site=site), name="theme"),
     ]
 
+    # Custom pages come before model routes so a page may deliberately claim a path
+    # that would otherwise look like an app prefix.
+    for page in site.pages():
+        urlpatterns.append(
+            path(
+                page.get_path(),
+                views.PageView.as_view(site=site, page_class=page),
+                name=f"page-{page.get_slug()}",
+            )
+        )
+
     for panel in site.panels():
         opts = panel.opts
         prefix = f"{opts.app_label}/{opts.model_name}/"
