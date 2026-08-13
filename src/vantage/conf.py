@@ -38,6 +38,7 @@ DEFAULTS: dict[str, Any] = {
     "NAV": None,
     "DASHBOARD": None,
     # ── behaviour ───────────────────────────────────────────────────────────
+    "PERMISSIONS": None,  # dotted path to a PanelPermissions subclass
     "READ_ONLY": False,
     "ENVIRONMENT": None,
     "AUDIT_LOG": True,
@@ -126,3 +127,6 @@ vantage_settings = VantageSettings()
 def _invalidate(sender, setting, **kwargs):  # pragma: no cover - trivial
     if setting == "VANTAGE":
         vantage_settings.reset()
+        from vantage.permissions import _reset
+
+        _reset()

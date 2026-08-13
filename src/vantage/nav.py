@@ -54,7 +54,14 @@ def build_nav(site, request=None) -> list[NavGroup]:
         order[label] = min(order[label], weight)
         return groups[label]
 
-    for panel in site.panels():
+    from vantage.permissions import get_permissions
+
+    permissions = get_permissions()
+    panels = (
+        permissions.visible_panels(request, site.panels()) if request else site.panels()
+    )
+
+    for panel in panels:
         try:
             url = reverse(f"vantage:{panel.slug}-list")
         except NoReverseMatch:  # pragma: no cover - only if urls are not mounted
