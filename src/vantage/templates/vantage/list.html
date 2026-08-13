@@ -110,6 +110,12 @@
         <table class="v-table" aria-rowcount="{{ paginator.count }}">
           <thead>
             <tr>
+              {% if actions %}
+                <th scope="col" class="v-select-cell">
+                  <input type="checkbox" data-select-page
+                         aria-label="Select all rows on this page">
+                </th>
+              {% endif %}
               {% for column in columns %}
                 <th scope="col" {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
                   {% if column.sortable %}
@@ -125,6 +131,12 @@
           <tbody>
             {% for row in rows %}
               <tr>
+                {% if actions %}
+                  <td class="v-select-cell">
+                    <input type="checkbox" name="selected" value="{{ row.pk }}"
+                           data-select-row aria-label="Select {{ row.obj }}">
+                  </td>
+                {% endif %}
                 {% for cell in row.cells %}
                   <td>
                     {% if cell.is_link and row.url %}
