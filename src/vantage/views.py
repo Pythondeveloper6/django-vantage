@@ -379,7 +379,7 @@ class DetailView(PanelView):
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        from vantage.introspection import displayable_fields, reverse_relations
+        from vantage.introspection import displayable_fields
         from vantage.render import render_cell
 
         context = super().get_context_data(**kwargs)
@@ -395,23 +395,7 @@ class DetailView(PanelView):
             if not _is_hidden(field)
         ]
 
-        # Counts only, not the rows themselves. A record with 50,000 children should
-        # not make its detail page unopenable — the related list is a link, not a dump.
-        related = []
-        for rel in reverse_relations(panel.model):
-            accessor = rel.accessor_name
-            if accessor is None:
-                continue
-            manager = getattr(obj, accessor, None)
-            if manager is None or not hasattr(manager, "count"):
-                continue
-            related.append(
-                {
-                    "label": str(rel.related_model._meta.verbose_name_plural).capitalize(),
-                    "count": manager.count(),
-                    "url": _related_url(self.site, rel, obj),
-                }
-            )
+        related = self._related(obj)
 
         context.update(
             object=obj,
@@ -421,6 +405,88 @@ class DetailView(PanelView):
             page_title=str(obj),
         )
         return context
+
+
+    #: How many related rows to preview before the panel becomes a link only.
+    #: contrib.admin's inlines load every child row, which is what makes a record
+    #: with fifty thousand children impossible to open. A preview plus a link costs
+    #: two bounded queries per relation regardless of how many children exist.
+    related_preview = 5
+
+    def _related(self, obj) -> list[dict]:
+        from vantage.introspection import reverse_relations
+
+        blocks = []
+        for rel in reverse_relations(obj._meta.model):
+            accessor = rel.accessor_name
+            if accessor is None:
+                continue
+            manager = getattr(obj, accessor, None)
+            if manager is None or not hasattr(manager, "count"):
+                continue
+
+            child = rel.related_model
+            registered = self.site.is_registered(child)
+            child_panel = self.site.get_panel(child) if registered else None
+
+            if child_panel is not None and not self.permissions.has_model_perm(
+                self.request, child, "view"
+            ):
+                # Not merely hidden from view: a count is itself information, and
+                # leaking "this customer has 47 orders" to someone who cannot see
+                # orders is still a leak.
+                continue
+
+            rows, columns = [], []
+            if child_panel is not None:
+                columns = child_panel.get_list_display(self.request)[:4]
+                queryset = self.permissions.filter_queryset(
+                    self.request, manager.all(), "view"
+                )
+                from vantage.optimizer import plan_related
+
+                # Only joins matter here: the preview is five rows, so a prefetch
+                # would cost a query to save nothing.
+                select, _ = plan_related(child, columns)
+                if select:
+                    queryset = queryset.select_related(*sorted(select))
+                rows = [
+                    self._related_row(child_panel, item, columns)
+                    for item in queryset[: self.related_preview]
+                ]
+
+            blocks.append(
+                {
+                    "label": str(child._meta.verbose_name_plural).capitalize(),
+                    "count": manager.count(),
+                    "columns": [
+                        ListView._column_header(child_panel, name, None)
+                        for name in columns
+                    ],
+                    "rows": rows,
+                    "more": max(0, manager.count() - self.related_preview),
+                    "url": _related_url(self.site, rel, obj),
+                }
+            )
+        return blocks
+
+    def _related_row(self, child_panel, item, columns) -> dict:
+        from django.urls import NoReverseMatch, reverse
+
+        from vantage.render import render_cell
+
+        try:
+            url = reverse(f"vantage:{child_panel.slug}-detail", args=[item.pk])
+        except NoReverseMatch:  # pragma: no cover
+            url = None
+        link = child_panel.get_list_link(self.request)
+        return {
+            "url": url,
+            "cells": [
+                {"value": render_cell(child_panel, item, name), "is_link": name == link}
+                for name in columns
+            ],
+        }
 
 
 def _is_hidden(field) -> bool:

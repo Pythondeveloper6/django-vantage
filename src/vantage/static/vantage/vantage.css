@@ -1349,3 +1349,26 @@ textarea {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── related blocks on the detail page ────────────────────────────────────── */
+
+.v-related-blocks {
+  display: grid;
+  gap: 1rem;
+}
+
+.v-card-action { margin-inline-start: auto; }
+
+.v-table-flush {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.v-related-more {
+  padding-block: 0.625rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.v-related-more a { color: var(--primary); }
+.v-related-more a:hover { text-decoration: underline; text-underline-offset: 2px; }
