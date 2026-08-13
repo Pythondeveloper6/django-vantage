@@ -17,7 +17,9 @@ from __future__ import annotations
 __version__ = "0.1.0.dev0"
 
 __all__ = [
+    "Chart",
     "ModelPanel",
+    "Stat",
     "VantageSite",
     "__version__",
     "register",
@@ -53,4 +55,8 @@ def __getattr__(name: str):
         from vantage.panels import ModelPanel
 
         return ModelPanel
+    if name in ("Stat", "Chart"):
+        from vantage import stats
+
+        return getattr(stats, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
