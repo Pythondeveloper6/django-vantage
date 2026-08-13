@@ -9,7 +9,8 @@ from tests.testapp.models import Author, Comment, Post
 
 @pytest.fixture
 def client_in(client, db):
-    client.force_login(User.objects.create_user("staffer", password="x", is_staff=True))
+    # A superuser: these tests cover rendering, not access control.
+    client.force_login(User.objects.create_superuser("staffer", "s@example.com", "x"))
     return client
 
 
