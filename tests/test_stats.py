@@ -227,23 +227,24 @@ class TestTrend:
         assert trend.delta == -1750.0
         assert trend.direction == "down"
 
-    def test_flat(self, orders):
-        author = Author.objects.get()
-        for day in range(11, 16):
-            make_order(author, days_ago=day, total=50)
-        older = orders.filter(
-            created_at__gte=BASE - dt.timedelta(days=10, hours=12),
-            created_at__lt=BASE - dt.timedelta(days=5, hours=12),
-        )
+    def test_flat(self, db):
+        author = make_author("Level")
+        for day in (1, 2, 3):
+            make_order(author, days_ago=day, total=10)
+        for day in (4, 5):
+            make_order(author, days_ago=day, total=15)
+        recent = Order.objects.filter(created_at__gte=BASE - dt.timedelta(days=3, hours=12))
         result = compute_stats(
-            older,
-            [Stat("Orders", Count("id"), trend="created_at")],
+            recent,
+            [Stat("Revenue", Sum("total"), trend="created_at")],
             baseline=Order.objects.all(),
         )
         trend = result[0].trend
-        assert trend.previous == 4
+        assert result[0].value == 30.0
+        assert trend.previous == 30.0
         assert trend.delta == 0
         assert trend.direction == "flat"
+        assert trend.percent == 0.0
 
     def test_a_stat_filter_survives_into_the_previous_period(self, orders):
         """The window is folded into the aggregate's own FILTER clause, not replacing it."""
