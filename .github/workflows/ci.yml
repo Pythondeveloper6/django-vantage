@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     strategy:
-      # One red cell should not hide the other eight.
+      # One red cell should not hide the other six.
       fail-fast: false
       matrix:
         # Both ends of the supported range on every interpreter the package claims.
@@ -101,11 +101,14 @@ jobs:
       - name: Create the environment
         run: uv venv --python ${{ matrix.python-version }}
 
-      # The project is installed rather than run out of `src/`, so the suite exercises
-      # what would actually ship. Django is named last so this cell's version wins over
-      # whatever single version the lockfile happens to hold.
+      # Installed non-editable on purpose: the suite then imports `vantage` out of
+      # site-packages rather than out of `src/`, so it exercises the built artefact and
+      # a template left out of the build fails a test rather than surviving to a
+      # release. `tests/` still resolves through pytest's `pythonpath = ["."]`.
+      # Django is named last so this cell's version wins over whatever single version
+      # the lockfile happens to hold.
       - name: Install
-        run: uv pip install -e . --group dev "$DJANGO_SPEC"
+        run: uv pip install . --group dev "$DJANGO_SPEC"
 
       - name: Report the resolved versions
         run: |
@@ -119,10 +122,16 @@ jobs:
         run: uv run --no-sync pytest
 
   typecheck:
-    # Advisory, and honestly so. `ty` reports 257 diagnostics against src/ today, the
-    # bulk of them `unresolved-attribute` on Django model and queryset descriptors that
-    # no static checker resolves without stubs. Publishing the number and letting it be
-    # driven down is worth more than a green tick over a check nobody runs.
+    # Advisory, and honestly so. `ty` reports a few hundred diagnostics against src/
+    # today (296 at the time of writing), the bulk of them `unresolved-attribute` on
+    # Django model and queryset descriptors that no static checker resolves without
+    # stubs. Publishing the number and letting it be driven down is worth more than a
+    # green tick over a check nobody runs.
+    #
+    # mypy was the alternative and was rejected: making it say anything useful about a
+    # Django codebase needs django-stubs, which pins the Django version it models — so
+    # it would either contradict the 5.2/6.1/main matrix or have to be pinned to one
+    # cell of it. `ty` needs no stubs and no pin.
     name: ty (advisory)
     runs-on: ubuntu-latest
     continue-on-error: true

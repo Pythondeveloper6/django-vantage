@@ -70,10 +70,18 @@
 
     initSelection();
 
-    // "/" focuses search, the convention every data-heavy app shares. Scoped so it
-    // never fires while the user is typing somewhere else (WCAG 2.1.4).
+    // "/" focuses search. WCAG 2.1.4 (Level A) requires an unmodified character
+    // shortcut to be switchable off, remappable, or focus-scoped; checking
+    // activeElement.tagName is an approximation of scoping, not scoping — it misses
+    // contenteditable, custom comboboxes and shadow DOM. So it also honours the same
+    // on/off preference the grid uses, which the cheat sheet exposes.
     document.addEventListener("keydown", function (event) {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      try {
+        if (localStorage.getItem("vantage-grid-shortcuts") === "0") return;
+      } catch (e) {
+        /* No storage, no preference: the default is on. */
+      }
       var active = document.activeElement;
       if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable)) {
         return;

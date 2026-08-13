@@ -345,12 +345,11 @@ def _celery_has_broker() -> bool:
         return False
 
 
-# The Celery registration happens at import time, not at enqueue time, and that is not
-# an accident: a remote worker learns a task exists by importing the module that
-# declares it. Registering inside ``enqueue`` would work in the web process and produce
-# "Received unregistered task" in the worker, which is the classic way this goes wrong.
-#: The registered Celery task, or None. Assigned at the foot of this module, once
-#: :func:`run_job` exists to be wrapped.
+#: The registered Celery task, or None. Bound at the foot of this module, once
+#: :func:`run_job` exists to be wrapped — and at *import* time rather than at enqueue
+#: time, which is not an accident: a remote worker learns a task exists by importing
+#: the module that declares it. Registering inside :func:`enqueue` would work in the
+#: web process and produce "Received unregistered task" in the worker.
 _celery_job = None
 
 try:  # pragma: no cover - exercised only on a project with Celery installed
@@ -377,7 +376,8 @@ def _submit(job: VantageJob) -> None:
     transaction.on_commit(lambda: _submit_deferred(job_id, name))
 
 
-def _submit_deferred(job_id: int, backend: str) -> None:  # pragma: no cover - needs a queue
+def _submit_deferred(job_id: int, backend: str) -> None:
+    """Call the chosen queue's enqueue API and record whatever id it gives back."""
     task_id = ""
     if backend == DJANGO_TASKS.name:
         from django.tasks import task
@@ -543,8 +543,7 @@ def _execute(job: VantageJob) -> None:
     job.total = len(pks)
     job.save(update_fields=["total"])
 
-    model = panel.model
-    db = router.db_for_write(model)
+    db = router.db_for_write(panel.model)
     size = chunk_size()
     errors: list[dict] = []
     cap = max_stored_errors()
@@ -561,7 +560,11 @@ def _execute(job: VantageJob) -> None:
             denied = refusal
             break
 
-        rows = model._default_manager.using(db).filter(pk__in=chunk)
+        # Narrowed from the *resolved* queryset, never from the bare manager. The
+        # resolved one carries the permission scoping ``filter_queryset`` applied, and
+        # re-deriving the chunk from ``_default_manager`` would quietly hand the action
+        # rows the actor was never allowed to see.
+        rows = queryset.filter(pk__in=chunk)
         _, failure = _attempt(db, lambda rows=rows: action.run(panel, request, rows))
         if failure is None:
             position += len(chunk)
@@ -572,7 +575,7 @@ def _execute(job: VantageJob) -> None:
             # between "500 failed" and "3 failed" on the same data.
             for pk in chunk:
                 position += 1
-                one = model._default_manager.using(db).filter(pk=pk)
+                one = queryset.filter(pk=pk)
                 _, row_failure = _attempt(db, lambda one=one: action.run(panel, request, one))
                 if row_failure is not None:
                     job.failed += 1

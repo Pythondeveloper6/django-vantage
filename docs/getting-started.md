@@ -59,9 +59,19 @@ create the table impossible to run. But you want the tables, so run `migrate`.
 
 ### Signing in
 
-The panel redirects anonymous visitors to `settings.LOGIN_URL` and requires
-`is_staff`. Vantage does not ship a login view; use `django.contrib.auth`'s, or your
-own.
+The panel redirects anonymous visitors to `settings.LOGIN_URL` and requires `is_staff`.
+
+Vantage ships styled sign-in, sign-out and change-password views, because a panel that
+hands a visitor an unstyled Django form has broken its own promise on the first screen
+anyone ever sees:
+
+```python
+# urls.py
+urlpatterns = [
+    path("admin/", site.urls),
+    path("accounts/", include("vantage.authviews")),
+]
+```
 
 ```python
 # settings.py
@@ -69,13 +79,15 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/admin/"
 ```
 
-```python
-# urls.py
-urlpatterns = [
-    path("admin/", site.urls),
-    path("accounts/", include("django.contrib.auth.urls")),
-]
-```
+The route names deliberately match `django.contrib.auth.urls` — `login`, `logout`,
+`password_change` — and no `app_name` is declared, so it is a drop-in replacement:
+`LOGIN_URL`, `redirect_to_login` and every `{% url 'login' %}` in your project keep
+working unchanged. Swap the include back for `django.contrib.auth.urls` at any time.
+
+Add [`LOGIN_IMAGE`](settings.md#branding) for a two-column sign-in page.
+
+Vantage also provides 403, 404 and 500 handlers that render inside the panel shell,
+with a bare fallback for when the shell itself cannot render.
 
 ## First look
 

@@ -10,7 +10,6 @@ from functools import cached_property
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.translation import get_language, get_language_bidi
@@ -22,6 +21,7 @@ from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
 from vantage.filters import apply_filters, build_filters
 from vantage.nav import build_nav, resolve_theme
+from vantage.pagination import CappedPaginator
 from vantage.permissions import get_permissions
 from vantage.safety import (
     ImpersonationError,
@@ -261,7 +261,12 @@ class ListView(PanelView):
         columns = panel.get_list_display(request)
         link = panel.get_list_link(request)
 
-        paginator = Paginator(queryset, panel.get_per_page(request))
+        paginator = CappedPaginator(
+            queryset,
+            panel.get_per_page(request),
+            request=request,
+            permissions=self.permissions,
+        )
         page = paginator.get_page(request.GET.get("page"))
 
         context.update(
@@ -275,6 +280,7 @@ class ListView(PanelView):
             timeline_field=self._timeline_field(panel),
             page=page,
             paginator=paginator,
+            row_count=paginator.row_count,
             query=query,
             filters=filters,
             has_active_filters=any(f.is_active for f in filters),
