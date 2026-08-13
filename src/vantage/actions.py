@@ -132,6 +132,12 @@ def resolve_actions(panel, request=None) -> list[Action]:
         if built is not None:
             resolved.append(built)
 
+    # Only when the panel offers nothing of its own. An author who wrote actions has
+    # thought about which ones belong, and silently adding two more to their list is
+    # the kind of helpfulness that reads as a bug.
+    if not resolved:
+        resolved.extend(_from_patterns(panel))
+
     if request is None:
         return resolved
 
@@ -142,6 +148,48 @@ def resolve_actions(panel, request=None) -> list[Action]:
         if act.permission is None
         or permissions.has_model_perm(request, panel.model, act.permission)
     ]
+
+
+def _from_patterns(panel) -> list[Action]:
+    """Actions a detected convention implies, for panels that declare none.
+
+    A model with an ``is_published`` flag almost certainly wants publish and
+    unpublish, and making the author write two identical methods on every such model
+    is the boilerplate this package exists to remove.
+    """
+    pattern = panel.get_patterns().publishable
+    if pattern is None:
+        return []
+
+    def _set(value_attr: str, label: str):
+        def run(self, request, queryset):
+            from django.utils import timezone
+
+            value = getattr(pattern, value_attr)
+            # A timestamp pattern has no fixed value: publishing means "now", and a
+            # pure detector must not read the clock, so the caller supplies it.
+            if pattern.kind == "timestamp" and value_attr == "publish_value":
+                value = timezone.now()
+            updated = queryset.update(**{pattern.field: value})
+            return f"{label} {updated} record{'' if updated == 1 else 's'}."
+
+        return run
+
+    built = []
+    for name, label, value_attr in (
+        ("publish", "Published", "publish_value"),
+        ("unpublish", "Unpublished", "unpublish_value"),
+    ):
+        built.append(
+            Action(
+                func=_set(value_attr, label),
+                name=name,
+                label=name.capitalize(),
+                icon="check" if name == "publish" else "x",
+                permission="change",
+            )
+        )
+    return built
 
 
 def _discover(panel) -> list[str]:
