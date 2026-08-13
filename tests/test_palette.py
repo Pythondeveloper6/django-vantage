@@ -307,6 +307,10 @@ class TestPartial:
         assert 'role="listbox"' in markup
         assert 'aria-live="polite"' in markup
 
+    def test_no_comment_leaks_into_the_page(self):
+        # ``{# … #}`` is single-line only; a multi-line one renders as visible text.
+        assert "{#" not in self.render()
+
     @override_settings(VANTAGE={"COMMAND_PALETTE": False})
     def test_switching_the_palette_off_leaves_the_search_box(self):
         markup = self.render()

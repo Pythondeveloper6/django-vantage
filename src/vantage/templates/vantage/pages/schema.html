@@ -1,0 +1,67 @@
+{% extends "vantage/base.html" %}
+{% load vantage %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">
+      {{ graph.nodes|length }} model{{ graph.nodes|length|pluralize }},
+      {{ graph.edges|length }} relation{{ graph.edges|length|pluralize }}.
+      Derived from the registry, so it is never out of date.
+    </p>
+  </div>
+</div>
+
+{% if graph.is_empty %}
+  <div class="v-card"><div class="v-empty">
+    {% icon "box" class="v-empty-icon" %}
+    <p class="v-empty-title">Nothing to map.</p>
+    <p class="v-empty-body">No models are registered, or none are visible to you.</p>
+  </div></div>
+{% else %}
+<div class="v-card">
+  <div class="v-card-head">
+    <h2 class="v-card-title">Schema</h2>
+    <div class="v-erd-key">
+      <span><i class="v-erd-swatch" data-kind="fk"></i> foreign key</span>
+      <span><i class="v-erd-swatch" data-kind="o2o"></i> one to one</span>
+      <span><i class="v-erd-swatch" data-kind="m2m"></i> many to many</span>
+    </div>
+  </div>
+  <div class="v-erd-scroll">
+    {% comment %}
+      Laid out server-side. A schema graph is tens of nodes, not thousands, so a
+      layered layout in Python means the page needs no JavaScript, prints, and
+      cannot flash.
+    {% endcomment %}
+    <svg class="v-erd" viewBox="0 0 {{ graph.width }} {{ graph.height }}"
+         width="{{ graph.width }}" height="{{ graph.height }}"
+         role="img"
+         aria-label="Schema diagram of {{ graph.nodes|length }} models and {{ graph.edges|length }} relations">
+      <title>Schema diagram</title>
+
+      <g class="v-erd-edges" fill="none">
+        {% for edge in graph.edges %}
+          <path d="{{ edge.path }}" data-kind="{{ edge.kind }}">
+            <title>{{ edge.source }}.{{ edge.label }} → {{ edge.target }}</title>
+          </path>
+        {% endfor %}
+      </g>
+
+      <g class="v-erd-nodes">
+        {% for node in graph.nodes %}
+          <a {% if node.url %}href="{{ node.url }}"{% endif %}>
+            <g transform="translate({{ node.x }}, {{ node.y }})">
+              <rect width="168" height="46" rx="8"></rect>
+              <text x="14" y="20">{{ node.label }}</text>
+              <text x="14" y="35" class="v-erd-sub">{{ node.count_fields }} fields</text>
+            </g>
+          </a>
+        {% endfor %}
+      </g>
+    </svg>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

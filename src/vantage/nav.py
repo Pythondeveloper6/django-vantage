@@ -85,6 +85,19 @@ def _page_item(page) -> NavItem | None:
     )
 
 
+def _visible_pages(site, request) -> list:
+    """Pages the user may actually open.
+
+    ``Page.has_permission`` is the page's own gate, and it has to be consulted here
+    too: listing a page that 403s on click is a worse experience than omitting it,
+    and for a page gated on something sensitive the label itself can be a disclosure.
+    """
+    pages = list(site.pages())
+    if request is None:
+        return pages
+    return [page for page in pages if page(site).has_permission(request)]
+
+
 def _visible_panels(site, request) -> list:
     from vantage.permissions import get_permissions
 
@@ -113,7 +126,7 @@ def _derived_nav(site, request) -> list[NavGroup]:
         if item is not None:
             bucket(panel.get_group(), panel.order).items.append(item)
 
-    for page in site.pages():
+    for page in _visible_pages(site, request):
         item = _page_item(page)
         if item is not None:
             group = getattr(page, "group", None) or "Pages"
@@ -213,7 +226,7 @@ def _resolve_item(spec: Any, panels_by_label: dict, pages_by_slug: dict) -> NavI
 def _declared_nav(site, request, declaration) -> list[NavGroup]:
     panels = _visible_panels(site, request)
     panels_by_label = {p.opts.label_lower: p for p in panels}
-    pages_by_slug = {p.get_slug(): p for p in site.pages()}
+    pages_by_slug = {p.get_slug(): p for p in _visible_pages(site, request)}
 
     groups: list[NavGroup] = []
     claimed: set[str] = set()
