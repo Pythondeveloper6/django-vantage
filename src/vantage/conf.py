@@ -36,6 +36,9 @@ DEFAULTS: dict[str, Any] = {
     "INCLUDE_ONLY": None,
     # ── navigation ──────────────────────────────────────────────────────────
     "NAV": None,
+    # What happens to registered models the NAV declaration does not mention.
+    # "append" keeps them reachable, so adding a model never silently hides it.
+    "NAV_UNLISTED": "append",
     "DASHBOARD": None,
     # ── behaviour ───────────────────────────────────────────────────────────
     "PERMISSIONS": None,  # dotted path to a PanelPermissions subclass
@@ -49,6 +52,7 @@ DEFAULTS: dict[str, Any] = {
 #: Values that must be one of a fixed set.
 CHOICES: dict[str, tuple[str, ...]] = {
     "THEME": ("light", "dark", "system"),
+    "NAV_UNLISTED": ("append", "hide"),
 }
 
 
