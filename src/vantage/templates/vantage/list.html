@@ -7,6 +7,12 @@
     <h1 class="v-page-title">{{ panel.get_label_plural }}</h1>
     {% if panel.description %}<p class="v-page-description">{{ panel.description }}</p>{% endif %}
   </div>
+  <div class="v-page-actions">
+    {# Carries the active search and sort, so you export what you are looking at. #}
+    <a class="v-btn v-btn-secondary" href="?{% querystring_replace export="csv" page=None %}">
+      Export CSV
+    </a>
+  </div>
 </div>
 
 {% if searchable %}
