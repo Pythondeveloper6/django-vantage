@@ -34,24 +34,58 @@
   </section>
 
   {% if related %}
-    <section class="v-card">
-      <div class="v-card-head"><h2 class="v-card-title">Related</h2></div>
-      <div class="v-card-body">
-        {# Counts, not rows. A record with 50,000 children must still open. #}
-        <ul class="v-related">
-          {% for item in related %}
-            <li>
-              {% if item.url %}
-                <a href="{{ item.url }}">{{ item.label }}</a>
-              {% else %}
-                <span>{{ item.label }}</span>
-              {% endif %}
-              <span class="v-badge">{{ item.count }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    </section>
+    <div class="v-related-blocks">
+      {% for block in related %}
+        <section class="v-card">
+          <div class="v-card-head">
+            <h2 class="v-card-title">{{ block.label }}</h2>
+            <span class="v-badge">{{ block.count }}</span>
+            {% if block.url %}
+              <a class="v-btn v-btn-ghost v-btn-sm v-card-action" href="{{ block.url }}">
+                View all
+              </a>
+            {% endif %}
+          </div>
+
+          {% if block.rows %}
+            {% comment %}
+              A bounded preview, never the whole set. Loading every child row is what
+              makes a contrib.admin record with fifty thousand children impossible to
+              open; five rows and a link cost the same whatever the count.
+            {% endcomment %}
+            <div class="v-table-wrap v-table-flush">
+              <table class="v-table">
+                <thead>
+                  <tr>{% for column in block.columns %}<th scope="col">{{ column.label }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody>
+                  {% for row in block.rows %}
+                    <tr>
+                      {% for cell in row.cells %}
+                        <td>
+                          {% if cell.is_link and row.url %}
+                            <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
+                          {% else %}{{ cell.value }}{% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if block.more %}
+              <div class="v-card-body v-related-more">
+                <a href="{{ block.url }}">{{ block.more }} more…</a>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="v-card-body v-muted">
+              {% if block.count %}Not shown here.{% else %}None yet.{% endif %}
+            </div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
   {% endif %}
 </div>
 {% endblock %}
