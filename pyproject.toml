@@ -61,7 +61,9 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "DJ", "C4", "RUF"]
-ignore = ["B008"]
+# RUF012: declarative class attributes are the idiom in both Django and this package's
+# own ModelPanel API; annotating every one with ClassVar would be noise.
+ignore = ["B008", "RUF012"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["vantage"]
