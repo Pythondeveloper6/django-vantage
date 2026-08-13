@@ -31,6 +31,7 @@ class ModelPanelChecks:
             *self._check_ordering(panel),
             *self._check_list_link(panel),
             *self._check_list_editable(panel),
+            *self._check_layout(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -120,6 +121,31 @@ class ModelPanelChecks:
                 obj=type(panel),
                 id="vantage.E014",
             )
+        ]
+
+    def _check_layout(self, panel: ModelPanel) -> list[Error]:
+        """A field named in a layout but absent from the model.
+
+        Left unchecked this renders a form quietly missing a field, which is found
+        weeks later by a confused user rather than at startup.
+        """
+        if panel.layout is None:
+            return []
+        from vantage.layout import check_layout
+        from vantage.widgets import infer_form_fields
+
+        try:
+            available = infer_form_fields(panel.model)
+        except Exception:
+            return []
+
+        return [
+            Error(
+                f"'layout' refers to {name!r}, which is not a field on {panel.opts.label}.",
+                obj=type(panel),
+                id="vantage.E017",
+            )
+            for name in check_layout(panel, available)
         ]
 
     def _check_list_editable(self, panel: ModelPanel) -> list[Error]:
