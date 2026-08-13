@@ -126,11 +126,19 @@ class ListView(PanelView):
 
     @staticmethod
     def _row(panel, obj, columns: list[str], link: str) -> dict:
+        from django.urls import NoReverseMatch, reverse
+
         from vantage.render import render_cell
+
+        try:
+            url = reverse(f"vantage:{panel.slug}-detail", args=[obj.pk])
+        except NoReverseMatch:  # pragma: no cover
+            url = None
 
         return {
             "obj": obj,
             "pk": obj.pk,
+            "url": url,
             "cells": [
                 {
                     "value": render_cell(panel, obj, name),
@@ -139,6 +147,94 @@ class ListView(PanelView):
                 for name in columns
             ],
         }
+
+
+class DetailView(PanelView):
+    """One record, read-only for now: its fields, then what points at it."""
+
+    template_name = "vantage/detail.html"
+
+    def get_object(self):
+        from django.shortcuts import get_object_or_404
+
+        queryset = self.panel.get_queryset(self.request)
+        return get_object_or_404(queryset, pk=self.kwargs["pk"])
+
+    def get_breadcrumbs(self):
+        from django.urls import reverse
+
+        return [
+            (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
+            (str(self.object), None),
+        ]
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        from vantage.introspection import displayable_fields, reverse_relations
+        from vantage.render import render_cell
+
+        context = super().get_context_data(**kwargs)
+        obj = self.object
+        panel = self.panel
+
+        fields = [
+            {
+                "label": str(getattr(field, "verbose_name", field.name)).capitalize(),
+                "value": render_cell(panel, obj, field.name),
+            }
+            for field in displayable_fields(panel.model)
+            if not _is_hidden(field)
+        ]
+
+        # Counts only, not the rows themselves. A record with 50,000 children should
+        # not make its detail page unopenable — the related list is a link, not a dump.
+        related = []
+        for rel in reverse_relations(panel.model):
+            accessor = rel.accessor_name
+            if accessor is None:
+                continue
+            manager = getattr(obj, accessor, None)
+            if manager is None or not hasattr(manager, "count"):
+                continue
+            related.append(
+                {
+                    "label": str(rel.related_model._meta.verbose_name_plural).capitalize(),
+                    "count": manager.count(),
+                    "url": _related_url(self.site, rel, obj),
+                }
+            )
+
+        context.update(
+            object=obj,
+            panel=panel,
+            fields=fields,
+            related=related,
+            page_title=str(obj),
+        )
+        return context
+
+
+def _is_hidden(field) -> bool:
+    from vantage.inference import SENSITIVE
+
+    return bool(SENSITIVE.search(field.name))
+
+
+def _related_url(site, rel, obj) -> str | None:
+    """A link through to the related model's list, pre-filtered to this record."""
+    from django.urls import NoReverseMatch, reverse
+
+    if not site.is_registered(rel.related_model):
+        return None
+    related_panel = site.get_panel(rel.related_model)
+    try:
+        base = reverse(related_panel.list_url_name)
+    except NoReverseMatch:  # pragma: no cover
+        return None
+    return f"{base}?{rel.field.name}={obj.pk}"
 
 
 class ThemeView(SiteView):

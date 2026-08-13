@@ -1,0 +1,49 @@
+{% extends "vantage/base.html" %}
+{% load vantage %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ object }}</h1>
+    <p class="v-page-description">{{ panel.get_label }} · <span class="v-mono">#{{ object.pk }}</span></p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-secondary" href="{% url panel.list_url_name %}">Back to list</a>
+  </div>
+</div>
+
+<div class="v-detail">
+  <section class="v-card">
+    <div class="v-card-head"><h2 class="v-card-title">Details</h2></div>
+    <dl class="v-fields">
+      {% for field in fields %}
+        <div class="v-field">
+          <dt>{{ field.label }}</dt>
+          <dd>{{ field.value }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+  </section>
+
+  {% if related %}
+    <section class="v-card">
+      <div class="v-card-head"><h2 class="v-card-title">Related</h2></div>
+      <div class="v-card-body">
+        {# Counts, not rows. A record with 50,000 children must still open. #}
+        <ul class="v-related">
+          {% for item in related %}
+            <li>
+              {% if item.url %}
+                <a href="{{ item.url }}">{{ item.label }}</a>
+              {% else %}
+                <span>{{ item.label }}</span>
+              {% endif %}
+              <span class="v-badge">{{ item.count }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

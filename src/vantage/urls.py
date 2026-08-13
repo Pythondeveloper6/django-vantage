@@ -21,12 +21,19 @@ def build(site) -> list:
     for panel in site.panels():
         opts = panel.opts
         prefix = f"{opts.app_label}/{opts.model_name}/"
-        urlpatterns.append(
-            path(
-                prefix,
-                views.ListView.as_view(site=site, panel=panel),
-                name=f"{panel.slug}-list",
-            )
+        urlpatterns.extend(
+            [
+                path(
+                    prefix,
+                    views.ListView.as_view(site=site, panel=panel),
+                    name=f"{panel.slug}-list",
+                ),
+                path(
+                    f"{prefix}<path:pk>/",
+                    views.DetailView.as_view(site=site, panel=panel),
+                    name=f"{panel.slug}-detail",
+                ),
+            ]
         )
 
     return urlpatterns
