@@ -1,0 +1,188 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-import.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{% if done %}Import finished{% else %}Preview{% endif %}</h1>
+    <p class="v-page-description">
+      {% if done %}
+        {{ result.summary }} · {{ stashed.filename }}
+      {% else %}
+        {% comment %}
+          Said in full, every time. "Dry run" is jargon; "nothing has been written" is
+          the sentence that decides whether someone reads the rest of this page calmly.
+        {% endcomment %}
+        Nothing has been written yet. Every row below was validated and saved inside a
+        transaction that was then rolled back.
+      {% endif %}
+    </p>
+  </div>
+  <div class="v-page-actions">
+    {% if done %}
+      <a class="v-btn v-btn-secondary" href="{{ list_url }}">Back to {{ panel.get_label_plural|lower }}</a>
+    {% else %}
+      <a class="v-btn v-btn-secondary" href="{{ map_url }}">Change the mapping</a>
+    {% endif %}
+  </div>
+</div>
+
+<ol class="v-import-steps" aria-label="Import steps">
+  <li class="v-import-step-done"><span class="v-import-step-n">1</span> Upload</li>
+  <li class="v-import-step-done"><span class="v-import-step-n">2</span> Map columns</li>
+  <li aria-current="step"><span class="v-import-step-n">3</span> Preview</li>
+</ol>
+
+<div class="v-import-counts">
+  <div class="v-card v-import-count" data-tone="create">
+    <span class="v-import-count-n">{{ result.created }}</span>
+    <span class="v-import-count-label">{% if done %}created{% else %}would be created{% endif %}</span>
+  </div>
+  <div class="v-card v-import-count" data-tone="update">
+    <span class="v-import-count-n">{{ result.updated }}</span>
+    <span class="v-import-count-label">{% if done %}updated{% else %}would be updated{% endif %}</span>
+  </div>
+  <div class="v-card v-import-count" data-tone="quiet">
+    <span class="v-import-count-n">{{ result.unchanged }}</span>
+    <span class="v-import-count-label">unchanged</span>
+  </div>
+  <div class="v-card v-import-count" data-tone="{% if result.failed %}error{% else %}quiet{% endif %}">
+    <span class="v-import-count-n">{{ result.failed }}</span>
+    <span class="v-import-count-label">{% if done %}failed{% else %}would fail{% endif %}</span>
+  </div>
+</div>
+
+{% if mapping.missing_required %}
+  <div class="v-form-alert" data-tone="warning" role="status">
+    <p class="v-form-alert-title">Some required fields have no column.</p>
+    <p>
+      {% for name, label in mapping.missing_required %}{{ label }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      must have a value, and nothing in this file supplies one. Rows that create a new
+      record will fail; rows that update an existing one are unaffected.
+    </p>
+  </div>
+{% endif %}
+
+{% if mapping.ignored %}
+  <section class="v-card v-import-card">
+    <div class="v-card-head"><h2 class="v-card-title">Columns not being written</h2></div>
+    <div class="v-card-body">
+      <ul class="v-import-ignored">
+        {% for header, reason in mapping.ignored %}
+          <li><span class="v-mono">{{ header }}</span> — {{ reason }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+{% endif %}
+
+{% if result.errors %}
+  <section class="v-card v-import-card" data-tone="error">
+    <div class="v-card-head">
+      <h2 class="v-card-title">
+        {{ result.errors|length }} problem{{ result.errors|length|pluralize }}
+        {% if not done %}to fix first{% endif %}
+      </h2>
+      <a class="v-btn v-btn-secondary v-btn-sm" href="{{ errors_url }}">Download as CSV</a>
+    </div>
+    <div class="v-table-wrap">
+      <table class="v-table v-import-errors">
+        <thead>
+          <tr>
+            <th scope="col">Row</th>
+            <th scope="col">Column</th>
+            <th scope="col">Problem</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for error in errors_shown %}
+            <tr>
+              <td class="v-mono">{{ error.row }}</td>
+              <td class="v-mono">{{ error.column|default:"—" }}</td>
+              <td>{{ error.message }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if errors_hidden %}
+      <div class="v-card-body">
+        <p class="v-muted">
+          {{ errors_hidden }} more not shown. The CSV above has every one, with its row
+          number and column.
+        </p>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% if result.diffs %}
+  <section class="v-card v-import-card">
+    <div class="v-card-head">
+      <h2 class="v-card-title">
+        {% if done %}What changed{% else %}What would change{% endif %}
+      </h2>
+      <p class="v-muted">The first {{ result.diffs|length }} updated record{{ result.diffs|length|pluralize }}.</p>
+    </div>
+    <div class="v-card-body v-import-diffs">
+      {% for diff in result.diffs %}
+        <article class="v-import-diff">
+          <h3 class="v-import-diff-title">
+            {{ diff.label }}
+            <span class="v-muted v-mono">#{{ diff.pk }} · row {{ diff.row }}</span>
+          </h3>
+          <dl>
+            {% for change in diff.changes %}
+              <dt>{{ change.label }}</dt>
+              <dd>
+                <del>{{ change.before|default:"—" }}</del>
+                <span aria-hidden="true">→</span>
+                <ins>{{ change.after|default:"—" }}</ins>
+              </dd>
+            {% endfor %}
+          </dl>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if not done %}
+  <form method="post" action="{{ commit_url }}" class="v-import-commit">
+    {% csrf_token %}
+    {% for field in hidden %}
+      <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+    {% endfor %}
+    <div class="v-form-bar">
+      <span class="v-form-bar-hint v-muted">
+        {{ mapping.mode_label }}
+        {% if result.failed %}
+          {% comment %}
+            Stated on the control itself. The counts are at the top of a long page, and
+            the last thing a person reads before clicking is the button.
+          {% endcomment %}
+          · {{ result.failed }} row{{ result.failed|pluralize }} will be skipped
+        {% endif %}
+      </span>
+      <a class="v-btn v-btn-ghost" href="{{ map_url }}">Back</a>
+      <button class="v-btn v-btn-primary" type="submit"
+              {% if not result.created and not result.updated %}disabled{% endif %}>
+        {% if result.created and result.updated %}
+          Create {{ result.created }} and update {{ result.updated }}
+        {% elif result.updated %}
+          Update {{ result.updated }} record{{ result.updated|pluralize }}
+        {% elif result.created %}
+          Create {{ result.created }} record{{ result.created|pluralize }}
+        {% else %}
+          Nothing to import
+        {% endif %}
+      </button>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}

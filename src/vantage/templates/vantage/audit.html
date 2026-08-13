@@ -1,0 +1,186 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% comment %}
+  A GET form rather than a rail of links: three filters that combine, two of which are
+  free-form dates, is a form. The page number is deliberately not carried across a
+  filter change — staying on page 7 of a result set you just narrowed to nine rows is
+  the classic pagination bug, and here it looks like the filter returned nothing.
+{% endcomment %}
+<form class="v-toolbar v-audit-filters" method="get" role="search" aria-label="Filter the audit log">
+  <label class="v-audit-field">
+    <span class="v-audit-label">Who</span>
+    <select class="v-select" name="actor">
+      <option value="">Anyone</option>
+      {% for actor in actors %}
+        <option value="{{ actor.value }}"{% if actor.selected %} selected{% endif %}>{{ actor.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="v-audit-field">
+    <span class="v-audit-label">What</span>
+    <select class="v-select" name="action">
+      <option value="">Anything</option>
+      {% for action in actions %}
+        <option value="{{ action.value }}"{% if action.selected %} selected{% endif %}>{{ action.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="v-audit-field">
+    <span class="v-audit-label">When</span>
+    <select class="v-select" name="window">
+      <option value="">Any time</option>
+      {% for window in windows %}
+        <option value="{{ window.value }}"{% if window.selected %} selected{% endif %}>{{ window.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="v-audit-field">
+    <span class="v-audit-label">From</span>
+    <input class="v-input" type="date" name="from" value="{{ date_from }}">
+  </label>
+
+  <label class="v-audit-field">
+    <span class="v-audit-label">To</span>
+    <input class="v-input" type="date" name="to" value="{{ date_to }}">
+  </label>
+
+  <div class="v-audit-actions">
+    <button class="v-btn v-btn-secondary v-btn-sm">{% icon "filter" %}<span>Apply</span></button>
+    {% if has_filters %}
+      <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
+    {% endif %}
+  </div>
+</form>
+
+<div class="v-table-wrap">
+  {% if entries %}
+    <table class="v-table v-audit-table">
+      <thead>
+        <tr>
+          <th scope="col">When</th>
+          <th scope="col">Who</th>
+          <th scope="col">What</th>
+          <th scope="col">Record</th>
+          <th scope="col">Changes</th>
+          <th scope="col">From</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in entries %}
+          <tr>
+            <td class="v-audit-when">
+              <time datetime="{{ row.entry.created_at|date:'c' }}">{{ row.entry.created_at|date:"Y-m-d H:i" }}</time>
+            </td>
+            <td>{{ row.entry.actor_repr|default:"—" }}</td>
+            <td>
+              <span class="v-audit-verb" data-action="{{ row.entry.action }}">
+                {{ row.entry.get_action_display }}
+              </span>
+              {% if row.entry.action_name %}
+                <code class="v-audit-name">{{ row.entry.action_name }}</code>
+              {% endif %}
+            </td>
+            <td>
+              {% comment %}
+                The stored label, never a dereference of the generic FK. That row is
+                gone for exactly the entries people care most about.
+              {% endcomment %}
+              {% if row.url %}
+                <a class="v-cell-link" href="{{ row.url }}">{{ row.entry.object_repr }}</a>
+              {% else %}
+                {{ row.entry.object_repr|default:"—" }}
+              {% endif %}
+              {% if row.model %}<span class="v-audit-model">{{ row.model }}</span>{% endif %}
+            </td>
+            <td>
+              {% if row.changes %}
+                {% comment %}
+                  Collapsed by default. A delete snapshots every field, and expanding
+                  a hundred of them by default turns a scannable log into a wall.
+                {% endcomment %}
+                <details class="v-audit-diff">
+                  <summary>{{ row.changes|length }} field{{ row.changes|length|pluralize }}</summary>
+                  <dl class="v-diff">
+                    {% for change in row.changes %}
+                      <div class="v-diff-row">
+                        <dt>{{ change.field }}</dt>
+                        <dd>
+                          {% if change.from is not None %}<del>{{ change.from }}</del>{% endif %}
+                          {% if change.from is not None and change.to is not None %}
+                            <span class="v-diff-arrow" aria-hidden="true">→</span>
+                          {% endif %}
+                          {% if change.to is not None %}<ins>{{ change.to }}</ins>{% endif %}
+                          {% if change.from is None and change.to is None %}
+                            <span class="v-diff-redacted">changed — value not recorded</span>
+                          {% endif %}
+                        </dd>
+                      </div>
+                    {% endfor %}
+                  </dl>
+                </details>
+              {% else %}
+                <span class="v-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="v-audit-origin">{{ row.entry.ip_address|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% elif has_filters %}
+    {# State 2: the predicate returned nothing. Never a create CTA — nothing here is created by hand. #}
+    <div class="v-empty">
+      {% icon "search" class="v-empty-icon" %}
+      <p class="v-empty-title">Nothing matches those filters.</p>
+      <p class="v-empty-body">Widen the date range, or clear the filters to see everything.</p>
+      <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear filters</a>
+    </div>
+  {% else %}
+    {# State 1: nothing has happened yet. #}
+    <div class="v-empty">
+      {% icon "activity" class="v-empty-icon" %}
+      <p class="v-empty-title">Nothing has been recorded yet.</p>
+      <p class="v-empty-body">
+        Entries appear here as soon as someone creates, changes or deletes a record
+        through this panel.
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+  <div class="v-pagination">
+    <span class="v-pagination-info">
+      {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+    </span>
+    <div class="v-pagination-controls">
+      {% if page.has_previous %}
+        <a class="v-btn v-btn-secondary v-btn-sm"
+           href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+      {% else %}
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+      {% endif %}
+      {% if page.has_next %}
+        <a class="v-btn v-btn-secondary v-btn-sm"
+           href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+      {% else %}
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

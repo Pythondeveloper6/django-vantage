@@ -1,0 +1,390 @@
+/* django-vantage — the audit log, the per-record history panel, and saved views.
+ *
+ * One stylesheet for three surfaces because they share one vocabulary: a verb chip
+ * that colours by action, and a diff row that reads old → new. Splitting them would
+ * mean maintaining that vocabulary twice and letting a delete be red on one screen
+ * and grey on the other.
+ *
+ * Every colour is a token from vantage/theme.py. Nothing here hard-codes a hue, so
+ * both themes and every derived brand palette get this for free.
+ */
+
+/* ── verbs ────────────────────────────────────────────────────────────────── */
+
+/* Colour carries the verb, but never alone: the word is always present. A log read
+ * by someone who cannot distinguish red from green must still be readable, and WCAG
+ * 1.4.1 is not satisfied by a legend. */
+.v-audit-verb {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.v-audit-verb[data-action="create"] {
+  background: color-mix(in oklab, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.v-audit-verb[data-action="update"] {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.v-audit-verb[data-action="delete"] {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
+}
+
+.v-audit-verb[data-action="action"] {
+  background: color-mix(in oklab, var(--warning) 18%, transparent);
+  color: var(--warning-foreground, var(--foreground));
+}
+
+/* ── the audit page ───────────────────────────────────────────────────────── */
+
+.v-audit-filters {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.v-audit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-inline-size: 8rem;
+}
+
+.v-audit-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.v-audit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+/* Timestamps and addresses are read by comparing them down a column, which only works
+ * when the glyphs line up. */
+.v-audit-when,
+.v-audit-origin {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+
+.v-audit-model {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.v-audit-name {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.v-audit-diff > summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--primary);
+}
+
+.v-audit-diff[open] > summary {
+  margin-block-end: 0.375rem;
+}
+
+/* ── diffs ────────────────────────────────────────────────────────────────── */
+
+.v-diff {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.v-diff-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.v-diff-row dt {
+  font-family: var(--font-mono);
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.v-diff-row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.v-diff del {
+  text-decoration: line-through;
+  color: var(--muted-foreground);
+}
+
+.v-diff ins {
+  text-decoration: none;
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.v-diff-arrow {
+  color: var(--muted-foreground);
+  padding-inline: 0.25rem;
+}
+
+.v-diff-redacted {
+  font-style: italic;
+  color: var(--muted-foreground);
+}
+
+/* ── the per-record history panel ─────────────────────────────────────────── */
+
+.v-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.v-history-item {
+  display: grid;
+  gap: 0.25rem;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 2px solid var(--border);
+}
+
+.v-history-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.v-history-who {
+  font-weight: 500;
+}
+
+.v-history-when {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-inline-start: auto;
+}
+
+.v-history-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-history-external {
+  border-block-start: 1px solid var(--border);
+}
+
+.v-history-subtitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.v-history-source {
+  font-size: 0.75rem;
+  margin: 0.125rem 0 0;
+}
+
+/* ── saved views ──────────────────────────────────────────────────────────── */
+
+.v-views {
+  display: grid;
+  gap: 0.5rem;
+  margin-block-end: 0.75rem;
+}
+
+.v-views-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-views-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  /* Pulled down onto the rail's own border so the active tab replaces it rather than
+   * sitting above it — a 1px seam here reads as a rendering bug. */
+  margin-block-end: -1px;
+}
+
+.v-views-tab:hover {
+  color: var(--foreground);
+}
+
+.v-views-tab-current {
+  color: var(--foreground);
+  font-weight: 600;
+  border-block-end-color: var(--primary);
+}
+
+.v-views-lock svg,
+.v-views-shared svg {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+
+.v-views-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.v-views-spacer {
+  flex: 1;
+}
+
+.v-views-current {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* "Modified" is the entire divergence affordance. It has to be legible at a glance,
+ * because the difference between Save and Save-as depends on the reader noticing it. */
+.v-views-modified {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--warning) 20%, transparent);
+  color: var(--warning-foreground, var(--foreground));
+}
+
+.v-views-form {
+  display: contents;
+}
+
+.v-views-menu {
+  position: relative;
+}
+
+.v-views-menu > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.v-views-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.v-views-panel {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + 0.25rem);
+  z-index: 30;
+  display: grid;
+  gap: 0.375rem;
+  inline-size: 18rem;
+  padding: 0.75rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.v-views-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.v-views-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-views-delete {
+  color: var(--destructive);
+}
+
+/* ── broken references ────────────────────────────────────────────────────── */
+
+.v-views-broken {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--destructive) 35%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--destructive) 8%, var(--card));
+}
+
+.v-views-broken-title {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.v-views-broken-list {
+  margin: 0.375rem 0 0;
+  padding-inline-start: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.v-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.0625rem 0.4375rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+/* A broken predicate is struck through rather than removed. Removing it is the one
+ * thing this state exists to avoid: a filter that quietly stops applying shows people
+ * more rows than they asked for and tells them nothing. */
+.v-pill-broken {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
+  text-decoration: line-through;
+}
+
+.v-views-broken-why {
+  color: var(--muted-foreground);
+}

@@ -1,0 +1,313 @@
+/* django-vantage import stylesheet — the upload, map and preview screens.
+ *
+ * Loaded alongside vantage-form.css and only by the wizard, so the read-only pages keep
+ * their smaller payload. Every colour is a token from vantage/theme.py, which is what
+ * keeps one BRAND_COLOR in charge of the whole panel, and logical properties throughout
+ * so dir="rtl" needs nothing extra.
+ *
+ * The one visual idea here: the preview must be readable at a glance and unambiguous on
+ * a second look. Counts are large because they are the decision; the diff is a
+ * strikethrough-and-replacement because that is the notation everyone already knows
+ * from a code review, and it needs no legend.
+ */
+
+/* ── the step rail ────────────────────────────────────────────────────────── */
+
+.v-import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-import-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.v-import-steps li[aria-current="step"] {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.v-import-step-n {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-import-steps li[aria-current="step"] .v-import-step-n {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.v-import-step-done .v-import-step-n {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* ── cards ────────────────────────────────────────────────────────────────── */
+
+.v-import-card {
+  margin-block-end: 1.25rem;
+}
+
+.v-import-card[data-tone="error"] {
+  border-color: var(--destructive);
+}
+
+/* The card footer is local rather than a shared .v-card-foot: the wizard is the only
+ * place a card ends in buttons, and claiming a generic name for one screen's need is
+ * how a stylesheet stops being predictable. */
+.v-import-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border-block-start: 1px solid var(--border);
+  background: var(--muted);
+  border-end-start-radius: var(--radius-lg);
+  border-end-end-radius: var(--radius-lg);
+}
+
+.v-import-note {
+  margin-block-start: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* ── the field list on the upload screen ──────────────────────────────────── */
+
+.v-import-fieldlist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.375rem 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+
+.v-import-fieldlist li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+.v-import-field-label {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.v-import-fieldlist .v-mono {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── the mapping table ────────────────────────────────────────────────────── */
+
+.v-import-table th[scope="row"] {
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+/* The select is the control being used on every row, so it gets the width and the
+ * sample values get whatever is left — they are reference, not input. */
+.v-import-table td:last-child {
+  inline-size: 18rem;
+}
+
+.v-import-table .v-select {
+  inline-size: 100%;
+}
+
+.v-import-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-inline-size: 28rem;
+}
+
+.v-import-sample {
+  display: inline-block;
+  max-inline-size: 12rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+/* ── mode and key ─────────────────────────────────────────────────────────── */
+
+.v-import-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.25rem;
+}
+
+.v-import-options fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.v-import-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* ── the preview counts ───────────────────────────────────────────────────── */
+
+.v-import-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-block-end: 1.25rem;
+}
+
+.v-import-count {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 1rem 1.25rem;
+}
+
+.v-import-count-n {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.v-import-count-label {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-import-count[data-tone="create"] .v-import-count-n { color: var(--success); }
+.v-import-count[data-tone="update"] .v-import-count-n { color: var(--primary); }
+.v-import-count[data-tone="error"] .v-import-count-n { color: var(--destructive); }
+
+/* ── ignored columns and errors ───────────────────────────────────────────── */
+
+.v-import-ignored {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-import-errors td:first-child,
+.v-import-errors td:nth-child(2) {
+  white-space: nowrap;
+  inline-size: 1%;
+}
+
+/* ── the diff ─────────────────────────────────────────────────────────────── */
+
+.v-import-diffs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: 0.75rem;
+}
+
+.v-import-diff {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.875rem;
+  min-inline-size: 0;
+}
+
+.v-import-diff-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.v-import-diff-title .v-mono {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.v-import-diff dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) 1fr;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.v-import-diff dt {
+  color: var(--muted-foreground);
+}
+
+.v-import-diff dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Colour is not the only signal: <del> keeps its line-through and <ins> its weight, so
+ * the direction of a change survives a monochrome print and colour-blind vision. */
+.v-import-diff del {
+  color: var(--muted-foreground);
+  text-decoration-line: line-through;
+}
+
+.v-import-diff ins {
+  color: var(--success);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* ── the commit bar ───────────────────────────────────────────────────────── */
+
+.v-import-commit .v-form-bar {
+  margin-block-start: 0;
+}
+
+@media (max-width: 48rem) {
+  .v-import-table td:last-child {
+    inline-size: auto;
+  }
+  .v-import-samples {
+    max-inline-size: none;
+  }
+}
