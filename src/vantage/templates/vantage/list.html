@@ -8,10 +8,18 @@
     {% if panel.description %}<p class="v-page-description">{{ panel.description }}</p>{% endif %}
   </div>
   <div class="v-page-actions">
-    {# Carries the active search and sort, so you export what you are looking at. #}
-    <a class="v-btn v-btn-ghost" href="?{% querystring_replace export="csv" page=None %}">
-      Export CSV
-    </a>
+    {% comment %}
+      Every link carries the active search, filters and sort, so you export what you
+      are looking at rather than the whole table.
+    {% endcomment %}
+    <details class="v-export">
+      <summary class="v-btn v-btn-ghost">Export</summary>
+      <div class="v-export-menu">
+        <a href="?{% querystring_replace export="csv" page=None %}">CSV</a>
+        <a href="?{% querystring_replace export="tsv" page=None %}">TSV (spreadsheet)</a>
+        <a href="?{% querystring_replace export="json" page=None %}">JSON (one per line)</a>
+      </div>
+    </details>
     {% if "add" in allowed %}
       <a class="v-btn v-btn-ghost" href="{% url "vantage:"|add:panel.slug|add:"-import" %}">
         {% icon "upload" %}
