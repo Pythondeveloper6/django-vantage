@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage i18n %}
 
 {% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-jobs.css' %}">{% endblock %}
 
@@ -20,7 +20,7 @@
 <p class="v-jobs-backend" data-deferred="{{ backend.deferred|yesno:'1,0' }}">
   {% icon "activity" %}
   {% if backend.deferred %}
-    Queued through <strong>{{ backend.label }}</strong>.
+    {% blocktranslate with label=backend.label %}Queued through <strong>{{ label }}</strong>.{% endblocktranslate %}
   {% else %}
     <span>{{ backend.hint }}</span>
   {% endif %}
@@ -31,12 +31,12 @@
     <table class="v-table v-jobs-table">
       <thead>
         <tr>
-          <th scope="col">Started</th>
-          {% if showing_everyone %}<th scope="col">Who</th>{% endif %}
-          <th scope="col">Action</th>
-          <th scope="col">Records</th>
-          <th scope="col">Progress</th>
-          <th scope="col">Status</th>
+          <th scope="col">{% translate "Started" %}</th>
+          {% if showing_everyone %}<th scope="col">{% translate "Who" %}</th>{% endif %}
+          <th scope="col">{% translate "Action" %}</th>
+          <th scope="col">{% translate "Records" %}</th>
+          <th scope="col">{% translate "Progress" %}</th>
+          <th scope="col">{% translate "Status" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -76,11 +76,13 @@
     {# Nothing has been queued yet — not an error, and there is nothing to create here. #}
     <div class="v-empty">
       {% icon "activity" class="v-empty-icon" %}
-      <p class="v-empty-title">No background jobs yet.</p>
+      <p class="v-empty-title">{% translate "No background jobs yet." %}</p>
       <p class="v-empty-body">
-        A bulk action appears here when the selection is large enough to be worth
-        moving off the request. Smaller ones run immediately and are recorded in the
-        audit log instead.
+        {% blocktranslate trimmed %}
+          A bulk action appears here when the selection is large enough to be worth
+          moving off the request. Smaller ones run immediately and are recorded in the
+          audit log instead.
+        {% endblocktranslate %}
       </p>
     </div>
   {% endif %}
@@ -89,20 +91,20 @@
 {% if page.paginator.num_pages > 1 %}
   <div class="v-pagination">
     <span class="v-pagination-info">
-      {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+      {% blocktranslate with start=page.start_index end=page.end_index total=paginator.count %}{{ start }}–{{ end }} of {{ total }}{% endblocktranslate %}
     </span>
     <div class="v-pagination-controls">
       {% if page.has_previous %}
         <a class="v-btn v-btn-secondary v-btn-sm"
-           href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+           href="?{% querystring_replace page=page.previous_page_number %}">{% translate "Previous" %}</a>
       {% else %}
-        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>{% translate "Previous" %}</button>
       {% endif %}
       {% if page.has_next %}
         <a class="v-btn v-btn-secondary v-btn-sm"
-           href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+           href="?{% querystring_replace page=page.next_page_number %}">{% translate "Next" %}</a>
       {% else %}
-        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>{% translate "Next" %}</button>
       {% endif %}
     </div>
   </div>

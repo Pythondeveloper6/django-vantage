@@ -1,21 +1,21 @@
-{% load vantage_list %}{% comment %}
+{% load vantage_list i18n %}{% comment %}
   What the table is currently narrowed to, stated above it in words.
 
   Decision 15 state 2 needs the filter values echoed back and *the one responsible*
   removable, so every chip is its own link that drops exactly one value — not the whole
   filter, and never the search. The rail says what could be true; these say what is.
-{% endcomment %}
+{% endcomment %}{% translate "any" as any_value %}
 {% if has_active_filters %}
 <div class="v-chips">
-  <span class="v-chips-label">Filtered by</span>
+  <span class="v-chips-label">{% translate "Filtered by" %}</span>
   {% for filt in filters %}
     {% if filt.is_active %}
       {% if filt.low_parameter %}
         <a class="v-chip" href="?{% filter_remove_url filt %}">
           <span class="v-chip-key">{{ filt.label }}:</span>
-          {{ filt.low|default_if_none:"any" }}–{{ filt.high|default_if_none:"any" }}
+          {{ filt.low|default_if_none:any_value }}–{{ filt.high|default_if_none:any_value }}
           <span class="v-chip-remove" aria-hidden="true">×</span>
-          <span class="v-sr-only">Remove this filter</span>
+          <span class="v-sr-only">{% translate "Remove this filter" %}</span>
         </a>
       {% else %}
         {% for choice in filt.choices %}
@@ -23,13 +23,13 @@
             <a class="v-chip" href="?{% filter_remove_url filt choice.value %}">
               <span class="v-chip-key">{{ filt.label }}:</span> {{ choice.label }}
               <span class="v-chip-remove" aria-hidden="true">×</span>
-              <span class="v-sr-only">Remove this filter</span>
+              <span class="v-sr-only">{% translate "Remove this filter" %}</span>
             </a>
           {% endif %}
         {% endfor %}
       {% endif %}
     {% endif %}
   {% endfor %}
-  <a class="v-btn v-btn-ghost v-btn-sm" href="?{% filters_clear_url filters %}">Clear all filters</a>
+  <a class="v-btn v-btn-ghost v-btn-sm" href="?{% filters_clear_url filters %}">{% translate "Clear all filters" %}</a>
 </div>
 {% endif %}

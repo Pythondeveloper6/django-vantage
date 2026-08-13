@@ -1,4 +1,4 @@
-{% load static vantage %}
+{% load static vantage i18n %}
 {% comment %}
   The grid's own toolbar: density, column visibility and order, the keyboard
   preference and the cheat sheet.
@@ -15,36 +15,36 @@
 <link rel="stylesheet" href="{% static 'vantage/vantage-grid.css' %}">
 
 <div class="v-grid-controls" data-grid-controls>
-  <div class="v-grid-density" role="group" aria-label="Row density">
+  <div class="v-grid-density" role="group" aria-label="{% translate "Row density" %}">
     {% comment %}
       Two buttons rather than a select: aria-pressed states the current density
       without a label, and the pair is one tab stop's worth of typing to reach.
     {% endcomment %}
     <button type="button" class="v-grid-density-option" data-density-option="comfortable"
-            aria-pressed="true">Comfortable</button>
+            aria-pressed="true">{% translate "Comfortable" %}</button>
     <button type="button" class="v-grid-density-option" data-density-option="compact"
-            aria-pressed="false">Compact</button>
+            aria-pressed="false">{% translate "Compact" %}</button>
   </div>
 
   <div class="v-grid-columns" data-columns>
     <button type="button" class="v-btn v-btn-secondary v-btn-sm" data-columns-toggle
             aria-expanded="false" aria-haspopup="dialog" aria-controls="v-grid-columns-panel">
       {% icon "sliders" %}
-      <span>Columns</span>
+      <span>{% translate "Columns" %}</span>
       {% comment %}
         The count is not decoration. A hidden column is the top source of "where
         did my data go" — the badge is the answer sitting next to the cause.
       {% endcomment %}
-      <span class="v-grid-count" data-columns-count>· {{ columns|length }} of {{ columns|length }}</span>
+      <span class="v-grid-count" data-columns-count>· {% blocktranslate with shown=columns|length total=columns|length %}{{ shown }} of {{ total }}{% endblocktranslate %}</span>
     </button>
 
     <div class="v-grid-popover" id="v-grid-columns-panel" role="dialog"
-         aria-label="Show, hide and reorder columns" hidden>
+         aria-label="{% translate "Show, hide and reorder columns" %}" hidden>
       <div class="v-grid-popover-head">
         <div class="v-search v-grid-col-search">
           {% icon "search" %}
           <input class="v-input" type="search" data-columns-search
-                 placeholder="Find a column…" aria-label="Find a column">
+                 placeholder="{% translate "Find a column…" %}" aria-label="{% translate "Find a column" %}">
         </div>
       </div>
 
@@ -61,8 +61,8 @@
           it — the criterion is about pointer users without drag dexterity. So the
           move buttons beside each column are the reorder mechanism, not a fallback.
         {% endcomment %}
-        <span class="v-muted">Use the ↑ ↓ buttons to reorder.</span>
-        <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-columns-reset>Reset</button>
+        <span class="v-muted">{% translate "Use the ↑ ↓ buttons to reorder." %}</span>
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-columns-reset>{% translate "Reset" %}</button>
       </div>
     </div>
   </div>
@@ -77,12 +77,12 @@
   {% endcomment %}
   <label class="v-grid-pref">
     <input type="checkbox" data-shortcuts-toggle checked>
-    <span>Keyboard shortcuts</span>
+    <span>{% translate "Keyboard shortcuts" %}</span>
   </label>
 
   <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-cheatsheet-open
           aria-haspopup="dialog">
-    Shortcuts <kbd>?</kbd>
+    {% blocktranslate %}Shortcuts <kbd>?</kbd>{% endblocktranslate %}
   </button>
 
   <div class="v-sr-only" role="status" aria-live="polite" data-grid-live></div>
@@ -91,45 +91,47 @@
 <dialog class="v-grid-cheatsheet" data-cheatsheet aria-labelledby="v-grid-cheatsheet-title">
   <div class="v-grid-cheatsheet-panel">
     <div class="v-grid-cheatsheet-head">
-      <h2 class="v-card-title" id="v-grid-cheatsheet-title">Keyboard shortcuts</h2>
+      <h2 class="v-card-title" id="v-grid-cheatsheet-title">{% translate "Keyboard shortcuts" %}</h2>
       <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-cheatsheet-close>Esc</button>
     </div>
 
     <p class="v-grid-cheatsheet-note">
-      Every key below works while the table has focus — press <kbd>Tab</kbd> until a row
-      is outlined. They are deliberately inert everywhere else on the page.
+      {% blocktranslate trimmed %}
+        Every key below works while the table has focus — press <kbd>Tab</kbd> until a row
+        is outlined. They are deliberately inert everywhere else on the page.
+      {% endblocktranslate %}
     </p>
 
     <div class="v-grid-cheatsheet-cols">
       <section>
-        <h3 class="v-grid-cheatsheet-group">Moving</h3>
+        <h3 class="v-grid-cheatsheet-group">{% translate "Moving" %}</h3>
         <dl class="v-grid-keys">
-          <div><dt><kbd>j</kbd> <kbd>↓</kbd></dt><dd>Next row</dd></div>
-          <div><dt><kbd>k</kbd> <kbd>↑</kbd></dt><dd>Previous row</dd></div>
-          <div><dt><kbd>Home</kbd></dt><dd>First row on this page</dd></div>
-          <div><dt><kbd>End</kbd></dt><dd>Last row on this page</dd></div>
-          <div><dt><kbd>[</kbd></dt><dd>Previous page</dd></div>
-          <div><dt><kbd>]</kbd></dt><dd>Next page</dd></div>
-          <div><dt><kbd>→</kbd> <kbd>←</kbd></dt><dd>Into the focused row's links and checkbox</dd></div>
-          <div><dt><kbd>Tab</kbd></dt><dd>Leave the table entirely</dd></div>
+          <div><dt><kbd>j</kbd> <kbd>↓</kbd></dt><dd>{% translate "Next row" %}</dd></div>
+          <div><dt><kbd>k</kbd> <kbd>↑</kbd></dt><dd>{% translate "Previous row" %}</dd></div>
+          <div><dt><kbd>Home</kbd></dt><dd>{% translate "First row on this page" %}</dd></div>
+          <div><dt><kbd>End</kbd></dt><dd>{% translate "Last row on this page" %}</dd></div>
+          <div><dt><kbd>[</kbd></dt><dd>{% translate "Previous page" %}</dd></div>
+          <div><dt><kbd>]</kbd></dt><dd>{% translate "Next page" %}</dd></div>
+          <div><dt><kbd>→</kbd> <kbd>←</kbd></dt><dd>{% translate "Into the focused row's links and checkbox" %}</dd></div>
+          <div><dt><kbd>Tab</kbd></dt><dd>{% translate "Leave the table entirely" %}</dd></div>
         </dl>
       </section>
 
       <section>
-        <h3 class="v-grid-cheatsheet-group">Doing</h3>
+        <h3 class="v-grid-cheatsheet-group">{% translate "Doing" %}</h3>
         <dl class="v-grid-keys">
-          <div><dt><kbd>Enter</kbd></dt><dd>Open the focused record</dd></div>
-          <div><dt><kbd>Space</kbd></dt><dd>Quick peek in the side drawer</dd></div>
-          <div><dt><kbd>x</kbd></dt><dd>Select or deselect the focused row</dd></div>
-          <div><dt><kbd>?</kbd></dt><dd>This list</dd></div>
-          <div><dt><kbd>Esc</kbd></dt><dd>Back one level — always</dd></div>
+          <div><dt><kbd>Enter</kbd></dt><dd>{% translate "Open the focused record" %}</dd></div>
+          <div><dt><kbd>Space</kbd></dt><dd>{% translate "Quick peek in the side drawer" %}</dd></div>
+          <div><dt><kbd>x</kbd></dt><dd>{% translate "Select or deselect the focused row" %}</dd></div>
+          <div><dt><kbd>?</kbd></dt><dd>{% translate "This list" %}</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>{% translate "Back one level — always" %}</dd></div>
         </dl>
 
-        <h3 class="v-grid-cheatsheet-group">In the peek drawer</h3>
+        <h3 class="v-grid-cheatsheet-group">{% translate "In the peek drawer" %}</h3>
         <dl class="v-grid-keys">
-          <div><dt><kbd>j</kbd> <kbd>↓</kbd></dt><dd>Peek the next record</dd></div>
-          <div><dt><kbd>k</kbd> <kbd>↑</kbd></dt><dd>Peek the previous record</dd></div>
-          <div><dt><kbd>Esc</kbd></dt><dd>Close, and put focus back on the row</dd></div>
+          <div><dt><kbd>j</kbd> <kbd>↓</kbd></dt><dd>{% translate "Peek the next record" %}</dd></div>
+          <div><dt><kbd>k</kbd> <kbd>↑</kbd></dt><dd>{% translate "Peek the previous record" %}</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>{% translate "Close, and put focus back on the row" %}</dd></div>
         </dl>
       </section>
     </div>

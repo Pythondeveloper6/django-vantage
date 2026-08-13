@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage i18n %}
 
 {% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">{% endblock %}
 
@@ -17,11 +17,11 @@
   filter change — staying on page 7 of a result set you just narrowed to nine rows is
   the classic pagination bug, and here it looks like the filter returned nothing.
 {% endcomment %}
-<form class="v-toolbar v-audit-filters" method="get" role="search" aria-label="Filter the audit log">
+<form class="v-toolbar v-audit-filters" method="get" role="search" aria-label="{% translate 'Filter the audit log' %}">
   <label class="v-audit-field">
-    <span class="v-audit-label">Who</span>
+    <span class="v-audit-label">{% translate "Who" %}</span>
     <select class="v-select" name="actor">
-      <option value="">Anyone</option>
+      <option value="">{% translate "Anyone" %}</option>
       {% for actor in actors %}
         <option value="{{ actor.value }}"{% if actor.selected %} selected{% endif %}>{{ actor.label }}</option>
       {% endfor %}
@@ -29,9 +29,9 @@
   </label>
 
   <label class="v-audit-field">
-    <span class="v-audit-label">What</span>
+    <span class="v-audit-label">{% translate "What" %}</span>
     <select class="v-select" name="action">
-      <option value="">Anything</option>
+      <option value="">{% translate "Anything" %}</option>
       {% for action in actions %}
         <option value="{{ action.value }}"{% if action.selected %} selected{% endif %}>{{ action.label }}</option>
       {% endfor %}
@@ -39,9 +39,9 @@
   </label>
 
   <label class="v-audit-field">
-    <span class="v-audit-label">When</span>
+    <span class="v-audit-label">{% translate "When" %}</span>
     <select class="v-select" name="window">
-      <option value="">Any time</option>
+      <option value="">{% translate "Any time" %}</option>
       {% for window in windows %}
         <option value="{{ window.value }}"{% if window.selected %} selected{% endif %}>{{ window.label }}</option>
       {% endfor %}
@@ -49,19 +49,19 @@
   </label>
 
   <label class="v-audit-field">
-    <span class="v-audit-label">From</span>
+    <span class="v-audit-label">{% translate "From" %}</span>
     <input class="v-input" type="date" name="from" value="{{ date_from }}">
   </label>
 
   <label class="v-audit-field">
-    <span class="v-audit-label">To</span>
+    <span class="v-audit-label">{% translate "To" %}</span>
     <input class="v-input" type="date" name="to" value="{{ date_to }}">
   </label>
 
   <div class="v-audit-actions">
-    <button class="v-btn v-btn-secondary v-btn-sm">{% icon "filter" %}<span>Apply</span></button>
+    <button class="v-btn v-btn-secondary v-btn-sm">{% icon "filter" %}<span>{% translate "Apply" %}</span></button>
     {% if has_filters %}
-      <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
+      <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>
     {% endif %}
   </div>
 </form>
@@ -71,12 +71,12 @@
     <table class="v-table v-audit-table">
       <thead>
         <tr>
-          <th scope="col">When</th>
-          <th scope="col">Who</th>
-          <th scope="col">What</th>
-          <th scope="col">Record</th>
-          <th scope="col">Changes</th>
-          <th scope="col">From</th>
+          <th scope="col">{% translate "When" %}</th>
+          <th scope="col">{% translate "Who" %}</th>
+          <th scope="col">{% translate "What" %}</th>
+          <th scope="col">{% translate "Record" %}</th>
+          <th scope="col">{% translate "Changes" %}</th>
+          <th scope="col">{% translate "From" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -113,7 +113,7 @@
                   a hundred of them by default turns a scannable log into a wall.
                 {% endcomment %}
                 <details class="v-audit-diff">
-                  <summary>{{ row.changes|length }} field{{ row.changes|length|pluralize }}</summary>
+                  <summary>{% blocktranslate count counter=row.changes|length %}{{ counter }} field{% plural %}{{ counter }} fields{% endblocktranslate %}</summary>
                   <dl class="v-diff">
                     {% for change in row.changes %}
                       <div class="v-diff-row">
@@ -125,7 +125,7 @@
                           {% endif %}
                           {% if change.to is not None %}<ins>{{ change.to }}</ins>{% endif %}
                           {% if change.from is None and change.to is None %}
-                            <span class="v-diff-redacted">changed — value not recorded</span>
+                            <span class="v-diff-redacted">{% translate "changed — value not recorded" %}</span>
                           {% endif %}
                         </dd>
                       </div>
@@ -145,18 +145,20 @@
     {# State 2: the predicate returned nothing. Never a create CTA — nothing here is created by hand. #}
     <div class="v-empty">
       {% icon "search" class="v-empty-icon" %}
-      <p class="v-empty-title">Nothing matches those filters.</p>
-      <p class="v-empty-body">Widen the date range, or clear the filters to see everything.</p>
-      <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear filters</a>
+      <p class="v-empty-title">{% translate "Nothing matches those filters." %}</p>
+      <p class="v-empty-body">{% translate "Widen the date range, or clear the filters to see everything." %}</p>
+      <a class="v-btn v-btn-secondary" href="{{ request.path }}">{% translate "Clear filters" %}</a>
     </div>
   {% else %}
     {# State 1: nothing has happened yet. #}
     <div class="v-empty">
       {% icon "activity" class="v-empty-icon" %}
-      <p class="v-empty-title">Nothing has been recorded yet.</p>
+      <p class="v-empty-title">{% translate "Nothing has been recorded yet." %}</p>
       <p class="v-empty-body">
-        Entries appear here as soon as someone creates, changes or deletes a record
-        through this panel.
+        {% blocktranslate trimmed %}
+          Entries appear here as soon as someone creates, changes or deletes a record
+          through this panel.
+        {% endblocktranslate %}
       </p>
     </div>
   {% endif %}
@@ -165,20 +167,20 @@
 {% if page.paginator.num_pages > 1 %}
   <div class="v-pagination">
     <span class="v-pagination-info">
-      {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+      {% blocktranslate with start=page.start_index end=page.end_index total=paginator.count %}{{ start }}–{{ end }} of {{ total }}{% endblocktranslate %}
     </span>
     <div class="v-pagination-controls">
       {% if page.has_previous %}
         <a class="v-btn v-btn-secondary v-btn-sm"
-           href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+           href="?{% querystring_replace page=page.previous_page_number %}">{% translate "Previous" %}</a>
       {% else %}
-        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>{% translate "Previous" %}</button>
       {% endif %}
       {% if page.has_next %}
         <a class="v-btn v-btn-secondary v-btn-sm"
-           href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+           href="?{% querystring_replace page=page.next_page_number %}">{% translate "Next" %}</a>
       {% else %}
-        <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+        <button class="v-btn v-btn-secondary v-btn-sm" disabled>{% translate "Next" %}</button>
       {% endif %}
     </div>
   </div>

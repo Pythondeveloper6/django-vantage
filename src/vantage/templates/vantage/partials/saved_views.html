@@ -1,4 +1,4 @@
-{% load vantage %}
+{% load vantage i18n %}
 {% comment %}
   The saved-views strip. Rendered only when `saved_view_write_url` is in the context,
   so a page whose view did not opt in costs nothing.
@@ -16,15 +16,15 @@
 <div class="v-views" data-saved-views>
 
   {% if saved_views %}
-    <nav class="v-views-rail" aria-label="Saved views">
+    <nav class="v-views-rail" aria-label="{% translate "Saved views" %}">
       <a class="v-views-tab{% if not saved_view %} v-views-tab-current{% endif %}"
-         href="{{ request.path }}"{% if not saved_view %} aria-current="page"{% endif %}>All</a>
+         href="{{ request.path }}"{% if not saved_view %} aria-current="page"{% endif %}>{% translate "All" %}</a>
       {% for item in saved_views %}
         <a class="v-views-tab{% if item.current %} v-views-tab-current{% endif %}"
            href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>
           {{ item.view.name }}
-          {% if item.view.locked %}<span class="v-views-lock" title="Locked">{% icon "shield" %}</span>{% endif %}
-          {% if item.view.is_shared %}<span class="v-views-shared" title="Shared">{% icon "users" %}</span>{% endif %}
+          {% if item.view.locked %}<span class="v-views-lock" title="{% translate "Locked" %}">{% icon "shield" %}</span>{% endif %}
+          {% if item.view.is_shared %}<span class="v-views-shared" title="{% translate "Shared" %}">{% icon "users" %}</span>{% endif %}
         </a>
       {% endfor %}
     </nav>
@@ -40,10 +40,10 @@
       {% if saved_view_widened %}
         <p class="v-views-broken-title">
           {% icon "shield" %}
-          Part of this view no longer applies, so the results may be broader than intended.
+          {% translate "Part of this view no longer applies, so the results may be broader than intended." %}
         </p>
       {% else %}
-        <p class="v-views-broken-title">{% icon "shield" %}Part of this view no longer applies.</p>
+        <p class="v-views-broken-title">{% icon "shield" %}{% translate "Part of this view no longer applies." %}</p>
       {% endif %}
       <ul class="v-views-broken-list">
         {% for broken in saved_view_broken %}
@@ -63,7 +63,7 @@
     {% if saved_view %}
       <span class="v-views-current">
         <strong>{{ saved_view.name }}</strong>
-        {% if saved_view_diverged %}<span class="v-views-modified">Modified</span>{% endif %}
+        {% if saved_view_diverged %}<span class="v-views-modified">{% translate "Modified" %}</span>{% endif %}
       </span>
     {% endif %}
 
@@ -71,7 +71,7 @@
 
     {% if saved_view and saved_view_diverged %}
       {# Reset is a plain link back through the apply route: the view as saved. #}
-      <a class="v-btn v-btn-ghost v-btn-sm" href="{{ saved_view_reset_url }}">Reset</a>
+      <a class="v-btn v-btn-ghost v-btn-sm" href="{{ saved_view_reset_url }}">{% translate "Reset" %}</a>
     {% endif %}
 
     {% if saved_view_mode == "save" and saved_view_diverged %}
@@ -82,13 +82,13 @@
         {# Optimistic locking: a stale number is refused rather than overwriting someone. #}
         <input type="hidden" name="version" value="{{ saved_view.version }}">
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button class="v-btn v-btn-primary v-btn-sm">Save</button>
+        <button class="v-btn v-btn-primary v-btn-sm">{% translate "Save" %}</button>
       </form>
     {% endif %}
 
     <details class="v-views-menu">
       <summary class="v-btn v-btn-secondary v-btn-sm">
-        {% if saved_view_mode == "save" and saved_view_diverged %}Save as{% else %}Save view{% endif %}
+        {% if saved_view_mode == "save" and saved_view_diverged %}{% translate "Save as" %}{% else %}{% translate "Save view" %}{% endif %}
       </summary>
       <form method="post" action="{{ saved_view_write_url }}" class="v-views-panel">
         {% csrf_token %}
@@ -96,40 +96,42 @@
         <input type="hidden" name="model" value="{{ saved_view_model }}">
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
 
-        <label class="v-views-label" for="v-view-name">Name</label>
+        <label class="v-views-label" for="v-view-name">{% translate "Name" %}</label>
         <input class="v-input" id="v-view-name" name="name" maxlength="120" required
-               placeholder="Unpaid this month" autocomplete="off">
+               placeholder="{% translate "Unpaid this month" %}" autocomplete="off">
 
         {% comment %}
           Two questions, never one. Who can see it and who can change it are separate
           axes — conflating them is what forces a product to warn its users that a
           "personal" view is not a security feature.
         {% endcomment %}
-        <label class="v-views-label" for="v-view-visibility">Who can see it</label>
+        <label class="v-views-label" for="v-view-visibility">{% translate "Who can see it" %}</label>
         <select class="v-select" id="v-view-visibility" name="visibility">
-          <option value="private" selected>Only me</option>
-          <option value="shared">Everyone who can see this model</option>
+          <option value="private" selected>{% translate "Only me" %}</option>
+          <option value="shared">{% translate "Everyone who can see this model" %}</option>
         </select>
 
-        <label class="v-views-label" for="v-view-scope">Who can change it</label>
+        <label class="v-views-label" for="v-view-scope">{% translate "Who can change it" %}</label>
         <select class="v-select" id="v-view-scope" name="edit_scope">
-          <option value="owner" selected>Only me</option>
-          <option value="editors">Me and named editors</option>
-          <option value="everyone">Anyone who can see it</option>
+          <option value="owner" selected>{% translate "Only me" %}</option>
+          <option value="editors">{% translate "Me and named editors" %}</option>
+          <option value="everyone">{% translate "Anyone who can see it" %}</option>
         </select>
 
         <p class="v-views-note">
-          A shared view is never saved automatically — someone else's screen should
-          never change because you narrowed a filter.
+          {% blocktranslate trimmed %}
+            A shared view is never saved automatically — someone else's screen should
+            never change because you narrowed a filter.
+          {% endblocktranslate %}
         </p>
 
-        <button class="v-btn v-btn-primary v-btn-sm">Save view</button>
+        <button class="v-btn v-btn-primary v-btn-sm">{% translate "Save view" %}</button>
       </form>
     </details>
 
     {% if saved_view %}
       <details class="v-views-menu">
-        <summary class="v-btn v-btn-ghost v-btn-sm v-btn-icon" aria-label="More actions for this view">
+        <summary class="v-btn v-btn-ghost v-btn-sm v-btn-icon" aria-label="{% translate "More actions for this view" %}">
           {% icon "sliders" %}
         </summary>
         <div class="v-views-panel">
@@ -138,7 +140,7 @@
             <input type="hidden" name="intent" value="default">
             <input type="hidden" name="view" value="{{ saved_view.pk }}">
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
-            <button class="v-btn v-btn-ghost v-btn-sm">Open this by default</button>
+            <button class="v-btn v-btn-ghost v-btn-sm">{% translate "Open this by default" %}</button>
           </form>
           {% if saved_view_can_save or saved_view.owner_id == user.pk %}
             <form method="post" action="{{ saved_view_write_url }}">
@@ -146,13 +148,15 @@
               <input type="hidden" name="intent" value="delete">
               <input type="hidden" name="view" value="{{ saved_view.pk }}">
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <button class="v-btn v-btn-ghost v-btn-sm v-views-delete">Delete this view</button>
+              <button class="v-btn v-btn-ghost v-btn-sm v-views-delete">{% translate "Delete this view" %}</button>
             </form>
           {% endif %}
           {% if saved_view.locked %}
             <p class="v-views-note">
-              This view is locked. Locking freezes the configuration, not the data, and
-              it binds the person who made it too.
+              {% blocktranslate trimmed %}
+                This view is locked. Locking freezes the configuration, not the data, and
+                it binds the person who made it too.
+              {% endblocktranslate %}
             </p>
           {% endif %}
         </div>

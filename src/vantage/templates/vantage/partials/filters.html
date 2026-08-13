@@ -1,4 +1,4 @@
-{% load vantage vantage_list %}{% comment %}
+{% load vantage vantage_list i18n %}{% comment %}
   The filter rail.
 
   A plain GET form, submitted by a button: no JavaScript is involved and none is
@@ -17,18 +17,18 @@
 <details class="v-filters" open>
   <summary class="v-filters-summary">
     {% icon "filter" %}
-    <span>Filters</span>
-    {% if has_active_filters %}<span class="v-badge" data-tone="primary">On</span>{% endif %}
+    <span>{% translate "Filters" %}</span>
+    {% if has_active_filters %}<span class="v-badge" data-tone="primary">{% translate "On" %}</span>{% endif %}
   </summary>
 
   <div class="v-filters-tools">
     {% if facets %}
-      <a class="v-filters-link" href="?{% querystring_replace _facets=None page=None %}">Hide counts</a>
+      <a class="v-filters-link" href="?{% querystring_replace _facets=None page=None %}">{% translate "Hide counts" %}</a>
     {% else %}
-      <a class="v-filters-link" href="?{% querystring_replace _facets="1" page=None %}">Show counts</a>
+      <a class="v-filters-link" href="?{% querystring_replace _facets="1" page=None %}">{% translate "Show counts" %}</a>
     {% endif %}
     {% if has_active_filters %}
-      <a class="v-filters-link" href="?{% filters_clear_url filters %}">Clear all filters</a>
+      <a class="v-filters-link" href="?{% filters_clear_url filters %}">{% translate "Clear all filters" %}</a>
     {% endif %}
   </div>
 
@@ -47,17 +47,17 @@
           {# A continuous range has no options to tick and nothing to count. #}
           <div class="v-filter-range">
             <label class="v-sr-only" for="v-{{ filt.parameter_name }}-min">
-              {{ filt.label }} minimum</label>
+              {% blocktranslate with label=filt.label %}{{ label }} minimum{% endblocktranslate %}</label>
             <input class="v-input v-input-sm" type="number" step="any"
                    id="v-{{ filt.parameter_name }}-min"
-                   name="{{ filt.low_parameter }}" placeholder="Min"
+                   name="{{ filt.low_parameter }}" placeholder="{% translate "Min" %}"
                    value="{{ filt.low|default_if_none:'' }}">
             <span class="v-filter-range-sep" aria-hidden="true">–</span>
             <label class="v-sr-only" for="v-{{ filt.parameter_name }}-max">
-              {{ filt.label }} maximum</label>
+              {% blocktranslate with label=filt.label %}{{ label }} maximum{% endblocktranslate %}</label>
             <input class="v-input v-input-sm" type="number" step="any"
                    id="v-{{ filt.parameter_name }}-max"
-                   name="{{ filt.high_parameter }}" placeholder="Max"
+                   name="{{ filt.high_parameter }}" placeholder="{% translate "Max" %}"
                    value="{{ filt.high|default_if_none:'' }}">
           </div>
         {% else %}
@@ -69,7 +69,7 @@
                   <label class="v-filter-option">
                     <input type="radio" name="{{ filt.parameter_name }}" value=""
                            {% if not filt.is_active %}checked{% endif %}>
-                    <span class="v-filter-option-label">Any</span>
+                    <span class="v-filter-option-label">{% translate "Any" %}</span>
                   </label>
                 {% endif %}
                 {% for choice in choices %}
@@ -84,7 +84,7 @@
                 {% endfor %}
               </div>
             {% else %}
-              <p class="v-filter-note">Too many values to list here.</p>
+              <p class="v-filter-note">{% translate "Too many values to list here." %}</p>
             {% endif %}
           {% endwith %}
         {% endif %}
@@ -92,7 +92,7 @@
     {% endfor %}
 
     <div class="v-filter-actions">
-      <button class="v-btn v-btn-primary v-btn-sm" type="submit">Apply filters</button>
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit">{% translate "Apply filters" %}</button>
     </div>
   </form>
 </details>

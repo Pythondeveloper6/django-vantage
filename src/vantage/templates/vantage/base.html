@@ -1,4 +1,4 @@
-{% load static vantage %}<!doctype html>
+{% load static vantage i18n %}<!doctype html>
 <html lang="{{ language_code }}"{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
 <head>
 <meta charset="utf-8">
@@ -24,7 +24,7 @@
   carries tabindex="-1" because without it Safari and Chrome move the scroll position
   and leave focus behind on <body>.
 {% endcomment %}
-<a class="v-skip-link" href="#v-content">Skip to main content</a>
+<a class="v-skip-link" href="#v-content">{% translate "Skip to main content" %}</a>
 
 {% if settings.ENVIRONMENT %}<div class="v-env-banner">{{ settings.ENVIRONMENT }}</div>{% endif %}
 
@@ -35,13 +35,15 @@
   {% endcomment %}
   <div class="v-impersonation-banner">
     <span>
-      Acting as <strong>{{ user.get_username }}</strong>
-      — signed in as {{ real_user.get_username }}
+      {% blocktranslate trimmed with username=user.get_username real_username=real_user.get_username %}
+        Acting as <strong>{{ username }}</strong>
+        — signed in as {{ real_username }}
+      {% endblocktranslate %}
     </span>
     <form method="post" action="{% url 'vantage:impersonate' %}">
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.get_full_path }}">
-      <button class="v-btn v-btn-sm v-btn-secondary">Stop impersonating</button>
+      <button class="v-btn v-btn-sm v-btn-secondary">{% translate "Stop impersonating" %}</button>
     </form>
   </div>
 {% endif %}
@@ -66,7 +68,7 @@
       {% endif %}
     </a>
 
-    <nav class="v-nav" aria-label="Sections">
+    <nav class="v-nav" aria-label="{% translate "Sections" %}">
       {% for group in nav %}
         <div class="v-nav-group">
           {% if group.label %}
@@ -84,7 +86,7 @@
               {% if item.external %}
                 {% comment %} aria-label on a plain <span> has no role to attach to and is widely
                    ignored; visually hidden real text is announced everywhere. {% endcomment %}
-                <span class="v-sr-only">(opens in a new tab)</span>
+                <span class="v-sr-only">{% translate "(opens in a new tab)" %}</span>
                 <span class="v-nav-external" aria-hidden="true">↗</span>
               {% endif %}
             </a>
@@ -100,12 +102,12 @@
          click: a disclosure whose state appears after the first interaction is
          announced as a plain button until then. {% endcomment %}
       <button class="v-btn v-btn-ghost v-btn-icon" id="v-sidebar-toggle"
-              aria-label="Toggle navigation" aria-controls="v-sidebar"
+              aria-label="{% translate "Toggle navigation" %}" aria-controls="v-sidebar"
               aria-expanded="false">
         {% icon "menu" %}
       </button>
 
-      <nav class="v-breadcrumb" aria-label="Breadcrumb">
+      <nav class="v-breadcrumb" aria-label="{% translate "Breadcrumb" %}">
         <a href="{% url 'vantage:dashboard' %}">{{ settings.SITE_TITLE }}</a>
         {% for label, url in breadcrumbs %}
           <span class="v-breadcrumb-sep" aria-hidden="true">{% icon "chevron-right" %}</span>
@@ -120,7 +122,7 @@
 
       {% if settings.THEME_TOGGLE %}
         <button class="v-btn v-btn-ghost v-btn-icon" data-vantage-theme-toggle
-                aria-label="Switch between light and dark theme"
+                aria-label="{% translate "Switch between light and dark theme" %}"
                 formaction="{% url 'vantage:theme' %}">
           <span data-theme-icon="light">{% icon "sun" %}</span>
           <span data-theme-icon="dark" hidden>{% icon "moon" %}</span>
@@ -131,7 +133,7 @@
         {% url 'password_change' as password_change_url %}
         {% url 'logout' as logout_url %}
         <span class="v-account v-muted">
-          <span class="v-sr-only">Signed in as</span>{{ user.get_username }}
+          <span class="v-sr-only">{% translate "Signed in as" %}</span>{{ user.get_username }}
         </span>
         {% comment %}
           Resolved with `{% url ... as %}`, which yields "" rather than raising when
@@ -139,12 +141,12 @@
           them; it just uses them when they are there.
         {% endcomment %}
         {% if password_change_url %}
-          <a class="v-btn v-btn-ghost v-btn-sm" href="{{ password_change_url }}">Password</a>
+          <a class="v-btn v-btn-ghost v-btn-sm" href="{{ password_change_url }}">{% translate "Password" %}</a>
         {% endif %}
         {% if logout_url %}
           <form class="v-signout" method="post" action="{{ logout_url }}">
             {% csrf_token %}
-            <button class="v-btn v-btn-ghost v-btn-sm" type="submit">Sign out</button>
+            <button class="v-btn v-btn-ghost v-btn-sm" type="submit">{% translate "Sign out" %}</button>
           </form>
         {% endif %}
       {% endif %}
@@ -169,7 +171,7 @@
              word itself is carried in text for anyone the colour does not reach. {% endcomment %}
           <span><span class="v-sr-only">{{ message.level_tag|capfirst }}:</span> {{ message }}</span>
           <button type="button" class="v-toast-close"
-                  aria-label="Dismiss this message">&times;</button>
+                  aria-label="{% translate "Dismiss this message" %}">&times;</button>
         </div>
       {% endfor %}
     </div>

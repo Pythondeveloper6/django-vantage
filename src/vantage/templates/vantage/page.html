@@ -1,4 +1,5 @@
 {% extends "vantage/base.html" %}
+{% load i18n %}
 
 {% comment %} The fallback renderer. A page with its own template never reaches this file;
    this exists so the FIRST page someone writes is worth looking at before they
@@ -45,10 +46,12 @@
   {% endif %}{% endfor %}
 {% else %}
   <div class="v-card"><div class="v-empty">
-    <p class="v-empty-title">This page returned no data.</p>
+    <p class="v-empty-title">{% translate "This page returned no data." %}</p>
     <p class="v-empty-body">
-      Return a dict from <code class="v-mono">get_context()</code>, or add a template at
-      <code class="v-mono">vantage/pages/{{ page.get_slug }}.html</code>.
+      {% blocktranslate trimmed with slug=page.get_slug %}
+        Return a dict from <code class="v-mono">get_context()</code>, or add a template at
+        <code class="v-mono">vantage/pages/{{ slug }}.html</code>.
+      {% endblocktranslate %}
     </p>
   </div></div>
 {% endif %}

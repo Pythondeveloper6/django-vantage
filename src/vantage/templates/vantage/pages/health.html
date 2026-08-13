@@ -1,14 +1,14 @@
 {% extends "vantage/base.html" %}
-{% load vantage %}
+{% load vantage i18n %}
 
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">System</h1>
+    <h1 class="v-page-title">{% translate "System" %}</h1>
     <p class="v-page-description">
-      {% if worst == "fail" %}Something needs attention.
-      {% elif worst == "warn" %}Everything works, with caveats.
-      {% else %}Everything looks healthy.{% endif %}
+      {% if worst == "fail" %}{% translate "Something needs attention." %}
+      {% elif worst == "warn" %}{% translate "Everything works, with caveats." %}
+      {% else %}{% translate "Everything looks healthy." %}{% endif %}
     </p>
   </div>
 </div>
@@ -24,7 +24,7 @@
         <dd>
           <span class="v-mono">{{ check.detail }}</span>
           {% if check.hint %}<div class="v-muted">{{ check.hint }}</div>{% endif %}
-          <span class="v-sr-only">Status: {{ check.status }}</span>
+          <span class="v-sr-only">{% blocktranslate with status=check.status %}Status: {{ status }}{% endblocktranslate %}</span>
         </dd>
       </div>
     {% endfor %}
