@@ -36,6 +36,8 @@ __all__ = [
     "CommandRegistry",
     "CommandsView",
     "build_commands",
+    "build_urls",
+    "icon_paths",
     "register_command",
     "registry_for",
 ]
@@ -327,6 +329,19 @@ def _create_commands(site, request) -> list[Command]:
     return commands
 
 
+def icon_paths(names) -> dict[str, str]:
+    """The SVG path data for ``names``, for a client that has to draw its own rows.
+
+    The palette builds its list in JavaScript, and the icon set lives in
+    :mod:`vantage.templatetags.vantage`. Shipping the handful of paths a payload
+    actually uses keeps the icons single-homed in Python rather than forking a second
+    copy into a stylesheet or a sprite nobody remembers to update.
+    """
+    from vantage.templatetags.vantage import ICONS
+
+    return {name: ICONS[name] for name in sorted(set(names)) if name in ICONS}
+
+
 def _reverse(name: str, args: tuple = ()) -> str | None:
     try:
         return reverse(name, args=args)
@@ -347,7 +362,30 @@ class CommandsView(SiteView):
 
     def get(self, request, *args, **kwargs):
         commands = [command.as_dict() for command in build_commands(self.site, request)]
-        response = JsonResponse({"commands": commands, "sections": list(SECTION_ORDER)})
+        response = JsonResponse(
+            {
+                "commands": commands,
+                "sections": list(SECTION_ORDER),
+                "icons": icon_paths(command["icon"] for command in commands),
+            }
+        )
         # Permission-scoped, exactly like the search payload.
         response["Cache-Control"] = "no-store"
         return response
+
+
+def build_urls(site) -> list:
+    """The three routes global search and the palette need.
+
+    Under the ``_/`` prefix that :mod:`vantage.urls` already reserves for panel
+    machinery, so they can never collide with an app label.
+    """
+    from django.urls import path
+
+    from vantage import search
+
+    return [
+        path("_/search/", search.SearchView.as_view(site=site), name="search"),
+        path("_/search.json", search.SearchJSONView.as_view(site=site), name="search-json"),
+        path("_/commands.json", CommandsView.as_view(site=site), name="commands"),
+    ]
