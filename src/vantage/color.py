@@ -36,7 +36,7 @@ HEX = re.compile(r"^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 @dataclass(frozen=True)
 class OKLCH:
-    """Lightness 0–1, chroma 0–~0.4, hue in degrees."""
+    """Lightness 0-1, chroma 0-~0.4, hue in degrees."""
 
     l: float  # noqa: E741 — the channel is called L; renaming it would be worse
     c: float
@@ -71,7 +71,7 @@ def _from_linear(channel: float) -> float:
 
 
 def parse_hex(value: str) -> tuple[float, float, float]:
-    """``"#0ea5e9"`` or ``"#0ae"`` to linear-light RGB in 0–1."""
+    """``"#0ea5e9"`` or ``"#0ae"`` to linear-light RGB in 0-1."""
     match = HEX.match(value.strip())
     if not match:
         raise ValueError(f"{value!r} is not a hex colour like '#0ea5e9'.")
@@ -163,7 +163,7 @@ def _relative_luminance(color: OKLCH) -> float:
 
 
 def contrast_ratio(a: OKLCH, b: OKLCH) -> float:
-    """WCAG 2.x contrast ratio between two colours, 1.0–21.0."""
+    """WCAG 2.x contrast ratio between two colours, 1.0-21.0."""
     la, lb = _relative_luminance(a), _relative_luminance(b)
     lighter, darker = max(la, lb), min(la, lb)
     return (lighter + 0.05) / (darker + 0.05)
