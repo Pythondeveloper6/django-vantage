@@ -83,6 +83,23 @@
       {% endif %}
     </header>
 
+    {% if messages %}
+      {% comment %}
+        Rendered in the shell rather than per page. A message set before a redirect
+        has to be displayed by whatever page the user lands on; if only some
+        templates render them, the rest silently consume the message and it
+        reappears later on an unrelated screen.
+      {% endcomment %}
+      <div class="v-toasts" role="status" aria-live="polite">
+        {% for message in messages %}
+          <div class="v-toast" data-level="{{ message.level_tag }}">
+            <span>{{ message }}</span>
+            <button type="button" class="v-toast-close" aria-label="Dismiss">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <main class="v-content">
       {% block content %}{% endblock %}
     </main>

@@ -62,6 +62,20 @@
       });
     }
 
+    document.querySelectorAll(".v-toast-close").forEach(function (button) {
+      button.addEventListener("click", function () {
+        button.closest(".v-toast").remove();
+      });
+    });
+
+    // Auto-dismiss, but only what is safe to miss. An error stays until dismissed:
+    // it usually names something the user still has to act on.
+    document.querySelectorAll('.v-toast:not([data-level="error"])').forEach(function (toast) {
+      setTimeout(function () {
+        toast.remove();
+      }, 6000);
+    });
+
     // "/" focuses search, the convention every data-heavy app shares. Scoped so it
     // never fires while the user is typing somewhere else (WCAG 2.1.4).
     document.addEventListener("keydown", function (event) {
