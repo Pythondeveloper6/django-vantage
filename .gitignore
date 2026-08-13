@@ -1,0 +1,27 @@
+# Project working memory — intentionally untracked
+PLAN.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Node (contributor-only asset build)
+node_modules/
+
+# Local
+*.sqlite3
+.DS_Store
+.env
