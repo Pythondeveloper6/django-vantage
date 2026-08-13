@@ -160,7 +160,7 @@ class OrderItem(models.Model):
         verbose_name_plural = "order items"
 
     def __str__(self):
-        return f"{self.quantity} × {self.product}"
+        return f"{self.quantity} x {self.product}"
 
     @property
     def line_total(self):

@@ -10,7 +10,6 @@ search are still inferred. Overriding one attribute never costs you the others.
 """
 
 from shop.models import Order, Product
-
 from vantage import ModelPanel, register
 
 
