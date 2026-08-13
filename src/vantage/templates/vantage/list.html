@@ -149,6 +149,28 @@
               </tr>
             {% endfor %}
           </tbody>
+          {% if summary %}
+            {% comment %}
+              A single 32px strip carrying one aggregate per numeric column. It is the
+              highest value-per-pixel element on the page, and unlike the stat cards
+              above it needs no configuration to be useful.
+            {% endcomment %}
+            <tfoot class="v-table-summary">
+              <tr>
+                {% if actions %}<td class="v-select-cell"></td>{% endif %}
+                {% for column in columns %}
+                  <td>
+                    {% with cell=summary|dict_get:column.name %}
+                      {% if cell %}
+                        <span class="v-summary-fn">{{ cell.function }}</span>
+                        <span class="v-summary-value">{{ cell.display }}</span>
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+                {% endfor %}
+              </tr>
+            </tfoot>
+          {% endif %}
         </table>
       {% elif query or has_active_filters %}
         {% comment %}

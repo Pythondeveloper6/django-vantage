@@ -238,9 +238,18 @@ class ListView(PanelView):
             analytics=self.get_analytics(queryset),
             searchable=bool(panel.get_list_search(request)),
             actions=resolve_actions(panel, request),
+            summary=self.get_summary(panel, queryset, columns),
             page_title=panel.get_label_plural(),
         )
         return context
+
+    @staticmethod
+    def get_summary(panel, queryset, columns):
+        """The footer bar, keyed by column so the template can align it."""
+        from vantage.summary import compute_summary, infer_summaries
+
+        summaries = infer_summaries(panel, columns)
+        return {cell.column: cell for cell in compute_summary(queryset, summaries)}
 
     def get_analytics(self, queryset) -> dict:
         """Stat cards and charts over the filtered rows.
