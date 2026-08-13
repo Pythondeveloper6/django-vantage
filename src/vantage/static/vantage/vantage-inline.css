@@ -149,7 +149,7 @@ select.v-inline-input {
   /* Opaque: it floats over rows, and a translucent bar over a dense table is
    * unreadable in both themes. */
   background: var(--card);
-  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.35);
+  box-shadow: 0 8px 24px -12px oklch(0 0 0 / 0.35);
 }
 
 .v-inline-bar[hidden] {
@@ -190,7 +190,7 @@ select.v-inline-input {
 }
 
 .v-inline-conflict::backdrop {
-  background: rgb(0 0 0 / 0.45);
+  background: oklch(0 0 0 / 0.45);
 }
 
 .v-inline-conflict-panel {
