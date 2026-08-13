@@ -6,7 +6,10 @@ Every view is bound to a :class:`~vantage.sites.VantageSite` at URL-build time v
 
 from __future__ import annotations
 
+from functools import cached_property
+
 from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
@@ -15,6 +18,7 @@ from django.views.generic import TemplateView
 
 from vantage.conf import vantage_settings
 from vantage.nav import build_nav, resolve_theme
+from vantage.permissions import get_permissions
 from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
 
 
@@ -25,11 +29,23 @@ class SiteView(TemplateView):
     page_title = ""
     page_description = ""
 
+    @cached_property
+    def permissions(self):
+        """Resolved lazily so a directly-constructed view still works in tests."""
+        return get_permissions()
+
     def dispatch(self, request, *args, **kwargs):
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated or not user.is_staff:
             return redirect_to_login(request.get_full_path())
+        denied = self.check_permission(request)
+        if denied is not None:
+            return denied
         return super().dispatch(request, *args, **kwargs)
+
+    def check_permission(self, request):
+        """Return a response to short-circuit with, or None to allow."""
+        return None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -37,6 +53,7 @@ class SiteView(TemplateView):
             site=self.site,
             settings=vantage_settings,
             nav=build_nav(self.site, self.request),
+            permissions=self.permissions,
             path=self.request.path,
             theme=resolve_theme(self.request),
             language_code=get_language() or "en",
@@ -68,6 +85,17 @@ class PanelView(SiteView):
 
     panel = None
 
+    #: The action a subclass needs permission for.
+    required_action = "view"
+
+    def check_permission(self, request):
+        if self.permissions.has_model_perm(request, self.panel.model, self.required_action):
+            return None
+        raise PermissionDenied(
+            f"You do not have permission to {self.required_action} "
+            f"{self.panel.get_label_plural().lower()}."
+        )
+
     def get_breadcrumbs(self):
         return [(self.panel.get_label_plural(), None)]
 
@@ -80,7 +108,9 @@ class ListView(PanelView):
         panel = self.panel
         request = self.request
 
-        queryset = panel.get_list_queryset(request)
+        queryset = self.permissions.filter_queryset(
+            request, panel.get_list_queryset(request), "view"
+        )
 
         query = request.GET.get("q", "").strip()
         if query:
@@ -157,7 +187,9 @@ class DetailView(PanelView):
     def get_object(self):
         from django.shortcuts import get_object_or_404
 
-        queryset = self.panel.get_queryset(self.request)
+        queryset = self.permissions.filter_queryset(
+            self.request, self.panel.get_queryset(self.request), "view"
+        )
         return get_object_or_404(queryset, pk=self.kwargs["pk"])
 
     def get_breadcrumbs(self):

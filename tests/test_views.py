@@ -10,7 +10,13 @@ from tests.testapp.models import Author, Post
 
 @pytest.fixture
 def staff(db):
-    return User.objects.create_user("staffer", password="x", is_staff=True)
+    """A superuser: these tests are about rendering, not access.
+
+    Permission enforcement has its own suite in test_permissions.py; using a
+    fully-granted user here keeps a rendering failure distinguishable from a
+    permission failure.
+    """
+    return User.objects.create_superuser("staffer", "staff@example.com", "x")
 
 
 @pytest.fixture
