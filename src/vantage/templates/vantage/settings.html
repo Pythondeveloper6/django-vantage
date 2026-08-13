@@ -1,0 +1,255 @@
+{% extends "vantage/base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-settings.css' %}">
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  One form for the whole screen. The per-section "Reset" buttons are submit buttons in
+  it rather than forms of their own: a form inside a form is not valid HTML, and the
+  browser silently drops the inner one — which is how a reset button ends up saving.
+{% endcomment %}
+<form class="v-form v-settings" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  <div class="v-page-head">
+    <div>
+      <h1 class="v-page-title">{{ page_title }}</h1>
+      <p class="v-page-description">{{ page_description }}</p>
+    </div>
+    <div class="v-page-actions">
+      {% if config.updated_at %}
+        <span class="v-muted v-settings-stamp">
+          Last changed {{ config.updated_at|date:"j M Y, H:i" }}{% if config.updated_by %}
+          by {{ config.updated_by }}{% endif %}
+        </span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if form.errors %}
+    <div class="v-form-alert" data-tone="error" role="alert">
+      <p class="v-form-alert-title">Nothing was saved.</p>
+      <p>Check the highlighted fields below.</p>
+    </div>
+  {% endif %}
+
+  {% if not media_configured %}
+    <div class="v-form-alert" data-tone="warning">
+      <p class="v-form-alert-title">Uploads have nowhere to go.</p>
+      <p>
+        This project has no <code class="v-mono">MEDIA_ROOT</code> and
+        <code class="v-mono">MEDIA_URL</code>, so an uploaded logo cannot be stored or
+        served. Everything else on this page works.
+      </p>
+    </div>
+  {% endif %}
+
+  {% for section in sections %}
+    <section class="v-card v-form-card" data-section="{{ section.key }}">
+      <div class="v-card-head v-settings-head">
+        <div>
+          <h2 class="v-card-title">{{ section.title }}</h2>
+          <p class="v-form-help">{{ section.description }}</p>
+        </div>
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="reset"
+                value="{{ section.key }}" formnovalidate>
+          Reset to code defaults
+        </button>
+      </div>
+
+      <div class="v-card-body v-form-grid">
+        {% for entry in section.fields %}
+          <div class="v-form-field{% if entry.wide %} v-form-field-wide{% endif %}"
+               data-setting="{{ entry.setting }}">
+            <label class="v-form-label" for="{{ entry.field.id_for_label }}">
+              {{ entry.field.label }}
+              {% if entry.overridden %}
+                <span class="v-settings-flag" title="Set here, overriding settings.py">
+                  overridden
+                </span>
+              {% endif %}
+            </label>
+
+            {% if entry.setting == "BRAND_COLOR" %}
+              <div class="v-settings-color">
+                {{ entry.field }}
+                <input type="color" class="v-settings-picker" data-vantage-color
+                       value="{{ brand.color|default:'#6366f1' }}"
+                       aria-label="Pick the brand colour">
+              </div>
+            {% else %}
+              {{ entry.field }}
+            {% endif %}
+
+            {% if entry.file %}
+              <p class="v-settings-current">
+                {% if entry.file_url %}
+                  <a href="{{ entry.file_url }}" target="_blank" rel="noopener noreferrer">
+                    {{ entry.file.name }}
+                  </a>
+                {% else %}
+                  {{ entry.file.name }}
+                {% endif %}
+              </p>
+            {% endif %}
+
+            {% for error in entry.field.errors %}
+              <p class="v-settings-error" role="alert">{{ error }}</p>
+            {% endfor %}
+
+            {% if entry.field.help_text %}
+              <p class="v-form-help">{{ entry.field.help_text }}</p>
+            {% endif %}
+
+            {% if not entry.is_file %}
+              <p class="v-form-help v-settings-inherited">
+                Empty means
+                <code class="v-mono">{{ entry.inherited|default_if_none:"nothing" }}</code>,
+                from <code class="v-mono">settings.py</code>.
+              </p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% if section.key == "appearance" %}
+        <div class="v-card-body v-settings-preview" data-vantage-preview>
+          <div class="v-settings-preview-head">
+            <h3 class="v-settings-preview-title">Derived palette</h3>
+            <span class="v-badge" data-preview-ratio>
+              {% if brand %}{{ brand.ratio|floatformat:1 }}:1 on button text{% endif %}
+            </span>
+          </div>
+
+          {% if brand %}
+            <div class="v-settings-swatches">
+              <span class="v-settings-swatch-label">Light</span>
+              {% for swatch in brand.light %}
+                <span class="v-settings-swatch" style="background: {{ swatch.value }}"
+                      title="--{{ swatch.name }}: {{ swatch.value }}">
+                  <span class="v-sr-only">{{ swatch.name }}</span>
+                </span>
+              {% endfor %}
+            </div>
+            <div class="v-settings-swatches">
+              <span class="v-settings-swatch-label">Dark</span>
+              {% for swatch in brand.dark %}
+                <span class="v-settings-swatch" style="background: {{ swatch.value }}"
+                      title="--{{ swatch.name }}: {{ swatch.value }}">
+                  <span class="v-sr-only">{{ swatch.name }}</span>
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="v-settings-sample" {% if brand %}style="
+               --preview-primary: {{ brand.light.0.value }};
+               --preview-on-primary: {{ brand.light.2.value }}"{% endif %}>
+            <span class="v-settings-sample-button">Save changes</span>
+            <span class="v-settings-sample-link">A link, a focus ring, a selected row</span>
+          </div>
+
+          <p class="v-settings-warning" data-preview-warning
+             {% if not brand.warning %}hidden{% endif %}>{{ brand.warning|default:"" }}</p>
+        </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+
+  <div class="v-card v-settings-note">
+    <div class="v-card-body">
+      <p class="v-form-help">
+        These settings live in code and are not editable here, because they decide what
+        exists and who may reach it rather than how it looks:
+        {% for key in code_only %}<code class="v-mono">{{ key }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.
+      </p>
+      <p class="v-form-help">
+        Logos and favicons may be SVG, PNG, JPEG or WebP, up to {{ max_upload_kb }} KB. An
+        SVG containing script or event handlers is refused: it would run on every page
+        of this panel.
+      </p>
+    </div>
+  </div>
+
+  <div class="v-form-bar">
+    <button class="v-btn v-btn-primary" type="submit">Save settings</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Live palette preview. The colour maths is not reimplemented here — the page asks the
+ * same view that will render the panel, so the swatches cannot drift from the result.
+ * Debounced, because a colour input fires continuously while dragging. */
+(function () {
+  var root = document.querySelector('[data-vantage-preview]');
+  var input = document.querySelector('[data-vantage-brand]');
+  var picker = document.querySelector('[data-vantage-color]');
+  if (!root || !input) return;
+
+  var ratio = root.querySelector('[data-preview-ratio]');
+  var warning = root.querySelector('[data-preview-warning]');
+  var rows = root.querySelectorAll('.v-settings-swatches');
+  var sample = root.querySelector('.v-settings-sample');
+  var timer = null;
+  var inflight = null;
+
+  function paint(row, swatches) {
+    var cells = row.querySelectorAll('.v-settings-swatch');
+    for (var i = 0; i < cells.length && i < swatches.length; i++) {
+      cells[i].style.background = swatches[i].value;
+      cells[i].title = '--' + swatches[i].name + ': ' + swatches[i].value;
+    }
+  }
+
+  function apply(data) {
+    if (rows.length > 1) {
+      paint(rows[0], data.light);
+      paint(rows[1], data.dark);
+    }
+    if (ratio) ratio.textContent = data.ratio.toFixed(1) + ':1 on button text';
+    if (sample) {
+      sample.style.setProperty('--preview-primary', data.light[0].value);
+      sample.style.setProperty('--preview-on-primary', data.light[2].value);
+    }
+    if (warning) {
+      warning.hidden = !data.warning;
+      warning.textContent = data.warning || '';
+    }
+  }
+
+  function request(value) {
+    if (inflight) inflight.abort();
+    inflight = new AbortController();
+    fetch(window.location.pathname + '?preview=' + encodeURIComponent(value),
+          { signal: inflight.signal, headers: { 'Accept': 'application/json' } })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) { if (data && data.ok) apply(data); })
+      .catch(function () { /* an aborted or failed preview is not worth reporting */ });
+  }
+
+  function schedule() {
+    var value = input.value.trim();
+    if (!/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) return;
+    window.clearTimeout(timer);
+    timer = window.setTimeout(function () { request(value); }, 120);
+  }
+
+  input.addEventListener('input', schedule);
+  if (picker) {
+    picker.addEventListener('input', function () {
+      input.value = picker.value;
+      schedule();
+    });
+    input.addEventListener('change', function () {
+      if (/^#[0-9a-fA-F]{6}$/.test(input.value.trim())) picker.value = input.value.trim();
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -19,6 +19,9 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
+  /* Each card keeps its natural height. Stretching them to the tallest in the row is
+   * the other option and it is worse the moment the row is mixed: a two-word count
+   * card becomes as tall as the table beside it. */
   align-items: start;
 }
 
@@ -29,6 +32,13 @@
 
 .v-widget > * {
   inline-size: 100%;
+}
+
+/* The one case natural height gets wrong: a row of counts where only some have a trend
+ * chip lands three ragged edges across the top of the page. A floor on the stat card —
+ * and only the stat card — levels them without stretching anything else. */
+.v-widget[data-kind="stat"] .v-stat {
+  min-block-size: 7rem;
 }
 
 .v-widget[data-width="2"] { grid-column: span 2; }

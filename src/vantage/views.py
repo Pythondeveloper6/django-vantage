@@ -78,8 +78,12 @@ class DashboardView(SiteView):
     page_title = "Dashboard"
 
     def get_context_data(self, **kwargs):
+        from vantage.dashboards import dashboard_context
+
         context = super().get_context_data(**kwargs)
-        context["panels"] = list(self.site.panels())
+        # Passing the view's resolver reuses its cached backend-capability probe
+        # rather than making the dashboard work it out again.
+        context.update(dashboard_context(self.site, self.request, self.permissions))
         return context
 
 

@@ -281,6 +281,17 @@ class TestWidgetTypes:
         assert card.columns == ("Title", "Status")
         assert card.rows[0]["cells"][0]["is_link"] is True
 
+    def test_a_table_card_does_not_n_plus_one_on_a_relation_column(
+        self, request_from, boss, content, django_assert_num_queries
+    ):
+        """Five rows with an FK column is five extra queries unless the join is planned."""
+        with django_assert_num_queries(1):
+            card = render_one(
+                TableCard("Recent", Post.objects.all(), columns=["title", "author"]),
+                request_from(boss),
+            )
+            assert len(card.rows) == 3
+
     def test_a_table_card_offers_a_way_through_to_the_list(self, request_from, boss, content):
         card = render_one(TableCard("Recent", Post.objects.all()), request_from(boss))
         assert card.url == reverse("vantage:testapp-post-list")

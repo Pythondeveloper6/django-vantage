@@ -42,6 +42,11 @@ DEFAULTS: dict[str, Any] = {
     "DASHBOARD": None,
     # ── behaviour ───────────────────────────────────────────────────────────
     "PERMISSIONS": None,  # dotted path to a PanelPermissions subclass
+    # Who may change the settings from inside the panel. None means superusers only,
+    # which is the right default for a screen that can rebrand the whole site. A
+    # permission string ("vantage.change_siteconfiguration") or a callable taking the
+    # request widens it. Never itself editable from the UI — that would be a self-grant.
+    "SETTINGS_PERMISSION": None,
     "READ_ONLY": False,
     "ENVIRONMENT": None,
     "AUDIT_LOG": True,
@@ -93,6 +98,14 @@ class VantageSettings:
 
         resolved = {**DEFAULTS, **user}
 
+        # The database layer goes *under* attribute access rather than beside it, so
+        # every existing ``vantage_settings.X`` picks up a UI override without knowing
+        # a database exists. Imported here rather than at module scope because this
+        # module is imported before the app registry is populated.
+        from vantage.siteconfig import database_overrides
+
+        resolved.update(database_overrides())
+
         # Derived values. Each is computed only when the user left it unset, so an
         # explicit value always wins.
         if resolved["SITE_ACRONYM"] is None:
@@ -127,6 +140,13 @@ def _unknown_key_message(unknown: list[str]) -> str:
 vantage_settings = VantageSettings()
 
 
+#: Settings whose value is baked into a resolved one. ``VANTAGE`` obviously; the storage
+#: settings because a stored logo resolves to a URL, and that URL is built from them.
+_INVALIDATING = frozenset(
+    {"VANTAGE", "MEDIA_URL", "MEDIA_ROOT", "STORAGES", "DEFAULT_FILE_STORAGE"}
+)
+
+
 @receiver(setting_changed)
 def _invalidate(sender, setting, **kwargs):  # pragma: no cover - trivial
     if setting == "VANTAGE":
@@ -134,3 +154,7 @@ def _invalidate(sender, setting, **kwargs):  # pragma: no cover - trivial
         from vantage.permissions import _reset
 
         _reset()
+    if setting in _INVALIDATING:
+        from vantage.siteconfig import invalidate
+
+        invalidate()

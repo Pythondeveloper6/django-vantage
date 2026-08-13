@@ -38,8 +38,10 @@
         <button type="button" class="v-palette-dismiss" data-palette-close>Esc</button>
       </div>
 
-      {# Group headings live in a role="group" so the listbox only ever contains
-         options — a heading rendered as a bare option is announced as choosable. #}
+      {% comment %}
+        Group headings live in a role="group" so the listbox only ever contains
+        options — a heading rendered as a bare option is announced as choosable.
+      {% endcomment %}
       <ul class="v-palette-list" id="v-palette-list" role="listbox"
           aria-label="Search results and commands"></ul>
 

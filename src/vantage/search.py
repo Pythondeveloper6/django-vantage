@@ -252,7 +252,7 @@ class GlobalSearch:
                 SearchHit(
                     id=f"{panel.slug}:{obj.pk}",
                     label=Truncator(label).chars(LABEL_CHARS),
-                    sublabel=_sublabel(obj, paths, label),
+                    sublabel=_sublabel(obj, paths, label, query),
                     url=url,
                     score=_score(label, query) * weight,
                 )
@@ -316,21 +316,30 @@ def _score(label: str, query: str) -> float:
     return WORD_START if not lowered[index - 1].isalnum() else SUBSTRING
 
 
-def _sublabel(obj, paths: list[str], label: str) -> str:
-    """A second line, so two records with the same name are still tellable apart.
+def _sublabel(obj, paths: list[str], label: str, query: str) -> str:
+    """A second line, so two records with the same name are tellable apart.
 
-    The first search field that says something the title does not — usually an email,
-    a slug or a reference number. Plain text, never rendered HTML: this string is
-    JSON-encoded and written into the DOM by the palette.
+    The field that actually matched wins, because that is the line that answers "why
+    is this here?" — an order found by its customer's name should say the customer's
+    name, not the first column that happened to be non-empty. Failing that, the first
+    search field saying something the title does not.
+
+    Plain text, never rendered HTML: this string is JSON-encoded and written into the
+    DOM by the palette as a text node.
     """
+    fallback = ""
+    wanted = query.lower()
     for path in paths:
         value = _traverse(obj, path)
         if value is None or isinstance(value, bool):
             continue
         text = " ".join(str(value).split())
-        if text and text != label:
+        if not text or text == label:
+            continue
+        if wanted in text.lower():
             return Truncator(text).chars(SUBLABEL_CHARS)
-    return ""
+        fallback = fallback or text
+    return Truncator(fallback).chars(SUBLABEL_CHARS) if fallback else ""
 
 
 def _traverse(obj, path: str):
