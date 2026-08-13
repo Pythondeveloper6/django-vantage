@@ -1,7 +1,8 @@
-"""The three things Vantage stores: its settings, what people did, and how they look.
+"""The four things Vantage stores: its settings, what people did, how they look, and
+how each list is tuned.
 
 Vantage configures itself from ``settings.VANTAGE``, so owning tables at all is a
-decision that has to be justified once per table. Three earn it.
+decision that has to be justified once per table. Four earn it.
 
 **The settings cascade.** A project owner states their settings in
 ``settings.VANTAGE``; the person who actually runs the panel day to day is usually not
@@ -19,6 +20,13 @@ model and a migration in the *user's* app and roughly double their write volume.
 **Saved views.** :class:`SavedView`, :class:`SavedViewGrant` and
 :class:`SavedViewUserState` store a named filter/sort/search state for a list page.
 See :mod:`vantage.savedviews`.
+
+**Per-list customisation.** :class:`ListPreference` is to one model's list page what
+:class:`SiteConfiguration` is to the whole panel: a row that sits *underneath* the
+Python declaration, so the columns, filters, search, stats, charts and summary of one
+list can be tuned from the UI without a deploy. One row per person per model, plus an
+optional row with a ``NULL`` user that is the site-wide default. See
+:mod:`vantage.listprefs`.
 
 Three rules shape the schema.
 
@@ -62,6 +70,8 @@ from vantage.siteconfig import invalidate
 __all__ = [
     "ALLOWED_UPLOAD_SUFFIXES",
     "MAX_UPLOAD_BYTES",
+    "SETTING_COLUMNS",
+    "ListPreference",
     "SavedView",
     "SavedViewGrant",
     "SavedViewUserState",
@@ -579,3 +589,166 @@ class SavedViewUserState(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} · {self.view}"
+
+
+# ── per-list customisation ──────────────────────────────────────────────────
+
+
+class ListPreference(models.Model):
+    """One person's tuning of one model's list page — or, with a ``NULL`` user, the
+    site-wide default for it.
+
+    The same shape as :class:`SiteConfiguration`, one level down: a fixed set of
+    columns, every one nullable, where ``NULL`` means *the code decides*. That is what
+    lets someone reorder the columns of the orders list without also freezing its
+    filters, its search fields and its stats at whatever they happened to be that
+    afternoon — the per-attribute fallthrough :class:`~vantage.panels.ModelPanel`
+    already guarantees for Python, extended to the database layer above it. Resolution
+    lives in :mod:`vantage.listprefs`; nothing here interprets its own columns.
+
+    Two rows can apply to one page and the order between them is not negotiable: a
+    per-user row wins over the site-wide row, attribute by attribute. Anything else
+    would let a colleague changing the default silently overwrite a choice somebody
+    else made deliberately.
+
+    ``resource_key`` is ``"app_label.modelname"`` as text, matching
+    ``Options.label_lower``, rather than a ``ContentType`` foreign key. A stored
+    preference for a model that is no longer registered — renamed, moved to another
+    app, deleted — must degrade into an ignored row that can still be listed and
+    cleaned up, not into a cascade that deletes it or a dangling FK to a reaped content
+    type. It is also why every value in the JSON columns below is re-validated against
+    the live panel on the way *out*: what a panel exposed when the row was written is
+    not what it exposes today.
+    """
+
+    #: ``"shop.order"``. Matched exactly, so a model that is not registered simply
+    #: never matches and its row is inert.
+    resource_key = models.CharField(max_length=100)
+
+    #: ``NULL`` is the site-wide default. ``CASCADE`` because a personal display
+    #: preference has no meaning once the person is gone — unlike an audit entry,
+    #: nothing is lost by removing it.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="vantage_list_preferences",
+    )
+
+    # ── columns and paging ──────────────────────────────────────────────────
+
+    #: An ordered list of column names. Order is the list itself; a separate position
+    #: column would be a second source of truth for something JSON already expresses.
+    columns = models.JSONField(null=True, blank=True)
+    per_page = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(500)]
+    )
+
+    # ── search ──────────────────────────────────────────────────────────────
+
+    search_enabled = models.BooleanField(null=True, blank=True)
+    search_fields = models.JSONField(null=True, blank=True)
+
+    # ── filters ─────────────────────────────────────────────────────────────
+
+    filters_enabled = models.BooleanField(null=True, blank=True)
+    filter_fields = models.JSONField(null=True, blank=True)
+    #: Tri-state on purpose. ``NULL`` leaves counts where the code left them — opt-in
+    #: per request via ``?_facets`` — because forcing them on for a list nobody has
+    #: measured is how a page acquires an aggregate per render by accident.
+    facet_counts = models.BooleanField(null=True, blank=True)
+
+    # ── analytics ───────────────────────────────────────────────────────────
+
+    stats_enabled = models.BooleanField(null=True, blank=True)
+    #: Which declared stats survive, in order. ``NULL`` is "all of them".
+    stat_keys = models.JSONField(null=True, blank=True)
+    #: Stats built in the UI: ``[{"field": "total", "aggregate": "sum", "label": …}]``.
+    #: Stored as the ingredients, never as an expression — a stored callable or a
+    #: stored ORM object would be code arriving from a form.
+    extra_stats = models.JSONField(null=True, blank=True)
+
+    charts_enabled = models.BooleanField(null=True, blank=True)
+    chart_keys = models.JSONField(null=True, blank=True)
+    extra_charts = models.JSONField(null=True, blank=True)
+
+    # ── summary bar ─────────────────────────────────────────────────────────
+
+    summary_enabled = models.BooleanField(null=True, blank=True)
+    #: ``{"total": "sum", "stock": "none"}``. ``"none"`` is a real choice — switching
+    #: off an aggregate the inference offered — and is why this is not merely a list.
+    summary_aggregates = models.JSONField(null=True, blank=True)
+
+    # ── provenance ──────────────────────────────────────────────────────────
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = "list preference"
+        verbose_name_plural = "list preferences"
+        ordering = ["resource_key", "pk"]
+        indexes = [
+            # The resolution query: both rows that can apply to one page, in one go.
+            models.Index(fields=["resource_key", "user"], name="vantage_listpref_idx"),
+        ]
+        constraints = [
+            # Two constraints rather than one, because SQL treats NULLs as distinct and
+            # a single UniqueConstraint over (resource_key, user) would therefore
+            # police the per-user rows and let site-wide rows multiply unnoticed.
+            models.UniqueConstraint(
+                fields=["resource_key", "user"],
+                condition=models.Q(user__isnull=False),
+                name="vantage_listpref_unique_user",
+            ),
+            models.UniqueConstraint(
+                fields=["resource_key"],
+                condition=models.Q(user__isnull=True),
+                name="vantage_listpref_unique_default",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        who = self.user.get_username() if self.user_id else "everyone"
+        return f"{self.resource_key} · {who}"
+
+    @property
+    def is_site_default(self) -> bool:
+        return self.user_id is None
+
+    def is_empty(self) -> bool:
+        """Whether every setting has been reset back to what the code declares.
+
+        A row of nothing but NULLs resolves identically to no row at all, so the write
+        path deletes it instead of keeping a tombstone that later has to be explained.
+        """
+        return all(getattr(self, name) is None for name in SETTING_COLUMNS)
+
+
+#: Every column :mod:`vantage.listprefs` may read or write on a
+#: :class:`ListPreference`. Declared next to the model so "is this row empty" and "what
+#: does resetting a section clear" can never drift from the schema.
+SETTING_COLUMNS: tuple[str, ...] = (
+    "columns",
+    "per_page",
+    "search_enabled",
+    "search_fields",
+    "filters_enabled",
+    "filter_fields",
+    "facet_counts",
+    "stats_enabled",
+    "stat_keys",
+    "extra_stats",
+    "charts_enabled",
+    "chart_keys",
+    "extra_charts",
+    "summary_enabled",
+    "summary_aggregates",
+)
