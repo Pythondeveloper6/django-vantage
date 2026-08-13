@@ -6,133 +6,292 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Customer',
+            name="Customer",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=120, verbose_name='full name')),
-                ('email', models.EmailField(max_length=254, unique=True)),
-                ('phone', models.CharField(blank=True, max_length=32)),
-                ('city', models.CharField(blank=True, max_length=80)),
-                ('country', models.CharField(choices=[('GB', 'United Kingdom'), ('IE', 'Ireland'), ('FR', 'France'), ('DE', 'Germany'), ('ES', 'Spain'), ('NL', 'Netherlands')], default='GB', max_length=2)),
-                ('tier', models.CharField(choices=[('free', 'Free'), ('plus', 'Plus'), ('pro', 'Pro')], default='free', max_length=10)),
-                ('is_active', models.BooleanField(default=True, verbose_name='active')),
-                ('api_token', models.CharField(blank=True, max_length=64, verbose_name='API token')),
-                ('joined_on', models.DateField(default=django.utils.timezone.localdate)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True, verbose_name='archived at')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=120, verbose_name="full name")),
+                ("email", models.EmailField(max_length=254, unique=True)),
+                ("phone", models.CharField(blank=True, max_length=32)),
+                ("city", models.CharField(blank=True, max_length=80)),
+                (
+                    "country",
+                    models.CharField(
+                        choices=[
+                            ("GB", "United Kingdom"),
+                            ("IE", "Ireland"),
+                            ("FR", "France"),
+                            ("DE", "Germany"),
+                            ("ES", "Spain"),
+                            ("NL", "Netherlands"),
+                        ],
+                        default="GB",
+                        max_length=2,
+                    ),
+                ),
+                (
+                    "tier",
+                    models.CharField(
+                        choices=[("free", "Free"), ("plus", "Plus"), ("pro", "Pro")],
+                        default="free",
+                        max_length=10,
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="active")),
+                (
+                    "api_token",
+                    models.CharField(blank=True, max_length=64, verbose_name="API token"),
+                ),
+                ("joined_on", models.DateField(default=django.utils.timezone.localdate)),
+                (
+                    "deleted_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="archived at"),
+                ),
             ],
             options={
-                'verbose_name': 'customer',
-                'verbose_name_plural': 'customers',
-                'ordering': ['name'],
+                "verbose_name": "customer",
+                "verbose_name_plural": "customers",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Tag',
+            name="Tag",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=40, unique=True)),
-                ('slug', models.SlugField(unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=40, unique=True)),
+                ("slug", models.SlugField(unique=True)),
             ],
             options={
-                'verbose_name': 'tag',
-                'verbose_name_plural': 'tags',
-                'ordering': ['name'],
+                "verbose_name": "tag",
+                "verbose_name_plural": "tags",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Category',
+            name="Category",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=80)),
-                ('slug', models.SlugField(unique=True)),
-                ('description', models.TextField(blank=True)),
-                ('parent', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children', to='shop.category', verbose_name='parent category')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=80)),
+                ("slug", models.SlugField(unique=True)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="children",
+                        to="shop.category",
+                        verbose_name="parent category",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'category',
-                'verbose_name_plural': 'categories',
-                'ordering': ['name'],
+                "verbose_name": "category",
+                "verbose_name_plural": "categories",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Order',
+            name="Order",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('number', models.CharField(max_length=20, unique=True, verbose_name='order number')),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('paid', 'Paid'), ('shipped', 'Shipped'), ('refunded', 'Refunded'), ('cancelled', 'Cancelled')], default='pending', max_length=12)),
-                ('total', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
-                ('shipping_city', models.CharField(blank=True, max_length=80)),
-                ('note', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, verbose_name='placed at')),
-                ('customer', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='orders', to='shop.customer')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "number",
+                    models.CharField(max_length=20, unique=True, verbose_name="order number"),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("paid", "Paid"),
+                            ("shipped", "Shipped"),
+                            ("refunded", "Refunded"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
+                        max_length=12,
+                    ),
+                ),
+                ("total", models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                ("shipping_city", models.CharField(blank=True, max_length=80)),
+                ("note", models.TextField(blank=True)),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now, verbose_name="placed at"
+                    ),
+                ),
+                (
+                    "customer",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="orders",
+                        to="shop.customer",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'order',
-                'verbose_name_plural': 'orders',
-                'ordering': ['-created_at'],
+                "verbose_name": "order",
+                "verbose_name_plural": "orders",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Product',
+            name="Product",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=160)),
-                ('sku', models.CharField(max_length=16, unique=True, verbose_name='SKU')),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('active', 'Active'), ('discontinued', 'Discontinued')], default='active', max_length=14)),
-                ('price', models.DecimalField(decimal_places=2, max_digits=8)),
-                ('cost', models.DecimalField(decimal_places=2, max_digits=8)),
-                ('stock', models.PositiveIntegerField(default=0, verbose_name='units in stock')),
-                ('is_featured', models.BooleanField(default=False, verbose_name='featured')),
-                ('description', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('category', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='products', to='shop.category')),
-                ('tags', models.ManyToManyField(blank=True, related_name='products', to='shop.tag')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=160)),
+                ("sku", models.CharField(max_length=16, unique=True, verbose_name="SKU")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("active", "Active"),
+                            ("discontinued", "Discontinued"),
+                        ],
+                        default="active",
+                        max_length=14,
+                    ),
+                ),
+                ("price", models.DecimalField(decimal_places=2, max_digits=8)),
+                ("cost", models.DecimalField(decimal_places=2, max_digits=8)),
+                ("stock", models.PositiveIntegerField(default=0, verbose_name="units in stock")),
+                ("is_featured", models.BooleanField(default=False, verbose_name="featured")),
+                ("description", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "category",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="products",
+                        to="shop.category",
+                    ),
+                ),
+                (
+                    "tags",
+                    models.ManyToManyField(blank=True, related_name="products", to="shop.tag"),
+                ),
             ],
             options={
-                'verbose_name': 'product',
-                'verbose_name_plural': 'products',
-                'ordering': ['name'],
+                "verbose_name": "product",
+                "verbose_name_plural": "products",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='OrderItem',
+            name="OrderItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quantity', models.PositiveSmallIntegerField(default=1)),
-                ('unit_price', models.DecimalField(decimal_places=2, max_digits=8)),
-                ('order', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='shop.order')),
-                ('product', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='order_items', to='shop.product')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("quantity", models.PositiveSmallIntegerField(default=1)),
+                ("unit_price", models.DecimalField(decimal_places=2, max_digits=8)),
+                (
+                    "order",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="items",
+                        to="shop.order",
+                    ),
+                ),
+                (
+                    "product",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="order_items",
+                        to="shop.product",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'order item',
-                'verbose_name_plural': 'order items',
-                'ordering': ['order', 'id'],
+                "verbose_name": "order item",
+                "verbose_name_plural": "order items",
+                "ordering": ["order", "id"],
             },
         ),
         migrations.CreateModel(
-            name='Review',
+            name="Review",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('headline', models.CharField(max_length=120)),
-                ('rating', models.PositiveSmallIntegerField(choices=[(1, '1 star'), (2, '2 stars'), (3, '3 stars'), (4, '4 stars'), (5, '5 stars')], default=5)),
-                ('body', models.TextField()),
-                ('is_published', models.BooleanField(default=True, verbose_name='published')),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('customer', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to='shop.customer')),
-                ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to='shop.product')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("headline", models.CharField(max_length=120)),
+                (
+                    "rating",
+                    models.PositiveSmallIntegerField(
+                        choices=[
+                            (1, "1 star"),
+                            (2, "2 stars"),
+                            (3, "3 stars"),
+                            (4, "4 stars"),
+                            (5, "5 stars"),
+                        ],
+                        default=5,
+                    ),
+                ),
+                ("body", models.TextField()),
+                ("is_published", models.BooleanField(default=True, verbose_name="published")),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "customer",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="reviews",
+                        to="shop.customer",
+                    ),
+                ),
+                (
+                    "product",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="reviews",
+                        to="shop.product",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'review',
-                'verbose_name_plural': 'reviews',
-                'ordering': ['-created_at'],
+                "verbose_name": "review",
+                "verbose_name_plural": "reviews",
+                "ordering": ["-created_at"],
             },
         ),
     ]

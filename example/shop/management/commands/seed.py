@@ -21,6 +21,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
+
 from shop.models import Category, Customer, Order, OrderItem, Product, Review, Tag
 
 #: Anything derived from this seed is stable across machines and runs.
