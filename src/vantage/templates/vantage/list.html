@@ -90,6 +90,22 @@
   </div>
 {% endif %}
 
+{% comment %}
+  Everything the grid script owns lives inside this element: the controls, the table
+  and nothing else. The keyboard handlers bind to the table inside it, never to the
+  document, which is how the single-character shortcuts stay compliant with WCAG
+  2.1.4 (exemption 3, "active only when the component has focus").
+
+  The page links are handed over as data rather than scraped from the pagination
+  block below, so `[` and `]` carry the active search, filters and sort — the server
+  already built those URLs correctly once.
+{% endcomment %}
+<div class="v-grid" data-grid data-grid-model="{{ panel.slug }}"
+     {% if page.has_previous %}data-prev-url="?{% querystring_replace page=page.previous_page_number %}"{% endif %}
+     {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}>
+
+{% if rows %}{% include "vantage/partials/grid_controls.html" %}{% endif %}
+
 <form method="post" id="v-action-form">
 {% csrf_token %}
 <input type="hidden" name="select_all" value="" data-select-all>
@@ -112,19 +128,35 @@
 
 <div class="v-table-wrap">
       {% if rows %}
-        <table class="v-table" aria-rowcount="{{ paginator.count }}">
+        {% comment %}
+          role="grid" turns the td elements into gridcells per HTML-AAM, which is what
+          licenses arrow-key navigation inside a thing a screen reader still calls a table.
+
+          aria-rowcount is the size of the whole result set and aria-rowindex is the
+          absolute position of each row in it, not its position on this page. Without
+          that, page 7 of a 350-record list announces "row 3 of 50" seven times over.
+
+          Exactly one element in the table carries tabindex="0" (the first row); every
+          focusable thing inside a cell is taken out of the tab order and reached with
+          the arrow keys instead. That is the APG grid contract: Tab enters, Tab leaves.
+        {% endcomment %}
+        <table class="v-table" role="grid" aria-rowcount="{{ paginator.count }}"
+               aria-label="{{ panel.get_label_plural }}">
           <thead>
-            <tr>
+            <tr data-grid-row data-grid-head tabindex="-1">
               {% if actions %}
                 <th scope="col" class="v-select-cell">
-                  <input type="checkbox" data-select-page
+                  <input type="checkbox" data-select-page tabindex="-1"
                          aria-label="Select all rows on this page">
                 </th>
               {% endif %}
               {% for column in columns %}
-                <th scope="col" {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                <th scope="col" data-col-index="{{ forloop.counter0 }}"
+                    data-col-name="{{ column.name }}" data-col-label="{{ column.label }}"
+                    {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
                   {% if column.sortable %}
-                    <a class="v-sort" href="?{% querystring_replace sort=column.next page=None %}">
+                    <a class="v-sort" tabindex="-1"
+                       href="?{% querystring_replace sort=column.next page=None %}">
                       {{ column.label }}
                       {% if column.active %}<span aria-hidden="true">{% if column.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
                     </a>
@@ -135,17 +167,19 @@
           </thead>
           <tbody>
             {% for row in rows %}
-              <tr>
+              <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}
+                  aria-rowindex="{{ page.start_index|add:forloop.counter0 }}"
+                  tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">
                 {% if actions %}
                   <td class="v-select-cell">
-                    <input type="checkbox" name="selected" value="{{ row.pk }}"
+                    <input type="checkbox" name="selected" value="{{ row.pk }}" tabindex="-1"
                            data-select-row aria-label="Select {{ row.obj }}">
                   </td>
                 {% endif %}
                 {% for cell in row.cells %}
-                  <td>
+                  <td data-col-index="{{ forloop.counter0 }}">
                     {% if cell.is_link and row.url %}
-                      <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
+                      <a class="v-cell-link" href="{{ row.url }}" tabindex="-1">{{ cell.value }}</a>
                     {% else %}
                       {{ cell.value }}
                     {% endif %}
@@ -164,7 +198,7 @@
               <tr>
                 {% if actions %}<td class="v-select-cell"></td>{% endif %}
                 {% for column in columns %}
-                  <td>
+                  <td data-col-index="{{ forloop.counter0 }}">
                     {% with cell=summary|dict_get:column.name %}
                       {% if cell %}
                         <span class="v-summary-fn">{{ cell.function }}</span>
@@ -204,6 +238,40 @@
         </div>
       {% endif %}
     </div>
+</form>
+
+{% if rows %}
+  {% comment %}
+    The quick-peek drawer, non-modal on purpose: the list behind it stays live and
+    focus is never trapped, so Tab walks out of it the way it walks out of any other
+    region. A modal peek would be a worse detail page, not a faster one.
+
+    It is empty until something is peeked; the content is fetched from the record's
+    own detail URL, which means there is exactly one server-side renderer for a
+    record and the drawer can never drift from the page it previews.
+  {% endcomment %}
+  <aside class="v-grid-drawer" data-grid-drawer role="dialog"
+         aria-label="Record preview" tabindex="-1" hidden>
+    <header class="v-grid-drawer-head">
+      <h2 class="v-grid-drawer-title" data-drawer-title>Preview</h2>
+      <div class="v-grid-drawer-nav">
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-drawer-prev
+                aria-label="Peek the previous record">↑</button>
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-drawer-next
+                aria-label="Peek the next record">↓</button>
+        <a class="v-btn v-btn-secondary v-btn-sm" data-drawer-open href="#">Open</a>
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm v-btn-icon"
+                data-drawer-close aria-label="Close preview">{% icon "x" %}</button>
+      </div>
+    </header>
+    {% comment %}
+      Not a live region: focus moves in here on open, so the drawer is read because
+      it is focused. Marking it live as well would read the whole record twice.
+    {% endcomment %}
+    <div class="v-grid-drawer-body" data-drawer-body aria-busy="false"></div>
+  </aside>
+{% endif %}
+</div>
 
     {% if page.paginator.num_pages > 1 %}
     <div class="v-pagination">

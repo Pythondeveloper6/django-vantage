@@ -1,0 +1,33 @@
+{% extends "vantage/base.html" %}
+{% load vantage %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">System</h1>
+    <p class="v-page-description">
+      {% if worst == "fail" %}Something needs attention.
+      {% elif worst == "warn" %}Everything works, with caveats.
+      {% else %}Everything looks healthy.{% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="v-card">
+  <dl class="v-fields v-health">
+    {% for check in checks %}
+      <div class="v-field" data-status="{{ check.status }}">
+        <dt>
+          <span class="v-health-dot" data-status="{{ check.status }}" aria-hidden="true"></span>
+          {{ check.label }}
+        </dt>
+        <dd>
+          <span class="v-mono">{{ check.detail }}</span>
+          {% if check.hint %}<div class="v-muted">{{ check.hint }}</div>{% endif %}
+          <span class="v-sr-only">Status: {{ check.status }}</span>
+        </dd>
+      </div>
+    {% endfor %}
+  </dl>
+</div>
+{% endblock %}

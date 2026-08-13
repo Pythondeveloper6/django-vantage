@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-__all__ = ["Page", "SchemaPage", "page_slug"]
+__all__ = ["HealthPage", "Page", "SchemaPage", "page_slug"]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -133,3 +133,26 @@ class SchemaPage(Page):
         from vantage.erd import build_graph
 
         return {"graph": build_graph(self.site, request)}
+
+
+class HealthPage(Page):
+    """System diagnostics. Superusers only — the detail is deployment information."""
+
+    title = "System"
+    icon = "activity"
+    group = "System"
+    order = 95
+    path = "_/health/"
+    template_name = "vantage/pages/health.html"
+    permission = staticmethod(lambda request: request.user.is_superuser)
+
+    def get_context(self, request):
+        from vantage.health import run_checks
+
+        checks = run_checks()
+        return {
+            "checks": checks,
+            "worst": next(
+                (s for s in ("fail", "warn") if any(c.status == s for c in checks)), "ok"
+            ),
+        }
