@@ -234,17 +234,28 @@ def _permitted(name: str) -> bool:
     it is breaking a deploy — and it should not require also finding and editing an
     allowlist somewhere else in the same file.
     """
-    from vantage.conf import vantage_settings
-
     lowered = str(name).lower()
-    excluded = vantage_settings.PLUGINS_EXCLUDE or ()
+    excluded = _setting("PLUGINS_EXCLUDE") or ()
     if lowered in {str(item).lower() for item in excluded}:
         return False
 
-    allowed = vantage_settings.PLUGINS
+    allowed = _setting("PLUGINS")
     if allowed is None:
         return True
     return lowered in {str(item).lower() for item in allowed}
+
+
+def _setting(name: str):
+    """Read a plugin setting, tolerating a settings layer that has not heard of it.
+
+    ``vantage_settings`` rejects unknown keys by design, so this asks with a fallback
+    exactly as :func:`vantage.importer.limit` does: discovery works with its defaults
+    today, and honours ``VANTAGE["PLUGINS"]`` the moment that name is added to
+    :data:`vantage.conf.DEFAULTS`, with no change here.
+    """
+    from vantage.conf import vantage_settings
+
+    return getattr(vantage_settings, name, None)
 
 
 def _entry_points(group: str):
@@ -347,9 +358,7 @@ def check_plugins(app_configs, **kwargs) -> list:
     ]
 
     if _discovery_ran:
-        from vantage.conf import vantage_settings
-
-        allowed = vantage_settings.PLUGINS
+        allowed = _setting("PLUGINS")
         known = {name.lower() for name in _discovered}
         known |= {
             plugin.get_name().lower()
