@@ -1,0 +1,91 @@
+{% extends "vantage/base.html" %}
+{% load static vantage %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-import.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title|capfirst }}</h1>
+    <p class="v-page-description">
+      Upload a CSV. You will map its columns and see exactly what would change before
+      anything is written.
+    </p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-secondary" href="{{ list_url }}">Cancel</a>
+  </div>
+</div>
+
+{% comment %}
+  The three steps are named up front. An import is a commitment against production, and
+  knowing there is a preview between "choose file" and "written" is what makes people
+  willing to try it at all.
+{% endcomment %}
+<ol class="v-import-steps" aria-label="Import steps">
+  <li aria-current="step"><span class="v-import-step-n">1</span> Upload</li>
+  <li><span class="v-import-step-n">2</span> Map columns</li>
+  <li><span class="v-import-step-n">3</span> Preview</li>
+</ol>
+
+{% if error %}
+  <div class="v-form-alert" data-tone="error" role="alert" tabindex="-1">
+    <p class="v-form-alert-title">That file cannot be imported.</p>
+    <p>{{ error }}</p>
+  </div>
+{% endif %}
+
+<form class="v-card v-import-card" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="v-card-head"><h2 class="v-card-title">Choose a file</h2></div>
+  <div class="v-card-body">
+    <label class="v-form-label" for="v-import-file">CSV file</label>
+    <input class="v-input v-file" type="file" name="file" id="v-import-file"
+           accept=".csv,text/csv" required
+           aria-describedby="v-import-limits">
+    <p class="v-form-help v-muted" id="v-import-limits">
+      Up to {{ max_mb }} MB and {{ max_rows }} rows. The first row must be the column
+      names. Anything larger belongs in a management command — this runs in one request.
+    </p>
+  </div>
+  <div class="v-import-foot">
+    <a class="v-btn v-btn-ghost" href="{{ list_url }}">Cancel</a>
+    <button class="v-btn v-btn-primary" type="submit">Continue</button>
+  </div>
+</form>
+
+<section class="v-card v-import-card">
+  <div class="v-card-head">
+    <h2 class="v-card-title">Columns this import understands</h2>
+  </div>
+  <div class="v-card-body">
+    <p class="v-muted">
+      A file exported from the {{ panel.get_label_plural|lower }} list will already match.
+      Column names are matched loosely — case, spaces and underscores are ignored, and a
+      field's label works as well as its name. Anything unrecognised can be mapped by
+      hand on the next screen.
+    </p>
+    <ul class="v-import-fieldlist">
+      {% for option in options %}
+        <li>
+          <span class="v-import-field-label">{{ option.label }}</span>
+          <span class="v-mono v-muted">{{ option.name }}</span>
+          {% if not option.writable %}<span class="v-badge">identifier only</span>{% endif %}
+          {% if option.unique and option.writable %}<span class="v-badge">unique</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% comment %}
+      Read-only fields, files and many-to-many relations are absent on purpose. Saying so
+      here saves the reader from concluding the list is buggy when their column is missing.
+    {% endcomment %}
+    <p class="v-muted v-import-note">
+      Read-only fields, file and image uploads, and many-to-many relations are not
+      importable. A column named after one of them is ignored, never written.
+    </p>
+  </div>
+</section>
+{% endblock %}
