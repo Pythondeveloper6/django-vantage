@@ -20,6 +20,23 @@ from vantage.optimizer import plan_related
 if TYPE_CHECKING:
     from vantage.sites import VantageSite
 
+#: A small nicety: common model names get a fitting sidebar icon for free. Anything
+#: not listed falls back to a neutral mark, and ``icon`` overrides it.
+GUESSED_ICONS: dict[str, str] = {
+    "user": "users",
+    "group": "shield",
+    "permission": "shield",
+    "post": "file-text",
+    "article": "file-text",
+    "page": "file-text",
+    "comment": "message-square",
+    "order": "shopping-cart",
+    "product": "shopping-cart",
+    "tag": "tag",
+    "category": "folder",
+    "archive": "archive",
+}
+
 
 class ModelPanel:
     """Configuration for one model's presence in the panel."""
@@ -98,6 +115,20 @@ class ModelPanel:
     def slug(self) -> str:
         """URL segment identifying this panel: ``testapp.post`` -> ``testapp-post``."""
         return f"{self.opts.app_label}-{self.opts.model_name}"
+
+    @property
+    def list_url_name(self) -> str:
+        return f"vantage:{self.slug}-list"
+
+    @property
+    def count(self) -> int:
+        return self.model._default_manager.count()
+
+    def get_icon(self) -> str:
+        """An icon name, guessed from the model name when none was declared."""
+        if self.icon:
+            return self.icon
+        return GUESSED_ICONS.get(self.opts.model_name, "box")
 
     # ── resolved configuration ──────────────────────────────────────────────
     #

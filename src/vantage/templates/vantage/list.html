@@ -1,0 +1,88 @@
+{% extends "vantage/base.html" %}
+{% load vantage %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ panel.get_label_plural }}</h1>
+    {% if panel.description %}<p class="v-page-description">{{ panel.description }}</p>{% endif %}
+  </div>
+</div>
+
+{% if searchable %}
+<form class="v-toolbar" method="get" role="search">
+  <div class="v-search">
+    {% icon "search" %}
+    <input class="v-input" type="search" name="q" value="{{ query }}"
+           placeholder="Search {{ panel.get_label_plural|lower }}…"
+           aria-label="Search {{ panel.get_label_plural|lower }}">
+  </div>
+  {% if query %}
+    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">Clear</a>
+  {% endif %}
+</form>
+{% endif %}
+
+<div class="v-table-wrap">
+  {% if rows %}
+    <table class="v-table" aria-rowcount="{{ paginator.count }}">
+      <thead>
+        <tr>{% for column in columns %}<th scope="col">{{ column.label }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for cell in row.cells %}
+              <td>
+                {% if cell.is_link %}
+                  <span class="v-cell-link">{{ cell.value }}</span>
+                {% else %}
+                  {{ cell.value }}
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% elif query %}
+    {# State 2: filters returned nothing. Echo the query back and offer to clear it -
+       never a create CTA, which would imply the list is empty when it is not. #}
+    <div class="v-empty">
+      {% icon "search" class="v-empty-icon" %}
+      <p class="v-empty-title">No {{ panel.get_label_plural|lower }} match “{{ query }}”.</p>
+      <p class="v-empty-body">Try a different search, or clear it to see everything.</p>
+      <a class="v-btn v-btn-secondary" href="{{ request.path }}">Clear search</a>
+    </div>
+  {% else %}
+    {# State 1: nothing exists yet. #}
+    <div class="v-empty">
+      {% icon "box" class="v-empty-icon" %}
+      <p class="v-empty-title">No {{ panel.get_label_plural|lower }} yet.</p>
+      <p class="v-empty-body">They will appear here once the first one is created.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="v-pagination">
+  <span class="v-pagination-info">
+    {{ page.start_index }}–{{ page.end_index }} of {{ paginator.count }}
+  </span>
+  <div class="v-pagination-controls">
+    {% if page.has_previous %}
+      <a class="v-btn v-btn-secondary v-btn-sm"
+         href="?{% querystring_replace page=page.previous_page_number %}">Previous</a>
+    {% else %}
+      <button class="v-btn v-btn-secondary v-btn-sm" disabled>Previous</button>
+    {% endif %}
+    {% if page.has_next %}
+      <a class="v-btn v-btn-secondary v-btn-sm"
+         href="?{% querystring_replace page=page.next_page_number %}">Next</a>
+    {% else %}
+      <button class="v-btn v-btn-secondary v-btn-sm" disabled>Next</button>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
