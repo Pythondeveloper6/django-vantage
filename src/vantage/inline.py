@@ -177,7 +177,7 @@ def _has_custom_clean(model: type[models.Model]) -> bool:
     inline editing, which is the conservative answer: the change form still works,
     and it is the page that shows every field the rule is about.
     """
-    return type(model).clean is not models.Model.clean
+    return model.clean is not models.Model.clean
 
 
 def _is_short(field: models.Field, kind: FieldKind) -> bool:

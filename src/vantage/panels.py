@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import models
 
-from vantage import inference
+from vantage import inference, listprefs
 from vantage.conf import vantage_settings
 from vantage.optimizer import plan_related
 
@@ -170,6 +170,9 @@ class ModelPanel:
     # the intelligence. Override a getter for logic that inference cannot express.
 
     def get_list_display(self, request=None) -> list[str]:
+        stored = listprefs.override(self, request, "list_display")
+        if stored is not None:
+            return list(stored)
         if self.list_display is not None:
             return list(self.list_display)
         return inference.infer_list_display(self.model)
@@ -177,20 +180,27 @@ class ModelPanel:
     def get_list_link(self, request=None) -> str:
         if self.list_link is not None:
             return self.list_link
-        # An explicit list_display without an explicit list_link should link its
-        # first column, not a column inference would have chosen but the user
-        # then removed.
-        if self.list_display:
-            inferred = inference.infer_list_link(self.model)
-            return inferred if inferred in self.list_display else self.list_display[0]
-        return inference.infer_list_link(self.model)
+        # An explicit list_display — or a UI override of one — without an explicit
+        # list_link should link its first column, not a column inference would have
+        # chosen but the user then hid.
+        inferred = inference.infer_list_link(self.model)
+        if self.list_display or listprefs.override(self, request, "list_display"):
+            columns = self.get_list_display(request)
+            return inferred if inferred in columns else columns[0]
+        return inferred
 
     def get_list_filter(self, request=None) -> list[str]:
+        stored = listprefs.override(self, request, "list_filter")
+        if stored is not None:
+            return list(stored)
         if self.list_filter is not None:
             return list(self.list_filter)
         return inference.infer_list_filter(self.model)
 
     def get_list_search(self, request=None) -> list[str]:
+        stored = listprefs.override(self, request, "list_search")
+        if stored is not None:
+            return list(stored)
         if self.list_search is not None:
             return list(self.list_search)
         return inference.infer_list_search(self.model)
@@ -201,6 +211,9 @@ class ModelPanel:
         return inference.infer_ordering(self.model)
 
     def get_per_page(self, request=None) -> int:
+        stored = listprefs.override(self, request, "per_page")
+        if stored is not None:
+            return stored
         if self.list_per_page is not None:
             return self.list_per_page
         return vantage_settings.DEFAULT_PER_PAGE
