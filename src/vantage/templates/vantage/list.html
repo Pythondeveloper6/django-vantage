@@ -70,6 +70,19 @@
   <div class="v-list-main">
     {% include "vantage/partials/saved_views.html" %}
 
+    {% if timeline_field %}
+      <div class="v-group-control">
+        <span class="v-muted">Group by</span>
+        {% for key, label in group_options %}
+          <a class="v-group-chip{% if grouping == key %} v-group-chip-on{% endif %}"
+             href="?{% querystring_replace group=key page=None %}">{{ label }}</a>
+        {% endfor %}
+        {% if grouping %}
+          <a class="v-group-chip" href="?{% querystring_replace group=None page=None %}">None</a>
+        {% endif %}
+      </div>
+    {% endif %}
+
     {% if patterns.soft_delete %}
       {% comment %}
         Trash is a place you go to deliberately: the list means live records, so this
@@ -200,6 +213,9 @@
           </thead>
           <tbody>
             {% for row in rows %}
+              {% if groups %}{% for g in groups %}{% if g.at == forloop.parentloop.counter0 %}
+                <tr class="v-group-row"><td colspan="{{ columns|length|add:1 }}">{{ g.label }}</td></tr>
+              {% endif %}{% endfor %}{% endif %}
               <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}
                   aria-rowindex="{{ page.start_index|add:forloop.counter0 }}"
                   tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">
