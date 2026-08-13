@@ -4,24 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ page_title }} · {{ settings.SITE_TITLE }}{% endblock %}</title>
-{% if settings.FAVICON %}<link rel="icon" href="{% static settings.FAVICON %}">{% endif %}
+{% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
 
 {# Blocking and inline on purpose: a deferred script paints light first and flips. #}
 <script>{{ no_flash_script|safe }}</script>
 
 <style>{{ theme_css|safe }}</style>
 <link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
-{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% static settings.CUSTOM_CSS %}">{% endif %}
+{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
 {% block head %}{% endblock %}
 </head>
 <body>
 {% if settings.ENVIRONMENT %}<div class="v-env-banner">{{ settings.ENVIRONMENT }}</div>{% endif %}
 
+{% if impersonating %}
+  {% comment %}
+    Loud on purpose. Someone acting as another account needs to be unable to forget
+    it, and anyone looking over their shoulder needs to see it too.
+  {% endcomment %}
+  <div class="v-impersonation-banner">
+    <span>
+      Acting as <strong>{{ user.get_username }}</strong>
+      — signed in as {{ real_user.get_username }}
+    </span>
+    <form method="post" action="{% url 'vantage:impersonate' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="v-btn v-btn-sm v-btn-secondary">Stop impersonating</button>
+    </form>
+  </div>
+{% endif %}
+
+{% if read_only %}
+  <div class="v-readonly-banner">{% icon "shield" %}<span>{{ read_only }}</span></div>
+{% endif %}
+
 <div class="v-shell">
   <aside class="v-sidebar" id="v-sidebar">
     <a class="v-brand" href="{% url 'vantage:dashboard' %}">
       {% if settings.LOGO %}
-        <img src="{% static settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
+        <img src="{% asset settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
       {% else %}
         <span class="v-brand-mark" aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>
         <span>{{ settings.SITE_TITLE }}</span>

@@ -57,9 +57,20 @@ class PanelPermissions:
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             return False
+        # Before the superuser bypass: read-only mode is an operational choice about
+        # the deployment, not about who is asking.
+        if self.is_read_only(action):
+            return False
         if self.superuser_bypass and user.is_superuser:
             return True
         return user.has_perm(self.perm_name(model, action))
+
+    @staticmethod
+    def is_read_only(action: str) -> bool:
+        """Whether the panel currently refuses this action outright."""
+        from vantage.safety import WRITE_ACTIONS, read_only_reason
+
+        return action in WRITE_ACTIONS and read_only_reason() is not None
 
     def has_object_perm(self, request, model: type[Model], action: str, obj) -> bool:
         """Whether the user may act on one specific row.
@@ -70,6 +81,8 @@ class PanelPermissions:
         """
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
+            return False
+        if self.is_read_only(action):
             return False
         if self.superuser_bypass and user.is_superuser:
             return True

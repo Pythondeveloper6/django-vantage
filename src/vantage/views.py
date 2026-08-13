@@ -22,6 +22,14 @@ from vantage.export import FORMATS, stream_csv
 from vantage.filters import apply_filters, build_filters, facets_requested
 from vantage.nav import build_nav, resolve_theme
 from vantage.permissions import get_permissions
+from vantage.safety import (
+    ImpersonationError,
+    impersonating,
+    read_only_reason,
+    real_user,
+    start_impersonation,
+    stop_impersonation,
+)
 from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
 
 
@@ -59,6 +67,9 @@ class SiteView(TemplateView):
             permissions=self.permissions,
             path=self.request.path,
             theme=resolve_theme(self.request),
+            read_only=read_only_reason(),
+            impersonating=impersonating(self.request),
+            real_user=real_user(self.request),
             language_code=get_language() or "en",
             is_rtl=get_language_bidi(),
             theme_css=render_theme_css(),
@@ -559,6 +570,39 @@ def _as_rows(data: dict) -> list[dict]:
         scalar = isinstance(value, (str, int, float, bool)) or value is None
         rows.append({"key": key, "label": label, "value": value, "scalar": scalar})
     return rows
+
+
+class ImpersonateView(SiteView):
+    """Start or stop impersonating another user. POST only, superusers only.
+
+    Defined as a real ``post`` handler rather than a ``dispatch`` override so
+    ``SiteView.dispatch`` runs the authentication check first and Django's own
+    method routing produces the 405 for anything else.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from django.http import HttpResponseRedirect
+        from django.shortcuts import get_object_or_404
+        from django.urls import reverse
+
+        target_pk = request.POST.get("user")
+        try:
+            if target_pk:
+                from django.contrib.auth import get_user_model
+
+                target = get_object_or_404(get_user_model(), pk=target_pk)
+                start_impersonation(request, target)
+                messages.warning(request, f"You are now acting as {target.get_username()}.")
+            else:
+                actor = stop_impersonation(request)
+                messages.info(request, f"Returned to {actor.get_username()}.")
+        except ImpersonationError as exc:
+            messages.error(request, str(exc))
+
+        return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
 
 
 class ThemeView(SiteView):
