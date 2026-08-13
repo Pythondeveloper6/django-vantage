@@ -66,7 +66,8 @@ class TestDetailPage:
         assert reverse("vantage:testapp-post-list") in body
 
     def test_a_missing_record_is_a_404(self, client_in, db):
-        assert client_in.get(reverse("vantage:testapp-post-detail", args=[999999])).status_code == 404
+        url = reverse("vantage:testapp-post-detail", args=[999999])
+        assert client_in.get(url).status_code == 404
 
     def test_anonymous_users_are_redirected(self, client, post):
         assert client.get(detail_url(post)).status_code == 302
