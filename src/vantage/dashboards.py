@@ -107,6 +107,11 @@ CREATED_NAMES = (
 MAX_DEFAULT_STATS = 12
 MAX_DEFAULT_TABLES = 3
 
+#: Apps whose models are plumbing. They still get a count card, but they are the last
+#: candidates for the space-hungry cards: a chart of user signups on a two-account
+#: project is a flat line where the project's own orders would have been a shape.
+FRAMEWORK_APPS = frozenset({"admin", "auth", "contenttypes", "sessions", "vantage"})
+
 
 # ── declarations ────────────────────────────────────────────────────────────
 
@@ -359,6 +364,7 @@ class TableCard(QuerysetWidget):
 
     def render(self, request) -> WidgetResult:
         from vantage.inference import infer_list_display, infer_ordering
+        from vantage.optimizer import plan_related
         from vantage.render import render_cell
 
         queryset = self.get_queryset(request)
@@ -374,6 +380,15 @@ class TableCard(QuerysetWidget):
 
         columns = self.columns or infer_list_display(model)[:MAX_TABLE_COLUMNS]
         link = panel.get_list_link(request)
+
+        # Five rows with a relation column is still five extra queries, and a dashboard
+        # is the page most likely to hold several of these tables at once. The plan is
+        # derived from the columns actually rendered, exactly as the list page does it.
+        select, prefetch = plan_related(model, columns)
+        if select:
+            queryset = queryset.select_related(*sorted(select))
+        if prefetch:
+            queryset = queryset.prefetch_related(*sorted(prefetch))
 
         rows = tuple(
             {
@@ -517,7 +532,12 @@ class DefaultDashboard(Dashboard):
             for panel in panels[:MAX_DEFAULT_STATS]
         ]
 
-        timestamped = [(p, field) for p in panels if (field := creation_field(p.model))]
+        # Registry order for the counts, so the cards read in the same order as the
+        # sidebar; the project's own models first for the cards that cost real space.
+        timestamped = sorted(
+            ((p, field) for p in panels if (field := creation_field(p.model))),
+            key=lambda pair: pair[0].opts.app_label in FRAMEWORK_APPS,
+        )
 
         for panel, field in timestamped[:1]:
             widgets.append(

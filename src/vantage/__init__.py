@@ -18,6 +18,9 @@ __version__ = "0.1.0.dev0"
 
 __all__ = [
     "Chart",
+    "ChartCard",
+    "Dashboard",
+    "ListCard",
     "ModelPanel",
     "Page",
     "Stat",
@@ -57,6 +60,17 @@ def __getattr__(name: str):
         from vantage.panels import ModelPanel
 
         return ModelPanel
+    if name in (
+        "Dashboard",
+        "StatCard",
+        "ChartCard",
+        "TableCard",
+        "ListCard",
+        "TemplateCard",
+    ):
+        from vantage import dashboards
+
+        return getattr(dashboards, name)
     if name == "action":
         from vantage.actions import action
 
