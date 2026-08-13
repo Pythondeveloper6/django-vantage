@@ -419,6 +419,12 @@
   function save() {
     if (saving || !stagedCount()) return;
     var payload = { changes: stagedRows() };
+    // Remembered before the request so the outcome can be marked on the cells that
+    // were actually sent. The response carries every editable value of every saved
+    // row — that is how a server-normalised value gets back into an untouched
+    // control — but ticking a cell nobody edited would report work that never
+    // happened.
+    var sent = new Set(staged);
     saving = true;
     clearOutcomes();
     setNote("Saving…");
@@ -443,7 +449,7 @@
       })
       .then(function (result) {
         saving = false;
-        if (result.status === 200) return applySaved(result.data);
+        if (result.status === 200) return applySaved(result.data, sent);
         if (result.status === 409) return showConflicts(result.data);
         if (result.status === 422) return applyErrors(result.data);
         if (result.status === 403) {
@@ -466,7 +472,7 @@
       });
   }
 
-  function applySaved(data) {
+  function applySaved(data, sent) {
     (data.rows || []).forEach(function (row) {
       var entry = rows[row.pk];
       if (!entry) return;
@@ -485,7 +491,7 @@
         writeControl(cell.control, row.values[field]);
         cell.baseline = readControl(cell.control);
         cell.messages = [];
-        cell.state = "saved";
+        cell.state = sent.has(cell) ? "saved" : "";
         staged.delete(cell);
         paintCell(cell);
       });

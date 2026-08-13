@@ -84,3 +84,33 @@ def test_animations_respect_reduced_motion(path):
         pytest.skip("no animation in this stylesheet")
     base = (Path(__file__).resolve().parent.parent / "src/vantage/static/vantage/vantage.css").read_text()
     assert "prefers-reduced-motion" in text or "prefers-reduced-motion" in base
+
+
+# ── template comment hygiene ─────────────────────────────────────────────────
+
+TEMPLATES = sorted(
+    (Path(__file__).resolve().parent.parent / "src/vantage/templates").rglob("*.html")
+)
+
+MULTILINE_COMMENT = re.compile(r"\{#[^#]*?\n", re.DOTALL)
+
+
+def test_there_are_templates_to_check():
+    assert len(TEMPLATES) >= 10
+
+
+@pytest.mark.parametrize("path", TEMPLATES, ids=lambda p: p.name)
+def test_no_multiline_hash_comments(path):
+    """Django's ``{# #}`` is SINGLE-LINE ONLY.
+
+    Spanning two lines does not comment anything out — the text renders verbatim into
+    the page. It has escaped into the running UI three times in this project, once
+    across the whole header, because it looks exactly like a comment while reading the
+    template. Use ``{% comment %}`` for anything longer than a line.
+    """
+    text = path.read_text(encoding="utf-8")
+    hits = MULTILINE_COMMENT.findall(text)
+    assert not hits, (
+        f"{path.name}: {len(hits)} multi-line {{# #}} comment(s) — these render as "
+        "visible text. Use {% comment %} … {% endcomment %}."
+    )

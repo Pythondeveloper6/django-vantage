@@ -18,8 +18,8 @@
 {% endcomment %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-listprefs.css' %}">
 
-<details class="v-filters v-listprefs" data-list-prefs>
-  <summary class="v-filters-summary">
+<details class="v-listprefs v-listprefs-docked" data-list-prefs>
+  <summary class="v-btn v-btn-ghost v-listprefs-trigger">
     {% icon "sliders" %}
     <span>Customise</span>
     {% if list_prefs.spec.stored %}
@@ -27,6 +27,7 @@
     {% endif %}
   </summary>
 
+  <div class="v-listprefs-panel">
   <p class="v-listprefs-intro">
     Changes here affect this list only, and only for you — unless you save them for
     everyone. Reset puts a section back to what the code declares.
@@ -395,6 +396,7 @@
       {% endif %}
     </div>
   </form>
+  </div>
   </div>
 </details>
 

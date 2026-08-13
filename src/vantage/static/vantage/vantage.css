@@ -1592,3 +1592,70 @@ textarea {
   color: var(--muted-foreground);
   padding-block: 0.375rem;
 }
+
+/* ── collapsed sidebar ────────────────────────────────────────────────────── */
+/*
+ * Collapsed means an icon rail, not a hidden sidebar: navigation stays one click
+ * away. The label text is not removed from the DOM — it becomes the tooltip — so a
+ * screen reader still reads the link name and the accessible name never changes.
+ */
+
+.v-shell[data-collapsed="true"] {
+  grid-template-columns: 3.25rem 1fr;
+}
+
+.v-shell[data-collapsed="true"] .v-nav-item,
+.v-shell[data-collapsed="true"] .v-brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.v-shell[data-collapsed="true"] .v-nav-group-label,
+.v-shell[data-collapsed="true"] .v-nav-count,
+.v-shell[data-collapsed="true"] .v-nav-external,
+.v-shell[data-collapsed="true"] .v-brand > span:not(.v-brand-mark),
+.v-shell[data-collapsed="true"] .v-brand img {
+  display: none;
+}
+
+.v-shell[data-collapsed="true"] .v-nav-group + .v-nav-group {
+  border-block-start: 1px solid var(--sidebar-border);
+  padding-block-start: 0.5rem;
+}
+
+/* The label becomes the tooltip. */
+.v-shell[data-collapsed="true"] .v-nav-item > span {
+  position: absolute;
+  inset-inline-start: calc(100% + 0.5rem);
+  z-index: 50;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.v-shell[data-collapsed="true"] .v-nav-item {
+  position: relative;
+}
+
+.v-shell[data-collapsed="true"] .v-nav-item:hover > span,
+.v-shell[data-collapsed="true"] .v-nav-item:focus-visible > span {
+  opacity: 1;
+}
+
+.v-shell[data-collapsed="true"] .v-nav-item svg {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-shell[data-collapsed="true"] .v-nav-item > span { transition: none; }
+}

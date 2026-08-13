@@ -1,0 +1,49 @@
+{% load vantage %}
+{% comment %}
+  One job's progress, rendered server-side and then kept up to date by polling.
+
+  Server-rendered first, always. A job that has already finished by the time the page
+  loads — which is every job on a project with no worker — is correct here before a
+  single line of JavaScript runs, and stays correct if none ever does.
+
+  The polling contract is three data attributes and nothing else:
+
+  * ``data-job-poll``   the status endpoint, present only while there is something to
+                        watch. A finished job carries no URL, so the script cannot
+                        start a timer on it however hard it tries.
+  * ``data-job-fill``   the element whose width follows the percentage, via a custom
+                        property rather than a style string.
+  * ``data-job-counts`` the sentence, replaced wholesale.
+
+  The bar is a real ``role="progressbar"`` with ``aria-valuenow``, and the counts are
+  in a live region: a screen-reader user gets the same "38,000 of 40,000" a sighted one
+  does, without the bar itself chattering on every tick.
+{% endcomment %}
+<div class="v-job-progress" id="job-{{ job.pk }}" data-job-status="{{ job.status }}"
+     {% if not job.is_terminal and status_url %}data-job-poll="{{ status_url }}"{% endif %}>
+
+  <div class="v-job-bar" data-job-fill-track
+       role="progressbar"
+       aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ job.percent }}"
+       aria-label="{{ job.action_label|default:job.action_name }} progress">
+    <span class="v-job-bar-fill" data-job-fill style="--v-job-percent: {{ job.percent }}"></span>
+  </div>
+
+  <p class="v-job-counts" data-job-counts role="status" aria-live="polite">
+    {% if job.is_terminal %}
+      {{ job.summary|default:"nothing to do" }}
+    {% else %}
+      {{ job.processed|stringformat:"d" }} of {{ job.total|stringformat:"d" }}{% if job.failed %},
+      {{ job.failed }} failed{% endif %}
+    {% endif %}
+  </p>
+
+  {% comment %}
+    Kept in the markup rather than created by the script, so it needs no JavaScript to
+    exist and only an attribute flip to appear. "12 failed" with no way to find out
+    which twelve is the report §11 exists to prevent.
+  {% endcomment %}
+  <a class="v-job-errors" data-job-errors href="{{ errors_url }}"
+     {% if not errors_url %}hidden{% endif %}
+     download>{% icon "file-text" %}<span>Download the failures</span></a>
+</div>

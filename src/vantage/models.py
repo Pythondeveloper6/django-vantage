@@ -1,8 +1,8 @@
-"""The four things Vantage stores: its settings, what people did, how they look, and
-how each list is tuned.
+"""The five things Vantage stores: its settings, what people did, how they look, how
+each list is tuned, and what is still running.
 
 Vantage configures itself from ``settings.VANTAGE``, so owning tables at all is a
-decision that has to be justified once per table. Four earn it.
+decision that has to be justified once per table. Five earn it.
 
 **The settings cascade.** A project owner states their settings in
 ``settings.VANTAGE``; the person who actually runs the panel day to day is usually not
@@ -27,6 +27,12 @@ Python declaration, so the columns, filters, search, stats, charts and summary o
 list can be tuned from the UI without a deploy. One row per person per model, plus an
 optional row with a ``NULL`` user that is the site-wide default. See
 :mod:`vantage.listprefs`.
+
+**Background jobs.** :class:`VantageJob` is one row per bulk action that was too large
+to run in the request. It stores the *selection predicate*, never the rows it resolved
+to, which is what lets a 40,000-row job be a few hundred bytes and what lets the worker
+re-resolve it against the database as it stands at execution time. See
+:mod:`vantage.jobs`.
 
 Three rules shape the schema.
 
@@ -76,6 +82,7 @@ __all__ = [
     "SavedViewGrant",
     "SavedViewUserState",
     "SiteConfiguration",
+    "VantageJob",
     "VantageLogEntry",
     "validate_brand_color",
     "validate_branding_upload",
@@ -752,3 +759,166 @@ SETTING_COLUMNS: tuple[str, ...] = (
     "summary_enabled",
     "summary_aggregates",
 )
+
+
+# ── background jobs ─────────────────────────────────────────────────────────
+
+
+class VantageJob(models.Model):
+    """One bulk action that was moved off the request, and how far it has got.
+
+    The load-bearing column is :attr:`selection`. It stores the *predicate* the list
+    page transmitted — the filter query string plus the handful of rows the user
+    unticked — and never the primary keys it resolves to. That is the same decision
+    :class:`~vantage.actions.Selection` makes for the POST body, taken one step
+    further: a predicate is a few hundred bytes whether it matches nine rows or ninety
+    thousand, it survives being written to a database and read back by a worker
+    process, and it re-resolves against the data *as it stands when the job runs*
+    rather than as it stood when someone clicked. A materialised id list would be none
+    of those things, and at 40,000 rows would be a megabyte of JSON per click.
+
+    Counts are stored, not derived. ``processed``/``total``/``failed`` are written as
+    the worker goes so the progress bar has something honest to read, and so a job the
+    worker died in the middle of still says how far it got. ``failed`` is separate from
+    ``processed`` because "38,000 succeeded, 12 failed" is the normal outcome at scale
+    and collapsing it into one number is how a report starts lying.
+
+    ``errors`` holds ``(row, pk, error)`` triples up to a cap — enough to produce the
+    downloadable CSV, bounded so a pathological job cannot write a 40,000-element JSON
+    blob into one column. Past the cap the count in ``failed`` is still exact; it is
+    only the individual messages that stop being kept, and the CSV says so.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Queued"
+        RUNNING = "running", "Running"
+        SUCCEEDED = "succeeded", "Finished"
+        FAILED = "failed", "Failed"
+        #: Not a failure of the job — a refusal. The actor's permission was withdrawn
+        #: between enqueue and execution, or part-way through it, and the run stopped
+        #: where it stood. Distinct from FAILED because nothing went wrong: the answer
+        #: changed, and the count already processed is real work that stands.
+        DENIED = "denied", "Stopped — permission withdrawn"
+
+    #: Statuses after which nothing more will happen. The progress bar polls until it
+    #: sees one of these and then stops; a bar that polls forever is a bug, so the set
+    #: lives here rather than being re-listed in the view and again in the JavaScript.
+    TERMINAL: frozenset[str] = frozenset({"succeeded", "failed", "denied"})
+
+    # ── who ─────────────────────────────────────────────────────────────────
+
+    #: ``SET_NULL`` for the same reason as the audit log: deleting a colleague must not
+    #: delete the record of the 40,000 rows they changed last Tuesday.
+    actor = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vantage_jobs",
+    )
+    actor_repr = models.CharField(max_length=150, blank=True)
+
+    # ── what ────────────────────────────────────────────────────────────────
+
+    #: ``"shop.order"``, matching ``Options.label_lower`` — a label rather than a
+    #: ``ContentType`` FK, exactly as :class:`ListPreference` does it, so a job for a
+    #: model that has since been unregistered stays listable and explainable instead of
+    #: cascading away or dangling.
+    resource_key = models.CharField(max_length=100)
+    action_name = models.CharField(max_length=100)
+    #: The label as the button read at the time. Kept alongside the name because a
+    #: panel author renaming an action must not retitle last month's job history.
+    action_label = models.CharField(max_length=150, blank=True)
+
+    #: ``{"select_all": true, "excluded": ["12"], "query": "status=paid&q=acme"}``.
+    selection = models.JSONField(default=dict, blank=True)
+
+    # ── how far ─────────────────────────────────────────────────────────────
+
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    total = models.PositiveIntegerField(default=0)
+    processed = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+
+    #: One sentence naming every non-zero outcome, in the shape
+    #: :meth:`vantage.importer.ImportResult.summary` produces. Never "some rows failed".
+    summary = models.CharField(max_length=300, blank=True)
+    #: ``[{"row": 39001, "pk": "8123", "error": "…"}]``, capped.
+    errors = models.JSONField(default=list, blank=True)
+    #: The traceback-free description of a failure that stopped the whole job, as
+    #: opposed to the per-row failures above. Empty for a job that merely had bad rows.
+    error = models.TextField(blank=True)
+
+    # ── where it ran ────────────────────────────────────────────────────────
+
+    #: Which queue actually took it: ``django_tasks``, ``celery``, ``rq`` or
+    #: ``inprocess``. Recorded rather than inferred, because the answer depends on what
+    #: was installed at enqueue time and a job outlives that.
+    backend = models.CharField(max_length=20, blank=True)
+    #: The queue's own identifier, when it has one. Blank for the in-process runner.
+    task_id = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "background job"
+        verbose_name_plural = "background jobs"
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            # The jobs page: mine, newest first. Also the only query the progress
+            # poller's neighbours make, so it is worth an index of its own.
+            models.Index(fields=["actor", "-created_at"], name="vantage_job_actor_idx"),
+            # "Is anything still running?" — asked by the sweeper and by the badge.
+            models.Index(fields=["status", "-created_at"], name="vantage_job_status_idx"),
+            models.Index(fields=["resource_key", "-created_at"], name="vantage_job_model_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.action_label or self.action_name} · {self.resource_key}"
+
+    # ── reading ─────────────────────────────────────────────────────────────
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in self.TERMINAL
+
+    @property
+    def succeeded(self) -> int:
+        """Rows that came through cleanly. ``processed`` counts attempts, not wins."""
+        return max(self.processed - self.failed, 0)
+
+    @property
+    def percent(self) -> int:
+        """0–100, and never a lie by rounding.
+
+        A job that has finished reads 100 even if ``total`` was re-resolved smaller
+        part-way through, and a job with nine of ten thousand rows done reads 0 rather
+        than being rounded up into looking like progress that has not happened.
+        """
+        if self.is_terminal:
+            return 100
+        if not self.total:
+            return 0
+        return min(int(self.processed * 100 / self.total), 100)
+
+    def may_be_viewed_by(self, user) -> bool:
+        """Its own actor, or a superuser. Nobody else.
+
+        A job row names a model, an action and a row count for data the viewer may have
+        no access to at all, so it is *not* gated on the model permission the action
+        needed — that permission can be granted and revoked, and a job is a record of
+        one person's activity. This is the same reasoning that keeps the audit log
+        behind its own gate rather than behind per-model view rights.
+        """
+        if user is None or not getattr(user, "is_authenticated", False):
+            return False
+        if getattr(user, "is_superuser", False):
+            return True
+        return self.actor_id is not None and self.actor_id == user.pk
+
+    def get_absolute_url(self) -> str:
+        from django.urls import reverse
+
+        return f"{reverse('vantage:jobs')}#job-{self.pk}"

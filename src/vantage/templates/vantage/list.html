@@ -16,6 +16,7 @@
     {% if panel.description %}<p class="v-page-description">{{ panel.description }}</p>{% endif %}
   </div>
   <div class="v-page-actions">
+    {% if list_prefs %}{% include "vantage/partials/list_prefs.html" %}{% endif %}
     {% comment %}
       Every link carries the active search, filters and sort, so you export what you
       are looking at rather than the whole table.
@@ -76,8 +77,6 @@
   {% endif %}
 
   <div class="v-list-main">
-    {% if list_prefs %}{% include "vantage/partials/list_prefs.html" %}{% endif %}
-
     {% include "vantage/partials/saved_views.html" %}
 
     {% if timeline_field %}

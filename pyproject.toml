@@ -9,8 +9,25 @@ description = "A smart, beautiful admin panel for Django. Zero config to start, 
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+# PEP 639: naming the file explicitly keeps the licence in the wheel's
+# `.dist-info/licenses/` rather than relying on the backend guessing at a filename.
+license-files = ["LICENSE"]
 authors = [{ name = "Mahmoud Ahmed", email = "pythondeveloper6@gmail.com" }]
-keywords = ["django", "admin", "dashboard", "admin-panel", "htmx", "tailwind"]
+maintainers = [{ name = "Mahmoud Ahmed", email = "pythondeveloper6@gmail.com" }]
+# Keywords describe what the package IS. It ships no htmx and no Tailwind — the CSS is
+# hand-written OKLCH tokens and the JavaScript is dependency-free, which is the point of
+# "no Node.js" in the README, so naming those two frameworks here would mislead search.
+keywords = [
+    "django",
+    "django-admin",
+    "admin",
+    "admin-panel",
+    "admin-interface",
+    "backoffice",
+    "dashboard",
+    "crud",
+    "data-grid",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
@@ -19,11 +36,20 @@ classifiers = [
     "Framework :: Django :: 6.0",
     "Framework :: Django :: 6.1",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: System Administrators",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    # No `License ::` classifier on purpose. PEP 639 deprecated them in favour of the
+    # `license` SPDX expression above, and carrying both is contradictory metadata.
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Topic :: Database :: Front-Ends",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = ["Django>=5.2"]
 
@@ -32,6 +58,8 @@ Homepage = "https://github.com/mahmoudahmed/django-vantage"
 Documentation = "https://github.com/mahmoudahmed/django-vantage#readme"
 Source = "https://github.com/mahmoudahmed/django-vantage"
 Issues = "https://github.com/mahmoudahmed/django-vantage/issues"
+Changelog = "https://github.com/mahmoudahmed/django-vantage/blob/main/CHANGELOG.md"
+Contributing = "https://github.com/mahmoudahmed/django-vantage/blob/main/CONTRIBUTING.md"
 
 [dependency-groups]
 dev = [
@@ -41,12 +69,39 @@ dev = [
     "ruff>=0.8",
     "model-bakery>=1.20",
 ]
+# Release plumbing, kept out of `dev` so a contributor's `uv sync` stays small.
+release = ["build>=1.2", "twine>=6.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vantage"]
+# Belt and braces. Hatchling honours `.gitignore` when it can see one, but an sdist
+# rebuild or an export without VCS metadata cannot, and shipping another interpreter's
+# bytecode is both dead weight and a source of confusing import behaviour.
+exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/vantage", "README.md", "LICENSE"]
+# Leading slashes anchor these at the project root. Without them hatchling applies
+# gitignore matching semantics, so a bare `README.md` also swept in `example/README.md`.
+#
+# `tests/` and `tox.ini` are here on purpose: distribution packagers (Debian, Fedora,
+# conda-forge) build from the sdist and run the suite from it, and a package whose tests
+# cannot be run downstream gets shipped untested or not at all. `example/` is omitted —
+# it carries a seeded SQLite database and serves no one installing from source.
+include = [
+    "/src/vantage",
+    "/tests",
+    "/docs",
+    "/scripts",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/CODE_OF_CONDUCT.md",
+    "/SECURITY.md",
+    "/MANIFEST.in",
+    "/tox.ini",
+]
+exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"

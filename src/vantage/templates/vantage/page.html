@@ -1,8 +1,8 @@
 {% extends "vantage/base.html" %}
 
-{# The fallback renderer. A page with its own template never reaches this file;
+{% comment %} The fallback renderer. A page with its own template never reaches this file;
    this exists so the FIRST page someone writes is worth looking at before they
-   have written any HTML at all. #}
+   have written any HTML at all. {% endcomment %}
 
 {% block content %}
 <div class="v-page-head">
@@ -13,14 +13,17 @@
 </div>
 
 {% if page_data %}
-  <div class="v-stats">
+  {% comment %} A description list, not a stack of divs: the label and the number are a pair, and
+     dt/dd is the only markup that says so. The CSS is class-based, so the swap is
+     free. {% endcomment %}
+  <dl class="v-stats">
     {% for row in page_data %}{% if row.scalar %}
       <div class="v-stat">
-        <div class="v-stat-label">{{ row.label }}</div>
-        <div class="v-stat-value">{{ row.value|default_if_none:"—" }}</div>
+        <dt class="v-stat-label">{{ row.label }}</dt>
+        <dd class="v-stat-value">{{ row.value|default_if_none:"—" }}</dd>
       </div>
     {% endif %}{% endfor %}
-  </div>
+  </dl>
 
   {% for row in page_data %}{% if not row.scalar %}
     <section class="v-card" style="margin-block-end:1rem">
