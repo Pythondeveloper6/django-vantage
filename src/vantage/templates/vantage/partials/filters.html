@@ -65,8 +65,7 @@
             {% if choices %}
               <div class="v-filter-options">
                 {% if not filt.multi %}
-                  {# Single-select needs an explicit way back to "no opinion"; without
-                     it a radio group is a one-way door. #}
+                  {# Without an "Any", a radio group is a one-way door. #}
                   <label class="v-filter-option">
                     <input type="radio" name="{{ filt.parameter_name }}" value=""
                            {% if not filt.is_active %}checked{% endif %}>

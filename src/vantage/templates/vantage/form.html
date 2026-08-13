@@ -6,9 +6,9 @@
 {% endblock %}
 
 {% block content %}
-{# enctype is unconditional: a panel gains a FileField the day someone adds one, and a
+{% comment %} enctype is unconditional: a panel gains a FileField the day someone adds one, and a
    form that silently drops the upload because the encoding was decided at template
-   time is a bug nobody reports as one. #}
+   time is a bug nobody reports as one. {% endcomment %}
 <form class="v-form" method="post" enctype="multipart/form-data" data-vantage-dirty>
   {% csrf_token %}
 

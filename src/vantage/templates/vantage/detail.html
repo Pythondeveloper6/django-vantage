@@ -8,7 +8,15 @@
     <p class="v-page-description">{{ panel.get_label }} · <span class="v-mono">#{{ object.pk }}</span></p>
   </div>
   <div class="v-page-actions">
-    <a class="v-btn v-btn-secondary" href="{% url panel.list_url_name %}">Back to list</a>
+    <a class="v-btn v-btn-ghost" href="{% url panel.list_url_name %}">Back to list</a>
+    {% if "delete" in allowed %}
+      <a class="v-btn v-btn-secondary"
+         href="{% url "vantage:"|add:panel.slug|add:"-delete" object.pk %}">Delete</a>
+    {% endif %}
+    {% if "change" in allowed %}
+      <a class="v-btn v-btn-primary"
+         href="{% url "vantage:"|add:panel.slug|add:"-change" object.pk %}">Edit</a>
+    {% endif %}
   </div>
 </div>
 

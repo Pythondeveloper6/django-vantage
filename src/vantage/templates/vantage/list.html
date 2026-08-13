@@ -9,9 +9,15 @@
   </div>
   <div class="v-page-actions">
     {# Carries the active search and sort, so you export what you are looking at. #}
-    <a class="v-btn v-btn-secondary" href="?{% querystring_replace export="csv" page=None %}">
+    <a class="v-btn v-btn-ghost" href="?{% querystring_replace export="csv" page=None %}">
       Export CSV
     </a>
+    {% if "add" in allowed %}
+      <a class="v-btn v-btn-primary" href="{% url "vantage:"|add:panel.slug|add:"-add" %}">
+        {% icon "plus" %}
+        <span>Add {{ panel.get_label|lower }}</span>
+      </a>
+    {% endif %}
   </div>
 </div>
 
@@ -29,8 +35,10 @@
 </form>
 {% endif %}
 
-{# The rail sits beside the table on a wide screen and stacks above it on a narrow one,
-   which is the grid doing it — no second markup path and no breakpoint-specific DOM. #}
+{% comment %}
+  The rail sits beside the table on a wide screen and stacks above it on a narrow one,
+  which is the grid doing it — no second markup path and no breakpoint-specific DOM.
+{% endcomment %}
 <div class="v-list-layout{% if not filters %} v-list-layout-bare{% endif %}">
   {% if filters %}
     <aside class="v-list-rail" aria-label="Filters">
@@ -79,9 +87,11 @@
           </tbody>
         </table>
       {% elif query or has_active_filters %}
-        {# State 2: the predicate returned nothing. Echo it back and offer to undo it -
-           never a create CTA, which would imply the list is empty when it is not. The
-           chips above are the "remove the one responsible" half of the same state. #}
+        {% comment %}
+          State 2: the predicate returned nothing. Echo it back and offer to undo it —
+          never a create CTA, which would imply the list is empty when it is not. The
+          chips above are the "remove the one responsible" half of the same state.
+        {% endcomment %}
         <div class="v-empty">
           {% icon "search" class="v-empty-icon" %}
           {% if query %}
