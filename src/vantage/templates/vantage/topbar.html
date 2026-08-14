@@ -1,0 +1,232 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-topbar.css' %}">
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Arranging the top bar. One form for the whole screen, for the reason the settings
+  screen states: a form cannot nest, and Reset, Save, every Move and every Remove is a
+  submit button in this one rather than a form of its own.
+
+  Every reordering control is a button. Dragging is added on top by vantage-topbar.js
+  and writes its result into the same hidden "order" field the buttons act on, so
+  there is one thing the server reads whether or not a script ran — and a keyboard
+  user is never asked to drag anything.
+{% endcomment %}
+<form class="v-form v-topbar-form" method="post" data-topbar-form>
+  {% csrf_token %}
+  <input type="hidden" name="order" value="{{ layout.order|join:' ' }}" data-topbar-order>
+
+  <div class="v-page-head">
+    <div>
+      <h1 class="v-page-title">{{ page_title }}</h1>
+      <p class="v-page-description">{{ page_description }}</p>
+    </div>
+    <div class="v-page-actions">
+      {% if is_stored %}
+        <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="reset" value="1">
+          {% translate "Reset to the code defaults" %}
+        </button>
+      {% endif %}
+      <button class="v-btn v-btn-primary v-btn-sm" type="submit">{% translate "Save" %}</button>
+    </div>
+  </div>
+
+  {% if not is_stored %}
+    <div class="v-form-alert" data-tone="info">
+      <p class="v-form-alert-title">{% translate "Nothing is stored yet." %}</p>
+      <p>{% translate "This is the arrangement the package ships with. Saving anything here starts overriding it, and Reset hands it back." %}</p>
+    </div>
+  {% endif %}
+
+  <section class="v-card v-form-card">
+    <div class="v-card-head">
+      <div>
+        <h2 class="v-card-title">{% translate "The bar" %}</h2>
+        <p class="v-muted">{% translate "In order, from the end of the breadcrumb to the far edge." %}</p>
+      </div>
+    </div>
+
+    <ol class="v-topbar-rows" data-topbar-list>
+      {% for row in rows %}
+        <li class="v-topbar-row" data-topbar-row="{{ row.key }}"
+            {% if not row.visible %}data-hidden="true"{% endif %}>
+          <span class="v-topbar-grip" data-topbar-grip aria-hidden="true" hidden>{% icon "menu" %}</span>
+
+          <span class="v-topbar-row-text">
+            <span class="v-topbar-row-label">{{ row.label }}</span>
+            {% if row.description %}
+              <span class="v-topbar-row-hint">{{ row.description }}</span>
+            {% endif %}
+            {% if row.broken %}
+              <span class="v-topbar-row-broken">
+                {% translate "This no longer resolves, so it is not being shown. Remove it." %}
+              </span>
+            {% endif %}
+          </span>
+
+          {% if not row.builtin %}
+            <span class="v-topbar-row-fields">
+              <label class="v-sr-only" for="label-{{ row.key }}">
+                {% blocktranslate trimmed with name=row.label %}Name for {{ name }}{% endblocktranslate %}
+              </label>
+              <input class="v-input v-input-sm" id="label-{{ row.key }}" type="text"
+                     name="label:{{ row.item.id }}" value="{{ row.item.label }}"
+                     placeholder="{% translate 'Name' %}">
+              <label class="v-sr-only" for="icon-{{ row.key }}">
+                {% blocktranslate trimmed with name=row.label %}Icon for {{ name }}{% endblocktranslate %}
+              </label>
+              <select class="v-select v-input-sm" id="icon-{{ row.key }}" name="icon:{{ row.item.id }}">
+                <option value="">{% translate "No icon" %}</option>
+                {% for name in icon_names %}
+                  <option value="{{ name }}" {% if name == row.item.icon %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </span>
+          {% endif %}
+
+          <span class="v-topbar-row-controls">
+            {% if row.lockable %}
+              <span class="v-topbar-show">
+                <input type="checkbox" id="visible-{{ row.key }}" name="visible"
+                       value="{{ row.key }}" {% if row.visible %}checked{% endif %}>
+                <label for="visible-{{ row.key }}">{% translate "Show" %}</label>
+              </span>
+            {% else %}
+              {% comment %}
+                The account menu has no "off". Hiding it from the only place it appears
+                would take sign-out away, so the switch is not offered rather than
+                offered and then refused.
+              {% endcomment %}
+              <span class="v-topbar-locked">{% translate "Always shown" %}</span>
+            {% endif %}
+
+            <button class="v-btn v-btn-ghost v-btn-icon v-btn-sm" type="submit"
+                    name="move" value="{{ row.key }}:up"
+                    aria-label="{% blocktranslate trimmed with name=row.label %}Move {{ name }} earlier{% endblocktranslate %}">↑</button>
+            <button class="v-btn v-btn-ghost v-btn-icon v-btn-sm" type="submit"
+                    name="move" value="{{ row.key }}:down"
+                    aria-label="{% blocktranslate trimmed with name=row.label %}Move {{ name }} later{% endblocktranslate %}">↓</button>
+
+            {% if row.removable %}
+              <button class="v-btn v-btn-ghost v-btn-icon v-btn-sm v-topbar-remove" type="submit"
+                      name="remove" value="{{ row.key }}"
+                      aria-label="{% blocktranslate trimmed with name=row.label %}Remove {{ name }}{% endblocktranslate %}">{% icon "trash" %}</button>
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ol>
+
+    <div class="v-topbar-banner-choice">
+      <input type="checkbox" id="banner" name="banner" {% if layout.banner %}checked{% endif %}>
+      <label for="banner">
+        {% translate "Show the environment as a full-width banner" %}
+        <span class="v-topbar-row-hint">
+          {% translate "Unticked, it becomes a small chip at its position in the bar above." %}
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <section class="v-card v-form-card">
+    <div class="v-card-head">
+      <div>
+        <h2 class="v-card-title">{% translate "Add an item" %}</h2>
+        <p class="v-muted">{% translate "A page in this panel, one of your custom pages, or a link anywhere else." %}</p>
+      </div>
+    </div>
+
+    <div class="v-form-grid v-topbar-add">
+      <div class="v-form-field">
+        <label class="v-form-label" for="add-kind">{% translate "Points at" %}</label>
+        <select class="v-select" id="add-kind" name="kind"
+                {% if errors.kind %}aria-invalid="true" aria-describedby="add-kind_error"{% endif %}>
+          {% for value, label in kinds %}
+            <option value="{{ value }}" {% if add.kind == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.kind %}
+          <p class="v-form-errors" id="add-kind_error">{{ errors.kind }}</p>
+        {% endif %}
+      </div>
+
+      <div class="v-form-field">
+        <label class="v-form-label" for="add-target">{% translate "Route name, page slug, or URL" %}</label>
+        <input class="v-input" id="add-target" type="text" name="target" value="{{ add.target|default:'' }}"
+               placeholder="https://example.com/handbook"
+               {% if errors.target %}aria-invalid="true" aria-describedby="add-target_error"{% else %}aria-describedby="add-target_help"{% endif %}>
+        {% if errors.target %}
+          <p class="v-form-errors" id="add-target_error">{{ errors.target }}</p>
+        {% else %}
+          <p class="v-form-help" id="add-target_help">
+            {% translate "A route is a name like vantage:jobs. An external link needs its https:// — a bare hostname is not a link." %}
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="v-form-field">
+        <label class="v-form-label" for="add-label">{% translate "Name" %}</label>
+        <input class="v-input" id="add-label" type="text" name="label" value="{{ add.label|default:'' }}"
+               {% if errors.label %}aria-invalid="true" aria-describedby="add-label_error"{% endif %}>
+        {% if errors.label %}
+          <p class="v-form-errors" id="add-label_error">{{ errors.label }}</p>
+        {% endif %}
+      </div>
+
+      <div class="v-form-field">
+        <label class="v-form-label" for="add-icon">{% translate "Icon" %}</label>
+        <select class="v-select" id="add-icon" name="icon">
+          <option value="">{% translate "No icon" %}</option>
+          {% for name in icon_names %}
+            <option value="{{ name }}" {% if add.icon == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="v-form-field v-form-field-wide v-topbar-add-submit">
+        <button class="v-btn v-btn-secondary" type="submit" name="add" value="1">
+          {% icon "plus" %}{% translate "Add to the bar" %}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="v-card v-form-card">
+    <div class="v-card-head">
+      <h2 class="v-card-title">{% translate "What it will look like" %}</h2>
+    </div>
+    {% comment %}
+      Drawn from the same Topbar the shell renders, not from a second guess at it — but
+      as labels rather than as the live controls, because the account menu owns a
+      handful of element ids and a second copy of them on the page would break both.
+    {% endcomment %}
+    <div class="v-topbar-preview">
+      {% if preview.banner %}
+        <div class="v-env-banner">{{ preview.banner }}</div>
+      {% endif %}
+      <div class="v-topbar-preview-bar">
+        <span class="v-topbar-preview-brand">{{ settings.SITE_TITLE }}</span>
+        {% for slot in preview.slots %}
+          <span class="v-topbar-preview-slot" data-kind="{{ slot.kind }}">
+            {% if slot.kind == "search" %}{% icon "search" %}<span>{% translate "Search…" %}</span>
+            {% elif slot.kind == "theme" %}{% icon "sun" %}
+            {% elif slot.kind == "environment" %}<span class="v-env-chip">{{ slot.label }}</span>
+            {% elif slot.kind == "user" %}<span class="v-avatar">{{ account_initials }}</span>
+            {% else %}
+              {% if slot.icon %}{% icon slot.icon %}{% endif %}<span>{{ slot.label }}</span>
+              {% if slot.external %}<span aria-hidden="true">↗</span>{% endif %}
+            {% endif %}
+          </span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</form>
+
+<script src="{% static 'vantage/vantage-topbar.js' %}" defer></script>
+{% endblock %}

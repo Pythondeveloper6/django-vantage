@@ -104,16 +104,21 @@ Ordered by how much they matter. Nothing here is disputed; it is all simply not 
 ### Blocking AA
 
 1. **WCAG 2.1.4 Character Key Shortcuts — `/` is bound on `document`.**
-   `static/vantage/vantage.js:75` registers a `keydown` listener on `document` and
-   guards it with `activeElement.tagName !== "INPUT"`. The design spec (§10) calls this
-   out by name: *"a fragile approximation, not a scoping mechanism."* It misses
-   `contenteditable` inside a widget that stops propagation, custom elements, and any
-   shadow root. Two of the three permitted remedies are missing: there is no on/off
-   preference and no remappable keymap. **Fix:** scope the listener to a container, or
-   ship the preference. Related: the `e` shortcut in `vantage-inline.js` *is* correctly
-   table-scoped but ignores the `vantage-grid-shortcuts` preference that
-   `vantage-grid.js` honours, so switching shortcuts off does not switch that one off.
-   `⌘K` requires a modifier and is exempt.
+   `static/vantage/vantage.js:78` registers a `keydown` listener on `document`. Two of
+   the three permitted remedies now exist: it checks `activeElement.isContentEditable`
+   as well as `tagName` (`vantage.js:86`), and it honours the same `vantage-grid-shortcuts`
+   on/off preference the grid's cheat sheet exposes (`vantage.js:81`) — both were missing
+   in an earlier pass of this audit and are fixed as of this reading. What is still
+   missing is the third remedy, a **remappable keymap** — the key is always `/`, with no
+   way to choose another — and the tagName/`isContentEditable` check is still an
+   approximation of scoping rather than true scoping: a custom element or a shadow root
+   that owns its own keyboard handling is invisible to it. **Fix:** ship a remap option,
+   or scope the listener to a container. Related: the `e` shortcut in
+   `vantage-inline.js:389` is correctly table-scoped (it only fires when the row itself,
+   not a control inside it, has focus) but still does **not** check
+   `vantage-grid-shortcuts` — confirmed absent from that file — so switching shortcuts
+   off from the cheat sheet silences `/` but not `e`. `⌘K` requires a modifier and is
+   exempt throughout.
 
 2. **Heading order breaks on the list page.** `partials/list_prefs.html` emits `<h3>`
    at lines 51, 103, 145, 204, 272 and 361 with no `<h2>` above them; the nearest

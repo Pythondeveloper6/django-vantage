@@ -26,7 +26,12 @@
 {% endcomment %}
 <a class="v-skip-link" href="#v-content">{% translate "Skip to main content" %}</a>
 
-{% if settings.ENVIRONMENT %}<div class="v-env-banner">{{ settings.ENVIRONMENT }}</div>{% endif %}
+{% comment %}
+  The banner is the environment control's default home, not a separate feature: it is
+  the same slot the top-bar arrangement can switch off, or move into the header as a
+  chip, in which case `topbar.banner` is empty and it renders there instead.
+{% endcomment %}
+{% if topbar.banner %}<div class="v-env-banner">{{ topbar.banner }}</div>{% endif %}
 
 {% if impersonating %}
   {% comment %}
@@ -118,38 +123,7 @@
 
       <div class="v-header-spacer"></div>
 
-      {% include "vantage/partials/palette.html" %}
-
-      {% if settings.THEME_TOGGLE %}
-        <button class="v-btn v-btn-ghost v-btn-icon" data-vantage-theme-toggle
-                aria-label="{% translate "Switch between light and dark theme" %}"
-                formaction="{% url 'vantage:theme' %}">
-          <span data-theme-icon="light">{% icon "sun" %}</span>
-          <span data-theme-icon="dark" hidden>{% icon "moon" %}</span>
-        </button>
-      {% endif %}
-
-      {% if user.is_authenticated %}
-        {% url 'password_change' as password_change_url %}
-        {% url 'logout' as logout_url %}
-        <span class="v-account v-muted">
-          <span class="v-sr-only">{% translate "Signed in as" %}</span>{{ user.get_username }}
-        </span>
-        {% comment %}
-          Resolved with `{% url ... as %}`, which yields "" rather than raising when
-          the project has not mounted vantage.authviews. The panel must not require
-          them; it just uses them when they are there.
-        {% endcomment %}
-        {% if password_change_url %}
-          <a class="v-btn v-btn-ghost v-btn-sm" href="{{ password_change_url }}">{% translate "Password" %}</a>
-        {% endif %}
-        {% if logout_url %}
-          <form class="v-signout" method="post" action="{{ logout_url }}">
-            {% csrf_token %}
-            <button class="v-btn v-btn-ghost v-btn-sm" type="submit">{% translate "Sign out" %}</button>
-          </form>
-        {% endif %}
-      {% endif %}
+      {% include "vantage/partials/topbar.html" %}
     </header>
 
     {% comment %}

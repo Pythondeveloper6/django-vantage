@@ -1,0 +1,107 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-topbar.css' %}">
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  What the avatar is when there is no JavaScript.
+
+  Every option the dropdown offers is on this page as an ordinary link or an ordinary
+  form, in the same order, with the same words. That is not a courtesy: the dropdown is
+  built by a script, and if the only sign-out button in the panel is built by a script
+  then a failed asset load, a strict CSP or an extension that broke has locked someone
+  into a session they cannot end.
+
+  Sign out is a POST here too, for the same reason it is one in the menu.
+{% endcomment %}
+{% url 'password_change' as password_change_url %}
+{% url 'logout' as logout_url %}
+
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+<div class="v-account-grid">
+  <section class="v-card v-account-card">
+    <div class="v-card-head">
+      <h2 class="v-card-title">{% translate "Signed in as" %}</h2>
+    </div>
+    <div class="v-account-who">
+      <span class="v-avatar v-avatar-xl" aria-hidden="true">
+        {% if account_initials %}{{ account_initials }}
+        {% else %}{% icon "users" class="v-avatar-icon" %}{% endif %}
+      </span>
+      <div class="v-account-id">
+        <p class="v-account-name">{{ account_name }}</p>
+        {% if user.email %}<p class="v-muted">{{ user.email }}</p>{% endif %}
+        <p class="v-muted v-account-username">
+          {% blocktranslate trimmed with username=user.get_username %}
+            Username: {{ username }}
+          {% endblocktranslate %}
+        </p>
+      </div>
+    </div>
+    <div class="v-account-actions">
+      {% if password_change_url %}
+        <a class="v-btn v-btn-secondary v-btn-sm" href="{{ password_change_url }}">
+          {% translate "Change password" %}
+        </a>
+      {% endif %}
+      {% if may_arrange_topbar %}
+        <a class="v-btn v-btn-secondary v-btn-sm" href="{% url 'vantage:topbar' %}">
+          {% translate "Customise the top bar" %}
+        </a>
+      {% endif %}
+      {% if logout_url %}
+        <form method="post" action="{{ logout_url }}">
+          {% csrf_token %}
+          <button class="v-btn v-btn-sm v-account-signout" type="submit">
+            {% translate "Sign out" %}
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if settings.THEME_TOGGLE %}
+    <section class="v-card v-account-card">
+      <div class="v-card-head">
+        <h2 class="v-card-title">{% translate "Theme" %}</h2>
+      </div>
+      <p class="v-muted v-account-blurb">
+        {% translate "Your choice, stored on this device and in a cookie. It changes nothing for anyone else." %}
+      </p>
+      <form class="v-account-themes" method="post" action="{% url 'vantage:theme' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% comment %}
+          Plain submit buttons carrying their own value. With a script, vantage.js
+          intercepts them and repaints the page instantly; without one they post and
+          the theme endpoint redirects straight back here.
+        {% endcomment %}
+        <button class="v-account-theme" type="submit" name="theme" value="light"
+                data-theme-choice="light"
+                aria-pressed="{% if theme == 'light' %}true{% else %}false{% endif %}">
+          {% icon "sun" %}<span>{% translate "Light" context "theme" %}</span>
+        </button>
+        <button class="v-account-theme" type="submit" name="theme" value="dark"
+                data-theme-choice="dark"
+                aria-pressed="{% if theme == 'dark' %}true{% else %}false{% endif %}">
+          {% icon "moon" %}<span>{% translate "Dark" context "theme" %}</span>
+        </button>
+        <button class="v-account-theme" type="submit" name="theme" value="system"
+                data-theme-choice="system"
+                aria-pressed="{% if theme == 'system' %}true{% else %}false{% endif %}">
+          {% icon "sliders" %}<span>{% translate "Follow the device" %}</span>
+        </button>
+      </form>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

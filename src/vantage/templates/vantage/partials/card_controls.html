@@ -1,0 +1,37 @@
+{% load vantage i18n %}{% comment %}
+  The strip of controls above one card while the dashboard is being arranged.
+
+  Everything here works with scripting off, and the number box is the reason. Position
+  is a number you can type; width is a select; removing a card is unticking a box.
+  vantage-dashboard.js hides the number behind a drag handle and a pair of ↑/↓ buttons,
+  but it only ever *rewrites* the number, so the drag and the form can never disagree
+  about the order that will be saved.
+
+  The tick box is named `keep` rather than `remove` on purpose: an unticked checkbox
+  sends nothing, so "keep" has to be the affirmative or a card would vanish whenever
+  the browser declined to send the field.
+{% endcomment %}
+<div class="v-arrange-bar" data-arrange-handle>
+  <span class="v-arrange-grip" aria-hidden="true">⠿</span>
+
+  <span class="v-arrange-name">{{ card.label }}</span>
+
+  <input class="v-input v-input-sm v-arrange-order" type="number" min="1"
+         name="order__{{ card.index }}" value="{{ forloop.counter }}"
+         data-arrange-position
+         aria-label="{% blocktranslate with label=card.label %}Position of {{ label }}{% endblocktranslate %}">
+
+  <select class="v-select v-input-sm v-arrange-width" name="width__{{ card.index }}"
+          aria-label="{% blocktranslate with label=card.label %}Width of {{ label }}{% endblocktranslate %}">
+    {% for width in editor.widths %}
+      <option value="{{ width }}" {% if width == card.width %}selected{% endif %}>
+        {% blocktranslate with n=width %}{{ n }} col{% endblocktranslate %}
+      </option>
+    {% endfor %}
+  </select>
+
+  <label class="v-arrange-keep">
+    <input type="checkbox" name="keep" value="{{ card.index }}" checked>
+    <span>{% translate "Show" context "keep this dashboard card on the page" %}</span>
+  </label>
+</div>

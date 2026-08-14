@@ -2,10 +2,15 @@
 {% load static vantage vantage_slots i18n %}
 
 {% comment %}
-  The dashboard is a grid of cards the project declared in Python. Everything here
-  arrived as plain data from vantage.dashboards.Dashboard.render() — already permission
-  filtered, already computed, already isolated from its neighbours' failures — so this
-  file lays cards out and does nothing else.
+  The dashboard is a grid of cards. Everything here arrived as plain data from
+  vantage.dashboards — already permission filtered, already computed, already isolated
+  from its neighbours' failures — so this file lays cards out and does nothing else.
+
+  Two modes, one grid. Normally the cards are drawn and that is the whole page. With
+  ?arrange=1 the same grid is wrapped in a form, each card grows a strip of controls,
+  and an editor panel appears beneath it. The arranging mode is a URL rather than a
+  stored flag: it is something you are doing for the next thirty seconds, and a page
+  you can leave and come back to is the cheapest way to say so.
 {% endcomment %}
 
 {% block head %}
@@ -20,11 +25,53 @@
       <p class="v-page-description">{{ dashboard.description }}</p>
     {% endif %}
   </div>
+  <div class="v-page-actions">
+    {% if arranging %}
+      <a class="v-btn v-btn-ghost" href="{{ editor.done_url }}">
+        {% icon "check" %}<span>{% translate "Done" %}</span>
+      </a>
+    {% else %}
+      <a class="v-btn v-btn-ghost" href="{{ arrange_url }}">
+        {% icon "sliders" %}<span>{% translate "Arrange" %}</span>
+        {% if arranged %}
+          <span class="v-badge" data-tone="primary">{% translate "Arranged" context "badge: this dashboard differs from the code defaults" %}</span>
+        {% endif %}
+      </a>
+    {% endif %}
+  </div>
 </div>
 
 {% slot "dashboard_top" %}
 
-{% if widgets %}
+{% if arranging %}
+  {% comment %}
+    One form around the grid and the editor together. Adding a card and rearranging
+    the ones already there are the same submit, so a person who drags three cards and
+    then adds a fourth does not lose the dragging.
+  {% endcomment %}
+  <form class="v-arrange" method="post" action="{{ editor.action }}" data-arrange>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ editor.next }}">
+
+    {% if widgets %}
+      <div class="v-dashboard" data-arranging data-arrange-grid>
+        {% for card in widgets %}
+          <div class="v-arrange-slot" data-width="{{ card.width }}" data-arrange-slot>
+            {% include "vantage/partials/card_controls.html" with card=card %}
+            {% include "vantage/partials/widget.html" with card=card %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="v-arrange-empty">
+        {% translate "This dashboard has no cards. Add one below." %}
+      </p>
+    {% endif %}
+
+    {% include "vantage/partials/card_editor.html" %}
+  </form>
+
+{% elif widgets %}
   <div class="v-dashboard">
     {% for card in widgets %}
       {% include "vantage/partials/widget.html" with card=card %}
@@ -39,6 +86,11 @@
         Register a model, or point <code class="v-mono">VANTAGE["DASHBOARD"]</code> at a
         <code class="v-mono">Dashboard</code> subclass to declare your own cards.
       {% endblocktranslate %}
+    </p>
+    <p class="v-empty-body">
+      <a class="v-btn v-btn-secondary" href="{{ arrange_url }}">
+        {% icon "plus" %}<span>{% translate "Add a card" %}</span>
+      </a>
     </p>
   </div>
 {% endif %}

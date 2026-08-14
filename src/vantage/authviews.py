@@ -110,7 +110,24 @@ def shell_context(request, *, site=None, page_title: str = "", breadcrumbs=()) -
         page_description="",
         breadcrumbs=list(breadcrumbs),
     )
+    context.update(_safe_topbar(site, request))
     return context
+
+
+def _safe_topbar(site, request) -> dict:
+    """The header's controls, or an empty bar — never an exception.
+
+    Same reasoning as :func:`_safe_nav`, and the same failure it guards: the top bar
+    reads a stored arrangement out of the database, and on an error page the database
+    is exactly what may have failed. A 404 that turns into a 500 because its header
+    could not be arranged is a strictly worse answer than a 404 with a bare header.
+    """
+    from vantage.topbar import Topbar, topbar_context
+
+    try:
+        return topbar_context(site, request)
+    except Exception:  # pragma: no cover - defensive; the header is never the point
+        return {"topbar": Topbar(), "account_name": "", "account_initials": ""}
 
 
 def _style_form(form):

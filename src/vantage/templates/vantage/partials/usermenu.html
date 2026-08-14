@@ -1,0 +1,139 @@
+{% load vantage i18n %}
+{% comment %}
+  The account menu: one avatar where three controls used to be spelled out in full.
+
+  Read the two states in order, because the order is the point.
+
+  WITHOUT JAVASCRIPT the trigger is what it looks like — a link to
+  `vantage:account`, a page that lists every option below as an ordinary link or an
+  ordinary form. The panel is `hidden`, and nothing here lies about itself: no
+  aria-expanded on something that never expands, no role="button" on a link that
+  navigates. A dropdown that only exists once a script has run is a dropdown that
+  takes sign-out away from whoever the script did not reach, and sign-out is the one
+  control in this panel that has to survive everything.
+
+  WITH JAVASCRIPT vantage.js upgrades the same element into a menu button — role,
+  aria-haspopup, aria-expanded, aria-controls — and takes over the click. The href
+  stays, so a middle click or a ctrl-click still opens the account page.
+
+  Sign out is a POST, and stays a POST. It is the reason it is a <form> and not a
+  link: a GET sign-out is a URL that any prefetcher, link scanner or over-eager
+  browser can fire, and the user finds themselves signed out by a mouse hover.
+
+  The two forms sit outside the role="menu" element and are reached by the buttons'
+  `form=` attribute. A <form> is a generic element with no menu role, and a generic
+  element inside role="menu" makes the menu's children unenumerable.
+{% endcomment %}
+
+{% url 'password_change' as password_change_url %}
+{% url 'logout' as logout_url %}
+
+<div class="v-usermenu" data-usermenu>
+  <a class="v-usermenu-trigger" id="v-usermenu-button" href="{% url 'vantage:account' %}"
+     data-usermenu-trigger
+     aria-label="{% blocktranslate trimmed with name=account_name %}
+       Account: {{ name }}
+     {% endblocktranslate %}">
+    <span class="v-avatar" aria-hidden="true">
+      {% comment %}
+        Autoescaped, like every other variable — and worth saying out loud, because
+        this one is built from first_name, last_name and the username, which are
+        fields the person it names can usually edit themselves. It is a plain str
+        from vantage.topbar.initials and is never marked safe.
+      {% endcomment %}
+      {% if account_initials %}{{ account_initials }}
+      {% else %}{% icon "users" class="v-avatar-icon" %}{% endif %}
+    </span>
+  </a>
+
+  <div class="v-usermenu-panel" id="v-usermenu-panel" data-usermenu-panel hidden>
+    <div class="v-usermenu-who">
+      <span class="v-avatar v-avatar-lg" aria-hidden="true">
+        {% if account_initials %}{{ account_initials }}
+        {% else %}{% icon "users" class="v-avatar-icon" %}{% endif %}
+      </span>
+      <span class="v-usermenu-id">
+        <span class="v-usermenu-name">{{ account_name }}</span>
+        {% if user.email %}<span class="v-usermenu-email">{{ user.email }}</span>{% endif %}
+      </span>
+    </div>
+
+    {% comment %}
+      The name is in the menu's own accessible name, not only in the block above it.
+      A screen reader in menu mode reads the menu's label and then its items; a
+      heading that is a sibling of role="menu" is never reached by that path, so
+      "who you are signed in as" would be the one thing the menu did not say.
+    {% endcomment %}
+    <div class="v-usermenu-items" role="menu"
+         aria-label="{% blocktranslate trimmed with name=account_name %}
+           Signed in as {{ name }}
+         {% endblocktranslate %}">
+      <a class="v-usermenu-item" role="menuitem" tabindex="-1"
+         href="{% url 'vantage:account' %}">{% translate "Your account" %}</a>
+
+      {% if password_change_url %}
+        {% comment %}
+          Resolved with `{% url ... as %}`, which yields "" rather than raising when
+          the project has not mounted vantage.authviews. The panel must not require
+          them; it just uses them when they are there.
+        {% endcomment %}
+        <a class="v-usermenu-item" role="menuitem" tabindex="-1"
+           href="{{ password_change_url }}">{% translate "Change password" %}</a>
+      {% endif %}
+
+      {% if topbar.may_arrange %}
+        <a class="v-usermenu-item" role="menuitem" tabindex="-1"
+           href="{% url 'vantage:topbar' %}">{% translate "Customise the top bar" %}</a>
+      {% endif %}
+
+      {% if settings.THEME_TOGGLE %}
+        <div class="v-usermenu-sep" role="separator"></div>
+        <div class="v-usermenu-group" role="group" aria-label="{% translate "Theme" %}">
+          {% comment %}
+            Three buttons rather than one toggle, and real submits rather than
+            scripted ones. Without a script each posts to the theme endpoint and
+            comes back to this page; with one, vantage.js repaints instantly and
+            posts in the background. "System" is a state the toggle in the bar
+            cannot express at all — it clears the cookie.
+          {% endcomment %}
+          <button class="v-usermenu-item v-usermenu-choice" role="menuitemradio"
+                  tabindex="-1" type="submit" form="v-theme-form"
+                  name="theme" value="light" data-theme-choice="light"
+                  aria-checked="{% if theme == 'light' %}true{% else %}false{% endif %}">
+            {% icon "sun" %}<span>{% translate "Light" context "theme" %}</span>
+          </button>
+          <button class="v-usermenu-item v-usermenu-choice" role="menuitemradio"
+                  tabindex="-1" type="submit" form="v-theme-form"
+                  name="theme" value="dark" data-theme-choice="dark"
+                  aria-checked="{% if theme == 'dark' %}true{% else %}false{% endif %}">
+            {% icon "moon" %}<span>{% translate "Dark" context "theme" %}</span>
+          </button>
+          <button class="v-usermenu-item v-usermenu-choice" role="menuitemradio"
+                  tabindex="-1" type="submit" form="v-theme-form"
+                  name="theme" value="system" data-theme-choice="system"
+                  aria-checked="{% if theme == 'system' %}true{% else %}false{% endif %}">
+            {% icon "sliders" %}<span>{% translate "Follow the device" %}</span>
+          </button>
+        </div>
+      {% endif %}
+
+      {% if logout_url %}
+        <div class="v-usermenu-sep" role="separator"></div>
+        <button class="v-usermenu-item v-usermenu-signout" role="menuitem" tabindex="-1"
+                type="submit" form="v-signout-form">{% translate "Sign out" %}</button>
+      {% endif %}
+    </div>
+
+    {% if settings.THEME_TOGGLE %}
+      <form id="v-theme-form" method="post" action="{% url 'vantage:theme' %}" hidden>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      </form>
+    {% endif %}
+    {% if logout_url %}
+      <form id="v-signout-form" method="post" action="{{ logout_url }}" hidden>
+        {% csrf_token %}
+      </form>
+    {% endif %}
+  </div>
+</div>

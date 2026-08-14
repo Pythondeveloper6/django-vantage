@@ -1,0 +1,202 @@
+{% load static vantage i18n %}{% comment %}
+  The panel under the grid while the dashboard is being arranged: what has been
+  switched off, how to add a card, and the four buttons that write it down.
+
+  Every list on this form is an allowlist built in Python by
+  vantage.dashboards.editor_context — the same Options object that will validate the
+  POST is what draws the controls, so the editor can never offer a choice the server
+  would then reject, and the models on offer are only the models this person may open.
+
+  The column, date and grouping pickers list every model at once, each option prefixed
+  with the model it belongs to. That is what makes the whole thing one round trip with
+  no scripting: pick a model and a column in the same submit, and the server checks the
+  prefix matches before it checks the column. With scripting on, the options belonging
+  to other models are hidden as soon as a model is chosen.
+{% endcomment %}
+<div class="v-arrange-panel">
+
+  {% if editor.hidden %}
+    <div class="v-arrange-hidden">
+      <h3 class="v-arrange-title">{% translate "Switched off" %}</h3>
+      <p class="v-arrange-note">
+        {% translate "These cards are part of the arrangement but are not being drawn. Tick one to bring it back." %}
+      </p>
+      <div class="v-arrange-hidden-list">
+        {% for item in editor.hidden %}
+          <label class="v-filter-option">
+            <input type="checkbox" name="keep" value="{{ item.index }}">
+            <span class="v-filter-option-label">{{ item.label }}</span>
+            <input type="hidden" name="order__{{ item.index }}" value="{{ item.position }}">
+            <input type="hidden" name="width__{{ item.index }}" value="{{ item.width }}">
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %}
+    Slots this person may not see, carried through untouched. Without these, somebody
+    with narrower access rearranging the page would save an arrangement missing every
+    card they were never shown — deleting a colleague's work by not having been told it
+    existed. An index is all that travels, so nothing about those cards is disclosed.
+  {% endcomment %}
+  {% for item in editor.unseen %}
+    <input type="hidden" name="keep" value="{{ item.index }}">
+    <input type="hidden" name="order__{{ item.index }}" value="{{ item.position }}">
+  {% endfor %}
+
+  <fieldset class="v-arrange-add" data-arrange-add>
+    <legend class="v-arrange-title">{% translate "Add a card" %}</legend>
+
+    {% if editor.models %}
+      <div class="v-arrange-fields">
+
+        <label class="v-arrange-field">
+          <span class="v-arrange-label">{% translate "Model" %}</span>
+          <select class="v-select v-input-sm" name="add_model" data-arrange-model>
+            <option value="">{% translate "Choose a model…" %}</option>
+            {% for model in editor.models %}
+              <option value="{{ model.value }}">{{ model.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field">
+          <span class="v-arrange-label">{% translate "Shape" %}</span>
+          <select class="v-select v-input-sm" name="add_shape" data-arrange-shape>
+            <option value="stat">{% translate "Stat card" %}</option>
+            <option value="chart">{% translate "Chart" %}</option>
+          </select>
+        </label>
+
+        <label class="v-arrange-field">
+          <span class="v-arrange-label">{% translate "Aggregate" %}</span>
+          <select class="v-select v-input-sm" name="add_aggregate">
+            {% for name in editor.aggregates %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field">
+          <span class="v-arrange-label">{% translate "Column" %}</span>
+          <select class="v-select v-input-sm" name="add_field" data-arrange-scoped>
+            <option value="">{% translate "rows" context "aggregate over whole rows rather than one column" %}</option>
+            {% for model in editor.models %}
+              {% if model.measures %}
+                <optgroup label="{{ model.label }}" data-arrange-for="{{ model.value }}">
+                  {% for measure in model.measures %}
+                    <option value="{{ measure.value }}">{{ measure.label }}</option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field" data-arrange-chart>
+          <span class="v-arrange-label">{% translate "Grouped by" %}</span>
+          <select class="v-select v-input-sm" name="add_mode" data-arrange-mode>
+            <option value="timeseries">{% translate "Over time" %}</option>
+            <option value="breakdown">{% translate "Broken down by" %}</option>
+          </select>
+        </label>
+
+        <label class="v-arrange-field" data-arrange-chart data-arrange-when="timeseries">
+          <span class="v-arrange-label">{% translate "Date field" %}</span>
+          <select class="v-select v-input-sm" name="add_date" data-arrange-scoped>
+            <option value="">—</option>
+            {% for model in editor.models %}
+              {% if model.dates %}
+                <optgroup label="{{ model.label }}" data-arrange-for="{{ model.value }}">
+                  {% for date in model.dates %}
+                    <option value="{{ date.value }}">{{ date.label }}</option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field" data-arrange-chart data-arrange-when="breakdown">
+          <span class="v-arrange-label">{% translate "Group field" %}</span>
+          <select class="v-select v-input-sm" name="add_group" data-arrange-scoped>
+            <option value="">—</option>
+            {% for model in editor.models %}
+              {% if model.groups %}
+                <optgroup label="{{ model.label }}" data-arrange-for="{{ model.value }}">
+                  {% for group in model.groups %}
+                    <option value="{{ group.value }}">{{ group.label }}</option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field" data-arrange-chart>
+          <span class="v-arrange-label">{% translate "Drawn as" %}</span>
+          <select class="v-select v-input-sm" name="add_kind">
+            {% for kind in editor.chart_kinds %}<option value="{{ kind }}">{{ kind }}</option>{% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field">
+          <span class="v-arrange-label">{% translate "Width" %}</span>
+          <select class="v-select v-input-sm" name="add_width">
+            <option value="">{% translate "Automatic" %}</option>
+            {% for width in editor.widths %}
+              <option value="{{ width }}">{% blocktranslate with n=width %}{{ n }} col{% endblocktranslate %}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="v-arrange-field">
+          <span class="v-arrange-label">{% translate "Label" %}</span>
+          <input class="v-input v-input-sm" type="text" name="add_label" maxlength="60"
+                 placeholder="{% translate "Optional" %}">
+        </label>
+
+        <label class="v-arrange-field v-arrange-field-wide">
+          <span class="v-arrange-label">{% translate "Filter" %}</span>
+          <input class="v-input v-input-sm" type="text" name="add_filter" maxlength="500"
+                 placeholder="status=paid" spellcheck="false">
+          <span class="v-arrange-hint">
+            {% blocktranslate trimmed %}
+              The list page's own filters, as they appear in its address bar. Filter the
+              list, copy everything after the ?, paste it here.
+            {% endblocktranslate %}
+          </span>
+        </label>
+
+      </div>
+    {% else %}
+      <p class="v-arrange-note">
+        {% translate "There are no models you can build a card from." %}
+      </p>
+    {% endif %}
+  </fieldset>
+
+  {% comment %}
+    Four buttons, one name. Only the pressed submit sends a value, so the scope rides
+    on the button rather than in a hidden field — and one parameter means the check for
+    "for everyone" has exactly one door to guard.
+  {% endcomment %}
+  <div class="v-arrange-actions">
+    <button class="v-btn v-btn-primary v-btn-sm" type="submit" name="do" value="save:user">{% translate "Save" %}</button>
+    {% if editor.may_set_default %}
+      <button class="v-btn v-btn-secondary v-btn-sm" type="submit" name="do" value="save:site">{% translate "Save for everyone" %}</button>
+    {% endif %}
+    <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:user" formnovalidate>{% translate "Reset" %}</button>
+    {% if editor.may_set_default %}
+      <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="do" value="reset:site" formnovalidate>{% translate "Reset for everyone" %}</button>
+    {% endif %}
+  </div>
+
+  <p class="v-arrange-note">
+    {% blocktranslate trimmed %}
+      Changes here are yours alone unless you save them for everyone. Reset puts the
+      dashboard back to what the code declares.
+    {% endblocktranslate %}
+  </p>
+</div>
+
+<script src="{% static 'vantage/vantage-dashboard.js' %}" defer></script>

@@ -9,9 +9,10 @@
 
 What that means in practice:
 
-- **The behaviour is heavily tested.** Around 1,900 test functions across 48 modules,
-  including query-count assertions, a hue sweep proving the contrast guarantee, and a
-  round-trip test asserting that what the exporter writes the importer can read.
+- **The behaviour is heavily tested.** Around 2,400 test functions across 58 modules
+  (close to 3,000 collected test cases once parametrisation is counted), including
+  query-count assertions, a hue sweep proving the contrast guarantee, and a round-trip
+  test asserting that what the exporter writes the importer can read.
 - **The API may still move.** Attribute names, method signatures and settings keys are
   not frozen. Pin an exact commit if you depend on it.
 - **Several features are declared but not wired up.** They are listed below rather than
@@ -104,15 +105,25 @@ An honest list. Some of these are decisions; some are gaps.
 
 | | Notes |
 |---|---|
-| **Inlines** | Editing related rows from a parent's form is not built. The `inlines` attribute exists on `ModelPanel` and is ignored. The detail page shows related records read-only, with a link through |
-| **Per-panel row actions** | `row_actions` is ignored. Use the `row_actions` [slot](extending.md) |
-| **`related_tabs`** | Ignored. Related blocks always render on the detail page |
-| **`panel.permissions`** | Ignored. Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks |
-| **`list_select_related`** | Not read. Relation planning is derived from the rendered columns instead |
-| **Background jobs** | A job model, a runner and a jobs page exist, but bulk actions do not yet hand off to them — everything runs in the request. Guard large actions with `max_rows` |
+| **`related_tabs`** | Ignored. Related blocks always render on the detail page as an unconditional stack, never as tabs |
+| **`panel.permissions`** | Removed outright, not merely ignored. Setting it fails `manage.py check` (`vantage.E020`). Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks — see [Panels](panels.md#removed-attributes) |
 | **A per-field widget override hook** | There is no `formfield_overrides` equivalent, and no `get_form_widgets` method despite what the admin adapter's message suggests. Widgets are inferred per field kind; supply your own form if you need something specific |
-| **A REST or JSON API** | Some endpoints return JSON (autocomplete, the palette, inline validation) but there is no general API |
-| **Translations** | The code is structured for i18n but ships no locale catalogues; the interface strings are English |
+| **Sidebar and dashboard arrangement from the UI** | The [per-list customisation rail](lists.md#the-customisation-rail) and the [settings screen](theming.md#the-settings-screen) have UI layers; the sidebar (`VANTAGE["NAV"]`) and the dashboard (`VANTAGE["DASHBOARD"]`) do not yet — both are Python-only today. See [How configuration resolves](configuration.md#what-is-configurable-from-the-ui-today-and-what-is-not) |
+| **A lightbox on image thumbnails** | Clicking a thumbnail opens the original in a new tab; there is no click-to-enlarge overlay. See [Media and uploads](forms.md#media-and-uploads) |
+| **Translations** | The code is structured for i18n — hundreds of `{% translate %}` call sites and RTL genuinely works — but there is no `locale/` directory and no `.po`/`.mo` file anywhere, so it ships English-only regardless |
+| **Column resize and pinning** | Reorder and hide are done; drag-resize and a pinned/sticky column are not |
+
+`inlines`, `row_actions`, `list_select_related` and background job offload for bulk
+actions used to belong on this table and no longer do — all four are real, tested
+features now. See [Editable inlines](forms.md#editable-inlines),
+[Row actions](panels.md#row-actions), [Panels](panels.md#declared-but-not-yet-wired-up)
+and [Bulk actions](lists.md#bulk-actions) respectively.
+
+**The JSON API is built.** [`vantage.api`](api.md) is a full read/write API over every
+registered panel — cursor pagination, optimistic concurrency, the same permission and
+validation path the HTML pages use. It has no file-upload endpoint (a JSON body cannot
+carry binary data) and no bulk-action, saved-view or import/export endpoints yet; see
+[what it does not do](api.md#what-this-api-does-not-do) for the current edge.
 
 ### Deliberately not done
 

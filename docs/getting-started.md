@@ -67,6 +67,9 @@ anyone ever sees:
 
 ```python
 # urls.py
+from django.urls import include, path
+from vantage import site
+
 urlpatterns = [
     path("admin/", site.urls),
     path("accounts/", include("vantage.authviews")),
@@ -188,11 +191,18 @@ Mistakes in a panel should fail at startup, not surface as a puzzling page.
 python manage.py check
 ```
 
-Vantage registers three system checks: one for the `VANTAGE` settings dict (unknown
-keys, invalid choices), one for every registered panel (field paths that do not
-resolve, a `list_link` outside `list_display`, a layout naming a field the model does
-not have), and one for the `NAV` declaration. Panels left entirely at their inferred
-defaults are skipped — there is no user-written configuration to be wrong.
+Vantage registers six system checks: one for the `VANTAGE` settings dict (unknown keys,
+invalid choices), one for every registered panel (field paths that do not resolve, a
+`list_link` outside `list_display`, a layout naming a field the model does not have),
+one for the `NAV` declaration, one for [multi-tenancy](tenancy.md) (a model with no
+path to the tenant and no exemption — fails closed, so this check exists to name every
+model that would otherwise show nothing), one for plugins that failed to load, and one
+for the `contrib.admin` adapter (settings an adopted `ModelAdmin` declared that could
+not be translated). Panels left entirely at their inferred defaults are skipped — there
+is no user-written configuration to be wrong.
+
+A further set of checks only runs with `--deploy` — see [Security](security.md) and
+[Deployment](deployment.md).
 
 A typo in the settings dict is caught with a suggestion:
 

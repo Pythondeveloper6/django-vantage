@@ -202,3 +202,238 @@
 .v-widget-list dd[data-tone="success"] { color: var(--success); }
 .v-widget-list dd[data-tone="warning"] { color: var(--warning); }
 .v-widget-list dd[data-tone="destructive"] { color: var(--destructive); }
+
+/* ── arranging ────────────────────────────────────────────────────────────── */
+
+/* While the dashboard is being arranged each card sits inside a slot that carries the
+ * grid span, so the controls strip and the card it governs move as one thing. The
+ * spans are repeated rather than shared with .v-widget because the two are siblings in
+ * different modes, and a selector list that covered both would silently apply a span
+ * to the inner card as well and halve every wide widget. */
+.v-arrange-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-inline-size: 0;
+}
+
+.v-arrange-slot[data-width="2"] { grid-column: span 2; }
+.v-arrange-slot[data-width="3"] { grid-column: span 3; }
+.v-arrange-slot[data-width="4"] { grid-column: span 4; }
+
+@media (max-width: 64rem) {
+  .v-arrange-slot[data-width="3"],
+  .v-arrange-slot[data-width="4"] {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 40rem) {
+  .v-arrange-slot[data-width="2"],
+  .v-arrange-slot[data-width="3"],
+  .v-arrange-slot[data-width="4"] {
+    grid-column: span 1;
+  }
+}
+
+/* A dashed outline, so the difference between "looking at the dashboard" and "moving
+ * it about" is visible without reading a word. */
+.v-arrange-slot .v-widget {
+  outline: 1px dashed color-mix(in oklab, var(--primary) 35%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
+.v-arrange-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  font-size: 0.75rem;
+}
+
+.v-arrange-grip {
+  cursor: grab;
+  color: var(--muted-foreground);
+  line-height: 1;
+  padding-inline: 0.125rem;
+}
+
+/* Only meaningful once the script has made the bar draggable; until then the strip is
+ * a row of ordinary form controls and a grab cursor would be a lie. */
+.v-arrange-bar:not([draggable="true"]) .v-arrange-grip {
+  cursor: default;
+}
+
+.v-arrange-name {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+  color: var(--muted-foreground);
+}
+
+.v-arrange-order {
+  inline-size: 3.5rem;
+}
+
+.v-arrange-width {
+  inline-size: auto;
+}
+
+.v-arrange-keep {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* The keyboard equivalent of dragging. Added by the script, which is also the only
+ * time the number box is hidden — take the script away and the numbers are still
+ * there and still the thing the server reads. */
+.v-arrange-move {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.1875rem 0.3125rem;
+}
+
+.v-arrange-move:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.v-arrange-move:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+[data-arrange-enhanced] .v-arrange-order {
+  /* Kept in the form and out of the way: it is still what gets submitted. */
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The card being dragged, and the gap it will land in. */
+.v-arrange-slot[data-dragging] {
+  opacity: 0.45;
+}
+
+.v-arrange-slot[data-drop-target] .v-arrange-bar {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+
+.v-arrange-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+/* ── the editor panel ─────────────────────────────────────────────────────── */
+
+.v-arrange-panel {
+  margin-block-start: 1.25rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.v-arrange-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.v-arrange-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-arrange-hidden {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.v-arrange-hidden-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.v-arrange-add {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.v-arrange-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.625rem;
+  margin-block-start: 0.5rem;
+}
+
+.v-arrange-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+
+.v-arrange-field-wide {
+  grid-column: 1 / -1;
+}
+
+.v-arrange-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.v-arrange-hint {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.v-arrange-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Fields that only mean something for a chart. Hidden by the script when the shape is
+ * a stat card; visible without it, where the server simply ignores them. */
+[data-arrange-enhanced] [data-arrange-chart][hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-arrange-slot[data-dragging],
+  .v-arrange-slot[data-drop-target] .v-arrange-bar {
+    transition: none;
+  }
+}

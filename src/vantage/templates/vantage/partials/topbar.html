@@ -1,0 +1,50 @@
+{% load vantage i18n %}
+{% comment %}
+  The end of the header, as somebody arranged it.
+
+  The order, what is switched off and what has been added all come from
+  vantage.topbar.build_topbar, which resolves the stored row against this request's
+  permissions on every render. This template only draws what it is handed — it makes
+  no decision about what belongs here, because a template that also decides is a
+  second place for the answer to live.
+{% endcomment %}
+{% for slot in topbar.slots %}
+  {% if slot.kind == "search" %}
+    {% include "vantage/partials/palette.html" %}
+
+  {% elif slot.kind == "theme" %}
+    <button class="v-btn v-btn-ghost v-btn-icon" data-vantage-theme-toggle
+            aria-label="{% translate "Switch between light and dark theme" %}"
+            formaction="{% url 'vantage:theme' %}">
+      <span data-theme-icon="light">{% icon "sun" %}</span>
+      <span data-theme-icon="dark" hidden>{% icon "moon" %}</span>
+    </button>
+
+  {% elif slot.kind == "environment" %}
+    {% comment %}
+      The banner moved into the bar. Same text, same destructive tint, a tenth of the
+      height — which is the trade somebody makes deliberately on a panel where the
+      environment never changes and the strip had stopped being read.
+    {% endcomment %}
+    <span class="v-env-chip">{{ slot.label }}</span>
+
+  {% elif slot.kind == "user" %}
+    {% if user.is_authenticated %}
+      {% include "vantage/partials/usermenu.html" %}
+    {% endif %}
+
+  {% elif slot.kind == "link" %}
+    <a class="v-topbar-link" href="{{ slot.url }}"
+       {% if slot.external %}target="_blank" rel="noopener noreferrer"{% endif %}>
+      {% if slot.icon %}{% icon slot.icon %}{% endif %}
+      <span>{{ slot.label }}</span>
+      {% if slot.external %}
+        {% comment %} Same pattern as the sidebar's external items: aria-label on a
+           plain <span> has no role to attach to and is widely ignored, so the warning
+           is real text that happens to be visually hidden. {% endcomment %}
+        <span class="v-sr-only">{% translate "(opens in a new tab)" %}</span>
+        <span class="v-topbar-external" aria-hidden="true">↗</span>
+      {% endif %}
+    </a>
+  {% endif %}
+{% endfor %}
