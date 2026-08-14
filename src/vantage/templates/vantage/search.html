@@ -17,7 +17,7 @@
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">{% translate "Search" %}</h1>
+    <h1 class="v-page-title">{% translate "Search" context "page title, the noun" %}</h1>
     <p class="v-page-description">{% translate "Across every section you can open." %}</p>
   </div>
 </div>
@@ -28,7 +28,7 @@
     <input class="v-input" type="search" name="q" value="{{ query }}"
            placeholder="{% translate 'Search everything…' %}" aria-label="{% translate 'Search everything' %}" autofocus>
   </div>
-  <button class="v-btn v-btn-primary" type="submit">{% translate "Search" %}</button>
+  <button class="v-btn v-btn-primary" type="submit">{% translate "Search" context "button, the verb" %}</button>
   {% if query %}
     <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>
   {% endif %}

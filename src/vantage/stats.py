@@ -36,6 +36,7 @@ from django.core.exceptions import FieldError
 from django.db.models import Count, F, Max, Min, Q, QuerySet
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
+from django.utils.translation import gettext_lazy as _
 
 from vantage.introspection import resolve_path
 
@@ -77,7 +78,7 @@ MAX_GROUPS_SCANNED = 200
 #: Segments rendered before the remainder is folded into "Other".
 DEFAULT_SEGMENTS = 20
 
-OTHER_LABEL = "Other"
+OTHER_LABEL = _("Other")
 NULL_LABEL = "—"
 
 #: Aggregates whose partial results can be added together to form the "Other" segment.
@@ -207,12 +208,18 @@ class Budget:
 
     def deferral(self, *, queries: int, estimated_rows: int | None = None) -> str | None:
         if not self.enabled:
-            return "disabled"
+            return _("disabled")
         if queries > self.max_queries:
-            return f"{queries} queries exceeds the budget of {self.max_queries}"
+            return _("%(queries)s queries exceeds the budget of %(budget)s") % {
+                "queries": queries,
+                "budget": self.max_queries,
+            }
         if self.max_rows is not None and estimated_rows is not None:
             if estimated_rows > self.max_rows:
-                return f"~{estimated_rows} rows exceeds the budget of {self.max_rows}"
+                return _("~%(rows)s rows exceeds the budget of %(budget)s") % {
+                    "rows": estimated_rows,
+                    "budget": self.max_rows,
+                }
         return None
 
 
@@ -917,7 +924,7 @@ def _segment_label(raw: Any, choices: dict[Any, str]) -> str:
     if raw in choices:
         return choices[raw]
     if isinstance(raw, bool):
-        return "Yes" if raw else "No"
+        return _("Yes") if raw else _("No")
     return str(raw)
 
 

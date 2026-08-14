@@ -223,9 +223,16 @@ def get_permissions() -> PanelPermissions:
         from django.utils.module_loading import import_string
 
         from vantage.conf import vantage_settings
+        from vantage.tenancy import enforce_on
 
         path = vantage_settings.PERMISSIONS
-        _cached = import_string(path)() if path else PanelPermissions()
+        # Tenant scoping is composed onto the resolved *instance* rather than being a
+        # fourth layer beside these three: it is a queryset-level answer to the same
+        # question ``filter_queryset`` already answers, and every call site in the
+        # package already goes through it. Wrapping the instance is what makes it
+        # unforgettable — a subclass that overrides ``filter_queryset`` without calling
+        # ``super()`` is still scoped. No-op unless VANTAGE["TENANT_MODEL"] is set.
+        _cached = enforce_on(import_string(path)() if path else PanelPermissions())
     return _cached
 
 

@@ -3,6 +3,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+{% if inlines %}<link rel="stylesheet" href="{% static 'vantage/vantage-inlines.css' %}">{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -56,6 +57,13 @@
     </section>
   {% endfor %}
 
+  {% comment %} After the parent's own fields, before the submit bar: the children belong to
+     this record, and a save button that appears above half the form invites pressing it
+     before that half has been read. {% endcomment %}
+  {% for group in inlines %}
+    {% include "vantage/partials/inline_group.html" with group=group %}
+  {% endfor %}
+
   {% slot "after_form" %}
 
   <div class="v-form-bar">
@@ -67,7 +75,11 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+{% comment %} Only the form pages carry relation pickers, so only they pay for the file.
+   It enhances every [data-vantage-combobox] on the page, inlines included. {% endcomment %}
+<script src="{% static 'vantage/combobox.js' %}" defer></script>
+{% if inlines %}<script src="{% static 'vantage/vantage-inlines.js' %}" defer></script>{% endif %}
+<script{{ csp_nonce_attr }}>
 /* Unsaved-changes guard. Compares a snapshot taken at load against the current state,
  * rather than latching on the first input event — a keystroke that was then undone is
  * not an unsaved change, and a guard that cries wolf gets clicked through. Submitting

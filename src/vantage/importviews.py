@@ -28,6 +28,8 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import path, reverse
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from vantage import importer
 from vantage.views import PanelView
@@ -44,6 +46,19 @@ __all__ = [
 #: Errors listed on the page before the reader is pointed at the CSV instead. A wall of
 #: three thousand messages is not a report, and the download is the right shape for it.
 ERROR_PREVIEW = 50
+
+#: One whole sentence per permission verb, rather than one sentence with the verb
+#: interpolated. ``add`` and ``change`` are the only verbs :data:`~vantage.importer.MODES`
+#: names, and a bare English verb dropped into ``"permission to %(verb)s"`` gives the
+#: translator no case, aspect or word order to work with — several languages need a
+#: different construction for each. Two messages is cheaper than an unusable one.
+PERMISSION_DENIED: dict[str, str] = {
+    "add": _("You do not have permission to add %(objects)s."),
+    "change": _("You do not have permission to change %(objects)s."),
+}
+
+#: Reached only if a mode is added with a verb the dict above does not name.
+PERMISSION_DENIED_FALLBACK = _("You do not have permission to import %(objects)s.")
 
 
 class ImportView(PanelView):
@@ -138,13 +153,13 @@ class ImportView(PanelView):
         """
         needed = importer.MODES.get(mode)
         if needed is None:  # pragma: no cover - resolve_mapping refuses first
-            raise PermissionDenied("Unknown import mode.")
+            raise PermissionDenied(_("Unknown import mode."))
         allowed = self.permissions.allowed_actions(self.request, self.panel.model)
         missing = [verb for verb in needed if verb not in allowed]
         if missing:
+            sentence = PERMISSION_DENIED.get(missing[0], PERMISSION_DENIED_FALLBACK)
             raise PermissionDenied(
-                f"You do not have permission to {missing[0]} "
-                f"{self.panel.get_label_plural().lower()}."
+                sentence % {"objects": self.panel.get_label_plural().lower()}
             )
 
     def allowed_modes(self) -> list[dict]:
@@ -232,10 +247,16 @@ class ImportView(PanelView):
 
     @property
     def page_title(self) -> str:
-        return f"Import {self.panel.get_label_plural().lower()}"
+        return _("Import %(objects)s") % {"objects": self.panel.get_label_plural().lower()}
 
     def get_breadcrumbs(self):
-        return [(self.panel.get_label_plural(), self.list_url()), ("Import", None)]
+        # A lone "Import" is a verb and a noun in English and only one of the two in
+        # most other languages, and the crumb is the noun (the page you are on), not
+        # the button. Nothing else in the wizard is ambiguous enough to need context.
+        return [
+            (self.panel.get_label_plural(), self.list_url()),
+            (pgettext_lazy("breadcrumb", "Import"), None),
+        ]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -265,17 +286,20 @@ class ImportUploadView(ImportView):
         discard = request.POST.get("discard")
         if discard:
             importer.discard_stash(discard)
-            messages.info(request, "That upload was discarded.")
+            messages.info(request, _("That upload was discarded."))
             return HttpResponseRedirect(self.upload_url())
 
         upload = request.FILES.get("file")
         if upload is None:
-            return self.reject("Choose a CSV file to import.")
+            return self.reject(_("Choose a CSV file to import."))
         # Checked before reading: the point of a size cap is not to read the file.
         if upload.size > self.max_bytes:
             return self.reject(
-                f"That file is {upload.size / (1024 * 1024):.1f} MB; the limit is "
-                f"{self.max_bytes / (1024 * 1024):.0f} MB."
+                _("That file is %(size)s MB; the limit is %(limit)s MB.")
+                % {
+                    "size": f"{upload.size / (1024 * 1024):.1f}",
+                    "limit": f"{self.max_bytes / (1024 * 1024):.0f}",
+                }
             )
 
         raw = upload.read()
@@ -408,7 +432,7 @@ class ImportCommitView(ImportPreviewView):
             importer.discard_stash(self.token)
 
         level = messages.success if not result.failed else messages.warning
-        level(request, f"Import finished: {result.summary()}.")
+        level(request, _("Import finished: %(summary)s.") % {"summary": result.summary()})
 
         if not result.failed:
             return HttpResponseRedirect(self.list_url())

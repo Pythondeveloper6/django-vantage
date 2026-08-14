@@ -27,6 +27,8 @@ from django.conf import settings as django_settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect, JsonResponse
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from vantage.color import (
     LIGHT_TARGET,
@@ -46,6 +48,12 @@ __all__ = ["SECTIONS", "SiteSettingsForm", "SiteSettingsView", "brand_report"]
 
 #: The screen's shape: key, heading, blurb, and the columns it owns. Also what the
 #: per-section reset acts on, so the button can never disagree with the card above it.
+#:
+#: The heading and blurb in this tuple are the *source* text: they name the section in
+#: code, and they are what a reader of this module sees. What the page renders comes
+#: from :data:`_SECTION_TITLES` and :data:`_SECTION_BLURBS` below, because a lazy
+#: translation is a promise rather than a ``str`` and this tuple is read by callers that
+#: treat those two slots as plain text.
 SECTIONS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
     (
         "branding",
@@ -70,37 +78,59 @@ SECTIONS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
 #: Columns whose control wants the full width of the grid.
 _WIDE = frozenset({"environment", "login_image"})
 
+#: Section key -> the heading the card shows. Lazy, because this module is imported
+#: once at startup and the language is only known per request.
+_SECTION_TITLES = {
+    "branding": _("Branding"),
+    "appearance": _("Appearance"),
+    "behaviour": _("Behaviour"),
+}
+
+#: Section key -> the sentence under the heading.
+_SECTION_BLURBS = {
+    "branding": _("The name and marks that identify this panel."),
+    "appearance": _("One colour drives the whole palette. Everything else is derived from it."),
+    "behaviour": _("How the panel acts, for everyone who uses it."),
+}
+
+#: Keys stay plain: they are the form's field names, and Django matches them against
+#: ``Meta.fields``. Only the value a person reads is translated.
 _LABELS = {
-    "site_title": "Site title",
-    "site_acronym": "Short mark",
-    "logo": "Logo",
-    "logo_dark": "Logo (dark theme)",
-    "favicon": "Favicon",
-    "login_image": "Login page image",
-    "brand_color": "Brand colour",
-    "brand_radius": "Corner radius",
-    "theme": "Default theme",
-    "theme_toggle": "Theme toggle",
-    "environment": "Environment banner",
-    "default_per_page": "Rows per page",
-    "command_palette": "Command palette",
-    "read_only": "Read-only mode",
+    "site_title": _("Site title"),
+    "site_acronym": _("Short mark"),
+    "logo": _("Logo"),
+    "logo_dark": _("Logo (dark theme)"),
+    "favicon": _("Favicon"),
+    "login_image": _("Login page image"),
+    "brand_color": _("Brand colour"),
+    "brand_radius": _("Corner radius"),
+    "theme": _("Default theme"),
+    "theme_toggle": _("Theme toggle"),
+    "environment": _("Environment banner"),
+    "default_per_page": _("Rows per page"),
+    "command_palette": _("Command palette"),
+    "read_only": _("Read-only mode"),
 }
 
 _HELP = {
-    "site_acronym": "Shown in the collapsed sidebar. Derived from the title when empty.",
-    "logo_dark": "Falls back to the light logo when empty.",
-    "brand_color": "A hex colour. Every button, link and focus ring is derived from it.",
-    "brand_radius": "A CSS length: 0.5rem, 8px, or 0 for square corners.",
-    "theme_toggle": "Lets each person choose light or dark for themselves.",
-    "environment": "A banner across the top of every page. Empty hides it.",
-    "read_only": "Hides every create, edit and delete control for everyone.",
+    "site_acronym": _("Shown in the collapsed sidebar. Derived from the title when empty."),
+    "logo_dark": _("Falls back to the light logo when empty."),
+    "brand_color": _("A hex colour. Every button, link and focus ring is derived from it."),
+    "brand_radius": _("A CSS length: 0.5rem, 8px, or 0 for square corners."),
+    "theme_toggle": _("Lets each person choose light or dark for themselves."),
+    "environment": _("A banner across the top of every page. Empty hides it."),
+    "read_only": _("Hides every create, edit and delete control for everyone."),
 }
 
+#: One bare word, and "on" and "off" are prepositions as often as they are switch
+#: positions. The context is what tells a translator which one this is.
+_ON = pgettext_lazy("toggle state", "On")
+_OFF = pgettext_lazy("toggle state", "Off")
+
 _BOOLEAN_LABELS = {
-    "theme_toggle": ("On", "Off"),
-    "command_palette": ("On", "Off"),
-    "read_only": ("On — nothing can be created, changed or deleted", "Off"),
+    "theme_toggle": (_ON, _OFF),
+    "command_palette": (_ON, _OFF),
+    "read_only": (_("On — nothing can be created, changed or deleted"), _OFF),
 }
 
 
@@ -156,13 +186,33 @@ def brand_report(color: str) -> BrandReport:
 
     warning = None
     if adjusted:
-        warning = (
-            f"{color} cannot carry readable text at the lightness this panel uses for "
-            f"buttons: it scores {requested_ratio:.1f}:1 against the text colour that "
-            f"would sit on it, and WCAG AA needs {WCAG_AA}:1. The derived button colour "
-            f"was {'darkened' if primary.l < requested.l else 'lightened'} until it "
-            f"reached {ratio:.1f}:1. Your colour is stored exactly as you entered it."
-        )
+        numbers = {
+            "color": color,
+            # Formatted before they reach the sentence, so a translator is handed
+            # ordinary text rather than a format spec to preserve.
+            "requested_ratio": f"{requested_ratio:.1f}",
+            "required_ratio": WCAG_AA,
+            "ratio": f"{ratio:.1f}",
+        }
+        # Two whole sentences rather than one with "darkened"/"lightened" slotted in: a
+        # bare English participle dropped into a translated sentence is a word a
+        # translator cannot agree with anything, and in several languages cannot inflect.
+        if primary.l < requested.l:
+            warning = _(
+                "%(color)s cannot carry readable text at the lightness this panel uses "
+                "for buttons: it scores %(requested_ratio)s:1 against the text colour "
+                "that would sit on it, and WCAG AA needs %(required_ratio)s:1. The "
+                "derived button colour was darkened until it reached %(ratio)s:1. Your "
+                "colour is stored exactly as you entered it."
+            ) % numbers
+        else:
+            warning = _(
+                "%(color)s cannot carry readable text at the lightness this panel uses "
+                "for buttons: it scores %(requested_ratio)s:1 against the text colour "
+                "that would sit on it, and WCAG AA needs %(required_ratio)s:1. The "
+                "derived button colour was lightened until it reached %(ratio)s:1. Your "
+                "colour is stored exactly as you entered it."
+            ) % numbers
 
     return BrandReport(
         color=color,
@@ -193,7 +243,7 @@ class SiteSettingsForm(forms.ModelForm):
 
     class Meta:
         model = SiteConfiguration
-        fields = [name for _, _, _, names in SECTIONS for name in names]
+        fields = [name for _key, _title, _blurb, names in SECTIONS for name in names]
         labels = _LABELS
         help_texts = _HELP
 
@@ -207,9 +257,15 @@ class SiteSettingsForm(forms.ModelForm):
 
             if isinstance(field, forms.NullBooleanField):
                 on, off = _BOOLEAN_LABELS[name]
+                # Two finished sentences. Translating "on" and "off" on their own and
+                # gluing them into the brackets would hand a translator a word with no
+                # sentence around it, and several languages would need a different one.
+                inherited_label = (
+                    _("Use the code default (on)") if fallback else _("Use the code default (off)")
+                )
                 field.widget = forms.Select(
                     choices=[
-                        ("", f"Use the code default ({'on' if fallback else 'off'})"),
+                        ("", inherited_label),
                         ("true", on),
                         ("false", off),
                     ],
@@ -218,7 +274,8 @@ class SiteSettingsForm(forms.ModelForm):
                 continue
 
             if name == "theme":
-                field.choices = [("", f"Use the code default ({fallback})")] + [
+                inherited_label = _("Use the code default (%(value)s)") % {"value": fallback}
+                field.choices = [("", inherited_label)] + [
                     choice for choice in field.choices if choice[0]
                 ]
                 field.widget.attrs["class"] = "v-select"
@@ -273,16 +330,16 @@ class SiteSettingsView(SiteView):
     """Read and write the stored overrides. One row, one form, three sections."""
 
     template_name = "vantage/settings.html"
-    page_title = "Settings"
-    page_description = "Change the panel's branding and behaviour without a deploy."
+    page_title = _("Settings")
+    page_description = _("Change the panel's branding and behaviour without a deploy.")
 
     def check_permission(self, request):
         if may_edit_settings(request):
             return None
-        raise PermissionDenied("You do not have permission to change the site settings.")
+        raise PermissionDenied(_("You do not have permission to change the site settings."))
 
     def get_breadcrumbs(self):
-        return [("Settings", None)]
+        return [(_("Settings"), None)]
 
     # ── read ────────────────────────────────────────────────────────────────
 
@@ -336,16 +393,17 @@ class SiteSettingsView(SiteView):
         config.updated_by = request.user
         config.save()
 
-        messages.success(request, "Settings saved.")
+        messages.success(request, _("Settings saved."))
         self.warn_about_contrast(request, config)
         return HttpResponseRedirect(request.path)
 
     def reset(self, request, config, section: str):
         """Clear one section back to whatever the code says."""
-        names = {key: names for key, _, _, names in SECTIONS}.get(section)
-        if names is None:
+        spec = {key: (title, names) for key, title, _blurb, names in SECTIONS}.get(section)
+        if spec is None:
             # Only reachable from a hand-crafted POST. Nothing to do and nothing to say.
             return HttpResponseRedirect(request.path)
+        source_title, names = spec
 
         if config.pk:
             for name in names:
@@ -361,7 +419,14 @@ class SiteSettingsView(SiteView):
             config.updated_by = request.user
             config.save()
 
-        messages.success(request, f"{section.capitalize()} reset to the code defaults.")
+        # The card's own heading, already capitalised by whoever translated it. Taking
+        # the key and capitalising it would produce a word in English, and a word
+        # capitalised the English way, in every language the panel is read in.
+        messages.success(
+            request,
+            _("%(section)s reset to the code defaults.")
+            % {"section": _SECTION_TITLES.get(section, source_title)},
+        )
         return HttpResponseRedirect(request.path)
 
     def warn_about_contrast(self, request, config) -> None:
@@ -388,8 +453,10 @@ def _section(form, config, inherited, spec) -> dict:
     key, title, blurb, names = spec
     return {
         "key": key,
-        "title": title,
-        "description": blurb,
+        # Translated for the page; the tuple's own text is the fallback, so a section
+        # added without an entry above still renders its source heading.
+        "title": _SECTION_TITLES.get(key, title),
+        "description": _SECTION_BLURBS.get(key, blurb),
         "fields": [_field(form, config, inherited, name) for name in names],
     }
 

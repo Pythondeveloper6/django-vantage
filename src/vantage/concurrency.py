@@ -43,6 +43,7 @@ from django.db import models, router
 from django.db.models import F
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.translation import pgettext
 
 __all__ = [
     "StaleWrite",
@@ -68,6 +69,10 @@ class StaleWrite(Exception):
     """
 
     def __init__(self, obj, token: str | None) -> None:
+        # Deliberately untranslated. Every caller catches this by type and reports the
+        # conflict from ``obj`` and ``token`` — see ``inline.ChangeSet.conflict`` and
+        # ``records.bulk_edit`` — so the string is only ever read in a traceback or a
+        # log line, both of which are developer-facing and want the model label.
         super().__init__(f"{obj._meta.label} {obj.pk} was changed by someone else.")
         self.obj = obj
         self.token = token
@@ -251,11 +256,21 @@ def field_diff(obj, submitted: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _display(field: models.Field, value: Any) -> str:
-    """What a person should read for this value, not what the database stores."""
+    """What a person should read for this value, not what the database stores.
+
+    Every string here is rendered into the conflict-resolution panel — "yours" against
+    "theirs", side by side — so it is UI text, not a debugging aid, and is translated
+    accordingly. The em dash is punctuation rather than a word and is left alone.
+    """
     if value is None or value == "":
         return "—"
     if isinstance(value, bool):
-        return "Yes" if value else "No"
+        # pgettext because a bare "Yes" is an answer to a question in some places and
+        # the state of a checkbox in others, and several languages use different words.
+        # Here it is only ever the rendered value of a boolean column.
+        if value:
+            return pgettext("value of a boolean field", "Yes")
+        return pgettext("value of a boolean field", "No")
     choices = getattr(field, "flatchoices", None)
     if choices:
         return str(dict(choices).get(value, value))

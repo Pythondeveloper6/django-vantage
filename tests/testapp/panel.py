@@ -18,6 +18,12 @@ class ArchivePanel(ModelPanel):
     Every other model in this app stays on pure inference.
     """
 
+    #: Built-ins by name, then two of the panel's own actions. The mix is the fixture:
+    #: a built-in resolves to a link at a page that already exists, an ``@action``
+    #: resolves to a button that posts, and ``purge`` carries a permission the
+    #: built-ins do not so the per-page permission filter has something to remove.
+    row_actions = ["view", "edit", "duplicate", "restore", "purge", "delete"]
+
     @action("Restore", icon="check")
     def restore(self, request, queryset):
         return f"Restored {queryset.update(deleted_at=None)}."

@@ -32,6 +32,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from django.db.models import QuerySet
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext, ngettext_lazy
 
 __all__ = ["Action", "ActionResult", "Selection", "action", "resolve_actions"]
 
@@ -79,15 +81,18 @@ class Action:
     def confirmation_text(self, count: int) -> str:
         if self.confirm:
             return self.confirm.format(count=count)
-        noun = "record" if count == 1 else "records"
-        return f"{self.label} will be applied to {count} {noun}. This cannot be undone."
+        return ngettext_lazy(
+            "%(label)s will be applied to %(count)d record. This cannot be undone.",
+            "%(label)s will be applied to %(count)d records. This cannot be undone.",
+            "count",
+        ) % {"label": self.label, "count": count}
 
     def run(self, panel, request, queryset) -> ActionResult:
         outcome = self.func(panel, request, queryset)
         if isinstance(outcome, ActionResult):
             return outcome
         if outcome is None:
-            return ActionResult(f"{self.label} completed.")
+            return ActionResult(_("%(label)s completed.") % {"label": self.label})
         return ActionResult(str(outcome))
 
 
@@ -170,30 +175,47 @@ def _from_patterns(panel) -> list[Action]:
     if pattern is None:
         return []
 
-    def _set(value_attr: str, label: str):
+    def _set(value_attr: str):
+        publishing = value_attr == "publish_value"
+
         def run(self, request, queryset):
             from django.utils import timezone
 
             value = getattr(pattern, value_attr)
             # A timestamp pattern has no fixed value: publishing means "now", and a
             # pure detector must not read the clock, so the caller supplies it.
-            if pattern.kind == "timestamp" and value_attr == "publish_value":
+            if pattern.kind == "timestamp" and publishing:
                 value = timezone.now()
             updated = queryset.update(**{pattern.field: value})
-            return f"{label} {updated} record{'' if updated == 1 else 's'}."
+            # Two whole sentences rather than one assembled from a verb and a count.
+            # "Published" is not a word a translator can place: it is the start of a
+            # sentence in English and the end of one in plenty of other languages.
+            if publishing:
+                return ngettext(
+                    "Published %(count)s record.",
+                    "Published %(count)s records.",
+                    updated,
+                ) % {"count": updated}
+            return ngettext(
+                "Unpublished %(count)s record.",
+                "Unpublished %(count)s records.",
+                updated,
+            ) % {"count": updated}
 
         return run
 
     built = []
     for name, label, value_attr in (
-        ("publish", "Published", "publish_value"),
-        ("unpublish", "Unpublished", "unpublish_value"),
+        ("publish", _("Publish"), "publish_value"),
+        ("unpublish", _("Unpublish"), "unpublish_value"),
     ):
         built.append(
             Action(
-                func=_set(value_attr, label),
+                func=_set(value_attr),
                 name=name,
-                label=name.capitalize(),
+                # The button's own wording, so it is translated rather than derived
+                # from the Python identifier by ``str.capitalize``.
+                label=label,
                 icon="check" if name == "publish" else "x",
                 permission="change",
                 bulk_strategy="sql",
@@ -275,9 +297,29 @@ class Selection:
         return queryset.filter(pk__in=self.ids)
 
     def describe(self, count: int) -> str:
-        """Say plainly what scope was resolved, so it can never shrink silently."""
-        noun = "record" if count == 1 else "records"
+        """Say plainly what scope was resolved, so it can never shrink silently.
+
+        Three whole phrases rather than a noun glued to a clause. This text is read
+        back to the user immediately after a destructive action has run, which makes it
+        the last place in the package where a translator should be handed fragments and
+        asked to guess how they will be joined.
+        """
+        if self.select_all and self.excluded:
+            # Pluralised on the matching count, which is the number the phrase is
+            # about; the exclusion count is reported as a bare figure.
+            return ngettext(
+                "all %(count)s matching record, %(excluded)s excluded",
+                "all %(count)s matching records, %(excluded)s excluded",
+                count,
+            ) % {"count": count, "excluded": len(self.excluded)}
         if self.select_all:
-            excluded = f", {len(self.excluded)} excluded" if self.excluded else ""
-            return f"all {count} matching {noun}{excluded}"
-        return f"{count} selected {noun}"
+            return ngettext(
+                "all %(count)s matching record",
+                "all %(count)s matching records",
+                count,
+            ) % {"count": count}
+        return ngettext(
+            "%(count)s selected record",
+            "%(count)s selected records",
+            count,
+        ) % {"count": count}

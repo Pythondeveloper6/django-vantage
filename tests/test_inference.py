@@ -75,8 +75,27 @@ class TestListDisplay:
     def test_json_is_never_a_column(self):
         assert "metadata" not in infer_list_display(Post)
 
-    def test_images_are_never_a_column(self):
-        assert "avatar" not in infer_list_display(Author)
+    def test_images_are_a_column_and_a_high_ranking_one(self):
+        """An image renders as a thumbnail, so it is the fastest cell on the row to read.
+
+        This is the reverse of what the rule used to be, and deliberately so: a file
+        *path* in a table cell is noise and was excluded for that reason, but
+        ``vantage.media`` turns an ``ImageField`` into a picture. Only ``ImageField``
+        is promoted — a plain ``FileField`` still has nothing to show but its path.
+        """
+        columns = infer_list_display(Author)
+        assert "avatar" in columns
+        assert columns.index("avatar") == 1  # right behind the record's own name
+
+    def test_plain_files_are_still_never_a_column(self):
+        class Attachment(models.Model):
+            name = models.CharField(max_length=50)
+            document = models.FileField(upload_to="docs/")
+
+            class Meta:
+                app_label = "testapp"
+
+        assert infer_list_display(Attachment) == ["name"]
 
     def test_the_primary_key_is_not_a_column(self):
         """The linked column already opens the record; the pk is redundant."""

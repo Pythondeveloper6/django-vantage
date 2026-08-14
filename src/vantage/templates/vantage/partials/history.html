@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   The per-record history panel. Rendered only when the viewer may read the audit log —
   `history` is None otherwise, not an empty list, because "nobody has touched this
   record" and "you may not see who has" must not look the same.
@@ -12,7 +12,7 @@
 {% if history is not None %}
   <section class="v-card v-history">
     <div class="v-card-head">
-      <h2 class="v-card-title">History</h2>
+      <h2 class="v-card-title">{% translate "History" %}</h2>
       {% if history %}<span class="v-badge">{{ history|length }}</span>{% endif %}
     </div>
 
@@ -22,13 +22,14 @@
           <li class="v-history-item" data-action="{{ entry.action }}">
             <div class="v-history-head">
               <span class="v-audit-verb" data-action="{{ entry.action }}">{{ entry.get_action_display }}</span>
-              <span class="v-history-who">{{ entry.actor_repr|default:"Someone" }}</span>
+              {% translate "Someone" as unknown_actor %}
+              <span class="v-history-who">{{ entry.actor_repr|default:unknown_actor }}</span>
               <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">
                 {{ entry.created_at|date:"Y-m-d H:i" }}
               </time>
             </div>
             {% if entry.action_name %}
-              <p class="v-history-note">Ran <code>{{ entry.action_name }}</code>.</p>
+              <p class="v-history-note">{% blocktranslate with name=entry.action_name %}Ran <code>{{ name }}</code>.{% endblocktranslate %}</p>
             {% endif %}
             {% if entry.change_list %}
               <dl class="v-diff">
@@ -42,7 +43,7 @@
                       {% endif %}
                       {% if change.to is not None %}<ins>{{ change.to }}</ins>{% endif %}
                       {% if change.from is None and change.to is None %}
-                        <span class="v-diff-redacted">changed — value not recorded</span>
+                        <span class="v-diff-redacted">{% translate "changed — value not recorded" %}</span>
                       {% endif %}
                     </dd>
                   </div>
@@ -53,21 +54,24 @@
         {% endfor %}
       </ol>
       {% if history|length >= history_limit and audit_url %}
+        {% comment %} One blocktranslate for both sentences: the link text is part of the
+           thought, and languages that front the call to action need to move it. {% endcomment %}
         <div class="v-card-body v-muted">
-          Showing the most recent {{ history_limit }}.
-          <a href="{{ audit_url }}">Open the full audit log</a>.
+          {% blocktranslate count counter=history_limit with url=audit_url %}Showing the most recent entry. <a href="{{ url }}">Open the full audit log</a>.{% plural %}Showing the most recent {{ counter }} entries. <a href="{{ url }}">Open the full audit log</a>.{% endblocktranslate %}
         </div>
       {% endif %}
     {% else %}
       <div class="v-card-body v-muted">
-        Nothing has been done to this record through the panel.
+        {% translate "Nothing has been done to this record through the panel." %}
       </div>
     {% endif %}
 
     {% if history_timeline %}
       <div class="v-card-body v-history-external">
-        <h3 class="v-history-subtitle">Row history</h3>
-        <p class="v-muted v-history-source">From django-simple-history.</p>
+        <h3 class="v-history-subtitle">{% translate "Row history" %}</h3>
+        {% comment %} "django-simple-history" is a package name, so it stays inside the
+           sentence as a literal rather than becoming a placeholder. {% endcomment %}
+        <p class="v-muted v-history-source">{% translate "From django-simple-history." %}</p>
         <ol class="v-history-list">
           {% for revision in history_timeline %}
             <li class="v-history-item">

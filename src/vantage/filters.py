@@ -46,6 +46,7 @@ from django.db.models import Count, Q
 from django.db.models.constants import LOOKUP_SEP
 from django.http import QueryDict
 from django.utils import timezone
+from django.utils.functional import Promise
 from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
@@ -102,7 +103,7 @@ FACETS_PARAM = "_facets"
 #: Relative date windows, keyed by ISO-8601 duration. The window is anchored on whole
 #: local days and *includes today*, so "last 7 days" covers seven calendar days rather
 #: than the eight that a naive ``today - 7 days`` produces.
-DATE_PRESETS: dict[str, tuple[str, int]] = {
+DATE_PRESETS: dict[str, tuple[str | Promise, int]] = {
     "P1D": (_("Today"), 1),
     "P7D": (_("Last 7 days"), 7),
     "P30D": (_("Last 30 days"), 30),
@@ -267,7 +268,7 @@ class Filter:
         options = self.options()
         if not options or len(options) > MAX_FACET_CHOICES:
             return None
-        pairs = [(value, self.value_q(value)) for value, _ in options]
+        pairs = [(value, self.value_q(value)) for value, _label in options]
         return [(value, q) for value, q in pairs if q is not None]
 
     def set_counts(self, counts: dict[str, int]) -> None:
@@ -299,7 +300,9 @@ class ChoiceFilter(Filter):
         # Keys are matched as strings because that is what arrives in the query
         # string, but the query is issued with the declared Python value, which may be
         # an int or a bool.
-        self._by_key = {str(value): value for value, _ in _flat_choices(hops[-1].field.choices)}
+        self._by_key = {
+            str(value): value for value, _label in _flat_choices(hops[-1].field.choices)
+        }
         super().__init__(path, hops, params)
 
     def clean(self, value: str) -> str | None:
@@ -380,7 +383,7 @@ class DateFilter(Filter):
         return FacetCost.CHEAP if indexed else FacetCost.COSTLY
 
     def options(self) -> list[tuple[str, str]]:
-        options = [(key, label) for key, (label, _) in DATE_PRESETS.items()]
+        options = [(key, label) for key, (label, _days) in DATE_PRESETS.items()]
         options.append((CURRENT_YEAR, _("This year")))
         return options + self._empty_option()
 
@@ -455,8 +458,14 @@ class RelatedFilter(Filter):
         return self._option_cache
 
     def _load_options(self) -> list[tuple[str, str]]:
+        # Scoped like every other list of related records: a filter rail offering
+        # another tenant's customers leaks their names whether or not you tick one.
+        # There is no request here, so this reads the ambient tenant the middleware
+        # published. A no-op unless tenancy is on.
+        from vantage.tenancy import scope_queryset
+
         ordering = _option_ordering(self.related_model)
-        queryset = self.related_model._default_manager.all().order_by(*ordering)
+        queryset = scope_queryset(self.related_model._default_manager.all()).order_by(*ordering)
         objects = list(queryset[: MAX_FACET_CHOICES + 1])
         if len(objects) > MAX_FACET_CHOICES:
             # Too many to render as checkboxes, and too many to count: the aggregate
@@ -745,7 +754,7 @@ def _day_start(value: dt.date) -> dt.datetime:
 def _parse_range(value: str) -> tuple[dt.date | None, dt.date | None] | None:
     if RANGE_SEP not in value:
         return None
-    low, _, high = value.partition(RANGE_SEP)
+    low, _sep, high = value.partition(RANGE_SEP)
     try:
         start = dt.date.fromisoformat(low) if low else None
         end = dt.date.fromisoformat(high) if high else None

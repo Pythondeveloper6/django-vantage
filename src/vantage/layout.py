@@ -28,6 +28,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _
+
 __all__ = ["Node", "Row", "Section", "Tab", "Tabs", "normalise", "resolve_layout"]
 
 
@@ -149,11 +151,11 @@ def resolve_layout(layout: Any, available: list[str]) -> Node:
 
     missing = [name for name in available if name not in covered]
     if missing:
-        extra = Section(*missing, title="Other")
+        extra = Section(*missing, title=_("Other"))
         if isinstance(root, Tabs):
             # A stray section floating beside a tab strip has no home; give the
             # leftovers their own tab instead.
-            root = Tabs(*root.children, Tab("Other", extra))
+            root = Tabs(*root.children, Tab(_("Other"), extra))
         elif root.kind == "section":
             root = Section(*root.children, extra)
         else:

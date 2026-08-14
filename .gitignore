@@ -26,6 +26,7 @@ htmlcov/
 node_modules/
 
 # Local
+.playwright-mcp/
 *.sqlite3
 .DS_Store
 .env

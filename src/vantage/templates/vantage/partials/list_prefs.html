@@ -23,7 +23,7 @@
     {% icon "sliders" %}
     <span>{% translate "Customise" %}</span>
     {% if list_prefs.spec.stored %}
-      <span class="v-badge" data-tone="primary">{% translate "Tuned" %}</span>
+      <span class="v-badge" data-tone="primary">{% translate "Tuned" context "badge: these list preferences differ from the code defaults" %}</span>
     {% endif %}
   </summary>
 
@@ -52,7 +52,7 @@
     <div class="v-listprefs-head">
       <h3 class="v-listprefs-title">{% translate "Columns" %}</h3>
       {% if list_prefs.overridden.columns %}
-        <span class="v-listprefs-flag">{% translate "tuned" %}</span>
+        <span class="v-listprefs-flag">{% translate "tuned" context "badge: this section differs from the code defaults" %}</span>
       {% endif %}
     </div>
 
@@ -102,8 +102,8 @@
       <input type="hidden" name="next" value="{{ list_prefs.next }}">
 
       <div class="v-listprefs-head">
-        <h3 class="v-listprefs-title">{% translate "Search" %}</h3>
-        {% if list_prefs.overridden.search %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
+        <h3 class="v-listprefs-title">{% translate "Search" context "list preferences section, the noun" %}</h3>
+        {% if list_prefs.overridden.search %}<span class="v-listprefs-flag">{% translate "tuned" context "badge: this section differs from the code defaults" %}</span>{% endif %}
       </div>
 
       <label class="v-filter-option v-listprefs-toggle">
@@ -145,7 +145,7 @@
 
       <div class="v-listprefs-head">
         <h3 class="v-listprefs-title">{% translate "Filters" %}</h3>
-        {% if list_prefs.overridden.filters %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
+        {% if list_prefs.overridden.filters %}<span class="v-listprefs-flag">{% translate "tuned" context "badge: this section differs from the code defaults" %}</span>{% endif %}
       </div>
 
       <label class="v-filter-option v-listprefs-toggle">
@@ -204,7 +204,7 @@
 
     <div class="v-listprefs-head">
       <h3 class="v-listprefs-title">{% translate "Statistics" %}</h3>
-      {% if list_prefs.overridden.stats %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
+      {% if list_prefs.overridden.stats %}<span class="v-listprefs-flag">{% translate "tuned" context "badge: this section differs from the code defaults" %}</span>{% endif %}
     </div>
 
     <label class="v-filter-option v-listprefs-toggle">
@@ -225,7 +225,7 @@
         <label class="v-filter-option">
           <input type="checkbox" name="extra_stats" value="{{ option.index }}" checked>
           <span class="v-filter-option-label">{{ option.label }}</span>
-          <span class="v-listprefs-tag">{% translate "yours" %}</span>
+          <span class="v-listprefs-tag">{% translate "yours" context "tag: added by the person viewing the page" %}</span>
         </label>
       {% endfor %}
       {% if not list_prefs.stat_options and not list_prefs.extra_stats %}
@@ -242,7 +242,7 @@
       </select>
       <select class="v-select v-input-sm" name="add_stat_field"
               aria-label="{% translate "Column for the new statistic" %}">
-        <option value="">{% translate "rows" %}</option>
+        <option value="">{% translate "rows" context "aggregate over whole rows rather than one column" %}</option>
         {% for measure in list_prefs.measures %}
           <option value="{{ measure.name }}">{{ measure.label }}</option>
         {% endfor %}
@@ -272,7 +272,7 @@
 
     <div class="v-listprefs-head">
       <h3 class="v-listprefs-title">{% translate "Charts" %}</h3>
-      {% if list_prefs.overridden.charts %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
+      {% if list_prefs.overridden.charts %}<span class="v-listprefs-flag">{% translate "tuned" context "badge: this section differs from the code defaults" %}</span>{% endif %}
     </div>
 
     <label class="v-filter-option v-listprefs-toggle">
@@ -293,7 +293,7 @@
         <label class="v-filter-option">
           <input type="checkbox" name="extra_charts" value="{{ option.index }}" checked>
           <span class="v-filter-option-label">{{ option.label }}</span>
-          <span class="v-listprefs-tag">{% translate "yours" %}</span>
+          <span class="v-listprefs-tag">{% translate "yours" context "tag: added by the person viewing the page" %}</span>
         </label>
       {% endfor %}
       {% if not list_prefs.chart_options and not list_prefs.extra_charts %}
@@ -332,7 +332,7 @@
         </select>
         <select class="v-select v-input-sm" name="add_chart_field"
                 aria-label="{% translate "Column for the new chart" %}">
-          <option value="">{% translate "rows" %}</option>
+          <option value="">{% translate "rows" context "aggregate over whole rows rather than one column" %}</option>
           {% for measure in list_prefs.measures %}
             <option value="{{ measure.name }}">{{ measure.label }}</option>
           {% endfor %}
@@ -361,7 +361,7 @@
 
     <div class="v-listprefs-head">
       <h3 class="v-listprefs-title">{% translate "Summary bar" %}</h3>
-      {% if list_prefs.overridden.summary %}<span class="v-listprefs-flag">{% translate "tuned" %}</span>{% endif %}
+      {% if list_prefs.overridden.summary %}<span class="v-listprefs-flag">{% translate "tuned" context "badge: this section differs from the code defaults" %}</span>{% endif %}
     </div>
 
     <label class="v-filter-option v-listprefs-toggle">

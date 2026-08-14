@@ -304,6 +304,19 @@ def _invalidate(sender, **kwargs) -> None:
 # ── the audit log ───────────────────────────────────────────────────────────
 
 
+#: The past-tense verb for each action, as a whole word. ``VantageLogEntry.__str__``
+#: reads as a sentence — "ada updated Invoice 12" — so the choice *label* ("Updated")
+#: cannot simply be lowercased on the way in: case is not a mechanical transform in
+#: German, where a lowercased noun is a spelling mistake, or in Turkish, where it moves
+#: a dot. One translated verb per action instead.
+_ACTION_VERBS: dict[str, str | Promise] = {
+    "create": _("created"),
+    "update": _("updated"),
+    "delete": _("deleted"),
+    "action": _("ran an action"),
+}
+
+
 class VantageLogEntry(models.Model):
     """One thing a person did through the panel.
 
@@ -389,9 +402,14 @@ class VantageLogEntry(models.Model):
         ]
 
     def __str__(self) -> str:
-        who = self.actor_repr or "Someone"
-        what = self.action_name or self.get_action_display().lower()
-        return f"{who} {what} {self.object_repr or 'a record'}"
+        # One sentence with named parts rather than three pieces joined by spaces:
+        # subject-verb-object is an English word order, and a translator has to be able
+        # to move the object in front of the verb without editing Python.
+        return _("%(who)s %(did)s %(what)s") % {
+            "who": self.actor_repr or _("Someone"),
+            "did": self.action_name or _ACTION_VERBS.get(self.action, self.action),
+            "what": self.object_repr or _("a record"),
+        }
 
     @property
     def model_label(self) -> str:
@@ -527,6 +545,15 @@ class SavedView(models.Model):
         )
 
 
+#: The lowercase form of each role label, for the phrase ``SavedViewGrant.__str__``
+#: builds. Same reason as :data:`_ACTION_VERBS`: ``get_role_display().lower()`` would
+#: be lowercasing a word a translator wrote.
+_ROLE_PHRASES: dict[str, str | Promise] = {
+    "viewer": _("can use"),
+    "editor": _("can use and change"),
+}
+
+
 class SavedViewGrant(models.Model):
     """Names one user or one group as a viewer or an editor of a shared view.
 
@@ -578,7 +605,10 @@ class SavedViewGrant(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.subject} — {self.get_role_display().lower()}"
+        return _("%(subject)s — %(role)s") % {
+            "subject": self.subject,
+            "role": _ROLE_PHRASES.get(self.role, self.get_role_display()),
+        }
 
     @property
     def subject(self) -> str:
@@ -745,7 +775,9 @@ class ListPreference(models.Model):
         ]
 
     def __str__(self) -> str:
-        who = self.user.get_username() if self.user_id else "everyone"
+        # "everyone" is the site-wide row's stand-in for a person's name, so it is read
+        # by whoever is looking at the list of preferences and has to be translated.
+        who = self.user.get_username() if self.user_id else _("everyone")
         return f"{self.resource_key} · {who}"
 
     @property

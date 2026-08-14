@@ -7,9 +7,9 @@
 {% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
 
 {# Blocking and inline on purpose: a deferred script paints light first and flips. #}
-<script>{{ no_flash_script|safe }}</script>
+<script{{ csp_nonce_attr }}>{{ no_flash_script|safe }}</script>
 
-<style>{{ theme_css|safe }}</style>
+<style{{ csp_nonce_attr }}>{{ theme_css|safe }}</style>
 <link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
 <link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">
 {# Carries the skip link and the auth chrome; every panel screen needs the first. #}
@@ -168,8 +168,17 @@
       {% for message in messages %}
         <div class="v-toast" data-level="{{ message.level_tag }}">
           {% comment %} The tint on the left edge is the only visual signal of severity, so the
-             word itself is carried in text for anyone the colour does not reach. {% endcomment %}
-          <span><span class="v-sr-only">{{ message.level_tag|capfirst }}:</span> {{ message }}</span>
+             word itself is carried in text for anyone the colour does not reach.
+
+             `level_tag` is an internal identifier ("success", "warning"…), not display
+             text, and capfirst on it would leave English in the page under every other
+             language. It is mapped to a translated word here instead. {% endcomment %}
+          {% if message.level_tag == "error" %}{% translate "Error" context "message severity" as severity %}
+          {% elif message.level_tag == "warning" %}{% translate "Warning" context "message severity" as severity %}
+          {% elif message.level_tag == "success" %}{% translate "Success" context "message severity" as severity %}
+          {% elif message.level_tag == "debug" %}{% translate "Debug" context "message severity" as severity %}
+          {% else %}{% translate "Info" context "message severity" as severity %}{% endif %}
+          <span><span class="v-sr-only">{{ severity }}:</span> {{ message }}</span>
           <button type="button" class="v-toast-close"
                   aria-label="{% translate "Dismiss this message" %}">&times;</button>
         </div>

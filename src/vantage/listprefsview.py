@@ -30,20 +30,32 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from vantage import listprefs
 from vantage.views import PanelView
 
 __all__ = ["ListPrefsView"]
 
-#: What each section is called when a message names it.
+#: What each section is called when a message names it. Lazy, because the module is
+#: imported at startup and the language is only known per request.
+#:
+#: Same wording, and deliberately the same msgids, as the headings in
+#: ``partials/list_prefs.html``: a message about a card should be translated once, with
+#: the card it names. "Search" carries that template's context because the bare word is
+#: a noun here and the verb on a button two lines away; the rest are unambiguous and
+#: adding a context to them would only fork them from the headings.
+#:
+#: The keys stay plain: they are section ids, matched against ``listprefs.SECTIONS``
+#: and posted by the form.
 SECTION_LABELS: dict[str, str] = {
-    "columns": "Columns",
-    "search": "Search",
-    "filters": "Filters",
-    "stats": "Statistics",
-    "charts": "Charts",
-    "summary": "Summary bar",
+    "columns": _("Columns"),
+    "search": pgettext_lazy("list preferences section, the noun", "Search"),
+    "filters": _("Filters"),
+    "stats": _("Statistics"),
+    "charts": _("Charts"),
+    "summary": _("Summary bar"),
 }
 
 
@@ -70,15 +82,26 @@ class ListPrefsView(PanelView):
         action, scope = self.intent(request)
         user = self.scope_user(request, scope)
         label = SECTION_LABELS.get(section, section.capitalize())
-        whom = "everyone" if user is None else "you"
 
+        # One finished sentence per outcome. "for everyone" and "for you" are not
+        # interchangeable fragments to slot into a shared sentence: the scope can change
+        # the verb, the word order or the case of what comes before it.
         if action == "reset":
             listprefs.reset_section(self.panel, request, section, user=user)
-            messages.success(request, f"{label} reset to what the code declares, for {whom}.")
+            message = (
+                _("%(section)s reset to what the code declares, for everyone.")
+                if user is None
+                else _("%(section)s reset to what the code declares, for you.")
+            )
         else:
             listprefs.store_section(self.panel, request, section, request.POST, user=user)
-            messages.success(request, f"{label} saved for {whom}.")
+            message = (
+                _("%(section)s saved for everyone.")
+                if user is None
+                else _("%(section)s saved for you.")
+            )
 
+        messages.success(request, message % {"section": label})
         return self.back(request)
 
     @staticmethod
@@ -107,7 +130,7 @@ class ListPrefsView(PanelView):
             return request.user
         if not listprefs.may_set_site_default(request):
             raise PermissionDenied(
-                "You do not have permission to change the default for everyone."
+                _("You do not have permission to change the default for everyone.")
             )
         return None
 

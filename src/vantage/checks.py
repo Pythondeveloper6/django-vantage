@@ -18,12 +18,18 @@ gap between a laptop and the internet, and every one of them is *correct* on a l
 Registering them in the normal set would train everybody to ignore the output, which
 costs more than the checks are worth.
 
-The deployment set deliberately overlaps Django's own ``security.W0xx`` in two places
-(cookie flags, transport). That is not an oversight. Django's are written for any site
-and are advisory by design; these fire only when the panel is actually mounted, and the
-hint says what is behind the panel — which is every model in the database, editable, by
-whoever holds that cookie. A duplicated warning with the right consequence attached is
-worth more than a silent deferral to someone else's.
+The deployment set deliberately overlaps Django's own ``security.W0xx`` in three places
+(cookie flags, transport, framing). That is not an oversight. Django's are written for
+any site and are advisory by design; these fire only when the panel is actually mounted,
+and the hint says what is behind the panel — which is every model in the database,
+editable, by whoever holds that cookie. A duplicated warning with the right consequence
+attached is worth more than a silent deferral to someone else's.
+
+The ids run ``W050`` to ``W059`` and each one is a separate decision, so that silencing
+the one you have consciously accepted does not silence the nine you have not. ``W056``
+is the exception: it covers two messages about the same question — whether the panel and
+your Content-Security-Policy can both be true — because being told half of that answer
+is worse than being told none of it.
 """
 
 from __future__ import annotations
@@ -129,13 +135,25 @@ def panel_is_mounted() -> bool:
 
 
 def _vantage_setting(name: str):
-    """One Vantage setting, resolved through the settings layer, never raising."""
+    """One Vantage setting, resolved through the settings layer, never raising.
+
+    Two fallbacks, because there are two sets of defaults. Keys the settings layer knows
+    about resolve through it and pick up database overrides; the hardening keys that
+    :mod:`vantage.security` owns are not registered there yet, and reading them from
+    ``conf.DEFAULTS`` would silently return ``None`` — which for a boolean like
+    ``RATE_LIMIT`` means a check quietly deciding the feature is off.
+    """
     from vantage.conf import vantage_settings
 
     try:
         return getattr(vantage_settings, name)
     except Exception:  # a broken VANTAGE dict is check_vantage_settings' problem
-        return DEFAULTS.get(name)
+        pass
+    if name in DEFAULTS:
+        return DEFAULTS[name]
+    from vantage.security import DEFAULTS as SECURITY_DEFAULTS
+
+    return SECURITY_DEFAULTS.get(name)
 
 
 def _middleware() -> list[str]:
@@ -174,17 +192,18 @@ def check_deploy_cache(app_configs, **kwargs) -> list[Warning]:
     """A cache that cannot hold anything, under features that assume it can.
     (``vantage.W051``)
 
-    Two features degrade silently rather than loudly, which is why this is a check
+    Three features degrade silently rather than loudly, which is why this is a check
     and not a runtime error:
 
     * row-count estimates (``LIST_COUNT_ESTIMATES``) re-run a ``COUNT`` or an
       ``EXPLAIN`` on every render, turning a caching optimisation into a per-request
       cost on the largest tables in the database;
     * the login throttle counts failures in the cache, so on a dummy backend it
-      records nothing, blocks nobody, and looks exactly like a working throttle.
+      records nothing, blocks nobody, and looks exactly like a working throttle;
+    * the panel's per-surface rate limits count the same way and fail the same way.
 
-    The second is the reason this is worth a warning rather than a note. A throttle
-    that silently does not throttle is worse than no throttle, because it is on the
+    The last two are the reason this is worth a warning rather than a note. A limiter
+    that silently does not limit is worse than no limiter, because it is on the
     checklist with a tick next to it.
     """
     from django.conf import settings as django_settings
@@ -197,38 +216,49 @@ def check_deploy_cache(app_configs, **kwargs) -> list[Warning]:
     backend = str(default.get("BACKEND", ""))
 
     throttled = any("vantage.middleware.LoginThrottleMiddleware" in m for m in _middleware())
+    limited = any("vantage.middleware.PanelSecurityMiddleware" in m for m in _middleware())
+    limited = limited and bool(_vantage_setting("RATE_LIMIT"))
     estimates = bool(_vantage_setting("LIST_COUNT_ESTIMATES"))
-    if not throttled and not estimates:
+    if not throttled and not limited and not estimates:
         return []
 
     wants = []
     if throttled:
         wants.append("the login throttle")
+    if limited:
+        wants.append("the panel rate limits")
     if estimates:
         wants.append("row-count estimates")
-    wanted = " and ".join(wants)
+    wanted = ", ".join(wants[:-1]) + (" and " if len(wants) > 1 else "") + wants[-1]
 
     if not backend or "dummy" in backend.lower():
         return [
             Warning(
                 f"The default cache is a dummy backend, but {wanted} depend(s) on it.",
                 hint=(
-                    "Nothing written to a dummy cache is ever read back. The login "
-                    "throttle will count to zero forever and block nobody. Configure a "
-                    "real CACHES['default'] — Redis, Memcached, or the database backend."
+                    "Nothing written to a dummy cache is ever read back. Every counter "
+                    "will count to zero forever and refuse nobody. Configure a real "
+                    "CACHES['default'] — Redis, Memcached, or the database backend."
                 ),
                 id="vantage.W051",
             )
         ]
 
-    if "locmem" in backend.lower() and throttled:
+    if "locmem" in backend.lower() and (throttled or limited):
+        counters = " and ".join(
+            name
+            for name, on in (("login throttle", throttled), ("rate limits", limited))
+            if on
+        )
         return [
             Warning(
-                "The login throttle is installed but the default cache is per-process.",
+                f"The {counters} are installed but the default cache is per-process.",
                 hint=(
-                    "LocMemCache is not shared between workers, so with N workers an "
-                    "attacker gets N times the configured budget and a lockout applies "
-                    "only to whichever worker happened to answer. Use a shared cache."
+                    "LocMemCache is not shared between workers, so with N workers a "
+                    "caller gets N times the configured budget and a lockout applies "
+                    "only to whichever worker happened to answer. On one process this "
+                    "is correct and this warning is noise; on any real deployment the "
+                    "protection is a fraction of what it reads as. Use a shared cache."
                 ),
                 id="vantage.W051",
             )
@@ -447,6 +477,215 @@ def check_deploy_csp(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_csp_inline(app_configs, **kwargs) -> list[Warning]:
+    """Inline constructs a configured policy would block. (``vantage.W056``)
+
+    Shares an id with :func:`check_deploy_csp` because it is the same decision seen from
+    the other side — "will this panel work under the policy you wrote" — and silencing
+    one without the other leaves you half informed about one question.
+
+    A nonce fixes ``<script>`` and ``<style>`` *elements*. It cannot be attached to a
+    ``style="…"`` attribute: those are governed by ``style-src-attr``, which takes only
+    ``'unsafe-inline'`` or a hash. The panel emits a handful of them and they are not
+    removable — a tree row's indent and a progress bar's width are per-row values, and
+    moving them to a stylesheet would mean generating one stylesheet per page.
+
+    Silent unless a policy is actually configured. Telling a project with no CSP which
+    directives it is not enforcing is a lecture, not a check; the findings only become
+    actionable once someone has written a policy for them to contradict.
+    """
+    from vantage.security import scan_panel_templates
+
+    if not panel_is_mounted():
+        return []
+
+    policy = _configured_policy()
+    if policy is None:
+        return []
+
+    findings = scan_panel_templates()
+    if not findings:
+        return []
+
+    # Grouped by directive rather than listed by file: the reader's next action is to
+    # edit one policy line, and a list of seven template paths does not tell them which.
+    needed: dict[str, list[str]] = {}
+    for finding in findings:
+        needed.setdefault(finding.directive, []).append(
+            f"{finding.template}:{finding.line}"
+        )
+
+    unsatisfied = {
+        directive: sites
+        for directive, sites in needed.items()
+        if not _policy_allows_inline(policy, directive)
+    }
+    if not unsatisfied:
+        return []
+
+    lines = [
+        f"{directive} — {len(sites)} place(s): {', '.join(sorted(sites)[:4])}"
+        + ("…" if len(sites) > 4 else "")
+        for directive, sites in sorted(unsatisfied.items())
+    ]
+    return [
+        Warning(
+            "The panel emits inline markup your Content-Security-Policy would block: "
+            + "; ".join(lines)
+            + ".",
+            hint=(
+                "A nonce cannot authorise an attribute, only an element. Add "
+                "\"style-src-attr\": [\"'unsafe-inline'\"] (and script-src-attr if it "
+                "is listed above) to the policy for the panel's URLs, or accept that "
+                "tree indentation and progress bars will not render. See "
+                "docs/security.md for a policy that works."
+            ),
+            id="vantage.W056",
+        )
+    ]
+
+
+def check_deploy_panel_middleware(app_configs, **kwargs) -> list[Warning]:
+    """A mounted panel with no rate limits and no response headers. (``vantage.W058``)
+
+    ``PanelSecurityMiddleware`` is the only thing that sets ``X-Frame-Options``,
+    ``Referrer-Policy`` and ``X-Content-Type-Options`` on panel responses, and the only
+    thing that budgets autocomplete, export and import. Without it the panel is
+    frameable, its URLs leak through ``Referer``, and one signed-in account can page
+    an entire table through the autocomplete endpoint as fast as the database answers.
+
+    Django's ``XFrameOptionsMiddleware`` is *not* accepted as a substitute. Its default
+    is ``SAMEORIGIN``, which still allows the panel to be framed by the site it is part
+    of, and framing an admin panel from anywhere is not something worth allowing.
+    """
+    if not panel_is_mounted():
+        return []
+    if any("vantage.middleware.PanelSecurityMiddleware" in m for m in _middleware()):
+        return []
+    return [
+        Warning(
+            "The Vantage panel is mounted without PanelSecurityMiddleware.",
+            hint=(
+                "Add 'vantage.middleware.PanelSecurityMiddleware' after "
+                "AuthenticationMiddleware. Without it nothing sets X-Frame-Options, "
+                "Referrer-Policy or X-Content-Type-Options on panel responses, and "
+                "autocomplete, export and import have no request budget. See "
+                "docs/security.md."
+            ),
+            id="vantage.W058",
+        )
+    ]
+
+
+def check_deploy_media_origin(app_configs, **kwargs) -> list[Warning]:
+    """User uploads served from the panel's own origin. (``vantage.W059``)
+
+    The panel accepts a file for every ``FileField`` and ``ImageField`` on every model
+    it has registered, plus a logo and a favicon on the settings screen. Uploads are
+    screened — content is sniffed rather than trusted, and an SVG containing script is
+    refused — but screening is a filter, and a filter is a list of the attacks somebody
+    thought of.
+
+    The structural fix is an origin boundary. A file served from
+    ``media.example.com`` that turns out to be HTML runs as ``media.example.com`` and
+    can read nothing; the same file served from the panel's origin runs with the
+    session cookie of a person who can edit every table in the database.
+
+    A relative ``MEDIA_URL`` is the signal, because that is what "same origin" looks
+    like in settings. Silent when ``MEDIA_URL`` names a host, and silent when nothing
+    registered can hold a file.
+    """
+    from django.conf import settings as django_settings
+
+    if not panel_is_mounted():
+        return []
+
+    media_url = str(getattr(django_settings, "MEDIA_URL", "") or "")
+    if "//" in media_url:  # an absolute URL, or a protocol-relative one
+        return []
+
+    holders = _models_with_file_fields()
+    if not holders:
+        return []
+
+    listed = ", ".join(holders[:5]) + ("…" if len(holders) > 5 else "")
+    return [
+        Warning(
+            f"Uploads are served from the panel's own origin (MEDIA_URL={media_url!r}), "
+            f"and {len(holders)} registered model(s) accept files: {listed}.",
+            hint=(
+                "A file that reaches a browser as HTML from this origin runs with the "
+                "session cookie of whoever opens it — and the people who open panel "
+                "links are the people who can edit every table. Vantage sniffs content "
+                "rather than trusting the extension and refuses SVGs containing "
+                "script, but that is a filter, not a boundary. Serve MEDIA_URL from a "
+                "separate host, or from storage that sets Content-Disposition: "
+                "attachment. See docs/security.md."
+            ),
+            id="vantage.W059",
+        )
+    ]
+
+
+def _models_with_file_fields() -> list[str]:
+    """``"app.Model"`` for every registered model that can hold an uploaded file."""
+    from django.db import models as django_models
+
+    from vantage.sites import all_sites
+
+    found: set[str] = set()
+    for site in all_sites:
+        for panel in site.registry.panels():
+            model = panel.model
+            for field in model._meta.get_fields():
+                if isinstance(field, django_models.FileField):
+                    found.add(f"{model._meta.app_label}.{model.__name__}")
+                    break
+    return sorted(found)
+
+
+def _configured_policy() -> dict | None:
+    """The project's CSP as a directives dict, from whichever mechanism set it.
+
+    Django 6.0's ``SECURE_CSP``, its report-only twin, and django-csp's
+    ``CONTENT_SECURITY_POLICY`` are all recognised, because a project on any of the
+    three has answered the same question and should not be asked it again.
+    """
+    from django.conf import settings as django_settings
+
+    for name in ("SECURE_CSP", "SECURE_CSP_REPORT_ONLY", "CONTENT_SECURITY_POLICY"):
+        value = getattr(django_settings, name, None)
+        if isinstance(value, dict) and value:
+            directives = value.get("DIRECTIVES")
+            return directives if isinstance(directives, dict) else value
+    return None
+
+
+def _policy_allows_inline(policy: dict, directive: str) -> bool:
+    """Whether ``policy`` permits inline content for ``directive``.
+
+    Falls back the way a browser does: ``style-src-attr`` inherits from ``style-src``,
+    which inherits from ``default-src``. Getting the fallback wrong in either direction
+    makes the check useless — too strict and it cries wolf at a policy that works, too
+    loose and it stays quiet about the one that does not.
+    """
+    fallbacks = {
+        "style-src-attr": ("style-src-attr", "style-src", "default-src"),
+        "script-src-attr": ("script-src-attr", "script-src", "default-src"),
+        "style-src": ("style-src", "default-src"),
+        "script-src": ("script-src", "default-src"),
+    }
+    for name in fallbacks.get(directive, (directive, "default-src")):
+        if name not in policy:
+            continue
+        values = policy[name]
+        if isinstance(values, str | bytes):
+            values = [values]
+        return any("unsafe-inline" in str(item).lower() for item in values or [])
+    # The directive is not covered at all, so nothing is enforced for it.
+    return True
+
+
 def _policy_uses_nonce(policy) -> bool:
     """Whether a ``SECURE_CSP``-shaped dict asks for a nonce anywhere."""
     if not isinstance(policy, dict):
@@ -518,5 +757,8 @@ DEPLOYMENT_CHECKS = (
     check_deploy_import_limit,
     check_deploy_audit_log,
     check_deploy_csp,
+    check_deploy_csp_inline,
     check_deploy_login_throttle,
+    check_deploy_panel_middleware,
+    check_deploy_media_origin,
 )

@@ -26,6 +26,7 @@ from weakref import WeakKeyDictionary
 
 from django.http import JsonResponse
 from django.urls import NoReverseMatch, reverse
+from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
 from vantage.permissions import get_permissions
@@ -44,7 +45,7 @@ __all__ = [
 
 #: Sections in the order they read best: where you can go, what you can make, what you
 #: can do. Anything a project invents sorts after these, alphabetically.
-SECTION_ORDER = ("Go to", "Create", "Actions")
+SECTION_ORDER = (_("Go to"), _("Create"), _("Actions"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,7 +66,11 @@ class Command:
     url: str | None = None
     callback: str | None = None
     keywords: tuple[str, ...] = ()
-    section: str = "Actions"
+    #: Annotated `str` rather than `str | Promise` on purpose: the default is a lazy
+    #: translation proxy, but widening the annotation trips ruff's RUF009 (a call in a
+    #: dataclass default is only allowed when the annotation is a known-immutable type).
+    #: The proxy behaves as a string everywhere this field is read.
+    section: str = _("Actions")
     order: int = 0
 
     #: A Django permission string, or a callable taking the request. Mirrors
@@ -216,12 +221,12 @@ def _global_commands(site, request) -> list[Command]:
     commands = [
         Command(
             id="go:dashboard",
-            label="Dashboard",
+            label=_("Dashboard"),
             hint=vantage_settings.SITE_TITLE,
             icon="layout-dashboard",
             url=_reverse("vantage:dashboard"),
             keywords=("home", "overview", "start"),
-            section="Go to",
+            section=_("Go to"),
             order=-100,
         )
     ]
@@ -229,23 +234,23 @@ def _global_commands(site, request) -> list[Command]:
         commands.append(
             Command(
                 id="theme:toggle",
-                label="Toggle theme",
-                hint="Light / dark",
+                label=_("Toggle theme"),
+                hint=_("Light / dark"),
                 icon="moon",
                 callback="theme.toggle",
                 keywords=("dark", "light", "appearance", "colour", "color"),
-                section="Actions",
+                section=_("Actions"),
             )
         )
     commands.append(
         Command(
             id="go:search",
-            label="Search everything",
-            hint="Full results page",
+            label=_("Search everything"),
+            hint=_("Full results page"),
             icon="search",
             url=_reverse("vantage:search"),
             keywords=("find", "lookup", "records"),
-            section="Go to",
+            section=_("Go to"),
             order=-90,
         )
     )
@@ -274,7 +279,7 @@ def _navigation_commands(site, request) -> list[Command]:
                 icon=panel.get_icon(),
                 url=url,
                 keywords=(panel.opts.app_label, panel.opts.model_name, panel.get_label()),
-                section="Go to",
+                section=_("Go to"),
                 order=panel.order,
             )
         )
@@ -291,11 +296,11 @@ def _navigation_commands(site, request) -> list[Command]:
             Command(
                 id=f"go:page-{page_class.get_slug()}",
                 label=page_class.get_title(),
-                hint=getattr(page_class, "group", None) or "Pages",
+                hint=getattr(page_class, "group", None) or _("Pages"),
                 icon=getattr(page_class, "icon", None) or "file-text",
                 url=url,
                 keywords=(page_class.get_slug(),),
-                section="Go to",
+                section=_("Go to"),
                 order=getattr(page_class, "order", 0),
             )
         )
@@ -317,12 +322,12 @@ def _create_commands(site, request) -> list[Command]:
         commands.append(
             Command(
                 id=f"add:{panel.slug}",
-                label=f"New {panel.get_label().lower()}",
+                label=_("New %(model)s") % {"model": panel.get_label().lower()},
                 hint=panel.get_label_plural(),
                 icon="plus",
                 url=url,
                 keywords=("create", "add", "new", panel.opts.model_name),
-                section="Create",
+                section=_("Create"),
                 order=panel.order,
             )
         )

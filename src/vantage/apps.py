@@ -17,19 +17,32 @@ class SimpleVantageConfig(AppConfig):
     default_site = "vantage.sites.VantageSite"
 
     def ready(self) -> None:
-        from vantage.checks import check_panels, check_vantage_settings
+        from vantage.checks import (
+            DEPLOYMENT_CHECKS,
+            check_panels,
+            check_vantage_settings,
+        )
         from vantage.contrib.django_admin import check_admin_adapter
         from vantage.nav import check_nav
         from vantage.plugins import check_plugins
+        from vantage.tenancy import check_tenancy
 
         checks.register(check_vantage_settings, "vantage")
         checks.register(check_panels, "vantage")
         checks.register(check_nav, "vantage")
+        # Tenant scoping fails closed, which is safe and invisible. This is the half
+        # that makes it usable: it names every model whose pages would show nothing.
+        checks.register(check_tenancy, "vantage")
         # Registered even without autodiscovery: a plugin registered by hand, or an
         # admin adopted by hand, still has to report what it could not do. Neither
         # import reaches django.contrib.admin — the adapter is lazy about it.
         checks.register(check_plugins, "vantage")
         checks.register(check_admin_adapter, "vantage")
+        # deploy=True keeps these out of the everyday `manage.py check`. Every one of
+        # them is correct on a laptop, and a check that is wrong in development is a
+        # check everybody learns to scroll past.
+        for check in DEPLOYMENT_CHECKS:
+            checks.register(check, "vantage", deploy=True)
 
 
 class VantageConfig(SimpleVantageConfig):

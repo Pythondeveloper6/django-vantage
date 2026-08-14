@@ -1,0 +1,98 @@
+{% load vantage i18n %}{% comment %}
+  The list page's control band — one strip, not four.
+
+  Everything here answers "how am I looking at this list": the search box, the
+  trash tab, the saved view, the grouping, and (when there are rows) the grid's own
+  density and column controls. They used to be four stacked strips between the page
+  title and the first row of data, each one a line of chrome the reader had to pass
+  before reaching what they came for. One band means the table starts higher and the
+  filter rail beside it starts level with the data rather than with an empty gutter.
+
+  Nothing is removed: the saved-view tabs and the group-by chips became menus, which
+  keeps every destination one click away instead of spending a whole line on each.
+
+  It renders inside the [data-grid] element on purpose — vantage-grid.js scopes every
+  one of its lookups to that root, so the density and column controls have to live
+  under it. That is the only structural constraint on where this band may sit.
+{% endcomment %}
+<div class="v-listbar">
+  <div class="v-listbar-row">
+
+    {% if searchable %}
+      {% comment %}
+        Labelled because the header palette is also a search landmark; two
+        unnamed ones leave a screen-reader user unable to tell them apart.
+      {% endcomment %}
+      <form class="v-listbar-search" method="get" role="search" id="v-list-search"
+            aria-label="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}">
+        <div class="v-search">
+          {% icon "search" %}
+          <input class="v-input" type="search" name="q" value="{{ query }}"
+                 placeholder="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}…"
+                 aria-label="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}">
+        </div>
+        {% include "vantage/partials/filter_state.html" %}
+        {% if sort %}
+          <input type="hidden" name="sort" value="{% if sort.descending %}-{% endif %}{{ sort.path }}">
+        {% endif %}
+        {% if query %}
+          <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>
+        {% endif %}
+      </form>
+    {% endif %}
+
+    {% if patterns.soft_delete %}
+      {% comment %}
+        Trash is a place you go to deliberately: the list means live records, so this
+        is a tab rather than a filter chip.
+      {% endcomment %}
+      <nav class="v-tabs v-listbar-tabs" aria-label="{% translate "Records or trash" %}">
+        <a class="v-tab" href="?{% querystring_replace trash=None page=None %}"
+           {% if not showing_trash %}aria-current="page"{% endif %}>
+          {{ panel.get_label_plural }}
+        </a>
+        <a class="v-tab" href="?{% querystring_replace trash=1 page=None %}"
+           {% if showing_trash %}aria-current="page"{% endif %}>
+          {% icon "trash" %}
+          <span>{% translate "Trash" %}</span>
+          {% if trash_count %}<span class="v-badge">{{ trash_count }}</span>{% endif %}
+        </a>
+      </nav>
+    {% endif %}
+
+    {% include "vantage/partials/saved_views.html" %}
+
+    {% if timeline_field %}
+      {% comment %}
+        A menu rather than a chip row. The chips cost a full line to say "not
+        grouped", which is the answer 90% of the time; the menu says it in a button
+        and still lists every bucket one click away.
+      {% endcomment %}
+      <details class="v-listbar-menu" data-group-menu>
+        <summary class="v-btn v-btn-secondary v-btn-sm v-listbar-trigger">
+          {% if grouping %}
+            {% for key, label in group_options %}{% if grouping == key %}
+              <span>{% blocktranslate %}Grouped by {{ label }}{% endblocktranslate %}</span>
+            {% endif %}{% endfor %}
+          {% else %}
+            <span>{% translate "Group" %}</span>
+          {% endif %}
+        </summary>
+        <nav class="v-listbar-panel" aria-label="{% translate "Group by" %}">
+          <a class="v-listbar-option" href="?{% querystring_replace group=None page=None %}"
+             {% if not grouping %}aria-current="true"{% endif %}>{% translate "None" %}</a>
+          {% for key, label in group_options %}
+            <a class="v-listbar-option" href="?{% querystring_replace group=key page=None %}"
+               {% if grouping == key %}aria-current="true"{% endif %}>{{ label }}</a>
+          {% endfor %}
+        </nav>
+      </details>
+    {% endif %}
+
+    <div class="v-listbar-spacer"></div>
+
+    {% if rows %}{% include "vantage/partials/grid_controls.html" %}{% endif %}
+  </div>
+
+  {% include "vantage/partials/filter_chips.html" %}
+</div>

@@ -23,6 +23,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _
+
 __all__ = ["HealthPage", "Page", "SchemaPage", "page_slug"]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
@@ -122,9 +124,9 @@ class SchemaPage(Page):
     one they never remember exists.
     """
 
-    title = "Schema"
+    title = _("Schema")
     icon = "share-2"
-    group = "System"
+    group = _("System")
     order = 90
     path = "_/schema/"
     template_name = "vantage/pages/schema.html"
@@ -138,9 +140,9 @@ class SchemaPage(Page):
 class HealthPage(Page):
     """System diagnostics. Superusers only — the detail is deployment information."""
 
-    title = "System"
+    title = _("System")
     icon = "activity"
-    group = "System"
+    group = _("System")
     order = 95
     path = "_/health/"
     template_name = "vantage/pages/health.html"

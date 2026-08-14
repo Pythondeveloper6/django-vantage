@@ -50,7 +50,7 @@
       {% endif %}
 
       {% if cascade.cleared %}
-        <h2 class="v-confirm-heading">These survive, but lose a reference</h2>
+        <h2 class="v-confirm-heading">{% translate "These survive, but lose a reference" %}</h2>
         <ul class="v-cascade">
           {% for group in cascade.cleared %}
             <li>
@@ -64,7 +64,7 @@
   </div>
 
   <div class="v-card-body v-confirm-actions">
-    <a class="v-btn v-btn-secondary" href="{{ cancel_url }}">Cancel</a>
+    <a class="v-btn v-btn-secondary" href="{{ cancel_url }}">{% translate "Cancel" %}</a>
     {% if not cascade.is_blocked %}
       <form method="post">
         {% csrf_token %}

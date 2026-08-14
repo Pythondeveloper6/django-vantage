@@ -10,16 +10,21 @@ from functools import cached_property
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
 from django.http import HttpResponse
-from django.utils.translation import get_language, get_language_bidi
+from django.utils.translation import (
+    get_language,
+    get_language_bidi,
+    ngettext,
+)
+from django.utils.translation import (
+    gettext_lazy as _,
+)
 from django.views.generic import TemplateView
 
-from vantage import listprefs
+from vantage import listprefs, listquery
 from vantage.actions import Selection, resolve_actions
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
-from vantage.filters import apply_filters, build_filters
 from vantage.nav import build_nav, resolve_theme
 from vantage.pagination import CappedPaginator
 from vantage.permissions import get_permissions
@@ -87,7 +92,7 @@ class SiteView(TemplateView):
 
 class DashboardView(SiteView):
     template_name = "vantage/dashboard.html"
-    page_title = "Dashboard"
+    page_title = _("Dashboard")
 
     def get_context_data(self, **kwargs):
         from vantage.dashboards import dashboard_context
@@ -107,13 +112,29 @@ class PanelView(SiteView):
     #: The action a subclass needs permission for.
     required_action = "view"
 
+    #: One whole sentence per verb rather than one sentence with the verb slotted in.
+    #: "You do not have permission to %(action)s %(records)s." would hand a translator a
+    #: bare English infinitive to inflect around, and several languages cannot.
+    DENIED_MESSAGES = {
+        "view": _("You do not have permission to view %(records)s."),
+        "add": _("You do not have permission to add %(records)s."),
+        "change": _("You do not have permission to change %(records)s."),
+        "delete": _("You do not have permission to delete %(records)s."),
+    }
+
     def check_permission(self, request):
         if self.permissions.has_model_perm(request, self.panel.model, self.required_action):
             return None
-        raise PermissionDenied(
-            f"You do not have permission to {self.required_action} "
-            f"{self.panel.get_label_plural().lower()}."
-        )
+        records = self.panel.get_label_plural().lower()
+        message = self.DENIED_MESSAGES.get(self.required_action)
+        if message is None:
+            message = _("You do not have permission to %(action)s %(records)s.") % {
+                "action": self.required_action,
+                "records": records,
+            }
+        else:
+            message = message % {"records": records}
+        raise PermissionDenied(message)
 
     def get_breadcrumbs(self):
         return [(self.panel.get_label_plural(), None)]
@@ -148,26 +169,34 @@ class ListView(PanelView):
         if chosen is None:
             # Either a stale form or an action the user may not run. Both deserve the
             # same answer: nothing happens, and we do not say which it was.
-            raise PermissionDenied("That action is not available.")
+            raise PermissionDenied(_("That action is not available."))
 
         selection = Selection.from_request(request)
         if selection.is_empty:
-            messages.warning(request, "Nothing was selected.")
+            messages.warning(request, _("Nothing was selected."))
             return redirect(request.get_full_path())
 
-        queryset, _, _, _, _ = self.build_queryset(request)
+        queryset = self.build_queryset(request)[0]
         queryset = selection.apply(queryset)
         count = queryset.count()
 
         if count == 0:
-            messages.warning(request, "Those records no longer match.")
+            messages.warning(request, _("Those records no longer match."))
             return redirect(request.get_full_path())
 
         if chosen.max_rows is not None and count > chosen.max_rows:
             messages.error(
                 request,
-                f"{chosen.label} is limited to {chosen.max_rows} records at a time; "
-                f"{count} were selected.",
+                # Plural on the cap, which is the number the sentence is about; the
+                # selected count is always reported as a bare figure.
+                ngettext(
+                    "%(action)s is limited to %(limit)s record at a time; "
+                    "%(count)s were selected.",
+                    "%(action)s is limited to %(limit)s records at a time; "
+                    "%(count)s were selected.",
+                    chosen.max_rows,
+                )
+                % {"action": chosen.label, "limit": chosen.max_rows, "count": count},
             )
             return redirect(request.get_full_path())
 
@@ -196,12 +225,18 @@ class ListView(PanelView):
                 # progress on something already finished.
                 messages.success(
                     request,
-                    f"{chosen.label}: {job.summary} ({selection.describe(job.total)})",
+                    _("%(action)s: %(summary)s (%(scope)s)")
+                    % {
+                        "action": chosen.label,
+                        "summary": job.summary,
+                        "scope": selection.describe(job.total),
+                    },
                 )
             else:
                 messages.info(
                     request,
-                    f"{chosen.label} is running over {selection.describe(job.total)}.",
+                    _("%(action)s is running over %(scope)s.")
+                    % {"action": chosen.label, "scope": selection.describe(job.total)},
                 )
             return redirect(job.get_absolute_url())
 
@@ -210,56 +245,26 @@ class ListView(PanelView):
         # Report the scope that was actually resolved. Django's own admin once let
         # select-across silently fall back to page one on a destructive action.
         getattr(messages, result.level, messages.info)(
-            request, f"{result.message} ({selection.describe(count)})"
+            request,
+            _("%(message)s (%(scope)s)")
+            % {"message": result.message, "scope": selection.describe(count)},
         )
         return redirect(result.redirect or request.get_full_path())
 
     def build_queryset(self, request):
         """The rows the page is showing: permissions, search, filters and sort.
 
-        Returns the *unfiltered* base alongside the final queryset, because the facet
-        engine needs the base to compute a disjunctive count — the count for an
-        unticked option has to ignore its own filter or it always reads zero.
-
-        Shared with the export and the analytics strip so none of the three can
-        disagree about which rows the page is about.
+        Resolved by :func:`vantage.listquery.build`, which is where the composition
+        lives so the export, the analytics strip, a background job's "select all
+        matching" scope and the JSON API cannot disagree about which rows a list
+        request means. Returns its :class:`~vantage.listquery.ListQuery`, which unpacks
+        as ``queryset, base, filters, query, sort``.
         """
-        panel = self.panel
-        patterns = panel.get_patterns()
-
-        if self.showing_trash(request):
-            queryset = self.permissions.filter_queryset(
-                request, panel.get_trash_queryset(request), "view"
-            )
-        else:
-            queryset = self.permissions.filter_queryset(
-                request, panel.get_list_queryset(request), "view"
-            )
-            if patterns.soft_delete and not patterns.soft_delete.manager_hides_trashed:
-                # A model whose manager does not already exclude them: the list means
-                # live records, and the trash is a place you go to deliberately.
-                queryset = queryset.filter(patterns.soft_delete.live)
-
-        query = request.GET.get("q", "").strip()
-        if query:
-            queryset = queryset.filter(self._search_q(panel, query, request))
-
-        base = queryset
-        filters = build_filters(panel, request)
-        queryset = apply_filters(queryset, filters)
-
-        sort = self._resolve_sort(panel, request)
-        if sort:
-            queryset = queryset.order_by(*sort["order_by"])
-        elif self.showing_tree(request) and patterns.tree.depth_field:
-            # Only the library trees have a column that sorts parent-before-child.
-            # A plain self-FK is arranged in Python once the page is fetched.
-            queryset = queryset.order_by(*patterns.tree.ordering)
-        return queryset, base, filters, query, sort
+        return listquery.build(self.panel, request, self.permissions)
 
     def export(self, request):
         panel = self.panel
-        queryset, _, _, _, _ = self.build_queryset(request)
+        queryset = self.build_queryset(request)[0]
         columns = panel.get_list_display(request)
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
         return stream_export(
@@ -296,7 +301,12 @@ class ListView(PanelView):
             sort=sort,
             rows=self._rows(panel, page.object_list, columns, link, request),
             grouping=self.grouping(request),
-            group_options=[("day", "Day"), ("week", "Week"), ("month", "Month"), ("year", "Year")],
+            group_options=[
+                ("day", _("Day")),
+                ("week", _("Week")),
+                ("month", _("Month")),
+                ("year", _("Year")),
+            ],
             groups=self._groups(panel, page.object_list, request),
             timeline_field=self._timeline_field(panel),
             page=page,
@@ -341,28 +351,12 @@ class ListView(PanelView):
         return wanted if self.panel.get_patterns().timeline else None
 
     def showing_tree(self, request) -> bool:
-        """Whether to render the hierarchy rather than a flat page of rows.
-
-        Off while searching, filtering or sorting: those all produce a subset, and a
-        tree drawn from a subset shows children whose parents are missing, which
-        reads as corruption rather than as a filtered view.
-        """
-        patterns = self.panel.get_patterns()
-        if patterns.tree is None or request.GET.get("flat") == "1":
-            return False
-        if request.GET.get("q") or request.GET.get("sort"):
-            return False
-        return not any(
-            key not in {"page", "trash", "flat", "_facets"} and value
-            for key, value in request.GET.items()
-        )
+        """Whether to render the hierarchy rather than a flat page of rows."""
+        return listquery.showing_tree(self.panel, request)
 
     def showing_trash(self, request) -> bool:
         """Whether this request is asking for the trash rather than the live list."""
-        return (
-            request.GET.get("trash") == "1"
-            and self.panel.get_patterns().soft_delete is not None
-        )
+        return listquery.showing_trash(self.panel, request)
 
     def get_trash_count(self, panel, request) -> int | None:
         """How many soft-deleted rows there are, or None when the model has no trash."""
@@ -387,44 +381,11 @@ class ListView(PanelView):
         return listprefs.analytics(spec, queryset)
 
 
-    @staticmethod
-    def _search_q(panel, query: str, request) -> Q:
-        combined = Q()
-        for path in panel.get_list_search(request):
-            combined |= Q(**{f"{path.lstrip('^=@')}__icontains": query})
-        return combined
-
-    @staticmethod
-    def _resolve_sort(panel, request) -> dict | None:
-        """Validate ``?sort=`` against real, sortable field paths.
-
-        A sort parameter goes straight into ``order_by``, so it is never trusted:
-        anything that does not resolve to a concrete single-valued field is dropped.
-        Sorting on a multi-valued path would silently duplicate rows.
-        """
-        from vantage.introspection import resolve_path
-
-        raw = request.GET.get("sort", "").strip()
-        if not raw:
-            return None
-
-        descending = raw.startswith("-")
-        path = raw.lstrip("-")
-        if path not in panel.get_list_display(request):
-            return None
-
-        hops = resolve_path(panel.model, path)
-        if not hops or any(hop.is_multivalued for hop in hops):
-            return None
-
-        prefix = "-" if descending else ""
-        # A tiebreaker on the primary key keeps pagination stable when the sort
-        # column has duplicate values, which is the usual case for a status column.
-        return {
-            "path": path,
-            "descending": descending,
-            "order_by": [f"{prefix}{path}", "-pk"],
-        }
+    #: Both of these now live in :mod:`vantage.listquery`, which is what the export,
+    #: the job runner and the JSON API call. Kept here as delegations because they are
+    #: part of this view's tested surface and a subclass may well have overridden them.
+    _search_q = staticmethod(listquery.search_q)
+    _resolve_sort = staticmethod(listquery.resolve_sort)
 
     @staticmethod
     def _column_header(panel, name: str, sort: dict | None) -> dict:
@@ -509,13 +470,13 @@ class ListView(PanelView):
     @staticmethod
     def _bucket_label(value, bucket: str) -> str:
         if value is None:
-            return "No date"
+            return str(_("No date"))
         date = value.date() if hasattr(value, "date") else value
         if bucket == "day":
             return date.strftime("%A, %d %B %Y")
         if bucket == "week":
             year, week = date.isocalendar()[:2]
-            return f"Week {week}, {year}"
+            return _("Week %(week)s, %(year)s") % {"week": week, "year": year}
         if bucket == "month":
             return date.strftime("%B %Y")
         return str(date.year)
@@ -633,7 +594,9 @@ class DetailView(PanelView):
         fields = [
             {
                 "label": str(getattr(field, "verbose_name", field.name)).capitalize(),
-                "value": render_cell(panel, obj, field.name),
+                # "lg" is the thumbnail box: this is the page someone opened to look
+                # at the record, so a picture on it is the point rather than a marker.
+                "value": render_cell(panel, obj, field.name, size="lg"),
             }
             for field in displayable_fields(panel.model)
             if not _is_hidden(field)
@@ -694,7 +657,7 @@ class DetailView(PanelView):
 
                 # Only joins matter here: the preview is five rows, so a prefetch
                 # would cost a query to save nothing.
-                select, _ = plan_related(child, columns)
+                select, _prefetch = plan_related(child, columns)
                 if select:
                     queryset = queryset.select_related(*sorted(select))
                 rows = [
@@ -768,7 +731,8 @@ class PageView(SiteView):
         if self.get_page().has_permission(request):
             return None
         raise PermissionDenied(
-            f"You do not have permission to view {self.page_class.get_title()}."
+            _("You do not have permission to view %(page)s.")
+            % {"page": self.page_class.get_title()}
         )
 
     def get_template_names(self):
@@ -831,10 +795,13 @@ class ImpersonateView(SiteView):
 
                 target = get_object_or_404(get_user_model(), pk=target_pk)
                 start_impersonation(request, target)
-                messages.warning(request, f"You are now acting as {target.get_username()}.")
+                messages.warning(
+                    request,
+                    _("You are now acting as %(user)s.") % {"user": target.get_username()},
+                )
             else:
                 actor = stop_impersonation(request)
-                messages.info(request, f"Returned to {actor.get_username()}.")
+                messages.info(request, _("Returned to %(user)s.") % {"user": actor.get_username()})
         except ImpersonationError as exc:
             messages.error(request, str(exc))
 

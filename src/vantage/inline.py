@@ -503,8 +503,13 @@ class InlineWriteView(InlinePanelView):
 
     def save_row(self, obj, form: forms.ModelForm):
         """Save one row through the panel's own hook, exactly as the change form does."""
+        from vantage.tenancy import enforce as enforce_tenant
+
         hook = getattr(self.panel, "save_model", None)
         saved = form.save(commit=False)
+        # The grid posts arbitrary columns, so it can post the tenant column too.
+        # A no-op unless tenancy is on; a 403 when the value would cross a boundary.
+        enforce_tenant(self.request, saved)
         if callable(hook):
             hook(self.request, saved, form, True)
         else:

@@ -70,12 +70,19 @@ class ModelPanel:
     layout: Any | None = None
     readonly_fields: list[str] | None = None
     inlines: list[Any] | None = None
-    related_tabs: bool = True
+    related_tabs: bool | None = None
 
     # ── behaviour ───────────────────────────────────────────────────────────
+    #
+    # There is deliberately no ``permissions`` attribute. Access is answered in one
+    # place — :class:`~vantage.permissions.PanelPermissions` — and a panel has its say
+    # by defining ``has_<action>_permission(request, obj=None)``, which
+    # :meth:`~vantage.permissions.PanelPermissions.panel_override` consults before the
+    # superuser bypass. A second declarative mechanism for the same decision is how
+    # two answers to "may this user delete?" end up disagreeing. Setting it is caught
+    # by ``vantage.E050`` rather than ignored.
     actions: list[Any] | None = None
     row_actions: list[Any] | None = None
-    permissions: Any | None = None
 
     #: Accepting ``search_fields`` as an alias keeps muscle memory from
     #: ``django.contrib.admin`` intact.
@@ -170,12 +177,20 @@ class ModelPanel:
         The per-model half of :mod:`vantage.slots`. Registering a contribution with
         ``model=`` covers content the *project* owns; this covers content the *panel*
         owns, which is the case where naming the model twice is pure ceremony. Return
-        ``None`` — as the default does — to contribute nothing.
+        ``None`` to contribute nothing.
+
+        The default is not "nothing": it is whatever Vantage itself fills for this
+        panel, which today is the ``row_actions`` buttons and the duplicate page's
+        notes. That logic lives in :func:`vantage.records.panel_slot` rather than here,
+        so overriding this method without calling ``super()`` costs a panel author only
+        their own contribution and is a decision they can see.
 
         Output is escaped unless marked safe, and an exception here is logged to the
         ``vantage.slots`` logger and skipped rather than taking the page down.
         """
-        return None
+        from vantage.records import panel_slot
+
+        return panel_slot(self, name, context)
 
     # ── resolved configuration ──────────────────────────────────────────────
     #
@@ -225,6 +240,20 @@ class ModelPanel:
             return list(self.ordering)
         return inference.infer_ordering(self.model)
 
+    def get_related_tabs(self, related_count: int | None = None) -> bool:
+        """Whether the detail page groups reverse relations into a tab strip.
+
+        Inferred per-attribute like everything else: a tab strip is worth its cost
+        once there is a choice to make, so two or more related blocks become tabs and
+        a single one stays the plain card it already was — a one-tab tab bar is a
+        control that cannot do anything. ``related_tabs = True`` asserts tabs even for
+        one relation; ``False`` keeps every relation stacked, which is the right answer
+        for a record whose children are meant to be read together.
+        """
+        if self.related_tabs is not None:
+            return bool(self.related_tabs)
+        return related_count is not None and related_count > 1
+
     def get_per_page(self, request=None) -> int:
         stored = listprefs.override(self, request, "per_page")
         if stored is not None:
@@ -239,6 +268,23 @@ class ModelPanel:
         """The base queryset for every view. Override to scope rows per tenant/user."""
         return self.model._default_manager.all()
 
+    def _list_paths(self, request=None) -> list[str]:
+        """Every path the list page will touch: what optimisation is derived from."""
+        return [*self.get_list_display(request), *self.get_list_search(request)]
+
+    def get_list_select_related(self, request=None) -> list[str]:
+        """The joins the list page makes: derived, **plus** anything declared.
+
+        ``list_select_related`` adds to the derived set and never replaces it. Replacing
+        would make the attribute a foot-gun: a hand-maintained list goes stale the
+        moment a column is added, and the symptom is an N+1 that the page used to be
+        immune to. Declaring joins is still useful for what rendering cannot see — a
+        relation touched by ``__str__``, by a ``get_queryset`` override, or by a panel
+        method column — which is also what an adopted ``ModelAdmin`` was expressing.
+        """
+        select, _ = plan_related(self.model, self._list_paths(request))
+        return sorted(select | {str(path) for path in (self.list_select_related or ())})
+
     def get_list_queryset(self, request):
         """The list-page queryset, with query optimisation already applied.
 
@@ -247,10 +293,10 @@ class ModelPanel:
         suite asserts with ``assertNumQueries``.
         """
         queryset = self.get_queryset(request)
-        paths = [*self.get_list_display(request), *self.get_list_search(request)]
-        select, prefetch = plan_related(self.model, paths)
+        _, prefetch = plan_related(self.model, self._list_paths(request))
+        select = self.get_list_select_related(request)
         if select:
-            queryset = queryset.select_related(*sorted(select))
+            queryset = queryset.select_related(*select)
         if prefetch:
             queryset = queryset.prefetch_related(*sorted(prefetch))
         ordering = self.get_ordering(request)

@@ -17,6 +17,7 @@ from typing import Any
 
 from django.apps import apps as django_apps
 from django.urls import NoReverseMatch, reverse
+from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
 
@@ -129,7 +130,7 @@ def _derived_nav(site, request) -> list[NavGroup]:
     for page in _visible_pages(site, request):
         item = _page_item(page)
         if item is not None:
-            group = getattr(page, "group", None) or "Pages"
+            group = getattr(page, "group", None) or _("Pages")
             bucket(group, getattr(page, "order", 0)).items.append(item)
 
     for group in groups.values():

@@ -1,0 +1,9 @@
+{% comment %}
+The image upload control.
+
+Identical markup to the file control — the difference between them is one flag in the
+context, ``widget.is_image``, which is what tells upload.js a preview is worth drawing.
+This file exists as its own template anyway, and not as an alias in Python, because it
+is the override seam: a project that wants a different control for images and the
+standard one for documents overrides this template and nothing else.
+{% endcomment %}{% include "vantage/widgets/file.html" %}

@@ -15,21 +15,6 @@
 {% if saved_view_write_url %}
 <div class="v-views" data-saved-views>
 
-  {% if saved_views %}
-    <nav class="v-views-rail" aria-label="{% translate "Saved views" %}">
-      <a class="v-views-tab{% if not saved_view %} v-views-tab-current{% endif %}"
-         href="{{ request.path }}"{% if not saved_view %} aria-current="page"{% endif %}>{% translate "All" %}</a>
-      {% for item in saved_views %}
-        <a class="v-views-tab{% if item.current %} v-views-tab-current{% endif %}"
-           href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>
-          {{ item.view.name }}
-          {% if item.view.locked %}<span class="v-views-lock" title="{% translate "Locked" %}">{% icon "shield" %}</span>{% endif %}
-          {% if item.view.is_shared %}<span class="v-views-shared" title="{% translate "Shared" %}">{% icon "users" %}</span>{% endif %}
-        </a>
-      {% endfor %}
-    </nav>
-  {% endif %}
-
   {% if saved_view_broken %}
     {% comment %}
       Validated on load, never on save. Fields get renamed long after a view is
@@ -60,14 +45,40 @@
   {% endif %}
 
   <div class="v-views-bar">
-    {% if saved_view %}
+    {% comment %}
+      The picker was a tab rail across the full width of the page. One line of
+      chrome to say which view is open is one line the table does not get, so the
+      rail moved inside the control that already states the answer: the summary is
+      the current view's name, and every other view is one click below it. The nav
+      landmark and the aria-current tab are unchanged — only their container is.
+    {% endcomment %}
+    {% if saved_views %}
+      <details class="v-views-menu v-views-picker">
+        <summary class="v-btn v-btn-secondary v-btn-sm v-listbar-trigger">
+          <span class="v-views-current">
+            {% if saved_view %}{{ saved_view.name }}{% else %}{% translate "All" %}{% endif %}
+          </span>
+          {% if saved_view_diverged %}<span class="v-views-modified">{% translate "Modified" context "saved view has unsaved changes" %}</span>{% endif %}
+        </summary>
+        <nav class="v-views-panel v-views-rail" aria-label="{% translate "Saved views" %}">
+          <a class="v-views-tab{% if not saved_view %} v-views-tab-current{% endif %}"
+             href="{{ request.path }}"{% if not saved_view %} aria-current="page"{% endif %}>{% translate "All" %}</a>
+          {% for item in saved_views %}
+            <a class="v-views-tab{% if item.current %} v-views-tab-current{% endif %}"
+               href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>
+              {{ item.view.name }}
+              {% if item.view.locked %}<span class="v-views-lock" title="{% translate "Locked" %}">{% icon "shield" %}</span>{% endif %}
+              {% if item.view.is_shared %}<span class="v-views-shared" title="{% translate "Shared" %}">{% icon "users" %}</span>{% endif %}
+            </a>
+          {% endfor %}
+        </nav>
+      </details>
+    {% elif saved_view %}
       <span class="v-views-current">
         <strong>{{ saved_view.name }}</strong>
-        {% if saved_view_diverged %}<span class="v-views-modified">{% translate "Modified" %}</span>{% endif %}
+        {% if saved_view_diverged %}<span class="v-views-modified">{% translate "Modified" context "saved view has unsaved changes" %}</span>{% endif %}
       </span>
     {% endif %}
-
-    <div class="v-views-spacer"></div>
 
     {% if saved_view and saved_view_diverged %}
       {# Reset is a plain link back through the apply route: the view as saved. #}

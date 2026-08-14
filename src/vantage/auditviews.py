@@ -23,6 +23,8 @@ from typing import Any
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.utils.functional import Promise
+from django.utils.translation import gettext_lazy as _
 
 from vantage.audit import may_view_audit
 from vantage.conf import vantage_settings
@@ -34,11 +36,11 @@ __all__ = ["DATE_WINDOWS", "AuditLogView", "build_urls"]
 #: Relative windows, keyed by ISO-8601 duration exactly as the list page's date filter
 #: does, so the two never disagree about what "last 7 days" means. Whole local days,
 #: including today.
-DATE_WINDOWS: dict[str, tuple[str, int]] = {
-    "P1D": ("Today", 1),
-    "P7D": ("Last 7 days", 7),
-    "P30D": ("Last 30 days", 30),
-    "P90D": ("Last 90 days", 90),
+DATE_WINDOWS: dict[str, tuple[str | Promise, int]] = {
+    "P1D": (_("Today"), 1),
+    "P7D": (_("Last 7 days"), 7),
+    "P30D": (_("Last 30 days"), 30),
+    "P90D": (_("Last 90 days"), 90),
 }
 
 #: Entries per page. Larger than a list page's default because a log is read by
@@ -50,18 +52,18 @@ class AuditLogView(SiteView):
     """Every entry, newest first, filtered by actor, action and date."""
 
     template_name = "vantage/audit.html"
-    page_title = "Audit log"
-    page_description = "Everything created, changed, deleted or run from this panel."
+    page_title = _("Audit log")
+    page_description = _("Everything created, changed, deleted or run from this panel.")
 
     def check_permission(self, request):
         if not vantage_settings.AUDIT_LOG:
-            raise PermissionDenied("The audit log is switched off for this panel.")
+            raise PermissionDenied(_("The audit log is switched off for this panel."))
         if not may_view_audit(request):
-            raise PermissionDenied("You do not have permission to read the audit log.")
+            raise PermissionDenied(_("You do not have permission to read the audit log."))
         return None
 
     def get_breadcrumbs(self):
-        return [("Audit log", None)]
+        return [(_("Audit log"), None)]
 
     # ── the queryset ────────────────────────────────────────────────────────
 
@@ -126,7 +128,7 @@ class AuditLogView(SiteView):
                     "label": label,
                     "selected": self.request.GET.get("window") == key,
                 }
-                for key, (label, _) in DATE_WINDOWS.items()
+                for key, (label, _days) in DATE_WINDOWS.items()
             ],
             selected_actor=self._actor_id(),
             date_from=start.isoformat() if start and not self._preset() else "",

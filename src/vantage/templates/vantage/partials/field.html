@@ -1,4 +1,4 @@
-{% comment %} One field: label, control, help, errors.
+{% load i18n %}{% comment %} One field: label, control, help, errors.
 
    The control renders itself — the widget already carries the inferred type, constraint
    and data-vantage-kind attributes from WidgetSpec.html_attrs(), so re-emitting them
@@ -35,7 +35,9 @@
     <label class="v-form-label" for="{{ field.bound.id_for_label }}">
       {{ field.bound.label }}
       {% if field.bound.field.required %}
-        <span class="v-form-required" title="Required">*<span class="v-sr-only"> required</span></span>
+        {% comment %} The asterisk is decorative; the screen-reader word is the real label,
+           so both the tooltip and the sr-only text are translated. {% endcomment %}
+        <span class="v-form-required" title="{% translate "Required" %}">*<span class="v-sr-only"> {% translate "required" %}</span></span>
       {% endif %}
     </label>
     {{ field.bound }}

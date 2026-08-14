@@ -18,6 +18,7 @@ from django.apps import apps as django_apps
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils.translation import gettext_lazy as _
 
 __all__ = ["AutocompleteView", "build_urls"]
 
@@ -46,7 +47,7 @@ class AutocompleteView:
 
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated or not user.is_staff:
-            raise PermissionDenied("Sign in required.")
+            raise PermissionDenied(_("Sign in required."))
 
         model = self._resolve_model(request.GET.get("model", ""))
         panel = self._resolve_panel(model)
@@ -56,7 +57,7 @@ class AutocompleteView:
         # permission is checked, and it is checked against the *target* model rather
         # than the page the request came from.
         if not permissions.has_model_perm(request, model, "view"):
-            raise PermissionDenied("You cannot view those records.")
+            raise PermissionDenied(_("You cannot view those records."))
 
         queryset = permissions.filter_queryset(request, panel.get_queryset(request), "view")
 
@@ -91,9 +92,9 @@ class AutocompleteView:
         try:
             model = django_apps.get_model(label)
         except (LookupError, ValueError):
-            raise PermissionDenied("Unknown model.") from None
+            raise PermissionDenied(_("Unknown model.")) from None
         if model is None or not self.site.is_registered(model):
-            raise PermissionDenied("Unknown model.")
+            raise PermissionDenied(_("Unknown model."))
         return model
 
     def _resolve_panel(self, model):

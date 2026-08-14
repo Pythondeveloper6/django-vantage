@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 
 __all__ = [
     "IMPERSONATE_SESSION_KEY",
@@ -55,7 +56,7 @@ def read_only_reason() -> str | None:
         return None
     # A string doubles as the explanation shown to the user, which beats a bare
     # "permission denied" for something that is a deliberate operational choice.
-    return value if isinstance(value, str) else "This panel is in read-only mode."
+    return value if isinstance(value, str) else _("This panel is in read-only mode.")
 
 
 # ── impersonation ───────────────────────────────────────────────────────────
@@ -92,15 +93,15 @@ def start_impersonation(request, target) -> None:
     actor = real_user(request)
 
     if not can_impersonate(actor):
-        raise ImpersonationError("Only superusers may impersonate.")
+        raise ImpersonationError(_("Only superusers may impersonate."))
     if target.pk == actor.pk:
-        raise ImpersonationError("You are already signed in as that user.")
+        raise ImpersonationError(_("You are already signed in as that user."))
     if target.is_superuser:
         # Otherwise impersonation is a lateral move between superusers that muddies
         # the audit trail without granting anything useful.
-        raise ImpersonationError("Superusers cannot be impersonated.")
+        raise ImpersonationError(_("Superusers cannot be impersonated."))
     if not target.is_active:
-        raise ImpersonationError("That account is inactive.")
+        raise ImpersonationError(_("That account is inactive."))
 
     logger.warning(
         "impersonation started: %s (id=%s) is now acting as %s (id=%s)",
@@ -122,13 +123,13 @@ def stop_impersonation(request):
 
     session = getattr(request, "session", None)
     if not session or not session.get(IMPERSONATOR_SESSION_KEY):
-        raise ImpersonationError("Not currently impersonating.")
+        raise ImpersonationError(_("Not currently impersonating."))
 
     actor_pk = session[IMPERSONATOR_SESSION_KEY]
     try:
         actor = get_user_model()._default_manager.get(pk=actor_pk)
     except get_user_model().DoesNotExist as exc:  # pragma: no cover
-        raise ImpersonationError("The original account no longer exists.") from exc
+        raise ImpersonationError(_("The original account no longer exists.")) from exc
 
     logger.warning(
         "impersonation ended: %s (id=%s) returned from %s",

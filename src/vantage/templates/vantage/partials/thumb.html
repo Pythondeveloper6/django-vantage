@@ -1,0 +1,41 @@
+{% load vantage i18n %}{% comment %}
+One file value, shown rather than spelled out. Two shapes and no third: a real <img>
+when a derived thumbnail exists, and a named chip with an icon when one does not —
+because Pillow is absent, because the file is a PDF, or because the image could not be
+decoded. There is deliberately no "broken image" state; a chip is a worse picture and a
+better answer.
+
+width and height are always written out. They are the CSS box, not the bitmap, and they
+are what reserves the row's height before a single byte of image arrives — without them
+a list of fifty lazy-loaded thumbnails reflows the page fifty times as it settles.
+
+URLs go through the asset tag and never through the static tag, which rewrites an
+already-resolved media URL into /static/media/… and breaks every image on the page.
+{% endcomment %}{% spaceless %}
+{% if thumb %}
+  {% if file_url %}
+    <a class="v-thumb" data-size="{{ size }}" href="{% asset file_url %}"
+       target="_blank" rel="noopener noreferrer" title="{{ file_name }}">
+      <img src="{% asset thumb.url %}" width="{{ thumb.width }}" height="{{ thumb.height }}"
+           alt="{{ alt }}" loading="lazy" decoding="async">
+      <span class="v-sr-only">{% translate "(opens the full image in a new tab)" %}</span>
+    </a>
+  {% else %}
+    <span class="v-thumb" data-size="{{ size }}" title="{{ file_name }}">
+      <img src="{% asset thumb.url %}" width="{{ thumb.width }}" height="{{ thumb.height }}"
+           alt="{{ alt }}" loading="lazy" decoding="async">
+    </span>
+  {% endif %}
+{% elif file_name %}
+  {% if file_url %}
+    <a class="v-file-chip" href="{% asset file_url %}" target="_blank" rel="noopener noreferrer">
+      {% icon icon %}<span class="v-file-name">{{ file_name }}</span>
+      <span class="v-sr-only">{% translate "(opens in a new tab)" %}</span>
+    </a>
+  {% else %}
+    <span class="v-file-chip">{% icon icon %}<span class="v-file-name">{{ file_name }}</span></span>
+  {% endif %}
+{% else %}
+  <span class="v-cell-empty">—</span>
+{% endif %}
+{% endspaceless %}

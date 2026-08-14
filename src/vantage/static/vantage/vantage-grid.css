@@ -443,3 +443,27 @@
   color: var(--muted-foreground);
   white-space: nowrap;
 }
+
+/* ── row actions ──────────────────────────────────────────────────────────── */
+
+/* The trailing cell. Sized to its buttons rather than sharing the columns' space, so
+ * adding row actions never squeezes the data they sit beside. */
+.v-row-actions-cell {
+  inline-size: 1%;
+  white-space: nowrap;
+  text-align: end;
+}
+
+.v-row-actions {
+  display: flex;
+  gap: 0.125rem;
+  justify-content: flex-end;
+}
+
+/* Destructive is stated on hover and on focus, not at rest. Fifty red buttons down a
+ * page is fifty warnings, and a warning that appears on every row stops being one. */
+.v-row-action-destructive:hover,
+.v-row-action-destructive:focus-visible {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+}
