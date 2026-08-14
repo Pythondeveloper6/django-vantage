@@ -12,9 +12,9 @@
 <title>{% block title %}{% blocktranslate with site_title=settings.SITE_TITLE %}Signed out · {{ site_title }}{% endblocktranslate %}{% endblock %}</title>
 {% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
 
-<script>{{ no_flash_script|safe }}</script>
+<script{{ csp_nonce_attr }}>{{ no_flash_script|safe }}</script>
 
-<style>{{ theme_css|safe }}</style>
+<style{{ csp_nonce_attr }}>{{ theme_css|safe }}</style>
 <link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
 <link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
 {% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}

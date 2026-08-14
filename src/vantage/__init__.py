@@ -20,14 +20,17 @@ __all__ = [
     "Chart",
     "ChartCard",
     "Dashboard",
+    "Inline",
     "ListCard",
     "ModelPanel",
     "Page",
     "Row",
     "Section",
+    "StackedInline",
     "Stat",
     "Tab",
     "Tabs",
+    "TabularInline",
     "VantageSite",
     "__version__",
     "action",
@@ -75,6 +78,10 @@ def __getattr__(name: str):
         from vantage import dashboards
 
         return getattr(dashboards, name)
+    if name in ("Inline", "TabularInline", "StackedInline"):
+        from vantage import inlines
+
+        return getattr(inlines, name)
     if name in ("Tabs", "Tab", "Section", "Row"):
         from vantage import layout
 

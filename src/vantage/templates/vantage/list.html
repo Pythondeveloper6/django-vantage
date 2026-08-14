@@ -44,27 +44,27 @@
 
 {% slot "before_list" %}
 
-{% if searchable %}
 {% comment %}
-  Labelled because the header palette is also a search landmark; two
-  unnamed ones leave a screen-reader user unable to tell them apart.
+  One element wraps the whole list: the control band, the filter rail and the table.
+
+  It carries data-grid, and that is why it is out here rather than around the table
+  alone. vantage-grid.js resolves every control it owns with root.querySelector, so
+  the density and column buttons have to be inside this element — widening it is what
+  allowed four stacked control strips to collapse into one band *above* the two
+  columns. That is also what puts the rail and the data on one baseline: neither
+  column opens with a line of chrome that the other one lacks.
+
+  The page links are handed over as data rather than scraped from the pagination
+  block below, so `[` and `]` carry the active search, filters and sort — the server
+  already built those URLs correctly once.
 {% endcomment %}
-<form class="v-toolbar" method="get" role="search" id="v-list-search"
-      aria-label="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}">
-  <div class="v-search">
-    {% icon "search" %}
-    <input class="v-input" type="search" name="q" value="{{ query }}"
-           placeholder="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}…"
-           aria-label="{% blocktranslate with label=panel.get_label_plural|lower %}Search {{ label }}{% endblocktranslate %}">
-  </div>
-  {% include "vantage/partials/filter_state.html" %}
-  {% if sort %}
-    <input type="hidden" name="sort" value="{% if sort.descending %}-{% endif %}{{ sort.path }}">
-  {% endif %}
-  {% if query %}
-    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>
-  {% endif %}
-</form>
+<div class="v-grid" data-grid data-grid-model="{{ panel.slug }}"
+     {% if page.has_previous %}data-prev-url="?{% querystring_replace page=page.previous_page_number %}"{% endif %}
+     {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}
+     {% if inline.enabled and rows %}data-inline data-inline-save-url="{{ inline.save_url }}" data-inline-validate-url="{{ inline.validate_url }}"{% endif %}>
+
+{% if searchable or rows or saved_view_write_url or timeline_field or patterns.soft_delete or has_active_filters %}
+  {% include "vantage/partials/list_toolbar.html" %}
 {% endif %}
 
 {% comment %}
@@ -79,42 +79,6 @@
   {% endif %}
 
   <div class="v-list-main">
-    {% include "vantage/partials/saved_views.html" %}
-
-    {% if timeline_field %}
-      <div class="v-group-control">
-        <span class="v-muted">{% translate "Group by" %}</span>
-        {% for key, label in group_options %}
-          <a class="v-group-chip{% if grouping == key %} v-group-chip-on{% endif %}"
-             href="?{% querystring_replace group=key page=None %}">{{ label }}</a>
-        {% endfor %}
-        {% if grouping %}
-          <a class="v-group-chip" href="?{% querystring_replace group=None page=None %}">{% translate "None" %}</a>
-        {% endif %}
-      </div>
-    {% endif %}
-
-    {% if patterns.soft_delete %}
-      {% comment %}
-        Trash is a place you go to deliberately: the list means live records, so this
-        is a tab rather than a filter chip.
-      {% endcomment %}
-      <nav class="v-tabs" aria-label="{% translate "Records or trash" %}">
-        <a class="v-tab" href="?{% querystring_replace trash=None page=None %}"
-           {% if not showing_trash %}aria-current="page"{% endif %}>
-          {{ panel.get_label_plural }}
-        </a>
-        <a class="v-tab" href="?{% querystring_replace trash=1 page=None %}"
-           {% if showing_trash %}aria-current="page"{% endif %}>
-          {% icon "trash" %}
-          <span>{% translate "Trash" %}</span>
-          {% if trash_count %}<span class="v-badge">{{ trash_count }}</span>{% endif %}
-        </a>
-      </nav>
-    {% endif %}
-
-    {% include "vantage/partials/filter_chips.html" %}
-
     {% if analytics.stats or analytics.charts or analytics.deferred %}
       {% include "vantage/partials/analytics.html" %}
     {% endif %}
@@ -148,33 +112,39 @@
 {% endif %}
 
 {% comment %}
-  Everything the grid script owns lives inside this element: the controls, the table
-  and nothing else. The keyboard handlers bind to the table inside it, never to the
+  The keyboard handlers bind to the table inside the grid element, never to the
   document, which is how the single-character shortcuts stay compliant with WCAG
   2.1.4 (exemption 3, "active only when the component has focus").
-
-  The page links are handed over as data rather than scraped from the pagination
-  block below, so `[` and `]` carry the active search, filters and sort — the server
-  already built those URLs correctly once.
 {% endcomment %}
-<div class="v-grid" data-grid data-grid-model="{{ panel.slug }}"
-     {% if page.has_previous %}data-prev-url="?{% querystring_replace page=page.previous_page_number %}"{% endif %}
-     {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}
-     {% if inline.enabled and rows %}data-inline data-inline-save-url="{{ inline.save_url }}" data-inline-validate-url="{{ inline.validate_url }}"{% endif %}>
-
-{% if rows %}{% include "vantage/partials/grid_controls.html" %}{% endif %}
-
 <form method="post" id="v-action-form">
 {% csrf_token %}
 <input type="hidden" name="select_all" value="" data-select-all>
 
-{% if actions %}
+{% comment %}
+  Selection exists when there is something to do with it, and bulk edit is something to
+  do with it on every model — so the checkboxes are no longer gated on the panel having
+  declared actions. "change" is the permission the bulk edit page itself requires, so
+  offering the selection to somebody who lacks it would be offering a control that
+  cannot lead anywhere.
+{% endcomment %}
+{% if actions or "change" in allowed %}
   <div class="v-action-bar" data-action-bar data-total="{{ paginator.count }}" hidden>
     <span class="v-action-count" data-selection-count></span>
     <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-select-all-matching hidden>
       {% translate "Select all matching" %}
     </button>
     <div class="v-action-bar-spacer"></div>
+    {% if "change" in allowed %}
+      {% comment %}
+        formaction rather than a link: the selection lives in this form's fields, and a
+        link would arrive with no idea which rows were meant. The query string goes with
+        it because the predicate behind "select all matching" is the page's own filters.
+      {% endcomment %}
+      <button class="v-btn v-btn-sm v-btn-secondary" formnovalidate
+              formaction="{% url "vantage:"|add:panel.slug|add:"-bulk-edit" %}?{{ request.GET.urlencode }}">
+        {% icon "pencil" %}{% translate "Bulk edit" %}
+      </button>
+    {% endif %}
     {% for act in actions %}
       <button class="v-btn v-btn-sm {% if act.destructive %}v-btn-destructive{% else %}v-btn-secondary{% endif %}"
               name="action" value="{{ act.name }}">
@@ -207,7 +177,7 @@
                aria-label="{{ panel.get_label_plural }}">
           <thead>
             <tr data-grid-row data-grid-head tabindex="-1">
-              {% if actions %}
+              {% if actions or "change" in allowed %}
                 <th scope="col" class="v-select-cell">
                   <input type="checkbox" data-select-page tabindex="-1"
                          aria-label="{% translate "Select all rows on this page" %}">
@@ -241,7 +211,7 @@
               <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}{% inline_row_attrs inline row.obj %}
                   aria-rowindex="{{ page.start_index|add:forloop.counter0 }}"
                   tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">
-                {% if actions %}
+                {% if actions or "change" in allowed %}
                   <td class="v-select-cell">
                     <input type="checkbox" name="selected" value="{{ row.pk }}" tabindex="-1"
                            data-select-row aria-label="{% blocktranslate with obj=row.obj %}Select {{ obj }}{% endblocktranslate %}">
@@ -279,7 +249,7 @@
             {% endcomment %}
             <tfoot class="v-table-summary">
               <tr>
-                {% if actions %}<td class="v-select-cell"></td>{% endif %}
+                {% if actions or "change" in allowed %}<td class="v-select-cell"></td>{% endif %}
                 {% for column in columns %}
                   <td data-col-index="{{ forloop.counter0 }}">
                     {% with cell=summary|dict_get:column.name %}
@@ -410,7 +380,6 @@
     <div class="v-grid-drawer-body" data-drawer-body aria-busy="false"></div>
   </aside>
 {% endif %}
-</div>
 
     {% if page.paginator.num_pages > 1 %}
     <div class="v-pagination">
@@ -433,8 +402,9 @@
       </div>
     </div>
     {% endif %}
-  </div>
-</div>
+  </div>{# .v-list-main #}
+</div>{# .v-list-layout #}
+</div>{# .v-grid #}
 
 {% slot "after_list" %}
 {% endblock %}

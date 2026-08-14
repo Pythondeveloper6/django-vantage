@@ -65,7 +65,7 @@ def check_database() -> Check:
     detail = f"{vendor} · {connection.settings_dict.get('NAME')}"
     if version:
         detail += f" · {version}"
-    return Check("Database", "ok", detail)
+    return Check(_("Database"), "ok", detail)
 
 
 def check_cache() -> Check:
@@ -74,15 +74,15 @@ def check_cache() -> Check:
     cache.set("vantage-health", "ok", 10)
     if cache.get("vantage-health") != "ok":
         return Check(
-            "Cache",
+            _("Cache"),
             "warn",
-            "A value written to the cache did not read back.",
-            hint="A dummy or misconfigured backend. Faceted counts will not be cached.",
+            _("A value written to the cache did not read back."),
+            hint=_("A dummy or misconfigured backend. Faceted counts will not be cached."),
         )
     from django.conf import settings as django_settings
 
     backend = django_settings.CACHES["default"]["BACKEND"].rsplit(".", 1)[-1]
-    return Check("Cache", "ok", backend)
+    return Check(_("Cache"), "ok", backend)
 
 
 def check_tasks() -> Check:
@@ -97,8 +97,12 @@ def check_tasks() -> Check:
 
     backend = detect_backend()
     if backend is not IN_PROCESS:
-        return Check("Background tasks", "ok", f"{backend.label} detected.")
-    return Check("Background tasks", "info", "None configured.", hint=backend.hint)
+        return Check(
+            _("Background tasks"),
+            "ok",
+            _("%(backend)s detected.") % {"backend": backend.label},
+        )
+    return Check(_("Background tasks"), "info", _("None configured."), hint=backend.hint)
 
 
 
@@ -107,12 +111,12 @@ def check_debug() -> Check:
 
     if django_settings.DEBUG:
         return Check(
-            "Debug mode",
+            _("Debug mode"),
             "warn",
-            "DEBUG is on.",
-            hint="Expected locally; a serious problem in production.",
+            _("DEBUG is on."),
+            hint=_("Expected locally; a serious problem in production."),
         )
-    return Check("Debug mode", "ok", "Off.")
+    return Check(_("Debug mode"), "ok", _("Off."))
 
 
 def check_storage() -> Check:
@@ -121,12 +125,12 @@ def check_storage() -> Check:
 
     if not getattr(django_settings, "MEDIA_ROOT", None):
         return Check(
-            "Media storage",
+            _("Media storage"),
             "warn",
-            "MEDIA_ROOT is unset.",
-            hint="Logo uploads on the settings screen will fail.",
+            _("MEDIA_ROOT is unset."),
+            hint=_("Logo uploads on the settings screen will fail."),
         )
-    return Check("Media storage", "ok", str(django_settings.MEDIA_ROOT))
+    return Check(_("Media storage"), "ok", str(django_settings.MEDIA_ROOT))
 
 
 def check_versions() -> Check:
@@ -138,7 +142,7 @@ def check_versions() -> Check:
     detail = (
         f"Vantage {__version__} · Django {django.get_version()} · Python {python}"
     )
-    return Check("Versions", "info", detail)
+    return Check(_("Versions"), "info", detail)
 
 
 def _importable(name: str) -> bool:
@@ -151,13 +155,13 @@ def _importable(name: str) -> bool:
 
 
 PROBES = (
-    ("Migrations", check_migrations),
-    ("Database", check_database),
-    ("Cache", check_cache),
-    ("Background tasks", check_tasks),
-    ("Media storage", check_storage),
-    ("Debug mode", check_debug),
-    ("Versions", check_versions),
+    (_("Migrations"), check_migrations),
+    (_("Database"), check_database),
+    (_("Cache"), check_cache),
+    (_("Background tasks"), check_tasks),
+    (_("Media storage"), check_storage),
+    (_("Debug mode"), check_debug),
+    (_("Versions"), check_versions),
 )
 
 

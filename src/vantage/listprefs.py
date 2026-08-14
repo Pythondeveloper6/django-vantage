@@ -47,6 +47,7 @@ from typing import Any
 from django.conf import settings as django_settings
 from django.db.models import BooleanField, Count, DateField, Q
 from django.db.utils import OperationalError, ProgrammingError
+from django.utils.translation import gettext_lazy as _
 
 from vantage.introspection import resolve_path
 from vantage.stats import Chart, Stat, compute_panel
@@ -95,6 +96,18 @@ SECTIONS: tuple[str, ...] = tuple(SECTION_COLUMNS)
 #: invented again. One list of aggregate names for the footer, the stat strip and the
 #: charts means a user who has learned one has learned all three.
 AGGREGATES: tuple[str, ...] = tuple(SUMMARY_FUNCTIONS)
+
+#: The word a UI-built card is labelled with when nobody typed a label of their own.
+#: Spelled out here rather than capitalising the aggregate's own name: that name is an
+#: identifier, and capitalising an identifier produces an English word wearing English
+#: capitalisation in every language the panel is read in.
+AGGREGATE_LABELS: dict[str, str] = {
+    "sum": _("Sum"),
+    "avg": _("Avg"),
+    "min": _("Min"),
+    "max": _("Max"),
+    "count": _("Count"),
+}
 
 #: A real choice in the summary bar: "do not aggregate this column", as distinct from
 #: "no opinion", which is what an absent key means.
@@ -298,6 +311,13 @@ def _clean_paths(value: Any, allowed: tuple[str, ...]) -> list[str] | None:
 
 
 def _clean_label(value: Any, fallback: str) -> str:
+    """The label to store: what was typed, else the generated one, always plain text.
+
+    The slice is what resolves a lazy fallback into a real ``str``. That matters: this
+    value goes into a JSON column, and a translation promise is not something a row can
+    hold. It also means a generated label is frozen in the language of whoever created
+    the card, which is the same bargain any user-entered label makes.
+    """
     text = value.strip() if isinstance(value, str) else ""
     return (text or fallback)[:MAX_LABEL]
 
@@ -317,12 +337,15 @@ def _clean_measure(raw: Any, opts: Options) -> dict[str, str] | None:
 
     if aggregate == "count":
         field_name = ""
-        fallback = "Count"
+        fallback = AGGREGATE_LABELS["count"]
     else:
         field_name = raw.get("field")
         if not isinstance(field_name, str) or field_name not in opts.measures:
             return None
-        fallback = f"{aggregate.capitalize()} of {field_name.replace('_', ' ')}"
+        fallback = _("%(aggregate)s of %(field)s") % {
+            "aggregate": AGGREGATE_LABELS.get(aggregate, aggregate),
+            "field": field_name.replace("_", " "),
+        }
 
     return {
         "aggregate": aggregate,
@@ -390,7 +413,8 @@ def _clean_chart(raw: Any, opts: Options) -> dict[str, str] | None:
     kinds = CHART_KINDS[mode]
     label = _clean_label(
         raw.get("label"),
-        f"{measure['label']} by {target.replace('_', ' ')}",
+        _("%(measure)s by %(target)s")
+        % {"measure": measure["label"], "target": target.replace("_", " ")},
     )
     return {
         "mode": mode,

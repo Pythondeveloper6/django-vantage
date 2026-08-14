@@ -29,7 +29,9 @@ from django.http import (
 )
 from django.template import loader
 from django.urls import path, reverse_lazy
+from django.utils.functional import Promise
 from django.utils.translation import get_language, get_language_bidi
+from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
 from vantage.nav import build_nav, resolve_theme
@@ -192,7 +194,7 @@ class PasswordChangeView(auth_views.PasswordChangeView):
         messages.add_message(
             self.request,
             messages.SUCCESS,
-            "Your password has been changed.",
+            _("Your password has been changed."),
             fail_silently=True,
         )
         return response
@@ -202,8 +204,8 @@ class PasswordChangeView(auth_views.PasswordChangeView):
         context.update(
             shell_context(
                 self.request,
-                page_title="Change password",
-                breadcrumbs=[("Change password", None)],
+                page_title=_("Change password"),
+                breadcrumbs=[(_("Change password"), None)],
             )
         )
         return context
@@ -239,26 +241,51 @@ def _in_shell(request, template_name: str, status: int, response_class, **extra)
 
 
 def _bare(status: int) -> HttpResponse:
-    """The self-contained error page, at whatever status."""
-    context = _BARE_TEXT.get(status, _BARE_TEXT[500])
+    """The self-contained error page, at whatever status.
+
+    The dict is copied and finished here rather than being complete at import time,
+    because the active language is a per-request fact: a module-level dict of *rendered*
+    strings would freeze whichever language happened to be active when this module was
+    first imported. The values themselves are lazy, so they resolve as the template
+    renders them; only the language code and the writing direction have to be read now.
+    """
+    context: dict[str, str | Promise] = dict(_BARE_TEXT.get(status, _BARE_TEXT[500]))
+    context.setdefault("error_link", _("Return to the start"))
+    # ``vantage/500.html`` is the one template with no ``{% load i18n %}`` — a load tag
+    # is precisely what may have failed — so it cannot call ``get_current_language``
+    # itself and is handed both values instead.
+    context["language_code"] = get_language() or "en"
+    context["language_dir"] = "rtl" if get_language_bidi() else "ltr"
     return HttpResponse(
         loader.get_template("vantage/500.html").render(context),
         status=status,
     )
 
 
-_BARE_TEXT: dict[int, dict[str, str]] = {
+#: Lazy, never eager: this is evaluated at import, long before any request has said
+#: which language it wants.
+_BARE_TEXT: dict[int, dict[str, str | Promise]] = {
     403: {
-        "error_code": "Error 403",
-        "error_title": "You do not have access to this",
-        "error_body": "This page exists, but your account is not permitted to open it.",
+        "error_code": _("Error 403"),
+        "error_title": _("You do not have access to this"),
+        "error_body": _("This page exists, but your account is not permitted to open it."),
     },
     404: {
-        "error_code": "Error 404",
-        "error_title": "We could not find that page",
-        "error_body": "The address may be mistyped, or what it pointed at may be gone.",
+        "error_code": _("Error 404"),
+        "error_title": _("We could not find that page"),
+        "error_body": _("The address may be mistyped, or what it pointed at may be gone."),
     },
-    500: {},  # the template's own defaults
+    # Spelled out rather than left to the template's own defaults: those defaults are
+    # hard-coded English that no translation can reach, and they exist only for the
+    # no-context smoke test that proves this page needs nothing at all to render.
+    500: {
+        "error_code": _("Error 500"),
+        "error_title": _("Something went wrong"),
+        "error_body": _(
+            "The server hit an error handling that request. It has been logged; "
+            "nothing you did caused it and trying again is safe."
+        ),
+    },
 }
 
 

@@ -16,10 +16,16 @@
   arguments, which is what proves the above rather than merely asserting it.
 
   It doubles as the last-resort fallback for 403 and 404 when the shell itself cannot
-  render, which is why the three strings below are overridable and default to the 500
+  render, which is why the four strings below are overridable and default to the 500
   wording.
+
+  TRANSLATION. This is the one template in the package with no {% templatetag openblock %} load i18n
+  {% templatetag closeblock %}, because a load tag is exactly what may have failed. Every
+  visible string is therefore an *overridable* context variable whose default is the
+  English wording; `vantage.authviews._bare` supplies lazily-translated values for all
+  four, and the hard-coded defaults only ever render in the no-context smoke test.
 {% endcomment %}
-<html lang="{{ language_code|default:"en" }}">
+<html lang="{{ language_code|default:"en" }}" dir="{{ language_dir|default:"ltr" }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -110,7 +116,7 @@
   <p class="body">
     {{ error_body|default:"The server hit an error handling that request. It has been logged; nothing you did caused it and trying again is safe." }}
   </p>
-  <a href="/">Return to the start</a>
+  <a href="/">{{ error_link|default:"Return to the start" }}</a>
 </main>
 </body>
 </html>

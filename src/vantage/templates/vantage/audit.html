@@ -49,12 +49,12 @@
   </label>
 
   <label class="v-audit-field">
-    <span class="v-audit-label">{% translate "From" %}</span>
+    <span class="v-audit-label">{% translate "From" context "start of a date range" %}</span>
     <input class="v-input" type="date" name="from" value="{{ date_from }}">
   </label>
 
   <label class="v-audit-field">
-    <span class="v-audit-label">{% translate "To" %}</span>
+    <span class="v-audit-label">{% translate "To" context "end of a date range" %}</span>
     <input class="v-input" type="date" name="to" value="{{ date_to }}">
   </label>
 
@@ -76,7 +76,9 @@
           <th scope="col">{% translate "What" %}</th>
           <th scope="col">{% translate "Record" %}</th>
           <th scope="col">{% translate "Changes" %}</th>
-          <th scope="col">{% translate "From" %}</th>
+          {% comment %} A different "From" to the date filter above — this column holds the
+             originating IP address, so it is marked with its own context. {% endcomment %}
+          <th scope="col">{% translate "From" context "network origin of an audit entry" %}</th>
         </tr>
       </thead>
       <tbody>

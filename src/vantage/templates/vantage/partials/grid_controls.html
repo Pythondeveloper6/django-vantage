@@ -67,23 +67,32 @@
     </div>
   </div>
 
-  <div class="v-grid-controls-spacer"></div>
-
   {% comment %}
     WCAG 2.1.4 asks for three things and this is the second: a way to turn the
     single-character shortcuts off. Gmail ships shortcuts off by default for this
     reason; here they are on, because scoping them to the grid (the first thing)
     means they cannot fire while you are typing anywhere else.
-  {% endcomment %}
-  <label class="v-grid-pref">
-    <input type="checkbox" data-shortcuts-toggle checked>
-    <span>{% translate "Keyboard shortcuts" %}</span>
-  </label>
 
-  <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-cheatsheet-open
-          aria-haspopup="dialog">
-    {% blocktranslate %}Shortcuts <kbd>?</kbd>{% endblocktranslate %}
-  </button>
+    The preference and the cheat sheet share one trigger rather than taking a
+    control each. Both are things you touch once and then never again, and two
+    permanent controls for them is two thirds of a toolbar spent on a footnote —
+    the `?` key still opens the sheet without going near this menu at all.
+  {% endcomment %}
+  <details class="v-grid-menu" data-grid-menu>
+    <summary class="v-btn v-btn-ghost v-btn-sm v-listbar-trigger">
+      <span>{% translate "Shortcuts" %}</span>
+    </summary>
+    <div class="v-grid-menu-panel">
+      <label class="v-grid-pref">
+        <input type="checkbox" data-shortcuts-toggle checked>
+        <span>{% translate "Keyboard shortcuts" %}</span>
+      </label>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-cheatsheet-open
+              aria-haspopup="dialog">
+        {% blocktranslate %}Cheat sheet <kbd>?</kbd>{% endblocktranslate %}
+      </button>
+    </div>
+  </details>
 
   <div class="v-sr-only" role="status" aria-live="polite" data-grid-live></div>
 </div>

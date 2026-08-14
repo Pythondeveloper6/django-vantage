@@ -54,6 +54,8 @@ from typing import Any
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError, router, transaction
 from django.db.models import Model
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from vantage.inference import infer_list_link
 from vantage.widgets import FieldKind, build_form_class, classify, infer_form_fields
@@ -187,8 +189,11 @@ def read_csv(raw: bytes, *, max_bytes: int | None = None, max_rows: int | None =
 
     if len(raw) > cap_bytes:
         raise ImportRejected(
-            f"That file is {_bytes(len(raw))}; the limit is {_bytes(cap_bytes)}. "
-            "Split it, or import it with a management command."
+            _(
+                "That file is %(size)s; the limit is %(limit)s. "
+                "Split it, or import it with a management command."
+            )
+            % {"size": _bytes(len(raw)), "limit": _bytes(cap_bytes)}
         )
 
     text = _decode(raw)
@@ -198,9 +203,11 @@ def read_csv(raw: bytes, *, max_bytes: int | None = None, max_rows: int | None =
     try:
         first = next(reader, None)
     except csv.Error as exc:
-        raise ImportRejected(f"That file is not valid CSV: {exc}.") from exc
+        raise ImportRejected(
+            _("That file is not valid CSV: %(reason)s.") % {"reason": exc}
+        ) from exc
     if first is None:
-        raise ImportRejected("That file is empty.")
+        raise ImportRejected(_("That file is empty."))
 
     headers = _check_headers(first)
 
@@ -213,14 +220,22 @@ def read_csv(raw: bytes, *, max_bytes: int | None = None, max_rows: int | None =
             rows.append(tuple(row))
             if len(rows) > cap_rows:
                 raise ImportRejected(
-                    f"That file has more than {cap_rows:,} rows, which is the import "
-                    "limit. Split it, or import it with a management command."
+                    ngettext(
+                        "That file has more than %(count)s row, which is the import "
+                        "limit. Split it, or import it with a management command.",
+                        "That file has more than %(count)s rows, which is the import "
+                        "limit. Split it, or import it with a management command.",
+                        cap_rows,
+                    )
+                    % {"count": f"{cap_rows:,}"}
                 )
     except csv.Error as exc:
-        raise ImportRejected(f"That file stopped being valid CSV: {exc}.") from exc
+        raise ImportRejected(
+            _("That file stopped being valid CSV: %(reason)s.") % {"reason": exc}
+        ) from exc
 
     if not rows:
-        raise ImportRejected("That file has a header row but no data rows.")
+        raise ImportRejected(_("That file has a header row but no data rows."))
 
     return ParsedFile(
         headers=headers,
@@ -232,8 +247,8 @@ def read_csv(raw: bytes, *, max_bytes: int | None = None, max_rows: int | None =
 
 def _bytes(count: int) -> str:
     if count >= 1024 * 1024:
-        return f"{count / (1024 * 1024):.1f} MB"
-    return f"{max(1, count // 1024)} KB"
+        return str(_("%(size)s MB") % {"size": f"{count / (1024 * 1024):.1f}"})
+    return str(_("%(size)s KB") % {"size": max(1, count // 1024)})
 
 
 def _looks_binary(raw: bytes) -> bool:
@@ -262,11 +277,13 @@ def _encoding_of(raw: bytes) -> str:
 
 def _decode(raw: bytes) -> str:
     if not raw.strip():
-        raise ImportRejected("That file is empty.")
+        raise ImportRejected(_("That file is empty."))
     if _looks_binary(raw):
         raise ImportRejected(
-            "That does not look like a text file. Export it as CSV — a .xlsx workbook "
-            "or a PDF cannot be read here."
+            _(
+                "That does not look like a text file. Export it as CSV — a .xlsx workbook "
+                "or a PDF cannot be read here."
+            )
         )
     for encoding in ENCODINGS:
         try:
@@ -274,7 +291,7 @@ def _decode(raw: bytes) -> str:
         except UnicodeDecodeError:
             continue
     raise ImportRejected(  # pragma: no cover - latin-1 cannot fail
-        "That file is not readable as text in utf-8 or latin-1."
+        _("That file is not readable as text in utf-8 or latin-1.")
     )
 
 
@@ -300,28 +317,40 @@ def _check_headers(row: list[str]) -> tuple[str, ...]:
     """
     cells = [cell.strip() for cell in row]
     if not cells or not any(cells):
-        raise ImportRejected("The first row is blank. It must hold the column names.")
+        raise ImportRejected(_("The first row is blank. It must hold the column names."))
     if len(cells) > MAX_COLUMNS:
         raise ImportRejected(
-            f"That file has {len(cells)} columns, more than the {MAX_COLUMNS} allowed."
+            ngettext(
+                "That file has %(count)s column, more than the %(limit)s allowed.",
+                "That file has %(count)s columns, more than the %(limit)s allowed.",
+                len(cells),
+            )
+            % {"count": len(cells), "limit": MAX_COLUMNS}
         )
 
     blank = [index + 1 for index, cell in enumerate(cells) if not cell]
     if blank:
         listed = ", ".join(str(number) for number in blank)
         raise ImportRejected(
-            f"The first row must be column names, but column {listed} has no name. "
-            "Name every column, or delete the empty ones."
+            _(
+                "The first row must be column names, but column %(columns)s has no name. "
+                "Name every column, or delete the empty ones."
+            )
+            % {"columns": listed}
         )
     if any(len(cell) > MAX_HEADER_LENGTH for cell in cells):
         raise ImportRejected(
-            "The first row looks like data, not column names — one of its values is "
-            "longer than a column name would be. Add a header row."
+            _(
+                "The first row looks like data, not column names — one of its values is "
+                "longer than a column name would be. Add a header row."
+            )
         )
     if all(_is_number(cell) for cell in cells):
         raise ImportRejected(
-            "The first row is all numbers, so it looks like data rather than column "
-            "names. Add a header row."
+            _(
+                "The first row is all numbers, so it looks like data rather than column "
+                "names. Add a header row."
+            )
         )
 
     seen: dict[str, str] = {}
@@ -329,8 +358,11 @@ def _check_headers(row: list[str]) -> tuple[str, ...]:
         folded = cell.casefold()
         if folded in seen:
             raise ImportRejected(
-                f"Two columns are both called “{cell}”. Column names must be unique, "
-                "or there is no way to say which one feeds a field."
+                _(
+                    "Two columns are both called “%(column)s”. Column names must be unique, "
+                    "or there is no way to say which one feeds a field."
+                )
+                % {"column": cell}
             )
         seen[folded] = cell
     return tuple(cells)
@@ -505,9 +537,9 @@ MODES: dict[str, tuple[str, ...]] = {
 }
 
 MODE_LABELS: dict[str, str] = {
-    "create": "Create new records only",
-    "update": "Update existing records only",
-    "upsert": "Create or update (upsert)",
+    "create": _("Create new records only"),
+    "update": _("Update existing records only"),
+    "upsert": _("Create or update (upsert)"),
 }
 
 
@@ -557,7 +589,7 @@ def resolve_mapping(
     honest UI outcome of "you may not write this" is "this column was ignored".
     """
     if mode not in MODES:
-        raise ImportRejected("Choose whether to create, update, or do both.")
+        raise ImportRejected(_("Choose whether to create, update, or do both."))
 
     options = {option.name: option for option in importable_fields(panel, request, permissions)}
 
@@ -569,16 +601,23 @@ def resolve_mapping(
     for header in parsed.headers:
         target = (chosen.get(header) or "").strip()
         if not target:
-            ignored.append((header, "skipped"))
+            # Translators: why a CSV column was not imported, shown beside its name.
+            ignored.append((header, _("skipped")))
             continue
         option = options.get(target)
         if option is None:
             # Either a readonly/excluded field, a field this user may not write, or a
             # name that is not a field at all. All three are the same answer.
-            ignored.append((header, "read-only — nothing is written to it"))
+            ignored.append((header, _("read-only — nothing is written to it")))
             continue
         if option.name in assigned:
-            ignored.append((header, f"“{assigned[option.name]}” already feeds that field"))
+            ignored.append(
+                (
+                    header,
+                    _("“%(column)s” already feeds that field")
+                    % {"column": assigned[option.name]},
+                )
+            )
             continue
         assigned[option.name] = header
         if option.writable:
@@ -591,23 +630,30 @@ def resolve_mapping(
         option = options.get(key_field)
         if option is None or not option.unique:
             raise ImportRejected(
-                "The column that identifies a record must be a unique field or the "
-                "primary key."
+                _(
+                    "The column that identifies a record must be a unique field or the "
+                    "primary key."
+                )
             )
         if key_field not in assigned:
             raise ImportRejected(
-                f"No column is mapped to “{option.label}”, so it cannot identify "
-                "existing records."
+                _(
+                    "No column is mapped to “%(field)s”, so it cannot identify "
+                    "existing records."
+                )
+                % {"field": option.label}
             )
 
     if mode in ("update", "upsert") and key_field is None:
         raise ImportRejected(
-            "Choose the column that identifies an existing record before updating."
+            _("Choose the column that identifies an existing record before updating.")
         )
     if not columns:
         raise ImportRejected(
-            "No column is mapped to a field that can be written, so this import would "
-            "do nothing."
+            _(
+                "No column is mapped to a field that can be written, so this import would "
+                "do nothing."
+            )
         )
 
     key_column = assigned.get(key_field) if key_field else None
@@ -615,9 +661,9 @@ def resolve_mapping(
         ignored.append(
             (
                 header,
-                "identifies the record; its value is never written"
+                _("identifies the record; its value is never written")
                 if header == key_column
-                else "read-only — nothing is written to it",
+                else _("read-only — nothing is written to it"),
             )
         )
 
@@ -709,15 +755,32 @@ class ImportResult:
 
         Every non-zero outcome is named with its exact count. "Some rows failed" is the
         message this method exists to make impossible to produce.
+
+        Each outcome is its own plural form. English does not inflect "created", but
+        the count still selects the form, so a language that agrees its participle with
+        the number has somewhere to put it. The clauses are joined rather than written
+        out as one sentence per combination, which would be sixteen messages.
         """
         parts = [
-            f"{self.created:,} created" if self.created else "",
-            f"{self.updated:,} updated" if self.updated else "",
-            f"{self.unchanged:,} unchanged" if self.unchanged else "",
-            f"{self.failed:,} failed" if self.failed else "",
+            ngettext("%(count)s created", "%(count)s created", self.created)
+            % {"count": f"{self.created:,}"}
+            if self.created
+            else "",
+            ngettext("%(count)s updated", "%(count)s updated", self.updated)
+            % {"count": f"{self.updated:,}"}
+            if self.updated
+            else "",
+            ngettext("%(count)s unchanged", "%(count)s unchanged", self.unchanged)
+            % {"count": f"{self.unchanged:,}"}
+            if self.unchanged
+            else "",
+            ngettext("%(count)s failed", "%(count)s failed", self.failed)
+            % {"count": f"{self.failed:,}"}
+            if self.failed
+            else "",
         ]
         stated = [part for part in parts if part]
-        return ", ".join(stated) if stated else "nothing to do"
+        return ", ".join(stated) if stated else str(_("nothing to do"))
 
 
 # ── step 4: the row loop ────────────────────────────────────────────────────
@@ -799,13 +862,26 @@ class _Runner:
 
     def row(self, number: int, row: tuple[str, ...], result: ImportResult) -> None:
         if len(row) != self.width:
+            # Two counts, two plural forms. The header width is pluralised on its own
+            # and passed in as a finished noun phrase — the pattern ``django.contrib
+            # .admin`` uses with ``model_ngettext`` — because a single ``ngettext`` can
+            # only agree with one number, and "the header has 1 columns" is a bug.
+            columns = ngettext("%(width)s column", "%(width)s columns", self.width) % {
+                "width": self.width
+            }
             self._fail(
                 result,
                 RowError(
                     number,
                     "",
-                    f"This row has {len(row)} values but the header has {self.width} "
-                    "columns. A stray or missing separator shifts every value after it.",
+                    ngettext(
+                        "This row has %(count)s value but the header has %(columns)s. "
+                        "A stray or missing separator shifts every value after it.",
+                        "This row has %(count)s values but the header has %(columns)s. "
+                        "A stray or missing separator shifts every value after it.",
+                        len(row),
+                    )
+                    % {"count": len(row), "columns": columns},
                 ),
             )
             return
@@ -826,8 +902,11 @@ class _Runner:
                 RowError(
                     number,
                     self.mapping.key_column or "",
-                    f"A {self.model._meta.verbose_name} with this value already exists "
-                    f"(#{existing.pk}). This import is set to create new records only.",
+                    _(
+                        "A %(model)s with this value already exists (#%(pk)s). "
+                        "This import is set to create new records only."
+                    )
+                    % {"model": self.model._meta.verbose_name, "pk": existing.pk},
                 ),
             )
             return
@@ -837,21 +916,29 @@ class _Runner:
                 RowError(
                     number,
                     self.mapping.key_column or "",
-                    "No existing record matches. This import is set to update only.",
+                    _("No existing record matches. This import is set to update only."),
                 ),
             )
             return
         if existing is None and self.guard_required:
             # Said once, in the file's own vocabulary. The alternative is a raw
             # "NOT NULL constraint failed: testapp_post.author_id" on every row.
-            listed = ", ".join(f"“{label}”" for _, label in self.mapping.missing_required)
+            listed = ", ".join(
+                f"“{label}”" for _name, label in self.mapping.missing_required
+            )
             self._fail(
                 result,
                 RowError(
                     number,
                     "",
-                    f"{listed} must have a value and no column feeds it, so this row "
-                    "cannot be created.",
+                    ngettext(
+                        "%(fields)s must have a value and no column feeds it, so this "
+                        "row cannot be created.",
+                        "%(fields)s must have values and no column feeds them, so this "
+                        "row cannot be created.",
+                        len(self.mapping.missing_required),
+                    )
+                    % {"fields": listed},
                 ),
             )
             return
@@ -904,9 +991,14 @@ class _Runner:
         find that an import bypassed it. No ``save_m2m``: many-to-many columns are never
         importable, so there is nothing deferred to write.
         """
+        from vantage.tenancy import enforce as enforce_tenant
+
         hook = getattr(self.panel, "save_model", None)
         with transaction.atomic(using=self.db):
             obj = form.save(commit=False)
+            # Same guard the edit form applies, for the same reason: a spreadsheet is
+            # just as capable of carrying another tenant's key as a POST body is.
+            enforce_tenant(self.request, obj)
             if callable(hook):
                 hook(self.request, obj, form, form.instance.pk is not None)
             else:
@@ -923,14 +1015,18 @@ class _Runner:
                 RowError(
                     number,
                     self.mapping.key_column or "",
-                    "This column identifies the record, so it cannot be empty.",
+                    _("This column identifies the record, so it cannot be empty."),
                 )
             )
         try:
             return self.lookup_queryset.filter(**{self.mapping.key_field: raw}).first()
         except (ValueError, TypeError, ValidationError, DatabaseError):
             raise _RowRejected(
-                RowError(number, self.mapping.key_column or "", f"“{raw}” is not a valid value.")
+                RowError(
+                    number,
+                    self.mapping.key_column or "",
+                    _("“%(value)s” is not a valid value.") % {"value": raw},
+                )
             ) from None
 
     def _resolve_relations(self, number: int, data: dict[str, str]) -> list[RowError]:
@@ -962,7 +1058,12 @@ class _Runner:
         return errors
 
     def _resolve_one(self, related, raw: str) -> tuple[Any, str | None]:
-        manager = related._default_manager
+        # Scoped, so a spreadsheet cannot reach another tenant's record by naming it —
+        # an unresolvable name reports "no match", which is exactly what a row that
+        # does not exist for this user should say. A no-op unless tenancy is on.
+        from vantage.tenancy import scope_queryset
+
+        manager = scope_queryset(related._default_manager.all(), self.request)
         pk_field = related._meta.pk
         try:
             candidate = pk_field.to_python(raw)
@@ -979,8 +1080,11 @@ class _Runner:
             return str(matches[0]), None
         if len(matches) > 1:
             return None, (
-                f"“{raw}” matches more than one {related._meta.verbose_name}. "
-                "Use the numeric id instead."
+                _(
+                    "“%(value)s” matches more than one %(model)s. "
+                    "Use the numeric id instead."
+                )
+                % {"value": raw, "model": related._meta.verbose_name}
             )
         return None, _no_match(related, raw)
 
@@ -1063,7 +1167,10 @@ _MISSING = object()
 
 
 def _no_match(related, raw: str) -> str:
-    return f"No {related._meta.verbose_name} matches “{raw}”."
+    return _("No %(model)s matches “%(value)s”.") % {
+        "model": related._meta.verbose_name,
+        "value": raw,
+    }
 
 
 def _fold_boolean(raw: str) -> str:
@@ -1198,7 +1305,10 @@ def armour(value: Any) -> str:
 
 def error_csv_rows(result: ImportResult) -> list[list[str]]:
     """The error report, as rows ready for ``csv.writer``."""
-    rows = [["Row", "Column", "Error"]]
+    # The report is downloaded and read by the person who uploaded the file, so its
+    # header row is UI, not a programmatic key: nothing parses it back.
+    # Translators: header row of the downloadable CSV listing what went wrong.
+    rows = [[str(_("Row")), str(_("Column")), str(_("Error"))]]
     rows.extend(
         [str(error.row), armour(error.column), armour(error.message)] for error in result.errors
     )
@@ -1271,7 +1381,7 @@ def stash_upload(*, user, model_label: str, filename: str, raw: bytes) -> str:
     """Write an upload to the stash and return its token."""
     sweep_stash()
     token = secrets.token_urlsafe(24)
-    data_path, meta_path, _ = _paths(token)
+    data_path, meta_path, _errors = _paths(token)
     with open(data_path, "wb", opener=_private_opener) as handle:
         handle.write(raw)
     meta = {
@@ -1287,29 +1397,29 @@ def stash_upload(*, user, model_label: str, filename: str, raw: bytes) -> str:
 
 def _meta(token: str, user, model_label: str) -> dict:
     if not TOKEN_RE.match(token or ""):
-        raise StashExpired("That upload is no longer available.")
-    _, meta_path, _ = _paths(token)
+        raise StashExpired(_("That upload is no longer available."))
+    _data, meta_path, _errors = _paths(token)
     try:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        raise StashExpired("That upload is no longer available.") from exc
+        raise StashExpired(_("That upload is no longer available.")) from exc
     # Bound to the uploader and to the model. A token is a name, not a capability:
     # the same message for "not yours" and "gone" so it cannot be probed either.
     if meta.get("user") != user.pk or meta.get("model") != model_label:
-        raise StashExpired("That upload is no longer available.")
+        raise StashExpired(_("That upload is no longer available."))
     if time.time() - float(meta.get("created") or 0) > STASH_TTL:
         discard_stash(token)
-        raise StashExpired("That upload has expired. Upload the file again.")
+        raise StashExpired(_("That upload has expired. Upload the file again."))
     return meta
 
 
 def read_stash(*, user, model_label: str, token: str) -> Stashed:
     meta = _meta(token, user, model_label)
-    data_path, _, _ = _paths(token)
+    data_path, _meta_path, _errors = _paths(token)
     try:
         raw = data_path.read_bytes()
     except OSError as exc:
-        raise StashExpired("That upload is no longer available.") from exc
+        raise StashExpired(_("That upload is no longer available.")) from exc
     return Stashed(token=token, filename=str(meta.get("filename") or "import.csv"), raw=raw)
 
 
@@ -1317,7 +1427,7 @@ def stash_errors(*, token: str, result: ImportResult) -> None:
     """Park the error report next to the upload so it can be downloaded afterwards."""
     if not TOKEN_RE.match(token or ""):  # pragma: no cover - callers hold a live token
         return
-    _, _, error_path = _paths(token)
+    _data, _meta_path, error_path = _paths(token)
     error_path.unlink(missing_ok=True)
     with open(error_path, "wb", opener=_private_opener) as handle:
         handle.write(error_csv_bytes(result))
@@ -1325,11 +1435,11 @@ def stash_errors(*, token: str, result: ImportResult) -> None:
 
 def read_error_csv(*, user, model_label: str, token: str) -> bytes:
     _meta(token, user, model_label)
-    _, _, error_path = _paths(token)
+    _data, _meta_path, error_path = _paths(token)
     try:
         return error_path.read_bytes()
     except OSError as exc:
-        raise StashExpired("That report is no longer available.") from exc
+        raise StashExpired(_("That report is no longer available.")) from exc
 
 
 def discard_stash(token: str) -> None:
@@ -1349,7 +1459,7 @@ def keep_report_only(token: str) -> None:
     """
     if not TOKEN_RE.match(token or ""):  # pragma: no cover - callers hold a live token
         return
-    data_path, _, _ = _paths(token)
+    data_path, _meta_path, _errors = _paths(token)
     data_path.unlink(missing_ok=True)
 
 

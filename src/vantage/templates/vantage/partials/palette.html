@@ -1,4 +1,4 @@
-{% load static vantage %}
+{% load static vantage i18n %}
 {% comment %}
   The header search box and the ⌘K palette, in that order and on purpose.
 
@@ -13,16 +13,16 @@
       action="{% url 'vantage:search' %}">
   {% icon "search" %}
   <input class="v-input" type="search" name="q" id="v-palette-trigger"
-         placeholder="Search…" aria-label="Search records and commands"
+         placeholder="{% translate 'Search…' %}" aria-label="{% translate 'Search records and commands' %}"
          aria-keyshortcuts="Meta+K Control+K" autocomplete="off">
   <kbd class="v-palette-kbd" data-palette-hint aria-hidden="true">⌘K</kbd>
   <noscript>
-    <button class="v-btn v-btn-secondary v-btn-sm" type="submit">Search</button>
+    <button class="v-btn v-btn-secondary v-btn-sm" type="submit">{% translate "Search" context "button, the verb" %}</button>
   </noscript>
 </form>
 
 {% if settings.COMMAND_PALETTE %}
-  <dialog class="v-palette" id="v-palette" aria-label="Search and commands"
+  <dialog class="v-palette" id="v-palette" aria-label="{% translate 'Search and commands' %}"
           data-search-url="{% url 'vantage:search-json' %}"
           data-commands-url="{% url 'vantage:commands' %}"
           data-results-url="{% url 'vantage:search' %}">
@@ -33,8 +33,8 @@
                role="combobox" aria-expanded="false" aria-controls="v-palette-list"
                aria-autocomplete="list" autocomplete="off" autocorrect="off"
                spellcheck="false"
-               placeholder="Search records, or jump to a page…"
-               aria-label="Search records, or jump to a page">
+               placeholder="{% translate 'Search records, or jump to a page…' %}"
+               aria-label="{% translate 'Search records, or jump to a page' %}">
         <button type="button" class="v-palette-dismiss" data-palette-close>Esc</button>
       </div>
 
@@ -43,15 +43,15 @@
         options — a heading rendered as a bare option is announced as choosable.
       {% endcomment %}
       <ul class="v-palette-list" id="v-palette-list" role="listbox"
-          aria-label="Search results and commands"></ul>
+          aria-label="{% translate 'Search results and commands' %}"></ul>
 
-      <p class="v-palette-empty" data-palette-empty hidden>Nothing matched.</p>
+      <p class="v-palette-empty" data-palette-empty hidden>{% translate "Nothing matched." %}</p>
 
       <footer class="v-palette-foot">
-        <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
-        <span><kbd>↵</kbd> open</span>
-        <span><kbd>Esc</kbd> close</span>
-        <span class="v-palette-busy" data-palette-busy hidden>Searching…</span>
+        <span>{% blocktranslate %}<kbd>↑</kbd><kbd>↓</kbd> move{% endblocktranslate %}</span>
+        <span>{% blocktranslate %}<kbd>↵</kbd> open{% endblocktranslate %}</span>
+        <span>{% blocktranslate %}<kbd>Esc</kbd> close{% endblocktranslate %}</span>
+        <span class="v-palette-busy" data-palette-busy hidden>{% translate "Searching…" %}</span>
       </footer>
 
       <div class="v-sr-only" role="status" aria-live="polite" data-palette-status></div>

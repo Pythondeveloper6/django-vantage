@@ -16,13 +16,13 @@
   {% endcomment %}
   <div class="v-analytics-deferred">
     <div>
-      <p class="v-analytics-deferred-title">Statistics are not computed for this view.</p>
+      <p class="v-analytics-deferred-title">{% translate "Statistics are not computed for this view." %}</p>
       {% if analytics.reason %}
         <p class="v-analytics-deferred-reason">{{ analytics.reason }}.</p>
       {% endif %}
     </div>
     <a class="v-btn v-btn-secondary v-btn-sm"
-       href="?{% querystring_replace _analytics="1" page=None %}">Compute</a>
+       href="?{% querystring_replace _analytics="1" page=None %}">{% translate "Compute" %}</a>
   </div>
 {% else %}
   {% if analytics.stats %}
@@ -40,14 +40,14 @@
           <figcaption class="v-chart-head">
             <span class="v-card-title">{{ chart.label }}</span>
             {% if chart.bucket %}
-              <span class="v-badge">by {{ chart.bucket }}</span>
+              <span class="v-badge">{% blocktranslate with bucket=chart.bucket %}by {{ bucket }}{% endblocktranslate %}</span>
             {% endif %}
           </figcaption>
           <div class="v-chart-body">
             {% if chart.error %}
               <p class="v-chart-note v-chart-error">{{ chart.error }}</p>
             {% elif chart.empty %}
-              <p class="v-chart-note">No data in range.</p>
+              <p class="v-chart-note">{% translate "No data in range." %}</p>
             {% else %}
               {% chart_svg chart %}
               {% if chart.kind == "donut" or chart.kind == "bar" %}
@@ -64,8 +64,8 @@
                 </div>
               {% endif %}
               {% if chart.truncated %}
-                <p class="v-chart-note">Showing part of the data; the rest is grouped or
-                  beyond the point limit.</p>
+                <p class="v-chart-note">{% blocktranslate trimmed %}Showing part of the data; the rest is grouped or
+                  beyond the point limit.{% endblocktranslate %}</p>
               {% endif %}
             {% endif %}
           </div>

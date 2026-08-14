@@ -1,0 +1,140 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{% blocktranslate with label=panel.get_label_plural|lower %}Bulk edit {{ label }}{% endblocktranslate %}</h1>
+    <p class="v-page-description">{{ scope }}</p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-secondary" href="{{ cancel_url }}">{% translate "Cancel" %}</a>
+  </div>
+</div>
+
+{% if messages %}
+  <ul class="v-form-messages">
+    {% for message in messages %}
+      <li class="v-form-alert" data-tone="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% comment %}
+  The action attribute is explicit and carries the list page's query string. It has to:
+  the selection is a predicate plus an exclusion set, and the predicate *is* that query
+  string. Dropping it would silently widen "all 40,000 matching this filter" into "all
+  of them", which is the exact class of silent scope change the action layer refuses to
+  make.
+{% endcomment %}
+<form class="v-form" method="post" action="{{ action_url }}">
+  {% csrf_token %}
+
+  {% comment %}
+    The selection, re-posted verbatim rather than re-derived. Note what is not here: a
+    list of primary keys for a select-all. That case sends select_all plus whatever was
+    unticked, so the body stays a few hundred bytes whether the edit covers three rows
+    or forty thousand.
+  {% endcomment %}
+  <input type="hidden" name="select_all" value="{% if selection.select_all %}1{% endif %}">
+  {% for pk in selection.ids %}
+    <input type="hidden" name="selected" value="{{ pk }}">
+  {% endfor %}
+  {% for pk in selection.excluded %}
+    <input type="hidden" name="excluded" value="{{ pk }}">
+  {% endfor %}
+
+  {% comment %}
+    The moment this page was drawn. It goes back to the server as the left-hand side of
+    the compare-and-set: a row whose version column has moved past it was edited by
+    somebody else while this page was open, and it is skipped and reported rather than
+    overwritten. See vantage/concurrency.py — the WHERE clause is the check.
+  {% endcomment %}
+  <input type="hidden" name="since" value="{{ since }}">
+  <input type="hidden" name="_bulk_apply" value="1">
+
+  <div class="v-form-alert" data-tone="warning" role="note">
+    <p class="v-form-alert-title">
+      {% blocktranslate count counter=count %}This will change {{ counter }} record.{% plural %}This will change {{ counter }} records.{% endblocktranslate %}
+    </p>
+    <p>{% blocktranslate %}Applies to {{ scope }}. Only the fields you tick below are written — everything else on every record is left exactly as it is.{% endblocktranslate %}</p>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="v-form-alert" data-tone="error" role="alert" tabindex="-1">
+      <ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  <section class="v-card v-form-card">
+    <div class="v-card-head">
+      <h2 class="v-card-title">{% translate "Fields to change" %}</h2>
+    </div>
+    <div class="v-card-body v-form-grid">
+      {% for entry in entries %}
+        {% comment %}
+          The tick box is the field's own label, not a control beside it. A blank box
+          means "leave this alone", and that distinction is the whole value of the
+          screen — so the thing you tick and the thing you name are one element, and
+          an unticked field is absent from the form the server builds rather than
+          merely empty in it.
+        {% endcomment %}
+        <div class="v-form-field v-bulk-field{% if entry.wide %} v-form-field-wide{% endif %}"
+             data-vantage-kind="{{ entry.kind }}"
+             {% if entry.bound.errors %}data-invalid="true"{% endif %}>
+          <label class="v-form-label" for="{{ enable_name }}-{{ entry.name }}">
+            <input type="checkbox" class="v-checkbox" data-bulk-enable
+                   id="{{ enable_name }}-{{ entry.name }}"
+                   name="{{ enable_name }}" value="{{ entry.name }}"
+                   aria-controls="{{ entry.bound.auto_id }}"
+                   {% if entry.ticked %}checked{% endif %}>
+            {{ entry.bound.label }}
+          </label>
+          {{ entry.bound }}
+          {% if entry.bound.help_text %}
+            <p class="v-form-help">{{ entry.bound.help_text }}</p>
+          {% endif %}
+          {% if entry.bound.errors %}
+            <ul class="v-form-errors">
+              {% for error in entry.bound.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="v-form-bar">
+    <span class="v-form-bar-hint v-muted">{% translate "Nothing is written until you apply." %}</span>
+    <a class="v-btn v-btn-ghost" href="{{ cancel_url }}">{% translate "Cancel" %}</a>
+    <button class="v-btn v-btn-primary" type="submit">
+      {% blocktranslate count counter=count %}Apply to {{ counter }} record{% plural %}Apply to {{ counter }} records{% endblocktranslate %}
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script{{ csp_nonce_attr }}>
+/* Typing in a control ticks its box. Progressive enhancement only: the server decides
+ * what to write from the ticked list alone, so with scripting off the person ticks the
+ * box themselves and the page behaves identically. Nothing here animates, so there is
+ * no motion for prefers-reduced-motion to reduce. */
+(function () {
+  document.querySelectorAll('.v-bulk-field').forEach(function (field) {
+    var toggle = field.querySelector('[data-bulk-enable]');
+    if (!toggle) return;
+    field.addEventListener('input', function (event) {
+      if (event.target !== toggle) toggle.checked = true;
+    });
+    field.addEventListener('change', function (event) {
+      if (event.target !== toggle) toggle.checked = true;
+    });
+  });
+})();
+</script>
+{% endblock %}

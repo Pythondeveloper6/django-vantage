@@ -1,4 +1,4 @@
-{% load vantage %}
+{% load vantage i18n %}
 {% comment %}
   One job's progress, rendered server-side and then kept up to date by polling.
 
@@ -25,16 +25,17 @@
   <div class="v-job-bar" data-job-fill-track
        role="progressbar"
        aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ job.percent }}"
-       aria-label="{{ job.action_label|default:job.action_name }} progress">
+       aria-label="{% blocktranslate with action=job.action_label|default:job.action_name %}{{ action }} progress{% endblocktranslate %}">
     <span class="v-job-bar-fill" data-job-fill style="--v-job-percent: {{ job.percent }}"></span>
   </div>
 
   <p class="v-job-counts" data-job-counts role="status" aria-live="polite">
     {% if job.is_terminal %}
-      {{ job.summary|default:"nothing to do" }}
+      {% translate "nothing to do" as no_work %}{{ job.summary|default:no_work }}
+    {% elif job.failed %}
+      {% blocktranslate with processed=job.processed|stringformat:"d" total=job.total|stringformat:"d" failed=job.failed %}{{ processed }} of {{ total }}, {{ failed }} failed{% endblocktranslate %}
     {% else %}
-      {{ job.processed|stringformat:"d" }} of {{ job.total|stringformat:"d" }}{% if job.failed %},
-      {{ job.failed }} failed{% endif %}
+      {% blocktranslate with processed=job.processed|stringformat:"d" total=job.total|stringformat:"d" %}{{ processed }} of {{ total }}{% endblocktranslate %}
     {% endif %}
   </p>
 
@@ -45,5 +46,5 @@
   {% endcomment %}
   <a class="v-job-errors" data-job-errors href="{{ errors_url }}"
      {% if not errors_url %}hidden{% endif %}
-     download>{% icon "file-text" %}<span>Download the failures</span></a>
+     download>{% icon "file-text" %}<span>{% translate "Download the failures" %}</span></a>
 </div>

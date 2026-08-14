@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
   The 409 resolver.
 
   A conflict dialog that only says "this record was changed by someone else" hands the
@@ -27,7 +27,7 @@
         aria-labelledby="v-inline-conflict-title">
   <div class="v-inline-conflict-panel">
     <header class="v-inline-conflict-head">
-      <h2 class="v-card-title" id="v-inline-conflict-title">Someone else changed this</h2>
+      <h2 class="v-card-title" id="v-inline-conflict-title">{% translate "Someone else changed this" %}</h2>
       <p class="v-muted" data-conflict-summary></p>
     </header>
 
@@ -35,17 +35,20 @@
 
     <footer class="v-inline-conflict-foot">
       <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-conflict-cancel>
-        Cancel
+        {% translate "Cancel" %}
       </button>
       <div class="v-inline-conflict-spacer"></div>
+      {% comment %} "Use theirs" / "Keep mine" are whole answers to the conflict question,
+         not a possessive pronoun plus a noun — they must stay one string each so a
+         translator can render the *choice*, which is often not two words. {% endcomment %}
       <button type="button" class="v-btn v-btn-secondary v-btn-sm" data-conflict-theirs>
-        Use theirs
+        {% translate "Use theirs" %}
       </button>
       <button type="button" class="v-btn v-btn-secondary v-btn-sm" data-conflict-mine>
-        Keep mine
+        {% translate "Keep mine" %}
       </button>
       <button type="button" class="v-btn v-btn-primary v-btn-sm" data-conflict-merge>
-        Merge selected
+        {% translate "Merge selected" %}
       </button>
     </footer>
   </div>

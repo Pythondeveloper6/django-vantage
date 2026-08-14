@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static %}
+{% load static i18n %}
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
@@ -23,8 +23,11 @@
     <div class="v-page-actions">
       {% if config.updated_at %}
         <span class="v-muted v-settings-stamp">
-          Last changed {{ config.updated_at|date:"j M Y, H:i" }}{% if config.updated_by %}
-          by {{ config.updated_by }}{% endif %}
+          {% if config.updated_by %}
+            {% blocktranslate with when=config.updated_at|date:"j M Y, H:i" who=config.updated_by %}Last changed {{ when }} by {{ who }}{% endblocktranslate %}
+          {% else %}
+            {% blocktranslate with when=config.updated_at|date:"j M Y, H:i" %}Last changed {{ when }}{% endblocktranslate %}
+          {% endif %}
         </span>
       {% endif %}
     </div>
@@ -32,18 +35,20 @@
 
   {% if form.errors %}
     <div class="v-form-alert" data-tone="error" role="alert">
-      <p class="v-form-alert-title">Nothing was saved.</p>
-      <p>Check the highlighted fields below.</p>
+      <p class="v-form-alert-title">{% translate "Nothing was saved." %}</p>
+      <p>{% translate "Check the highlighted fields below." %}</p>
     </div>
   {% endif %}
 
   {% if not media_configured %}
     <div class="v-form-alert" data-tone="warning">
-      <p class="v-form-alert-title">Uploads have nowhere to go.</p>
+      <p class="v-form-alert-title">{% translate "Uploads have nowhere to go." %}</p>
       <p>
-        This project has no <code class="v-mono">MEDIA_ROOT</code> and
-        <code class="v-mono">MEDIA_URL</code>, so an uploaded logo cannot be stored or
-        served. Everything else on this page works.
+        {% blocktranslate trimmed %}
+          This project has no <code class="v-mono">MEDIA_ROOT</code> and
+          <code class="v-mono">MEDIA_URL</code>, so an uploaded logo cannot be stored or
+          served. Everything else on this page works.
+        {% endblocktranslate %}
       </p>
     </div>
   {% endif %}
@@ -57,7 +62,7 @@
         </div>
         <button class="v-btn v-btn-ghost v-btn-sm" type="submit" name="reset"
                 value="{{ section.key }}" formnovalidate>
-          Reset to code defaults
+          {% translate "Reset to code defaults" %}
         </button>
       </div>
 
@@ -68,8 +73,8 @@
             <label class="v-form-label" for="{{ entry.field.id_for_label }}">
               {{ entry.field.label }}
               {% if entry.overridden %}
-                <span class="v-settings-flag" title="Set here, overriding settings.py">
-                  overridden
+                <span class="v-settings-flag" title="{% translate 'Set here, overriding settings.py' %}">
+                  {% translate "overridden" %}
                 </span>
               {% endif %}
             </label>
@@ -79,7 +84,7 @@
                 {{ entry.field }}
                 <input type="color" class="v-settings-picker" data-vantage-color
                        value="{{ brand.color|default:'#6366f1' }}"
-                       aria-label="Pick the brand colour">
+                       aria-label="{% translate 'Pick the brand colour' %}">
               </div>
             {% else %}
               {{ entry.field }}
@@ -107,9 +112,11 @@
 
             {% if not entry.is_file %}
               <p class="v-form-help v-settings-inherited">
-                Empty means
-                <code class="v-mono">{{ entry.inherited|default_if_none:"nothing" }}</code>,
-                from <code class="v-mono">settings.py</code>.
+                {% translate "nothing" as inherited_default %}
+                {% blocktranslate trimmed with inherited=entry.inherited|default_if_none:inherited_default %}
+                  Empty means <code class="v-mono">{{ inherited }}</code>,
+                  from <code class="v-mono">settings.py</code>.
+                {% endblocktranslate %}
               </p>
             {% endif %}
           </div>
@@ -119,15 +126,15 @@
       {% if section.key == "appearance" %}
         <div class="v-card-body v-settings-preview" data-vantage-preview>
           <div class="v-settings-preview-head">
-            <h3 class="v-settings-preview-title">Derived palette</h3>
+            <h3 class="v-settings-preview-title">{% translate "Derived palette" %}</h3>
             <span class="v-badge" data-preview-ratio>
-              {% if brand %}{{ brand.ratio|floatformat:1 }}:1 on button text{% endif %}
+              {% if brand %}{% blocktranslate with ratio=brand.ratio|floatformat:1 %}{{ ratio }}:1 on button text{% endblocktranslate %}{% endif %}
             </span>
           </div>
 
           {% if brand %}
             <div class="v-settings-swatches">
-              <span class="v-settings-swatch-label">Light</span>
+              <span class="v-settings-swatch-label">{% translate "Light" %}</span>
               {% for swatch in brand.light %}
                 <span class="v-settings-swatch" style="background: {{ swatch.value }}"
                       title="--{{ swatch.name }}: {{ swatch.value }}">
@@ -136,7 +143,7 @@
               {% endfor %}
             </div>
             <div class="v-settings-swatches">
-              <span class="v-settings-swatch-label">Dark</span>
+              <span class="v-settings-swatch-label">{% translate "Dark" %}</span>
               {% for swatch in brand.dark %}
                 <span class="v-settings-swatch" style="background: {{ swatch.value }}"
                       title="--{{ swatch.name }}: {{ swatch.value }}">
@@ -149,8 +156,8 @@
           <div class="v-settings-sample" {% if brand %}style="
                --preview-primary: {{ brand.light.0.value }};
                --preview-on-primary: {{ brand.light.2.value }}"{% endif %}>
-            <span class="v-settings-sample-button">Save changes</span>
-            <span class="v-settings-sample-link">A link, a focus ring, a selected row</span>
+            <span class="v-settings-sample-button">{% translate "Save changes" %}</span>
+            <span class="v-settings-sample-link">{% translate "A link, a focus ring, a selected row" %}</span>
           </div>
 
           <p class="v-settings-warning" data-preview-warning
@@ -162,27 +169,28 @@
 
   <div class="v-card v-settings-note">
     <div class="v-card-body">
+      {% comment %} The setting names are joined into one placeholder rather than looped
+         inside the sentence: a {% templatetag openblock %} for {% templatetag closeblock %}
+         cannot live inside a blocktranslate, and splitting the lead-in from the list would
+         hand the translator a fragment ending in a colon. One <code> wraps the whole list
+         instead of each name — the styling is identical and the sentence stays whole. {% endcomment %}
       <p class="v-form-help">
-        These settings live in code and are not editable here, because they decide what
-        exists and who may reach it rather than how it looks:
-        {% for key in code_only %}<code class="v-mono">{{ key }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.
+        {% blocktranslate with names=code_only|join:", " %}These settings live in code and are not editable here, because they decide what exists and who may reach it rather than how it looks: <code class="v-mono">{{ names }}</code>.{% endblocktranslate %}
       </p>
       <p class="v-form-help">
-        Logos and favicons may be SVG, PNG, JPEG or WebP, up to {{ max_upload_kb }} KB. An
-        SVG containing script or event handlers is refused: it would run on every page
-        of this panel.
+        {% blocktranslate with kilobytes=max_upload_kb %}Logos and favicons may be SVG, PNG, JPEG or WebP, up to {{ kilobytes }} KB. An SVG containing script or event handlers is refused: it would run on every page of this panel.{% endblocktranslate %}
       </p>
     </div>
   </div>
 
   <div class="v-form-bar">
-    <button class="v-btn v-btn-primary" type="submit">Save settings</button>
+    <button class="v-btn v-btn-primary" type="submit">{% translate "Save settings" %}</button>
   </div>
 </form>
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script{{ csp_nonce_attr }}>
 /* Live palette preview. The colour maths is not reimplemented here — the page asks the
  * same view that will render the panel, so the swatches cannot drift from the result.
  * Debounced, because a colour input fires continuously while dragging. */

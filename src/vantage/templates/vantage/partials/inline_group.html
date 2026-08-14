@@ -1,0 +1,97 @@
+{% load i18n %}
+{% comment %} One inline: its management form, its rows, and the controls that add more.
+
+   The management form is rendered FIRST and unconditionally. It carries TOTAL_FORMS,
+   INITIAL_FORMS, MIN_NUM_FORMS and MAX_NUM_FORMS, and a formset whose TOTAL_FORMS does
+   not match the rows actually posted does not fail loudly — it silently ignores the rows
+   past the count. That is how an added row vanishes on save with no error anywhere.
+
+   The empty form lives in a <template>, so the browser never submits its __prefix__
+   inputs and no validator ever sees them. Cloning it is the only way a new row is made;
+   there is no second copy of the markup in JavaScript to drift from this one.
+
+   Rows come from Python already ordered to match the header, because a tabular layout
+   has to guarantee that cell three sits under header three and {{ form.visible_fields }}
+   cannot promise that. {% endcomment %}
+
+{% comment %} data-inline-group, not data-inline: the list page already uses data-inline for
+   cell editing, and two unrelated features answering the same selector is a bug waiting
+   for the day something puts a list on a form page. {% endcomment %}
+<section class="v-inline"
+         data-inline-group
+         data-inline-prefix="{{ group.prefix }}"
+         data-inline-layout="{{ group.layout }}"
+         {% if group.max_num %}data-inline-max="{{ group.max_num }}"{% endif %}
+         {% if group.can_add %}data-inline-can-add="1"{% endif %}
+         aria-labelledby="v-inline-title-{{ group.prefix }}">
+
+  <div class="v-card-head v-inline-head">
+    <div>
+      <h2 class="v-card-title" id="v-inline-title-{{ group.prefix }}">{{ group.label_plural }}</h2>
+      {% if group.description %}<p class="v-inline-description">{{ group.description }}</p>{% endif %}
+    </div>
+    {% if group.readonly %}
+      <span class="v-inline-badge">{% translate "View only" %}</span>
+    {% endif %}
+  </div>
+
+  <div class="v-card-body v-inline-body">
+    {{ group.formset.management_form }}
+
+    {% if group.formset.non_form_errors %}
+      <ul class="v-form-errors v-inline-formset-errors" role="alert">
+        {% for error in group.formset.non_form_errors %}<li>{{ error }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if group.is_tabular %}
+      <div class="v-inline-scroll">
+        <table class="v-inline-table" data-inline-rows>
+          <thead>
+            <tr>
+              {% for column in group.columns %}
+                <th scope="col" class="v-inline-th">
+                  {{ column.label }}
+                  {% if column.required %}<span class="v-form-required" title="{% translate 'Required' %}">*<span class="v-sr-only"> {% translate "required" %}</span></span>{% endif %}
+                </th>
+              {% endfor %}
+              {% if group.can_delete or group.can_add %}
+                <th scope="col" class="v-inline-th v-inline-th-actions"><span class="v-sr-only">{% translate "Actions" %}</span></th>
+              {% endif %}
+            </tr>
+          </thead>
+          {% for row in group.rows %}
+            {% include "vantage/partials/inline_row.html" with group=group row=row %}
+          {% endfor %}
+        </table>
+      </div>
+      <p class="v-inline-empty" data-inline-empty {% if group.rows %}hidden{% endif %}>
+        {% blocktranslate with label=group.label_plural|lower %}No {{ label }} yet.{% endblocktranslate %}
+      </p>
+
+    {% else %}
+      <div class="v-inline-stack" data-inline-rows>
+        {% for row in group.rows %}
+          {% include "vantage/partials/inline_row.html" with group=group row=row %}
+        {% endfor %}
+      </div>
+      <p class="v-inline-empty" data-inline-empty {% if group.rows %}hidden{% endif %}>
+        {% blocktranslate with label=group.label_plural|lower %}No {{ label }} yet.{% endblocktranslate %}
+      </p>
+    {% endif %}
+
+    {% if group.can_add %}
+      <template data-inline-template>
+        {% include "vantage/partials/inline_row.html" with group=group row=group.empty_row %}
+      </template>
+      <div class="v-inline-actions">
+        <button type="button" class="v-btn v-btn-secondary v-inline-add" data-inline-add>
+          {% blocktranslate with label=group.label|lower %}Add {{ label }}{% endblocktranslate %}
+        </button>
+        <span class="v-inline-limit v-muted" data-inline-limit hidden>
+          {% blocktranslate with count=group.max_num %}Limit of {{ count }} reached.{% endblocktranslate %}
+        </span>
+      </div>
+    {% endif %}
+  </div>
+</section>
