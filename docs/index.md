@@ -92,6 +92,7 @@ django-simple-history are all used when present and never required.
 | [Analytics](analytics.md) | `Stat`, `Chart`, the summary bar and the query-cost guarantees |
 | [Forms](forms.md) | Widget inference, the layout DSL, readonly fields, validation, delete preview |
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
+| [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |
 | [Theming](theming.md) | `BRAND_COLOR`, the derived palette, tokens, light/dark, RTL, custom CSS |
 | [Pages and dashboards](pages-and-dashboards.md) | Screens that are not models, and dashboard widgets |
 | [Settings](settings.md) | Every `VANTAGE` key, its default and its effect |

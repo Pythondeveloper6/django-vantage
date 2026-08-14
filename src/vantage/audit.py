@@ -166,15 +166,25 @@ def log_form_save(request, obj, form, change: bool) -> VantageLogEntry | None:
     return record(request, action, obj=obj, changes=changes)
 
 
-def log_delete(request, obj) -> VantageLogEntry | None:
+def log_delete(request, obj, *, soft: bool = False) -> VantageLogEntry | None:
     """Called with the row still present, because a deleted row cannot be read.
 
     Django blanks ``obj.pk`` as part of the delete, so an entry written afterwards
     would have neither an object id nor a way to snapshot the fields — and a delete
     entry that cannot say *what* was deleted is the least useful row in the table.
+
+    ``soft`` records the recoverable case as its own action. The snapshot is taken
+    either way: a trashed row can still be read back, but the fields at the moment it
+    was trashed are what someone restoring it will want to compare against.
     """
+    action = VantageLogEntry.Action.TRASH if soft else VantageLogEntry.Action.DELETE
+    return record(request, action, obj=obj, changes=snapshot(obj))
+
+
+def log_restore(request, obj) -> VantageLogEntry | None:
+    """A row brought back out of the trash."""
     return record(
-        request, VantageLogEntry.Action.DELETE, obj=obj, changes=snapshot(obj)
+        request, VantageLogEntry.Action.RESTORE, obj=obj, changes=snapshot(obj)
     )
 
 

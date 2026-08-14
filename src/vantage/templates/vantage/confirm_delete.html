@@ -27,6 +27,15 @@
   <div class="v-card-body">
     {% if cascade.is_blocked %}
       <p class="v-confirm-lede">{{ cascade.blocked_by }}</p>
+    {% elif soft_delete %}
+      {% comment %} This model keeps a trash, so nothing is being destroyed and the
+         permanence warning below would be false. No cascade preview either: the
+         related rows are untouched, and listing them under a heading that says they
+         will be destroyed is the opposite of informing someone. {% endcomment %}
+      <p class="v-confirm-lede">
+        {% blocktranslate %}This moves <strong>{{ object }}</strong> to the trash. You can restore it later.{% endblocktranslate %}
+      </p>
+      <p class="v-muted">{% translate "Related records are not affected." %}</p>
     {% else %}
       <p class="v-confirm-lede">
         {% blocktranslate %}This permanently deletes <strong>{{ object }}</strong>. It cannot be undone.{% endblocktranslate %}

@@ -28,7 +28,7 @@ from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, PermissionDenied
 from django.db import router, transaction
 from django.db.models.deletion import Collector, ProtectedError, RestrictedError
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import NoReverseMatch, reverse
 from django.utils.translation import gettext_lazy as _
@@ -43,6 +43,7 @@ __all__ = [
     "CascadeSummary",
     "CreateView",
     "DeleteView",
+    "RestoreView",
     "UpdateView",
     "collect_cascade",
     "form_editable_names",
@@ -124,7 +125,15 @@ def form_editable_names(panel) -> list[str]:
     return [name for name in form_field_names(panel) if name not in readonly]
 
 
-def save_form(request, panel, form: forms.ModelForm, *, change: bool, inline_groups=()):
+def save_form(
+    request,
+    panel,
+    form: forms.ModelForm,
+    *,
+    change: bool,
+    inline_groups=(),
+    version: str | None = None,
+):
     """Persist, handing control to the panel's ``save_model`` hook when it has one.
 
     ``commit=False`` first so the hook sees the populated-but-unsaved instance — the
@@ -138,12 +147,30 @@ def save_form(request, panel, form: forms.ModelForm, *, change: bool, inline_gro
     this one returns: a parent that committed while its children failed is data loss
     wearing a success message. Callers with no inlines — the JSON API among them — pass
     nothing and this behaves exactly as it did.
+
+    ``version`` is the optimistic-lock token the caller read before editing, exactly
+    what :mod:`vantage.concurrency` calls a compare-and-set. Left ``None`` — the default,
+    and what every HTML form still passes — this behaves exactly as it always has: an
+    ordinary ``save()`` with no lock. A caller that *does* pass one gets
+    :class:`~vantage.concurrency.StaleWrite` raised inside this same transaction the
+    moment somebody else's write has landed first, rather than a silent overwrite. The
+    JSON API is the first caller that has a token worth checking — a list row already
+    carries its ``version`` for exactly this — but the parameter is here rather than
+    duplicated in :mod:`vantage.api` because the compare-and-set has to run *inside* the
+    save transaction, between ``form.save(commit=False)`` and the write, which only this
+    function can arrange.
     """
     from vantage.tenancy import enforce as enforce_tenant
 
     hook = getattr(panel, "save_model", None)
     with transaction.atomic(using=router.db_for_write(panel.model)):
         obj = form.save(commit=False)
+        if version is not None:
+            from vantage import concurrency
+
+            # Raises StaleWrite, rolling back the transaction, if the row moved under
+            # us; a no-op if the model has no version column at all.
+            concurrency.claim(obj, version)
         # Before the hook, so the hook sees a complete object. Stamps the tenant on a
         # create and refuses a write that would move the record to another one —
         # scoping the read cannot catch either. A no-op unless tenancy is on.
@@ -185,7 +212,7 @@ def object_denied_message(panel, action: str) -> str:
     return message % {"model": model}
 
 
-def get_record(request, panel, permissions, pk, action: str):
+def get_record(request, panel, permissions, pk, action: str, *, include_trashed=False):
     """One row, scoped then authorised. The order is the whole point.
 
     ``filter_queryset`` runs with ``"view"`` rather than with the action being
@@ -193,8 +220,18 @@ def get_record(request, panel, permissions, pk, action: str):
     has one answer per user, not one per verb. Only once the row is admissible does the
     object-level check decide whether this particular verb is allowed on it — and *that*
     failure is a 403, because at that point the user already knows the record exists.
+
+    ``include_trashed`` widens the lookup to soft-deleted rows. It matters only on a
+    model whose default manager already hides them: without it, the delete page for a
+    trashed record 404s, so the trash can be filled and never emptied. Scoping and the
+    object-level check are unchanged — a wider base queryset, not a weaker guard.
     """
-    queryset = permissions.filter_queryset(request, panel.get_queryset(request), "view")
+    base = panel.get_queryset(request)
+    if include_trashed:
+        pattern = panel.get_patterns().soft_delete
+        if pattern is not None and pattern.manager_hides_trashed:
+            base = panel.model._base_manager.all()
+    queryset = permissions.filter_queryset(request, base, "view")
     obj = get_object_or_404(queryset, pk=pk)
     if not permissions.has_object_perm(request, panel.model, action, obj):
         raise PermissionDenied(object_denied_message(panel, action))
@@ -372,6 +409,11 @@ class RecordView(PanelView):
 
     object = None
 
+    #: Whether this view can act on a row that is already in the trash. Only the delete
+    #: path sets it: emptying a bin has to be able to reach what is in the bin, while an
+    #: edit page for a deleted record is a page nobody asked for.
+    includes_trashed = False
+
     def get_object(self):
         """Scope first, then authorise — see :func:`get_record`, which does both."""
         return get_record(
@@ -380,6 +422,7 @@ class RecordView(PanelView):
             self.permissions,
             self.kwargs["pk"],
             self.required_action,
+            include_trashed=self.includes_trashed,
         )
 
     #: Kept as a class attribute because a subclass may have reworded it. The module
@@ -548,6 +591,7 @@ class DeleteView(RecordView):
 
     template_name = "vantage/confirm_delete.html"
     required_action = "delete"
+    includes_trashed = True
 
     @property
     def page_title(self) -> str:
@@ -567,8 +611,57 @@ class DeleteView(RecordView):
         self.object = self.get_object()
         return self.render_to_response(self.get_context_data())
 
+    # ── soft delete ─────────────────────────────────────────────────────────
+
+    def get_soft_delete(self):
+        """The soft-delete pattern to honour, or None to destroy the row.
+
+        Returns None once the row is already trashed, which is what makes the trash's
+        own Delete button mean "permanently" without needing a second view: emptying a
+        bin has to be able to actually empty it.
+        """
+        pattern = self.panel.get_patterns().soft_delete
+        if pattern is None or self.already_trashed(pattern):
+            return None
+        return pattern
+
+    def already_trashed(self, pattern) -> bool:
+        value = getattr(self.object, pattern.field, None)
+        return bool(value) if pattern.kind == "boolean" else value is not None
+
+    def soft_delete(self, pattern) -> None:
+        """Mark the row instead of destroying it.
+
+        ``update`` on a filtered queryset rather than ``instance.save()``: this is the
+        delete path, and a model whose ``save()`` stamps ``updated_at`` or fires a
+        signal meant for edits should not have that happen because someone pressed
+        Delete. It also cannot race with a concurrent edit to another field.
+        """
+        from django.utils import timezone
+
+        value = True if pattern.kind == "boolean" else timezone.now()
+        self.panel.model._base_manager.filter(pk=self.object.pk).update(
+            **{pattern.field: value}
+        )
+        setattr(self.object, pattern.field, value)
+
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+
+        pattern = self.get_soft_delete()
+        if pattern is not None:
+            # No cascade check: nothing is being destroyed, so nothing downstream can
+            # be orphaned or protected. Checking anyway would refuse a soft delete for
+            # a PROTECT reference that a soft delete does not violate.
+            label = str(self.object)
+            from vantage import audit
+
+            audit.log_delete(request, self.object, soft=True)
+            with transaction.atomic(using=router.db_for_write(self.panel.model)):
+                self.soft_delete(pattern)
+            messages.success(request, self.get_trashed_message(label))
+            return HttpResponseRedirect(reverse(self.panel.list_url_name))
+
         cascade = collect_cascade(self.object)
         if cascade.is_blocked:
             # Re-render rather than raise: the reason is the useful part, and a bare 409
@@ -587,6 +680,12 @@ class DeleteView(RecordView):
         messages.success(request, self.get_success_message(label, cascade))
         return HttpResponseRedirect(reverse(self.panel.list_url_name))
 
+    def get_trashed_message(self, label: str) -> str:
+        return _("Moved %(model)s “%(object)s” to the trash.") % {
+            "model": self.panel.get_label().lower(),
+            "object": label,
+        }
+
     def get_success_message(self, label: str, cascade: CascadeSummary) -> str:
         name = self.panel.get_label().lower()
         if not cascade.total:
@@ -598,12 +697,20 @@ class DeleteView(RecordView):
         ) % {"model": name, "object": label, "count": cascade.total}
 
     def get_context_data(self, **kwargs):
-        kwargs.setdefault("cascade", collect_cascade(self.object))
+        soft = self.get_soft_delete() is not None
+        # Not merely skipped for tidiness. A soft delete destroys nothing, so a PROTECT
+        # reference does not stand in its way — and collect_cascade would report the
+        # page "blocked", hiding the only button on it. The customer with orders would
+        # have had no way to be archived at all.
+        kwargs.setdefault(
+            "cascade", CascadeSummary() if soft else collect_cascade(self.object)
+        )
         context = super().get_context_data(**kwargs)
         cascade = context["cascade"]
         context.update(
             panel=self.panel,
             object=self.object,
+            soft_delete=soft,
             confirm_label=self.get_confirm_label(cascade),
             cancel_url=self.get_detail_url(self.object) or reverse(self.panel.list_url_name),
         )
@@ -617,6 +724,10 @@ class DeleteView(RecordView):
         chance to notice that this order is taking twelve other rows with it.
         """
         name = self.panel.get_label().lower()
+        if self.get_soft_delete() is not None:
+            # The button must not say "Delete" for something recoverable, nor "Delete"
+            # for something that is not. Whichever this press does is what it says.
+            return _("Move %(model)s to trash") % {"model": name}
         if not cascade.total:
             return _("Delete %(model)s") % {"model": name}
         return ngettext(
@@ -624,3 +735,80 @@ class DeleteView(RecordView):
             "Delete %(model)s and %(count)s related records",
             cascade.total,
         ) % {"model": name, "count": cascade.total}
+
+
+class RestoreView(RecordView):
+    """Bring a soft-deleted row back out of the trash.
+
+    POST only, and deliberately. Restoring changes what every list on the site shows,
+    and a GET that mutates is a link a crawler, a prefetcher or a chat client will fire
+    on its own. The trash page submits a form; there is no restore URL to follow.
+
+    Guarded by the *delete* permission rather than *change*. Whoever is trusted to put
+    a record in the bin is trusted to take it out again, and requiring a second, wider
+    permission would leave rows that only an editor could trash and only an
+    administrator could recover.
+    """
+
+    required_action = "delete"
+
+    #: Django answers 405 for anything absent from this list, which is what makes the
+    #: POST-only rule above enforced rather than merely intended.
+    http_method_names = ["post"]
+
+    def get_object(self):
+        """Resolve from the trash, which is the only place this row can be.
+
+        ``get_record`` goes through ``panel.get_queryset``, and on a model whose default
+        manager already hides trashed rows that queryset cannot contain the record being
+        restored — the page would 404 on exactly the models the feature exists for.
+        """
+        pattern = self.panel.get_patterns().soft_delete
+        if pattern is None:
+            raise Http404(_("This model has no trash."))
+        queryset = self.permissions.filter_queryset(
+            self.request, self.panel.get_trash_queryset(self.request), "view"
+        )
+        obj = get_object_or_404(queryset, pk=self.kwargs["pk"])
+        if not self.permissions.has_object_perm(
+            self.request, self.panel.model, self.required_action, obj
+        ):
+            raise PermissionDenied(object_denied_message(self.panel, self.required_action))
+        return obj
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        pattern = self.panel.get_patterns().soft_delete
+        label = str(self.object)
+
+        from vantage import audit
+
+        audit.log_restore(request, self.object)
+        with transaction.atomic(using=router.db_for_write(self.panel.model)):
+            # ``update`` rather than ``save()``, for the same reason the soft delete
+            # uses it: coming out of the trash is not an edit, and should not stamp an
+            # updated-at column or fire a signal written for one.
+            self.panel.model._base_manager.filter(pk=self.object.pk).update(
+                **{pattern.field: False if pattern.kind == "boolean" else None}
+            )
+
+        messages.success(
+            request,
+            _("Restored %(model)s “%(object)s”.")
+            % {"model": self.panel.get_label().lower(), "object": label},
+        )
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self) -> str:
+        """Back to the list they came from, carrying its filters.
+
+        The row action puts the page's query string on the restore URL, so restoring
+        the third of five rows returns to the same page of the same trash with four
+        left — rather than to the record's own detail page, which would make emptying a
+        trash a sequence of back-button presses.
+        """
+        query = self.request.META.get("QUERY_STRING", "")
+        base = reverse(self.panel.list_url_name)
+        if query:
+            return f"{base}?{query}"
+        return self.get_detail_url(self.object) or base

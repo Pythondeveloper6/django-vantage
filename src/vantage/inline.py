@@ -69,8 +69,10 @@ __all__ = [
     "InlineWriteView",
     "bound_form",
     "build_urls",
+    "form_errors",
     "get_config",
     "inline_fields",
+    "json_to_form_data",
 ]
 
 #: The kinds a table cell can hold without lying about what it is. Everything absent
@@ -475,7 +477,7 @@ class InlineWriteView(InlinePanelView):
                 obj = self.get_row(row["pk"])
                 form = self.build_form(obj, row["fields"])
                 if not form.is_valid():
-                    errors.append({"pk": str(obj.pk), "fields": _messages(form)})
+                    errors.append({"pk": str(obj.pk), "fields": form_errors(form)})
                     continue
                 try:
                     concurrency.claim(obj, row["version"])
@@ -499,7 +501,7 @@ class InlineWriteView(InlinePanelView):
         ``rating`` that nobody touched.
         """
         form_class = build_form_class(self.panel, list(values))
-        return form_class(data=_as_form_data(form_class, values), instance=obj)
+        return form_class(data=json_to_form_data(form_class, values), instance=obj)
 
     def save_row(self, obj, form: forms.ModelForm):
         """Save one row through the panel's own hook, exactly as the change form does."""
@@ -598,7 +600,7 @@ class InlineValidateView(InlinePanelView):
         obj = self.get_row(payload.get("pk"))
         form_class = build_form_class(self.panel, [name])
         value = payload.get("value")
-        form = form_class(data=_as_form_data(form_class, {name: value}), instance=obj)
+        form = form_class(data=json_to_form_data(form_class, {name: value}), instance=obj)
         form.is_valid()
 
         return JsonResponse(
@@ -614,24 +616,42 @@ class InlineValidateView(InlinePanelView):
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 
-def _messages(form: forms.ModelForm) -> dict[str, list[str]]:
+def form_errors(form: forms.ModelForm) -> dict[str, list[str]]:
     """``{"rating": ["Ensure that there are no more than 3 digits."]}``.
 
     Plain strings keyed by field, including ``__all__``. Django's ``as_json`` carries
     error codes too, but the browser has nothing to do with a code, and a payload the
     client has to unwrap before it can show a sentence is a payload that will
-    eventually be shown unwrapped.
+    eventually be shown unwrapped. Public — :mod:`vantage.api` reports validation
+    errors in exactly this shape, and a second implementation would be the one place
+    the two payloads could quietly disagree.
     """
     return {name: [str(message) for message in messages] for name, messages in form.errors.items()}
 
 
-def _as_form_data(form_class, values: dict[str, Any]) -> dict[str, Any]:
+def json_to_form_data(form_class, values: dict[str, Any]) -> dict[str, Any]:
     """Turn a JSON object into something a ``ModelForm`` can bind.
 
     JSON carries real booleans and numbers; an HTML form carries strings and the
     *absence* of a key for an unchecked box. ``CheckboxInput.value_from_datadict``
     reads presence, so ``{"featured": false}`` would arrive as ``True`` — the classic
     way a JSON API quietly inverts every boolean it is given.
+
+    ``forms.JSONField`` gets the same treatment for the reverse reason. It expects the
+    *string* a ``<textarea>`` would have posted and calls ``json.loads`` on it itself;
+    handed the already-decoded Python value instead, ``to_python`` checks it against
+    Django's ``EMPTY_VALUES``, which includes a bare ``{}`` and ``[]`` — so an honestly
+    empty object or array is read as "nothing was submitted" and silently becomes
+    ``None``, which a ``NOT NULL`` JSON column then refuses. :data:`INLINE_KINDS`
+    excludes JSON, so this module never met the bug; :mod:`vantage.api` is the first
+    caller that hands a real JSON value through this function, and the fix belongs
+    here rather than in ``vantage.api`` because it is a fact about ``forms.JSONField``,
+    not about either caller.
+
+    Public, and used by :mod:`vantage.api` as well as by this module: every JSON write
+    in the package — one cell or a whole record — goes through this one conversion, so
+    a boolean or a JSON value cannot behave differently depending on which endpoint set
+    it.
     """
     data: dict[str, Any] = {}
     for name, value in values.items():
@@ -639,6 +659,9 @@ def _as_form_data(form_class, values: dict[str, Any]) -> dict[str, Any]:
         if field is not None and isinstance(field.widget, forms.CheckboxInput):
             if _truthy(value):
                 data[name] = "on"
+            continue
+        if field is not None and isinstance(field, forms.JSONField) and not isinstance(value, str):
+            data[name] = "" if value is None else json.dumps(value)
             continue
         data[name] = "" if value is None else value
     return data

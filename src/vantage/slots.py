@@ -256,9 +256,14 @@ def is_filled(name: str, context: Any = None) -> bool:
     # returns None by default, so testing for the method's existence reports every
     # slot as filled — and an empty trailing column on every row is exactly what this
     # function exists to prevent.
+    # With the context, not without it. A slot that only fills under some condition —
+    # the trash's Restore button is the first — cannot answer whether it will fill
+    # while being asked in the dark, and answering "no" hides the column its buttons
+    # were going in. ``render`` has always passed the context here; this passing it too
+    # is what makes the two agree.
     hook = getattr(panel, "slot", None)
     if callable(hook):
-        contributed = _guard(lambda: hook(name), f"{type(panel).__name__}.slot")
+        contributed = _guard(lambda: hook(name, data), f"{type(panel).__name__}.slot")
         if contributed:
             return True
     for contribution in contributions(name):
