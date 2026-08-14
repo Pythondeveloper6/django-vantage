@@ -4,8 +4,10 @@ The classification table below is the contract: one row per :class:`FieldKind`, 
 against a real Django field. Adding a kind means adding a row.
 """
 
+import re
 import uuid
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from django import forms
@@ -17,12 +19,16 @@ from django.core.validators import (
     MinValueValidator,
 )
 from django.db import models
+from django.urls import reverse
 
 from tests.testapp.models import Author, Category, Comment, Order, Post, Tag
+from vantage.autocomplete import PAGE_SIZE
 from vantage.panels import ModelPanel
 from vantage.widgets import (
     RELATION_SEARCH_THRESHOLD,
     FieldKind,
+    SearchSelect,
+    SearchSelectMultiple,
     build_form_class,
     classify,
     infer_form_fields,
@@ -322,9 +328,14 @@ class TestRelationWidgets:
         """A select over an unbounded table is the failure mode; a search box is not."""
         assert infer_widget(field_of(Post, "author")).needs_search is True
 
-    def test_a_small_relation_renders_inline(self):
+    def test_a_small_relation_renders_inline_in_threshold_mode(self, settings):
+        settings.VANTAGE = {**getattr(settings, "VANTAGE", {}), "RELATION_PICKER": "threshold"}
         spec = infer_widget(field_of(Post, "author"), related_count=3)
         assert spec.needs_search is False
+
+    def test_a_small_relation_gets_the_picker_by_default(self):
+        """One control for every relationship, unless the project asks otherwise."""
+        assert infer_widget(field_of(Post, "author"), related_count=3).needs_search is True
 
     def test_a_large_relation_needs_search(self):
         spec = infer_widget(
@@ -583,3 +594,213 @@ class TestBuildFormClass:
         assert form.is_valid(), form.errors
         assert form.cleaned_data["span"] == timedelta(hours=1, minutes=30)
         assert form.cleaned_data["maybe"] is None
+
+
+# ── the searchable relation picker ──────────────────────────────────────────
+
+STATIC = Path(__file__).resolve().parent.parent / "src/vantage/static/vantage"
+TEMPLATES = Path(__file__).resolve().parent.parent / "src/vantage/templates/vantage"
+
+
+def authors(count, prefix="Person"):
+    """``count`` authors, alphabetically ordered by construction.
+
+    The names are zero-padded so "who is on the first page" is decidable: with a
+    hundred rows, ``Person 99`` is last however the database sorts ties.
+    """
+    return [
+        Author.objects.create(name=f"{prefix} {i:02d}", email=f"{prefix.lower()}{i}@example.com")
+        for i in range(count)
+    ]
+
+
+def render(field_name, model=Post, instance=None):
+    form = build_form_class(model)(instance=instance)
+    return str(form[field_name])
+
+
+def options(html):
+    return re.findall(r"<option[^>]*value=\"([^\"]*)\"", html)
+
+
+class TestASmallRelationStaysASelect:
+    """What ``RELATION_PICKER = "threshold"`` buys: a native control while it fits.
+
+    Not the default. One picker for every relationship is easier to learn than two,
+    and a many-to-many needs one at any size. But a native ``<select>`` opens the
+    platform picker on a phone, which beats anything a page can draw, so the choice
+    stays available and is tested rather than merely documented.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _threshold_mode(self, settings):
+        settings.VANTAGE = {**getattr(settings, "VANTAGE", {}), "RELATION_PICKER": "threshold"}
+
+    def test_every_option_is_rendered(self, db):
+        made = authors(3)
+        assert options(render("author")) == ["", *[str(a.pk) for a in made]]
+
+    def test_no_combobox_wrapper_is_emitted(self, db):
+        authors(3)
+        assert "data-vantage-combobox" not in render("author")
+
+    def test_the_search_flag_is_withdrawn(self, db):
+        """The spec guesses "search" without a count; the render knows better.
+
+        Leaving the attribute on would tell the front end to enhance a control that
+        already holds its whole option list.
+        """
+        authors(3)
+        assert "data-vantage-search" not in render("author")
+
+    def test_the_options_keep_the_querysets_own_order(self, db):
+        """No hoisting the selection: below the threshold this is an ordinary select."""
+        made = authors(3)
+        post = Post.objects.create(
+            title="T", slug="t", body="b", author=made[-1], status=Post.Status.DRAFT
+        )
+        assert options(render("author", instance=post)) == ["", *[str(a.pk) for a in made]]
+
+
+class TestABigRelationBecomesSearchable:
+    def test_the_option_list_is_capped(self, db):
+        """The whole point: fifty thousand options is not a control, it is an outage."""
+        authors(RELATION_SEARCH_THRESHOLD + 5)
+        assert len(options(render("author"))) == PAGE_SIZE + 1  # + the empty choice
+
+    def test_the_wrapper_carries_the_endpoint_and_the_model(self, db):
+        authors(RELATION_SEARCH_THRESHOLD + 5)
+        html = render("author")
+        assert "data-vantage-combobox" in html
+        assert 'data-model="testapp.Author"' in html
+        assert f'data-url="{reverse("vantage:autocomplete")}"' in html
+
+    def test_the_select_is_still_the_control(self, db):
+        """Enhanced in place, not replaced: the form still submits a real select."""
+        authors(RELATION_SEARCH_THRESHOLD + 5)
+        html = render("author")
+        assert '<select name="author"' in html
+        assert 'data-vantage-search="1"' in html
+
+    def test_it_says_the_list_is_only_a_first_page(self, db):
+        """With JavaScript off, a truncated list must not look like the whole table."""
+        authors(RELATION_SEARCH_THRESHOLD + 5)
+        assert "Showing the first 20 of many" in render("author")
+
+    def test_the_current_value_is_rendered_even_when_it_is_not_on_the_first_page(self, db):
+        """The label shows on load with no request, or every edit page starts blank."""
+        made = authors(RELATION_SEARCH_THRESHOLD + 5)
+        last = made[-1]
+        post = Post.objects.create(
+            title="T", slug="t", body="b", author=last, status=Post.Status.DRAFT
+        )
+        html = render("author", instance=post)
+        assert f'value="{last.pk}" selected' in html
+        assert last.name in html
+
+    def test_truncating_the_options_does_not_narrow_what_is_accepted(self, db):
+        """A rendered option list never authorised a value; the queryset does."""
+        made = authors(RELATION_SEARCH_THRESHOLD + 5)
+        unrendered = made[-1]
+        assert str(unrendered.pk) not in options(render("author"))
+        field = build_form_class(Post)().fields["author"]
+        assert field.clean(str(unrendered.pk)) == unrendered
+
+    def test_rendering_is_two_bounded_queries(self, db, django_assert_num_queries):
+        """One LIMITed probe and one lookup of the selection. Never a COUNT, never a scan."""
+        made = authors(RELATION_SEARCH_THRESHOLD + 5)
+        post = Post.objects.create(
+            title="T", slug="t", body="b", author=made[-1], status=Post.Status.DRAFT
+        )
+        form = build_form_class(Post)(instance=post)
+        with django_assert_num_queries(2):
+            str(form["author"])
+
+    def test_an_unrenderable_value_does_not_crash_the_form(self, db):
+        """A bound form re-rendering after a failed POST can carry any string at all."""
+        authors(RELATION_SEARCH_THRESHOLD + 5)
+        form = build_form_class(Post)(data={"author": "not-a-primary-key"})
+        assert "not-a-primary-key" not in options(str(form["author"]))
+
+
+class TestSearchableMultiple:
+    def test_a_big_many_to_many_is_capped_too(self, db):
+        for i in range(RELATION_SEARCH_THRESHOLD + 5):
+            Tag.objects.create(name=f"tag-{i:02d}")
+        html = render("tags")
+        assert "data-vantage-combobox" in html
+        assert "multiple" in html
+        # No empty choice on a multiple, so the cap is the page size exactly.
+        assert len(options(html)) == PAGE_SIZE
+
+    def test_a_small_many_to_many_still_gets_the_picker(self, db):
+        """Size is the wrong question to ask about a ``<select multiple>``.
+
+        A native multi-select hides the selection behind ctrl-click and discards it
+        on an ordinary click, which is no better with three options than with three
+        thousand. So the chip picker is unconditional here, unlike the single-valued
+        case next door.
+        """
+        Tag.objects.create(name="one")
+        assert "data-vantage-combobox" in render("tags")
+
+    def test_a_small_many_to_many_is_not_told_its_list_is_partial(self, db):
+        """Enhanced, but complete: every option is on the page, so say nothing."""
+        Tag.objects.create(name="one")
+        html = render("tags")
+        assert "data-combo-note" not in html
+        assert len(options(html)) == 1
+
+
+class TestSearchSelectItself:
+    def test_a_relation_gets_the_searchable_widget(self):
+        assert isinstance(infer_widget(field_of(Post, "author")).build_widget(), SearchSelect)
+
+    def test_a_counted_small_relation_gets_the_plain_one_in_threshold_mode(self, settings):
+        """Told it is small, the widget does not even probe.
+
+        Only under ``RELATION_PICKER = "threshold"``. The default is one picker for
+        every relationship, so the count stops being the deciding question.
+        """
+        settings.VANTAGE = {**getattr(settings, "VANTAGE", {}), "RELATION_PICKER": "threshold"}
+        widget = infer_widget(field_of(Post, "author"), related_count=3).build_widget()
+        assert type(widget) is forms.Select
+
+    def test_a_counted_small_relation_still_gets_the_picker_by_default(self):
+        widget = infer_widget(field_of(Post, "author"), related_count=3).build_widget()
+        assert isinstance(widget, SearchSelect)
+
+    def test_the_multiple_variant_is_still_a_select_multiple(self):
+        widget = infer_widget(field_of(Post, "tags")).build_widget()
+        assert isinstance(widget, SearchSelectMultiple)
+        assert isinstance(widget, forms.SelectMultiple)
+
+    def test_a_choice_field_is_left_alone(self):
+        """Choices are declared in code and there are never fifty thousand of them."""
+        assert type(infer_widget(field_of(Post, "status")).build_widget()) is forms.Select
+
+    def test_plain_choices_render_without_a_queryset_to_probe(self):
+        """A panel may hand the widget an ordinary choice list; that is not a crash."""
+        widget = SearchSelect()
+        widget.choices = [("a", "A"), ("b", "B")]
+        html = widget.render("x", "b")
+        assert "data-vantage-combobox" not in html
+        assert 'value="b" selected' in html
+
+
+class TestTheControlIsShipped:
+    """The behaviour is in a file the page has to actually load."""
+
+    def test_the_script_exists(self):
+        assert (STATIC / "combobox.js").exists()
+
+    def test_the_form_page_loads_it(self):
+        assert "vantage/combobox.js" in (TEMPLATES / "form.html").read_text(encoding="utf-8")
+
+    def test_the_styles_are_in_the_always_loaded_sheet(self):
+        assert ".v-combo" in (STATIC / "vantage.css").read_text(encoding="utf-8")
+
+    def test_the_select_is_only_hidden_once_the_script_has_run(self):
+        """Hiding it from CSS alone leaves no visible control when the script fails."""
+        css = (STATIC / "vantage.css").read_text(encoding="utf-8")
+        assert ".v-combo-on select {" in css
