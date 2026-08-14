@@ -352,6 +352,16 @@ class NavConfiguration(models.Model):
     #: the same reason every column on :class:`SiteConfiguration` is nullable.
     groups = models.JSONField(null=True, blank=True)
 
+    #: The top bar's arrangement, on the same row rather than in a table of its own.
+    #: Both are one site-wide statement of how the chrome is laid out, edited on the
+    #: same screen and saved together, so a second singleton would be a second query
+    #: and a second thing to keep consistent for no gain. ``NULL`` means "not
+    #: arranged", distinct from an empty list, exactly as ``groups`` above.
+    #:
+    #: :mod:`vantage.topbar` reads this through :mod:`vantage.nav`'s request-scoped
+    #: cache, so rendering both costs one query between them.
+    topbar = models.JSONField(null=True, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL,
@@ -1129,6 +1139,15 @@ class DashboardLayout(models.Model):
     #: ``[]`` are different answers: the first falls through to the code, the second is
     #: a dashboard somebody deliberately emptied.
     cards = models.JSONField(null=True, blank=True)
+
+    #: The declared-card keys that existed, independent of who was looking, the moment
+    #: ``cards`` was last written. This is what lets a declared card absent from
+    #: ``cards`` be read as a decision rather than an accident: a key recorded here and
+    #: missing from ``cards`` was seen and removed on purpose, while a key that is
+    #: neither here nor there is new to the code since and must not be swallowed. A row
+    #: written before this field existed reads back an empty list, which is the safe
+    #: direction to be wrong in: nothing looks removed that was not explicitly said so.
+    known_keys = models.JSONField(default=list, blank=True)
 
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
