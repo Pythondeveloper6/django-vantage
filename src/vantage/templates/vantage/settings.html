@@ -187,9 +187,17 @@
     <button class="v-btn v-btn-primary" type="submit">{% translate "Save settings" %}</button>
   </div>
 </form>
+
+{% comment %}
+  Outside the form above, not inside it. The sidebar editor is a form of its own, and a
+  form nested in a form is not valid HTML — the browser drops the inner one, which is
+  how a Save button ends up saving somebody else's fields.
+{% endcomment %}
+{% include "vantage/settings_nav.html" %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'vantage/vantage-settings.js' %}" defer></script>
 <script{{ csp_nonce_attr }}>
 /* Live palette preview. The colour maths is not reimplemented here — the page asks the
  * same view that will render the panel, so the swatches cannot drift from the result.

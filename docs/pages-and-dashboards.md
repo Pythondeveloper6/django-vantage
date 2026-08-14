@@ -331,6 +331,7 @@ Add your own:
 
 ```python
 site.register_command(
+    id="reindex-search",
     label="Reindex search",
     url="/ops/reindex/",
     icon="refresh-cw",
@@ -338,6 +339,9 @@ site.register_command(
     permission="ops.run_reindex",
 )
 ```
+
+`id` is required — it is what lets a plugin replace a command a project registered first
+(or vice versa) instead of the palette silently carrying two rows for the same action.
 
 Switch the whole thing off with `VANTAGE["COMMAND_PALETTE"] = False`. The global search
 results page stays available and styled either way.

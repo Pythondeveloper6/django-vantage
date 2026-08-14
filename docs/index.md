@@ -3,7 +3,7 @@
 A smart, beautiful admin panel for Django. Zero config to start; one line to override
 anything.
 
-> **Status: alpha (`0.1.0.dev0`).** Working and heavily tested — around 1,970 tests —
+> **Status: alpha (`0.1.0.dev0`).** Working and heavily tested — close to 3,000 tests —
 > but not yet on PyPI, and the API may still move. See the
 > [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is not done.
 

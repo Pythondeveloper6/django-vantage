@@ -1,8 +1,8 @@
-"""The five things Vantage stores: its settings, what people did, how they look, how
-each list is tuned, and what is still running.
+"""The six things Vantage stores: its settings, its sidebar, what people did, how they
+look, how each list is tuned, and what is still running.
 
 Vantage configures itself from ``settings.VANTAGE``, so owning tables at all is a
-decision that has to be justified once per table. Five earn it.
+decision that has to be justified once per table. Six earn it.
 
 **The settings cascade.** A project owner states their settings in
 ``settings.VANTAGE``; the person who actually runs the panel day to day is usually not
@@ -10,6 +10,14 @@ the person who can edit that file. :class:`SiteConfiguration` gives them a row t
 sits *underneath* attribute access on :data:`~vantage.conf.vantage_settings`, so the
 branding can be changed from the panel without a deploy, and without a single call
 site knowing a database is involved.
+
+**The sidebar.** :class:`NavConfiguration` is one row holding the arrangement someone
+built in the settings screen: the groups, their order, what is in them, what each item
+is called and who may see it. It sits *above* ``VANTAGE["NAV"]`` rather than inside the
+settings cascade, which is the distinction that keeps the allowlist in
+:mod:`vantage.siteconfig` honest — a stored arrangement is presentation, and
+:mod:`vantage.nav` re-checks every item against the live registry and the permission
+layer on the way out, so it can reorder, rename and hide but never reveal.
 
 **The audit log.** :class:`VantageLogEntry` records what someone did *in the panel* —
 one generic-FK row per create, edit, delete or bulk action. It is deliberately not row
@@ -43,9 +51,12 @@ banner that ``settings.py`` asked for), so the usual Django advice to avoid ``nu
 text columns is exactly wrong here.
 
 **Only settings that are safe in a web form get a column.** ``AUTO_REGISTER``,
-``EXCLUDE``, ``INCLUDE_ONLY``, ``NAV``, ``DASHBOARD``, ``PERMISSIONS`` and
+``EXCLUDE``, ``INCLUDE_ONLY``, ``DASHBOARD``, ``PERMISSIONS`` and
 ``SETTINGS_PERMISSION`` are code, not configuration: they decide what exists and who
-may reach it. The allowlist lives in :mod:`vantage.siteconfig`.
+may reach it. The allowlist lives in :mod:`vantage.siteconfig`. ``NAV`` is absent from
+it too, and stays absent: the sidebar is editable from the UI through
+:class:`NavConfiguration`, which is a *presentation* layer over the same registry, not
+a settings value the cascade hands back to ``vantage_settings.NAV``.
 
 **Uploads are treated as hostile.** ``FileField`` rather than ``ImageField`` because
 Pillow is not a dependency and never will be for this, which means the validation
@@ -79,7 +90,9 @@ __all__ = [
     "ALLOWED_UPLOAD_SUFFIXES",
     "MAX_UPLOAD_BYTES",
     "SETTING_COLUMNS",
+    "DashboardLayout",
     "ListPreference",
+    "NavConfiguration",
     "SavedView",
     "SavedViewGrant",
     "SavedViewUserState",
@@ -299,6 +312,88 @@ class SiteConfiguration(models.Model):
 def _invalidate(sender, **kwargs) -> None:
     """Saving the row must change the panel on the next read, not on the next restart."""
     invalidate()
+
+
+# ── the sidebar ─────────────────────────────────────────────────────────────
+
+
+class NavConfiguration(models.Model):
+    """The sidebar as somebody arranged it in the UI. Exactly one row.
+
+    The same singleton shape as :class:`SiteConfiguration`, and for the same reason:
+    there is one sidebar, so there is one row, and ``NULL`` means *the code decides*.
+    Clearing :attr:`groups` — which is what the screen's Reset button does by deleting
+    the row outright — hands the sidebar back to ``VANTAGE["NAV"]``, and back to
+    per-app inference when there is no declaration either.
+
+    One JSON column rather than a table of groups and a table of items. Three reasons,
+    and the third is the one that decides it:
+
+    * Order is the list, as it is for :attr:`ListPreference.columns`. A position column
+      is a second source of truth for something a JSON array already expresses exactly.
+    * The tree is read whole, on every page, by one query. Two joined tables would be
+      two queries and a sort for something that is a few kilobytes.
+    * **Nothing here is a foreign key, deliberately.** An item names a model as the
+      text ``"shop.order"``, a permission as ``"shop.view_order"`` and an audience as a
+      group *name*. Unregistering a model, dropping a permission or renaming a group
+      must leave an inert entry that the editor can show and remove — never a cascade
+      that silently deletes somebody's arrangement, and never a dangling id.
+
+    Nothing in this class interprets its own column. Every value is re-validated
+    against the live registry and the live permission layer each time it is read; see
+    :func:`vantage.nav.clean_declaration` and :func:`vantage.nav.build_nav`.
+    """
+
+    SINGLETON_PK = 1
+
+    #: ``[{"label": "Commerce", "icon": "shopping-cart", "items": [...]}]``. ``NULL``
+    #: is "no arrangement stored", which is not the same as an empty list — an empty
+    #: list is a sidebar somebody emptied, and the two must stay distinguishable for
+    #: the same reason every column on :class:`SiteConfiguration` is nullable.
+    groups = models.JSONField(null=True, blank=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = _("sidebar")
+        verbose_name_plural = _("sidebar")
+
+    def __str__(self) -> str:
+        return str(_("Sidebar"))
+
+    def save(self, *args, **kwargs) -> None:
+        self.pk = self.SINGLETON_PK
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> NavConfiguration:
+        """The row, or an unsaved instance standing in for it.
+
+        Never ``get_or_create``: opening the settings screen must not write a row, and
+        a row holding ``NULL`` resolves identically to no row at all.
+        """
+        return cls.objects.filter(pk=cls.SINGLETON_PK).first() or cls()
+
+
+@receiver(post_save, sender=NavConfiguration)
+@receiver(post_delete, sender=NavConfiguration)
+def _invalidate_nav(sender, **kwargs) -> None:
+    """Saving the arrangement must change the sidebar on the next read.
+
+    Imported inside the receiver rather than at module scope: :mod:`vantage.nav`
+    reaches back into the app registry for this very model, and importing it while the
+    registry is still loading this module would be a cycle waiting for a bad day.
+    """
+    from vantage.nav import invalidate_nav
+
+    invalidate_nav()
 
 
 # ── the audit log ───────────────────────────────────────────────────────────
@@ -983,3 +1078,104 @@ class VantageJob(models.Model):
         if getattr(user, "is_superuser", False):
             return True
         return self.actor_id is not None and self.actor_id == user.pk
+
+
+# ── the dashboard, as somebody arranged it ──────────────────────────────────
+
+
+class DashboardLayout(models.Model):
+    """One person's arrangement of the dashboard — or, with a ``NULL`` user, the
+    arrangement everybody else opens on.
+
+    :class:`ListPreference` is to one list page what this is to the landing page, and
+    the two are deliberately the same shape: a nullable column where ``NULL`` means
+    *the code decides*, a per-user row that wins over a site-wide row, and every value
+    re-validated against the live registry on the way out as well as on the way in.
+
+    One JSON column rather than a row per card. Order is the list itself — the same
+    argument :attr:`ListPreference.columns` makes — and a dashboard is read whole, by
+    one query, on the one page every session starts at. A card table would be a join
+    and a sort for a few kilobytes.
+
+    :attr:`cards` holds *ingredients*, never expressions. A card is a model label, an
+    aggregate name, a column name, a grouping and a filter query string, all of which
+    are checked against what the panel currently exposes before anything is computed
+    from them. Storing an ORM object or a callable would be storing code that arrived
+    from a form, which is the one thing this table must never do.
+
+    A card can also be an entry pointing at a widget the *code* declares, by key. That
+    is what lets the arrangement reorder, resize and hide the cards in
+    ``VANTAGE["DASHBOARD"]`` without forking them: the declaration stays the source of
+    what those cards mean, and this row only says where they sit and whether they show.
+    """
+
+    #: Which mounted panel this arrangement belongs to, matching
+    #: :attr:`vantage.sites.VantageSite.name`. A project running a staff panel and a
+    #: partner panel arranges each separately, and text rather than a foreign key for
+    #: the same reason ``resource_key`` is text: a site that stops existing must leave
+    #: an inert row behind.
+    site_name = models.CharField(max_length=100, default="vantage")
+
+    #: ``NULL`` is the arrangement everybody who has not made their own sees.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="vantage_dashboard_layouts",
+    )
+
+    #: The ordered layout, or ``NULL`` for "nothing is arranged here". ``NULL`` and
+    #: ``[]`` are different answers: the first falls through to the code, the second is
+    #: a dashboard somebody deliberately emptied.
+    cards = models.JSONField(null=True, blank=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = _("dashboard layout")
+        verbose_name_plural = _("dashboard layouts")
+        ordering = ["site_name", "pk"]
+        indexes = [
+            models.Index(fields=["site_name", "user"], name="vantage_dashlayout_idx"),
+        ]
+        constraints = [
+            # Two constraints rather than one, for the reason ``ListPreference``
+            # spells out: SQL treats NULLs as distinct, so a single unique index over
+            # (site_name, user) would police the per-user rows and let the site-wide
+            # rows multiply unnoticed.
+            models.UniqueConstraint(
+                fields=["site_name", "user"],
+                condition=models.Q(user__isnull=False),
+                name="vantage_dashlayout_unique_user",
+            ),
+            models.UniqueConstraint(
+                fields=["site_name"],
+                condition=models.Q(user__isnull=True),
+                name="vantage_dashlayout_unique_default",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        who = self.user.get_username() if self.user_id else _("everyone")
+        return f"{self.site_name} · {who}"
+
+    @property
+    def is_site_default(self) -> bool:
+        return self.user_id is None
+
+    def is_empty(self) -> bool:
+        """Whether this row has stopped saying anything, and can be deleted.
+
+        Only ``NULL`` counts. An empty *list* is a real arrangement — somebody removed
+        every card — and deleting the row for it would silently restore the code's
+        dashboard instead of showing the empty one they asked for.
+        """
+        return self.cards is None

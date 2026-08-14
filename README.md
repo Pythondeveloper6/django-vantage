@@ -92,8 +92,10 @@ class OrderPanel(ModelPanel):
     ]
 ```
 
-Change a filter and every number follows. All four stats cost a single query; the charts render
-as inline SVG that follows your brand colour and the current theme.
+Change a filter and every number follows. All four stats fold into one shared `aggregate()`
+call, plus one more for the trend window `Revenue` asks for — two queries total, however many
+non-trending stats you add to the group. The charts render as inline SVG that follows your
+brand colour and the current theme.
 
 There is also a per-column summary bar at the foot of every table, which needs no configuration
 at all — a money column is summed, a rating column is averaged, and an identifier is left alone.

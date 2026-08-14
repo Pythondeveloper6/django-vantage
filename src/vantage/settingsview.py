@@ -16,6 +16,13 @@ implementations of a colour space is two answers to the same question.
 
 **Say when the colour was adjusted.** Silently shipping a different colour from the one
 that was typed is the kind of thing that gets blamed on the browser for a week.
+
+The screen also carries the sidebar editor, which is a second form rather than a fourth
+section of the first one. Not a stylistic choice: a form cannot nest, the settings form
+is one form with per-section reset *buttons* in it, and the sidebar's own Save and Reset
+have to be able to act on the sidebar without carrying every branding field along with
+them. The arrangement itself lives in :mod:`vantage.nav`, which owns both halves of it —
+the validators that draw the editor are the validators that read the stored row.
 """
 
 from __future__ import annotations
@@ -40,11 +47,21 @@ from vantage.color import (
     hex_to_oklch,
 )
 from vantage.conf import DEFAULTS, vantage_settings
-from vantage.models import MAX_UPLOAD_BYTES, SiteConfiguration
+from vantage.models import MAX_UPLOAD_BYTES, NavConfiguration, SiteConfiguration
+from vantage.nav import (
+    apply_edits,
+    editor_context,
+    reset_declaration,
+    save_declaration,
+)
 from vantage.siteconfig import UI_EDITABLE, code_defaults
 from vantage.views import SiteView
 
-__all__ = ["SECTIONS", "SiteSettingsForm", "SiteSettingsView", "brand_report"]
+__all__ = ["NAV_ANCHOR", "SECTIONS", "SiteSettingsForm", "SiteSettingsView", "brand_report"]
+
+#: The id of the sidebar card, and the fragment a sidebar save redirects back to.
+#: Named once so the template and the redirect cannot drift apart.
+NAV_ANCHOR = "sidebar"
 
 #: The screen's shape: key, heading, blurb, and the columns it owns. Also what the
 #: per-section reset acts on, so the button can never disagree with the card above it.
@@ -368,6 +385,9 @@ class SiteSettingsView(SiteView):
             config=config,
             sections=[_section(form, config, inherited, spec) for spec in SECTIONS],
             brand=_current_report(form, inherited),
+            nav_editor=editor_context(self.site, self.request),
+            nav_config=NavConfiguration.load(),
+            nav_anchor=NAV_ANCHOR,
             code_only=sorted(set(DEFAULTS) - set(UI_EDITABLE)),
             max_upload_kb=MAX_UPLOAD_BYTES // 1024,
             # Uploads land in MEDIA_ROOT and are served from MEDIA_URL. Neither has a
@@ -379,6 +399,12 @@ class SiteSettingsView(SiteView):
     # ── write ───────────────────────────────────────────────────────────────
 
     def post(self, request, *args, **kwargs):
+        # The sidebar editor is its own form on the same page, and it says so in its
+        # own parameter. Checked first, and by name, so the two forms can never be
+        # confused for one another by a partially-filled POST.
+        if "nav_action" in request.POST:
+            return self.save_nav(request, "reset" if request.POST.get("nav_reset") else "save")
+
         config = SiteConfiguration.load()
 
         section = request.POST.get("reset")
@@ -396,6 +422,27 @@ class SiteSettingsView(SiteView):
         messages.success(request, _("Settings saved."))
         self.warn_about_contrast(request, config)
         return HttpResponseRedirect(request.path)
+
+    def save_nav(self, request, action: str):
+        """Store the arranged sidebar, or hand it back to the code.
+
+        Reset deletes the row rather than storing today's resolved tree. That is the
+        whole difference between a reset that works and one that only looks like it:
+        a saved copy of what ``panel.py`` says today stops following it tomorrow.
+        """
+        if action == "reset":
+            reset_declaration()
+            messages.success(request, _("The sidebar is back to what the code declares."))
+            return HttpResponseRedirect(f"{request.path}#{NAV_ANCHOR}")
+
+        result = apply_edits(request.POST)
+        for error in result.errors:
+            messages.error(request, error)
+        save_declaration(result.declaration, user=request.user)
+        messages.success(request, _("Sidebar saved."))
+        # Back to the card that was being edited. It is the last thing on a long page,
+        # and a save that returns to the top reads as a save that did nothing.
+        return HttpResponseRedirect(f"{request.path}#{NAV_ANCHOR}")
 
     def reset(self, request, config, section: str):
         """Clear one section back to whatever the code says."""
