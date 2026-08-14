@@ -9,6 +9,7 @@ from __future__ import annotations
 from django.urls import path
 
 from vantage import (
+    api,
     auditviews,
     autocomplete,
     formviews,
@@ -98,6 +99,11 @@ def build(site) -> list:
                     name=f"{panel.slug}-delete",
                 ),
                 path(
+                    f"{prefix}<path:pk>/restore/",
+                    formviews.RestoreView.as_view(site=site, panel=panel),
+                    name=f"{panel.slug}-restore",
+                ),
+                path(
                     f"{prefix}<path:pk>/",
                     views.DetailView.as_view(site=site, panel=panel),
                     name=f"{panel.slug}-detail",
@@ -110,4 +116,8 @@ def build(site) -> list:
     urlpatterns += auditviews.build_urls(site)
     urlpatterns += jobviews.build_urls(site)
     urlpatterns += savedviews.build_urls(site)
+    # The JSON API. Its own routes are parameterised by model rather than looped per
+    # panel, so where it is appended relative to the per-panel loop above does not
+    # matter the way the "_prefs"/"_inline" routes' ordering does - see api.build_urls.
+    urlpatterns += api.build_urls(site)
     return urlpatterns
