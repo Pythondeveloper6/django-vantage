@@ -10,7 +10,8 @@ from functools import cached_property
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import (
     get_language,
     get_language_bidi,
@@ -37,6 +38,7 @@ from vantage.safety import (
     stop_impersonation,
 )
 from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
+from vantage.topbar import topbar_context
 
 
 class SiteView(TemplateView):
@@ -84,6 +86,9 @@ class SiteView(TemplateView):
             page_description=self.page_description,
             breadcrumbs=self.get_breadcrumbs(),
         )
+        # The end of the header: the arranged controls, plus who is signed in. One
+        # call rather than three keys, so authviews.shell_context cannot drift.
+        context.update(topbar_context(self.site, self.request))
         return context
 
     def get_breadcrumbs(self) -> list[tuple[str, str | None]]:
@@ -809,13 +814,19 @@ class ImpersonateView(SiteView):
 
 
 class ThemeView(SiteView):
-    """Persist a theme choice. Posted to by the toggle."""
+    """Persist a theme choice. Posted to by the toggle, and by the account menu.
+
+    Answers 204 to the toggle's background ``fetch``, and redirects when the post
+    carries a ``next``. The redirect is what makes the account menu's theme buttons
+    work with no JavaScript at all: they are real submits, and a real submit that
+    lands on a 204 leaves the user staring at a blank page.
+    """
 
     def dispatch(self, request, *args, **kwargs):
         if request.method != "POST":
             return HttpResponse(status=405)
         theme = request.POST.get("theme")
-        response = HttpResponse(status=204)
+        response = self._done(request)
         if theme in ("light", "dark"):
             response.set_cookie(
                 "vantage-theme", theme, max_age=60 * 60 * 24 * 365, samesite="Lax"
@@ -823,3 +834,19 @@ class ThemeView(SiteView):
         else:
             response.delete_cookie("vantage-theme")
         return response
+
+    @staticmethod
+    def _done(request):
+        """204 for the script, a redirect for a real form submission.
+
+        ``next`` is checked against this host before it is followed. It arrives in a
+        POST body, which is not a place an attacker usually reaches, but "usually" is
+        not a security argument and an open redirect out of an admin panel is a
+        credible phishing hop.
+        """
+        target = request.POST.get("next")
+        if target and url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return HttpResponseRedirect(target)
+        return HttpResponse(status=204)

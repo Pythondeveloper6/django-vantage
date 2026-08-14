@@ -1,0 +1,356 @@
+{% load vantage i18n %}{% comment %}
+  The sidebar editor.
+
+  A second form on the settings page, not a fourth section of the first one: a form
+  cannot nest, and Save here must not carry every branding field along with it.
+
+  Everything is an ordinary control. Order is a number box per row; moving an item to
+  another group is a select. Both are the accessible, scriptless mechanism *and* what
+  the server reads, so the drag handler that rewrites them can never disagree with the
+  page about what order things are in. Delete vantage-settings.js and this screen still
+  reorders, regroups, renames, hides and adds links — it just does it with the keyboard.
+
+  Save comes before Reset in the footer on purpose. Pressing Enter in a text box submits
+  the form's *first* submit button, so a destructive control placed above the fields is
+  a data-loss bug waiting for somebody in a hurry.
+{% endcomment %}
+{% translate "No heading" as untitled_group %}
+
+<form class="v-form v-navedit" method="post" id="{{ nav_anchor }}" data-nav-editor>
+  {% csrf_token %}
+  <input type="hidden" name="nav_action" value="save">
+
+  <section class="v-card v-form-card">
+    <div class="v-card-head v-settings-head">
+      <div>
+        <h2 class="v-card-title">{% translate "Sidebar" %}</h2>
+        <p class="v-form-help">
+          {% blocktranslate trimmed %}
+            Arrange the groups and links in the sidebar. Drag a row, or use the group
+            box and the position box beside it — they do the same thing.
+          {% endblocktranslate %}
+        </p>
+      </div>
+      {% if nav_editor.overridden %}
+        <span class="v-settings-flag" title="{% translate 'Arranged here, overriding the code' %}">
+          {% translate "arranged here" %}
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="v-card-body v-navedit-body">
+      {% if nav_editor.overridden and nav_editor.declared_in_code %}
+        <p class="v-form-help v-navedit-note">
+          {% blocktranslate trimmed %}
+            This arrangement is what the panel shows. It sits on top of
+            <code class="v-mono">VANTAGE["NAV"]</code>, so that declaration is being
+            ignored until you reset.
+          {% endblocktranslate %}
+        </p>
+      {% endif %}
+
+      <div class="v-navedit-groups" data-nav-groups>
+        {% for group in nav_editor.groups %}
+          <section class="v-navedit-group" data-nav-group data-uid="{{ group.uid }}">
+            <input type="hidden" name="nav_group_uid" value="{{ group.uid }}">
+
+            <div class="v-navedit-group-head" data-nav-group-head>
+              <span class="v-navedit-grip" data-nav-grip aria-hidden="true">⠿</span>
+
+              <input class="v-input v-input-sm v-navedit-groupname" type="text"
+                     name="nav_group_label__{{ group.uid }}" value="{{ group.label }}"
+                     maxlength="60" placeholder="{{ untitled_group }}"
+                     aria-label="{% translate 'Group heading' %}">
+
+              <select class="v-select v-input-sm v-navedit-iconpick"
+                      name="nav_group_icon__{{ group.uid }}"
+                      aria-label="{% translate 'Icon for this group' %}">
+                <option value="">{% translate "No icon" %}</option>
+                {% for name in nav_editor.icons %}
+                  <option value="{{ name }}" {% if name == group.icon %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+
+              <input class="v-input v-input-sm v-navedit-pos" type="number" min="1"
+                     name="nav_group_pos__{{ group.uid }}" value="{{ forloop.counter }}"
+                     data-nav-group-pos
+                     aria-label="{% blocktranslate with name=group.label|default:untitled_group %}Position of the group {{ name }}{% endblocktranslate %}">
+
+              <label class="v-navedit-check v-navedit-danger">
+                <input type="checkbox" name="nav_group_delete__{{ group.uid }}" value="1">
+                <span>{% translate "Delete group" %}</span>
+              </label>
+            </div>
+
+            <ul class="v-navedit-items" data-nav-items>
+              {% for item in group.items %}
+                <li class="v-navedit-item" data-nav-item data-uid="{{ item.uid }}"
+                    {% if not item.available %}data-nav-unavailable{% endif %}>
+                  <input type="hidden" name="nav_item_uid" value="{{ item.uid }}">
+                  <input type="hidden" name="nav_item_kind__{{ item.uid }}" value="{{ item.kind }}">
+                  <input type="hidden" name="nav_item_target__{{ item.uid }}" value="{{ item.target }}">
+                  {% for arg in item.args %}
+                    <input type="hidden" name="nav_item_arg__{{ item.uid }}" value="{{ arg }}">
+                  {% endfor %}
+
+                  <div class="v-navedit-row">
+                    <span class="v-navedit-grip" data-nav-grip aria-hidden="true">⠿</span>
+                    <span class="v-navedit-mark" aria-hidden="true">{% icon item.icon|default:item.fallback_icon %}</span>
+
+                    <input class="v-input v-input-sm v-navedit-name" type="text"
+                           name="nav_item_label__{{ item.uid }}" value="{{ item.label }}"
+                           maxlength="60" placeholder="{{ item.fallback }}"
+                           aria-label="{% blocktranslate with name=item.display %}Name for {{ name }}{% endblocktranslate %}">
+
+                    <select class="v-select v-input-sm v-navedit-iconpick"
+                            name="nav_item_icon__{{ item.uid }}"
+                            aria-label="{% blocktranslate with name=item.display %}Icon for {{ name }}{% endblocktranslate %}">
+                      <option value="">{% blocktranslate with name=item.fallback_icon %}Default ({{ name }}){% endblocktranslate %}</option>
+                      {% for name in nav_editor.icons %}
+                        <option value="{{ name }}" {% if name == item.icon %}selected{% endif %}>{{ name }}</option>
+                      {% endfor %}
+                    </select>
+
+                    {% comment %}
+                      The cross-group move, and the reason drag-and-drop is not the only
+                      way to do it. The drag handler rewrites this select rather than
+                      replacing it, so the mouse and the keyboard land in the same place.
+                    {% endcomment %}
+                    <select class="v-select v-input-sm v-navedit-grouppick" data-nav-groupsel
+                            name="nav_item_group__{{ item.uid }}"
+                            aria-label="{% blocktranslate with name=item.display %}Group for {{ name }}{% endblocktranslate %}">
+                      {% for target in nav_editor.groups %}
+                        <option value="{{ target.uid }}" {% if target.uid == group.uid %}selected{% endif %}>
+                          {{ target.label|default:untitled_group }}
+                        </option>
+                      {% endfor %}
+                    </select>
+
+                    <input class="v-input v-input-sm v-navedit-pos" type="number" min="1"
+                           name="nav_item_pos__{{ item.uid }}" value="{{ forloop.counter }}"
+                           data-nav-pos
+                           aria-label="{% blocktranslate with name=item.display %}Position of {{ name }}{% endblocktranslate %}">
+
+                    <label class="v-navedit-check">
+                      <input type="checkbox" name="nav_item_hidden__{{ item.uid }}" value="1"
+                             {% if item.hidden %}checked{% endif %}>
+                      <span>{% translate "Hidden" %}</span>
+                    </label>
+
+                    <details class="v-navedit-more">
+                      <summary class="v-navedit-more-trigger">
+                        {% translate "More" %}
+                        {% if item.gated %}<span class="v-navedit-dot" aria-hidden="true">•</span>{% endif %}
+                      </summary>
+
+                      <div class="v-navedit-more-body">
+                        <p class="v-navedit-target">
+                          <span class="v-badge">{{ item.kind_label }}</span>
+                          {% if item.available %}
+                            <code class="v-mono">{{ item.url|default:item.target }}</code>
+                            {% if item.external %}
+                              <span class="v-navedit-external" aria-hidden="true">↗</span>
+                              <span class="v-sr-only">{% translate "(opens in a new tab)" %}</span>
+                            {% endif %}
+                          {% else %}
+                            <span class="v-navedit-warn">
+                              {% translate "Not available to you — kept, and left alone when you save." %}
+                            </span>
+                          {% endif %}
+                        </p>
+
+                        <label class="v-navedit-field">
+                          <span class="v-navedit-fieldlabel">{% translate "Badge" %}</span>
+                          <input class="v-input v-input-sm" type="text" maxlength="20"
+                                 name="nav_item_badge__{{ item.uid }}" value="{{ item.badge }}">
+                        </label>
+
+                        <label class="v-navedit-field">
+                          <span class="v-navedit-fieldlabel">{% translate "Only with permission" %}</span>
+                          <input class="v-input v-input-sm v-mono" type="text" maxlength="100"
+                                 name="nav_item_permission__{{ item.uid }}" value="{{ item.permission }}"
+                                 spellcheck="false" autocomplete="off"
+                                 placeholder="app_label.codename">
+                        </label>
+
+                        {% if nav_editor.audiences %}
+                          <label class="v-navedit-field">
+                            <span class="v-navedit-fieldlabel">{% translate "Only for these groups" %}</span>
+                            <select class="v-select v-navedit-audiences" multiple size="4"
+                                    name="nav_item_audience__{{ item.uid }}">
+                              {% for name in nav_editor.audiences %}
+                                <option value="{{ name }}" {% if name in item.audiences %}selected{% endif %}>{{ name }}</option>
+                              {% endfor %}
+                            </select>
+                          </label>
+                        {% endif %}
+
+                        <label class="v-navedit-check v-navedit-danger">
+                          <input type="checkbox" name="nav_item_remove__{{ item.uid }}" value="1">
+                          <span>{% translate "Remove from the sidebar entirely" %}</span>
+                        </label>
+                      </div>
+                    </details>
+                  </div>
+                </li>
+              {% empty %}
+                <li class="v-navedit-empty">{% translate "Nothing in this group yet." %}</li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% empty %}
+          <p class="v-form-help">{% translate "The sidebar is empty. Add a group below." %}</p>
+        {% endfor %}
+      </div>
+
+      {% comment %} ── adding ─────────────────────────────────────────────── {% endcomment %}
+
+      <div class="v-navedit-add">
+        <fieldset class="v-navedit-fieldset">
+          <legend class="v-navedit-legend">{% translate "Add a link" %}</legend>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "What kind" %}</span>
+            <select class="v-select v-input-sm" name="nav_add_kind">
+              <option value="">{% translate "Nothing" %}</option>
+              <option value="model">{% translate "A registered model" %}</option>
+              {% if nav_editor.pages %}<option value="page">{% translate "A custom page" %}</option>{% endif %}
+              <option value="url">{% translate "A link or an external website" %}</option>
+            </select>
+          </label>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "Model" %}</span>
+            <select class="v-select v-input-sm" name="nav_add_model">
+              <option value=""></option>
+              {% for entry in nav_editor.models %}
+                <option value="{{ entry.value }}">{{ entry.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          {% if nav_editor.pages %}
+            <label class="v-navedit-field">
+              <span class="v-navedit-fieldlabel">{% translate "Page" %}</span>
+              <select class="v-select v-input-sm" name="nav_add_page">
+                <option value=""></option>
+                {% for entry in nav_editor.pages %}
+                  <option value="{{ entry.value }}">{{ entry.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          {% endif %}
+
+          <label class="v-navedit-field v-navedit-field-wide">
+            <span class="v-navedit-fieldlabel">{% translate "Address" %}</span>
+            <input class="v-input v-input-sm v-mono" type="text" name="nav_add_url"
+                   inputmode="url" spellcheck="false" autocomplete="off"
+                   placeholder="https://example.com/status">
+            <span class="v-form-help">
+              {% blocktranslate trimmed %}
+                An external address, or a path on this site starting with “/”. Only
+                http, https and mailto links are accepted.
+              {% endblocktranslate %}
+            </span>
+          </label>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "Name" %}</span>
+            <input class="v-input v-input-sm" type="text" name="nav_add_label" maxlength="60">
+          </label>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "Icon" %}</span>
+            <select class="v-select v-input-sm" name="nav_add_icon">
+              <option value="">{% translate "Default" %}</option>
+              {% for name in nav_editor.icons %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+            </select>
+          </label>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "In group" %}</span>
+            <select class="v-select v-input-sm" name="nav_add_group">
+              {% for target in nav_editor.groups %}
+                <option value="{{ target.uid }}">{{ target.label|default:untitled_group }}</option>
+              {% endfor %}
+              <option value="new">{% translate "The new group below" %}</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset class="v-navedit-fieldset">
+          <legend class="v-navedit-legend">{% translate "Add a group" %}</legend>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "Heading" %}</span>
+            <input class="v-input v-input-sm" type="text" name="nav_new_group" maxlength="60"
+                   placeholder="{% translate 'Operations' %}">
+          </label>
+
+          <label class="v-navedit-field">
+            <span class="v-navedit-fieldlabel">{% translate "Icon" %}</span>
+            <select class="v-select v-input-sm" name="nav_new_group_icon">
+              <option value="">{% translate "No icon" %}</option>
+              {% for name in nav_editor.icons %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+            </select>
+          </label>
+
+          <p class="v-form-help v-navedit-field-wide">
+            {% blocktranslate trimmed %}
+              The group is added at the end. Move items into it with the group box on
+              each row, or by dragging.
+            {% endblocktranslate %}
+          </p>
+        </fieldset>
+      </div>
+
+      <p class="v-form-help v-navedit-note">
+        {% if nav_editor.unlisted == "append" %}
+          {% blocktranslate trimmed %}
+            A model nobody has placed still appears, grouped by app at the end, so
+            registering one never makes it unreachable. Set
+            <code class="v-mono">VANTAGE["NAV_UNLISTED"] = "hide"</code> for a sidebar
+            that shows only what is arranged here.
+          {% endblocktranslate %}
+          {% if nav_editor.unlisted_models %}
+            <br>
+            {% blocktranslate trimmed with names=nav_editor.unlisted_models|join:", " %}
+              Appearing that way right now: {{ names }}.
+            {% endblocktranslate %}
+          {% endif %}
+        {% else %}
+          {% blocktranslate trimmed %}
+            <code class="v-mono">VANTAGE["NAV_UNLISTED"]</code> is
+            <code class="v-mono">"hide"</code>, so a model that is not arranged here does
+            not appear in the sidebar at all — including one registered tomorrow.
+          {% endblocktranslate %}
+        {% endif %}
+      </p>
+
+      <p class="v-form-help v-navedit-note">
+        {% blocktranslate trimmed %}
+          <strong>Hidden</strong> keeps an item's place and stops showing it.
+          <strong>Remove</strong> takes it out of the arrangement altogether. Neither
+          grants anything: a link to a model somebody cannot open never appears for
+          them, whatever is arranged here.
+        {% endblocktranslate %}
+      </p>
+    </div>
+
+    <div class="v-card-body v-navedit-actions">
+      <button class="v-btn v-btn-primary" type="submit">{% translate "Save sidebar" %}</button>
+      <button class="v-btn v-btn-ghost" type="submit" name="nav_reset" value="1" formnovalidate>
+        {% translate "Reset to code defaults" %}
+      </button>
+      {% if nav_config.updated_at %}
+        <span class="v-muted v-settings-stamp">
+          {% if nav_config.updated_by %}
+            {% blocktranslate with when=nav_config.updated_at|date:"j M Y, H:i" who=nav_config.updated_by %}Arranged {{ when }} by {{ who }}{% endblocktranslate %}
+          {% else %}
+            {% blocktranslate with when=nav_config.updated_at|date:"j M Y, H:i" %}Arranged {{ when }}{% endblocktranslate %}
+          {% endif %}
+        </span>
+      {% endif %}
+    </div>
+  </section>
+</form>

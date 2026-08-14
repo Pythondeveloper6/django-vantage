@@ -20,6 +20,7 @@ from vantage import (
     recordviews,
     savedviews,
     settingsview,
+    topbarviews,
     views,
 )
 from vantage.palette import build_urls
@@ -41,6 +42,10 @@ def build(site) -> list:
             name="impersonate",
         ),
     ]
+
+    # The account page and the top-bar arrangement screen. Before the page loop for
+    # the same reason as the block above: both live under the reserved "_/" prefix.
+    urlpatterns += topbarviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.
@@ -113,6 +118,12 @@ def build(site) -> list:
 
     urlpatterns += build_urls(site)
     urlpatterns += autocomplete.build_urls(site)
+    # Imported here rather than at the top: `vantage.dashboards` imports `vantage.views`
+    # for its arrange view, and a project reaching `vantage.Dashboard` from settings
+    # should not drag the whole view layer in behind it at import time.
+    from vantage import dashboards
+
+    urlpatterns += dashboards.build_urls(site)
     urlpatterns += auditviews.build_urls(site)
     urlpatterns += jobviews.build_urls(site)
     urlpatterns += savedviews.build_urls(site)

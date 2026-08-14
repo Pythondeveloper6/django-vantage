@@ -167,3 +167,299 @@
 .v-settings-note code {
   color: var(--muted-foreground);
 }
+
+/* ── the sidebar editor ───────────────────────────────────────────────────── */
+
+/* The editor is a stack of groups, each a stack of rows, each row a line of ordinary
+ * form controls. Nothing here is a widget: the number box and the group select are the
+ * mechanism, the drag handle is an alternative to them, and the stylesheet's whole job
+ * is to keep a dense row readable rather than to hide what it is made of. */
+
+.v-navedit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.v-navedit-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.v-navedit-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.v-navedit-group.is-dragging,
+.v-navedit-item.is-dragging {
+  opacity: 0.45;
+}
+
+.v-navedit-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.625rem;
+  background: var(--muted);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-navedit-groupname {
+  flex: 1 1 8rem;
+  min-inline-size: 6rem;
+  font-weight: 600;
+}
+
+.v-navedit-items {
+  list-style: none;
+  margin: 0;
+  padding: 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  /* A group that has been emptied still has to be a target big enough to drop into. */
+  min-block-size: 2.25rem;
+}
+
+.v-navedit-item {
+  border-radius: var(--radius-sm);
+}
+
+.v-navedit-item:hover {
+  background: var(--muted);
+}
+
+.v-navedit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0.375rem;
+}
+
+/* An item whose target no longer resolves — an unregistered model, an unmounted route,
+ * a page this person cannot open. Kept and dimmed rather than dropped: opening this
+ * screen and pressing Save must not quietly delete part of somebody else's sidebar. */
+.v-navedit-item[data-nav-unavailable] .v-navedit-name,
+.v-navedit-item[data-nav-unavailable] .v-navedit-mark {
+  opacity: 0.55;
+}
+
+.v-navedit-mark {
+  display: inline-flex;
+  color: var(--muted-foreground);
+}
+
+.v-navedit-mark svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.v-navedit-name {
+  flex: 1 1 8rem;
+  min-inline-size: 6rem;
+}
+
+.v-navedit-iconpick,
+.v-navedit-grouppick {
+  flex: 0 1 8rem;
+  min-inline-size: 5rem;
+}
+
+.v-navedit-pos {
+  inline-size: 4rem;
+  flex: none;
+}
+
+/* Once the buttons exist the number box is duplicate machinery on screen — but it is
+ * still what the form submits, so it is hidden rather than removed. */
+[data-nav-enhanced] .v-navedit-pos {
+  display: none;
+}
+
+.v-navedit-grip {
+  display: none;
+  color: var(--muted-foreground);
+  cursor: grab;
+  padding-inline: 0.125rem;
+  user-select: none;
+}
+
+[data-nav-enhanced] .v-navedit-grip {
+  display: inline-flex;
+}
+
+.v-navedit-grip:active {
+  cursor: grabbing;
+}
+
+.v-navedit-move {
+  flex: none;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.v-navedit-move:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.v-navedit-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.v-navedit-danger {
+  color: var(--destructive);
+}
+
+/* ── the per-item disclosure ──────────────────────────────────────────────── */
+
+.v-navedit-more {
+  flex: 0 0 auto;
+}
+
+.v-navedit-more-trigger {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  padding: 0.1875rem 0.375rem;
+  border-radius: var(--radius-sm);
+  list-style: none;
+}
+
+.v-navedit-more-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.v-navedit-more-trigger:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* A gated item says so before it is opened, or "who can see this" is a question the
+ * screen can only answer one row at a time. */
+.v-navedit-dot {
+  color: var(--primary);
+  font-size: 1rem;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.v-navedit-more-body {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.625rem;
+  padding: 0.625rem;
+  margin-block-start: 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+}
+
+.v-navedit-target {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.v-navedit-target code {
+  color: var(--muted-foreground);
+}
+
+.v-navedit-external {
+  color: var(--muted-foreground);
+}
+
+.v-navedit-warn {
+  color: var(--warning-foreground);
+  background: var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.375rem;
+}
+
+.v-navedit-audiences {
+  min-block-size: 4.5rem;
+}
+
+/* ── adding, and the notes under it ───────────────────────────────────────── */
+
+.v-navedit-add {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.75rem;
+}
+
+.v-navedit-fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.625rem;
+  align-content: start;
+}
+
+.v-navedit-legend {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  padding-inline: 0.25rem;
+}
+
+.v-navedit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+
+.v-navedit-field-wide {
+  grid-column: 1 / -1;
+}
+
+.v-navedit-fieldlabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.v-navedit-empty {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  padding: 0.375rem 0.5rem;
+}
+
+.v-navedit-note code {
+  color: var(--muted-foreground);
+}
+
+.v-navedit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+  border-block-start: 1px solid var(--border);
+}

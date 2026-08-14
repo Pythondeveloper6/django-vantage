@@ -279,6 +279,244 @@ textarea {
   transform: scaleX(-1);
 }
 
+/* ── top bar: arranged items ──────────────────────────────────────────────── */
+/*
+ * Everything after the spacer is a slot from vantage.topbar, drawn by
+ * partials/topbar.html. Only two of them need styling of their own; the search box
+ * and the theme toggle already have theirs.
+ */
+
+.v-topbar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  block-size: 1.875rem;
+  padding-inline: 0.625rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  transition: background-color 0.12s, color 0.12s;
+}
+
+.v-topbar-link:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.v-topbar-link svg {
+  inline-size: 0.9375rem;
+  block-size: 0.9375rem;
+  opacity: 0.75;
+}
+
+.v-topbar-external {
+  font-size: 0.6875rem;
+  opacity: 0.6;
+}
+
+/* The full-width banner, shrunk to fit beside the other controls. Same token, so a
+ * panel that moves it here still reads as the same warning it was. */
+.v-env-chip {
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--destructive-foreground);
+  background: var(--destructive);
+}
+
+/* ── the account menu ─────────────────────────────────────────────────────── */
+/*
+ * A real menu, not a hover panel: it opens on click and on Enter/Space, closes on
+ * Escape with focus back on the button, moves between items with the arrow keys, and
+ * keeps Tab inside itself while it is open. All of that lives in vantage.js — what is
+ * here is only what it looks like.
+ *
+ * The one thing worth pointing at in this block is the panel's alignment. It hangs off
+ * the END of the bar, which is the right-hand side in English and the LEFT-hand side
+ * in Arabic. `inset-inline-end: 0` is that sentence; `right: 0` would be a menu that
+ * falls off the edge of the screen under dir="rtl".
+ */
+
+.v-usermenu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.v-usermenu-trigger {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 50%;
+}
+
+.v-avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  /* The initials come from a name in an unknown script, and some scripts are much
+   * taller than Latin at the same font-size. Clipping keeps one long grapheme from
+   * pushing the circle out of the header. */
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: box-shadow 0.12s;
+}
+
+.v-usermenu-trigger:hover .v-avatar {
+  box-shadow: 0 0 0 3px var(--muted);
+}
+
+.v-avatar-lg {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.v-avatar-icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.v-usermenu-panel {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + 0.5rem);
+  z-index: 40;
+  display: grid;
+  gap: 0.25rem;
+  min-inline-size: 15rem;
+  max-inline-size: calc(100vw - 2rem);
+  padding: 0.3125rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: v-usermenu-in 0.12s ease-out;
+}
+
+/* `display: grid` above beats the `hidden` attribute's UA rule, and a menu that is
+ * only closed until the stylesheet loads is a menu that flashes open on every page. */
+.v-usermenu-panel[hidden] {
+  display: none;
+}
+
+@keyframes v-usermenu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-usermenu-panel {
+    animation: none;
+  }
+}
+
+.v-usermenu-who {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem 0.625rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-usermenu-id {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.v-usermenu-name {
+  font-weight: 600;
+  /* A display name is user-controlled and can be any length. Truncating is the only
+   * behaviour that keeps the menu a menu rather than a paragraph. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v-usermenu-email {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v-usermenu-items {
+  display: grid;
+  gap: 0.0625rem;
+}
+
+.v-usermenu-group {
+  display: grid;
+  gap: 0.0625rem;
+}
+
+.v-usermenu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  inline-size: 100%;
+  padding: 0.4375rem 0.625rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 0.8125rem;
+  text-align: start;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+
+.v-usermenu-item:hover,
+.v-usermenu-item:focus-visible {
+  background: var(--muted);
+}
+
+.v-usermenu-item svg {
+  inline-size: 0.9375rem;
+  block-size: 0.9375rem;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.v-usermenu-choice[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 550;
+}
+
+.v-usermenu-choice[aria-checked="true"] svg {
+  opacity: 1;
+}
+
+.v-usermenu-signout {
+  color: var(--destructive);
+}
+
+.v-usermenu-signout:hover,
+.v-usermenu-signout:focus-visible {
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+}
+
+.v-usermenu-sep {
+  block-size: 1px;
+  margin: 0.1875rem 0.25rem;
+  background: var(--border);
+}
+
 /* ── page header ──────────────────────────────────────────────────────────── */
 
 .v-page-head {

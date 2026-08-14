@@ -39,6 +39,11 @@ def get_list_filter(self, request=None) -> list[str]:
     return inference.infer_list_filter(self.model)              # inference
 ```
 
+That first branch is not incidental: it is the same **UI override → `panel.py` →
+inference** order every configurable surface in the package follows. See
+[How configuration resolves](configuration.md) for the one page that states it and
+explains why the order runs that way round.
+
 The consequence in practice, from the demo project:
 
 ```python
@@ -198,6 +203,7 @@ column is averaged, and an identifier is left alone. Details:
 | `exclude` | `list[str]` | `None` | Names removed from whatever `fields` or inference produced |
 | `layout` | `Node` | `None` | Tabs, sections and rows — see the [layout DSL](forms.md#the-layout-dsl) |
 | `readonly_fields` | `list[str]` | `None` | Shown but not editable, and *removed from the form entirely* |
+| `inlines` | `list[type[Inline]]` | `None` | Child records editable on the parent's own form — see [Editable inlines](forms.md#editable-inlines) |
 
 `readonly_fields` is a security boundary rather than a UI affordance. A readonly field
 is not rendered as a control **and** is not in the form's field list, so a hand-crafted
@@ -208,6 +214,12 @@ dropped — the canonical case being `readonly_fields = ["created_at"]` on an
 `auto_now_add` column, which is not an editable field at all and would otherwise vanish
 from a page whose whole purpose was to display it.
 
+`inlines` is unset by default — nothing is inferred here, because guessing which of a
+model's reverse relations belong on the parent's own form (rather than as the
+read-only [related blocks](forms.md#the-record-page) the detail page already shows)
+is a judgement call the package should not make for you. Full treatment, including a
+gotcha worth knowing before you rely on the default: [Forms](forms.md#editable-inlines).
+
 Details: [Forms](forms.md).
 
 ## Behaviour
@@ -215,6 +227,7 @@ Details: [Forms](forms.md).
 | Attribute | Type | Default | Effect |
 |---|---|---|---|
 | `actions` | `list[str \| Action]` | `None` | Bulk actions offered on the list page |
+| `row_actions` | `list[str]` | `None` | Which actions appear in the menu on each list row — see below |
 | `checks_class` | `type` | `ModelPanelChecks` | Subclass it to extend validation for your own panel base class |
 
 When `actions` is left unset, every method on the panel decorated with `@action` is
@@ -240,6 +253,45 @@ class ReviewPanel(ModelPanel):
 
 Set `actions = []` to offer none, or list names to choose a subset and their order.
 Details: [Bulk actions](lists.md#bulk-actions).
+
+### Row actions
+
+Bulk actions apply to a selection; `row_actions` puts the same kind of thing — plus a
+handful of built-ins — into a menu on **one row**, so a reviewer never has to select a
+single record just to publish it.
+
+```python
+@register(Review)
+class ReviewPanel(ModelPanel):
+    row_actions = ["view", "edit", "duplicate", "publish", "delete"]
+
+    @action("Publish", icon="check")
+    def publish(self, request, queryset):
+        return f"Published {queryset.update(is_published=True)} reviews."
+```
+
+`row_actions` is not a second decorator or a second way of declaring behaviour — it is
+a list of names, and each name resolves to one of two things:
+
+- **A built-in**: `"view"`/`"detail"`, `"edit"`/`"change"`, `"duplicate"`/`"copy"`, or
+  `"delete"`. Each renders as an ordinary link to the page that already does the job.
+- **The name of an `@action`-decorated method** — the exact same decorator [bulk
+  actions](lists.md#bulk-actions) use, read for its label, icon, permission and
+  `confirm` text rather than restated. It renders as a `POST` button, never a link, so
+  a crawler cannot fire it.
+
+Leaving `row_actions` unset offers nothing beyond what the row already links to. A
+soft-deleted row gets a Restore button automatically wherever the [`soft_delete`
+pattern](#detected-conventions) applies — that one is not declarable in `row_actions`
+at all, because it only makes sense on a trashed row and never on a live one.
+
+For content that is not an action at all — a badge, a status dot, a link to somewhere
+outside the panel — use the `row_actions` [slot](extending.md#slots) instead, which is
+a different mechanism with the same name: it contributes arbitrary HTML to the same
+trailing cell rather than declaring a button with a permission and a confirmation. A
+panel that overrides `slot()` without calling `super()` loses its declared
+`row_actions` silently, because rendering them is itself implemented as a slot
+contribution — worth knowing if you use both on the same panel.
 
 ## Overridable methods
 
@@ -386,23 +438,54 @@ defaults are skipped.
 | `vantage.E015` | `list_editable` names something that is not a field |
 | `vantage.E016` | A column is in both `list_editable` and `list_link` |
 | `vantage.E017` | `layout` names a field the model does not have |
+| `vantage.E018` | `list_select_related` names something that is not a field path, or crosses a multi-valued relation `select_related` cannot follow |
+| `vantage.E019` | `related_tabs` is set to something other than `True`, `False` or `None` |
+| `vantage.E020` | A [removed attribute](#removed-attributes) — currently only `permissions` — is still set |
+
+`vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
+[`NAV`](settings.md#navigation) entry — the same numeric id covers two different
+mistakes, which is a quirk of the current numbering rather than a hint that the two are
+connected; read the message, not the id, if you hit it.
 
 To extend this for your own panel base class, subclass `ModelPanelChecks` and point
 `checks_class` at it.
 
 ## Declared but not yet wired up
 
-These attributes exist on `ModelPanel` and are accepted without error, but nothing
-currently reads them. They are listed here so you do not spend an afternoon wondering
-why setting one changed nothing.
+One attribute exists on `ModelPanel`, is accepted without error, and is currently read
+by nothing:
 
 | Attribute | Status |
 |---|---|
-| `inlines` | Not implemented. Editing related rows from a parent's form is not built |
-| `related_tabs` | Not implemented. The detail page always shows related-record blocks |
-| `row_actions` | Not implemented. Use [`slots`](extending.md) and the `row_actions` slot |
-| `permissions` | Not implemented. Configure the resolver with [`VANTAGE["PERMISSIONS"]`](permissions.md#swapping-the-resolver) or use the per-panel `has_*_permission` hooks |
-| `list_select_related` | Not read by the core. Relation planning is derived from the rendered columns instead, which is strictly better; the attribute exists only so the `contrib.admin` adapter has somewhere to put what it found |
+| `related_tabs` | Not implemented. The detail page always shows an unconditional stack of related-record blocks; `related_tabs = True` (or `False`) is validated (`vantage.E019`) but has no reader beyond its own tests |
+
+`inlines`, `row_actions` and `list_select_related` used to belong on this list and no
+longer do — see [Editable inlines](forms.md#editable-inlines) and
+[Row actions](#row-actions) above, and the note on `list_select_related` below.
+`list_select_related` **is** read: it is unioned into the query plan the optimiser
+already derives from the rendered columns
+(`get_list_queryset`), and it is validated (`vantage.E018`) — set it only for a join
+the optimiser has no other reason to make, such as one your own overridden
+`get_list_queryset` needs but no column or search path names.
+
+## Removed attributes
+
+`ModelPanel.permissions` does not exist. It is not silently ignored — setting it fails
+`manage.py check` outright, as `vantage.E020`:
+
+```
+ERRORS:
+<class 'InvoicePanel'>: (vantage.E020) 'permissions' is no longer a Vantage panel
+attribute.
+    HINT: Access is resolved in one place. Define has_view_permission /
+    has_add_permission / has_change_permission / has_delete_permission on the panel,
+    or point VANTAGE['PERMISSIONS'] at a PanelPermissions subclass.
+```
+
+A second declarative mechanism for the same decision is how two answers to "may this
+user delete?" end up disagreeing, so it was removed rather than left dormant. Use the
+[per-panel hooks](#permission-hooks) or [`VANTAGE["PERMISSIONS"]`](permissions.md#swapping-the-resolver)
+instead.
 
 ## Second panels and second sites
 
@@ -444,7 +527,9 @@ navigation declaration and the permission resolver.
 
 ## See also
 
+- [How configuration resolves](configuration.md) — the UI-override layer that sits in
+  front of every getter this page describes
 - [Inference](inference.md) — what the defaults will be
 - [Lists](lists.md) — the list page in detail
-- [Forms](forms.md) — widgets, layout, readonly, delete preview
+- [Forms](forms.md) — widgets, layout, readonly, delete preview, editable inlines
 - [Permissions](permissions.md) — the three-layer model

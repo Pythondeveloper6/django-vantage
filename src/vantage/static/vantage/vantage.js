@@ -8,26 +8,61 @@
 
   var STORAGE_KEY = "vantage-theme";
 
+  /* The theme the page is painted in right now: "light" or "dark", never "system". */
   function currentTheme() {
     var explicit = document.documentElement.getAttribute("data-theme");
     if (explicit === "dark" || explicit === "light") return explicit;
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
 
-  function paintToggle(theme) {
+  /* What the *user* chose, which is a third thing: "system" is a real answer and the
+   * account menu offers it, even though the bar's two-state toggle cannot say it. */
+  function chosenTheme() {
+    try {
+      var stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === "light" || stored === "dark") return stored;
+    } catch (e) {
+      /* Safari private mode. Fall through to what the server rendered. */
+    }
+    var explicit = document.documentElement.getAttribute("data-theme");
+    return explicit === "dark" || explicit === "light" ? explicit : "system";
+  }
+
+  function paintTheme() {
+    var effective = currentTheme();
     document.querySelectorAll("[data-theme-icon]").forEach(function (node) {
-      node.hidden = node.getAttribute("data-theme-icon") !== theme;
+      node.hidden = node.getAttribute("data-theme-icon") !== effective;
+    });
+    var chosen = chosenTheme();
+    document.querySelectorAll("[data-theme-choice]").forEach(function (node) {
+      /* aria-checked inside the menu, where the buttons are menuitemradios;
+       * aria-pressed on the account page, where they are ordinary toggle buttons.
+       * Whichever the markup declared is the one kept in step — writing the other
+       * would put two conflicting states on one control. */
+      var attribute = node.hasAttribute("aria-pressed") ? "aria-pressed" : "aria-checked";
+      node.setAttribute(attribute, node.getAttribute("data-theme-choice") === chosen ? "true" : "false");
     });
   }
 
   function applyTheme(theme, endpoint) {
-    document.documentElement.setAttribute("data-theme", theme);
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch (e) {
-      /* Safari private mode throws; the cookie below still persists the choice. */
+    if (theme === "light" || theme === "dark") {
+      document.documentElement.setAttribute("data-theme", theme);
+      try {
+        localStorage.setItem(STORAGE_KEY, theme);
+      } catch (e) {
+        /* Safari private mode throws; the cookie below still persists the choice. */
+      }
+    } else {
+      /* "Follow the device": forget the choice rather than storing today's answer to
+       * it, or the panel stops following the device the moment the device changes. */
+      document.documentElement.removeAttribute("data-theme");
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        /* Nothing was stored, so nothing needs removing. */
+      }
     }
-    paintToggle(theme);
+    paintTheme();
 
     if (!endpoint) return;
     var body = new FormData();
@@ -44,7 +79,7 @@
   }
 
   function init() {
-    paintToggle(currentTheme());
+    paintTheme();
 
     document.querySelectorAll("[data-vantage-theme-toggle]").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -52,7 +87,26 @@
       });
     });
 
+    /* The account menu's three-way choice, and the same control on the account page.
+     * Each one is a real submit button attached to a real form, so this only has to
+     * take over the reload — with no script they post and the server redirects back. */
+    document.querySelectorAll("[data-theme-choice]").forEach(function (button) {
+      button.addEventListener("click", function (event) {
+        event.preventDefault();
+        applyTheme(
+          button.getAttribute("data-theme-choice"),
+          button.form && button.form.getAttribute("action")
+        );
+      });
+    });
+
+    /* Following the device means noticing when the device changes its mind. */
+    var system = window.matchMedia("(prefers-color-scheme: dark)");
+    if (system.addEventListener) system.addEventListener("change", paintTheme);
+    else if (system.addListener) system.addListener(paintTheme);
+
     initSidebar();
+    initUserMenu();
 
     document.querySelectorAll(".v-toast-close").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -92,6 +146,129 @@
         search.focus();
         search.select();
       }
+    });
+  }
+
+  /* ── the account menu ──────────────────────────────────────────────────────
+   *
+   * The template ships a link to the account page and a panel that is `hidden`. That
+   * is the whole no-JavaScript story, and it is a complete one: every option in the
+   * menu, sign-out included, is on the page the link points at.
+   *
+   * This function is the enhancement over it. It is the only place the markup is
+   * allowed to start claiming to be a menu, because until it runs, it is not one.
+   *
+   * What "a real menu" means here, from the WAI-ARIA menu button pattern:
+   *
+   *   - opens on click, on Enter and on Space, and on ArrowDown/ArrowUp — the last
+   *     two land on the first and the last item respectively;
+   *   - ArrowUp/ArrowDown move between items and wrap at both ends;
+   *   - Home and End jump to the first and last;
+   *   - Escape closes it and puts focus back on the button, which is the half people
+   *     forget: closing a menu and dropping focus on <body> loses a keyboard user
+   *     their place in the page entirely;
+   *   - Tab is trapped, and cycles inside the menu rather than escaping it;
+   *   - one tab stop, not eight: every item is tabindex="-1" and focus is moved by
+   *     this code, so the menu costs a keyboard user exactly one Tab whether it is
+   *     open or shut.
+   */
+
+  function initUserMenu() {
+    var root = document.querySelector("[data-usermenu]");
+    if (!root) return;
+    var trigger = root.querySelector("[data-usermenu-trigger]");
+    var panel = root.querySelector("[data-usermenu-panel]");
+    if (!trigger || !panel) return;
+
+    trigger.setAttribute("role", "button");
+    trigger.setAttribute("aria-haspopup", "menu");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-controls", panel.id);
+
+    function items() {
+      var found = panel.querySelectorAll('[role="menuitem"], [role="menuitemradio"]');
+      return Array.prototype.filter.call(found, function (node) {
+        return !node.disabled && !node.hidden;
+      });
+    }
+
+    function isOpen() {
+      return !panel.hidden;
+    }
+
+    function open(index) {
+      panel.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      var list = items();
+      if (!list.length) return;
+      list[index < 0 ? list.length + index : index].focus();
+    }
+
+    function close(refocus) {
+      if (!isOpen()) return;
+      panel.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+      if (refocus) trigger.focus();
+    }
+
+    function move(step) {
+      var list = items();
+      if (!list.length) return;
+      var at = Array.prototype.indexOf.call(list, document.activeElement);
+      var next = at === -1 ? (step > 0 ? 0 : list.length - 1) : (at + step + list.length) % list.length;
+      list[next].focus();
+    }
+
+    trigger.addEventListener("click", function (event) {
+      /* A modified click is someone asking for the account page in a new tab. The
+       * href is still there for exactly that, so this gets out of the way. */
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (isOpen()) close(true);
+      else open(0);
+    });
+
+    trigger.addEventListener("keydown", function (event) {
+      /* Space does not activate a link, and this is a link until the line above
+       * turned it into a button. Enter is prevented too, or the browser follows the
+       * href with the synthesised click that Enter generates. */
+      if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        open(0);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        open(0);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        open(-1);
+      }
+    });
+
+    panel.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(true);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        move(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        move(-1);
+      } else if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        var list = items();
+        var edge = event.key === "Home" ? list[0] : list[list.length - 1];
+        if (edge) edge.focus();
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        move(event.shiftKey ? -1 : 1);
+      }
+    });
+
+    /* A click anywhere else dismisses it, without stealing focus back — the user is
+     * already on their way somewhere and moving their focus would fight them. */
+    document.addEventListener("click", function (event) {
+      if (isOpen() && !root.contains(event.target)) close(false);
     });
   }
 

@@ -45,10 +45,10 @@ So: **override `filter_queryset`, never a loop over `has_object_perm`.**
 from vantage.permissions import PanelPermissions
 
 
-class TenantPermissions(PanelPermissions):
+class OwnerScopedPermissions(PanelPermissions):
     def filter_queryset(self, request, queryset, action="view"):
-        if hasattr(queryset.model, "tenant"):
-            return queryset.filter(tenant=request.user.tenant)
+        if hasattr(queryset.model, "owner"):
+            return queryset.filter(owner=request.user)
         return queryset
 ```
 
@@ -58,6 +58,17 @@ class TenantPermissions(PanelPermissions):
 >>> permissions.filter_queryset(request, Order.objects.all()).count()
 37
 ```
+
+> If what you actually want is **multi-tenancy** — every model scoped to the signed-in
+> user's organisation, with fail-closed checks that name every model tenancy cannot
+> place — do not hand-roll it the way the example above does. `hasattr(model,
+> "tenant")` guesses at which field is the tenant column and says nothing when it
+> guesses wrong; [`vantage.tenancy`](tenancy.md) is the real subsystem this package
+> ships for exactly that job, with resolvers for the common ways a tenant is
+> identified (a user attribute, a subdomain, a trusted header), and it composes onto
+> this same `filter_queryset` seam automatically once `VANTAGE["TENANT_MODEL"]` is set.
+> The pattern above is still the right shape for row scoping that is not
+> tenancy — "only your own orders", say.
 
 The base implementation does no row filtering at all: model-level permissions have
 already gated entry, which is exactly Django's own model. Because it is a no-op by
@@ -382,6 +393,10 @@ mount them, or keep your own. See
 
 ## See also
 
+- [Multi-tenancy](tenancy.md) — row scoping by tenant, built on `filter_queryset`
+- [How configuration resolves](configuration.md) — why permissions and tenancy stay
+  Python-only while other things gained a UI layer
 - [Settings](settings.md#behaviour) — `PERMISSIONS`, `READ_ONLY`, `SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION`, `AUDIT_LOG`
 - [Panels](panels.md#permission-hooks) — the per-panel hooks
+- [Security](security.md) — login throttling, security headers, and the `--deploy` checks
 - [Deployment](deployment.md) — what to switch on before going live
