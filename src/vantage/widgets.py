@@ -19,6 +19,12 @@ Every function here is pure: field or model in, configuration out. No database a
 no request, no settings. Relation cardinality — the one fact that decides between a
 plain ``<select>`` and an async search box, and the one fact that requires a query — is
 passed in by the caller rather than looked up here.
+
+The one thing in this module that is *not* pure is :class:`SearchSelect`, and it is not
+a function: it is the widget a relation renders through, and it settles the cardinality
+question at render time against the field's own queryset. That is the only moment at
+which the queryset exists, ``limit_choices_to`` and all — and rendering is already a
+query, so one bounded ``LIMIT`` more is not a new cost.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ from typing import Any
 
 from django import forms
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.core.exceptions import ValidationError
 from django.core.validators import (
     FileExtensionValidator,
     MaxValueValidator,
@@ -39,6 +46,7 @@ from django.core.validators import (
 )
 from django.db import models
 from django.forms.models import modelform_factory
+from django.utils.translation import gettext_lazy as _
 
 from vantage.inference import DISPLAY_NAMES, SENSITIVE, TRAILING_NAMES
 from vantage.introspection import (
@@ -52,6 +60,8 @@ from vantage.introspection import (
 __all__ = [
     "FieldKind",
     "FormSection",
+    "SearchSelect",
+    "SearchSelectMultiple",
     "WidgetSpec",
     "build_form_class",
     "classify",
@@ -98,6 +108,19 @@ class FieldKind(StrEnum):
 #: that, stops being cheap to render. Callers that know the count say so; callers that
 #: do not get the safe answer (see :func:`infer_widget`).
 RELATION_SEARCH_THRESHOLD = 50
+
+
+def _picker_is_unconditional() -> bool:
+    """Whether a single-valued relation gets the picker regardless of how few rows.
+
+    Read at render time rather than captured at import, so ``override_settings`` in a
+    test and a settings reload in a running process both take effect. The accessor is
+    lazy, cached and self-invalidating, so this is not a per-render settings parse.
+    """
+    from vantage.conf import vantage_settings
+
+    return vantage_settings.RELATION_PICKER == "always"
+
 
 #: Textarea heights per kind. Prose gets more room than a JSON blob nobody reads.
 TEXTAREA_ROWS = 6
@@ -179,7 +202,7 @@ HTML5_FORMATS: dict[FieldKind, str] = {
 }
 
 #: Django's duration parsing accepts a format no user would guess unaided.
-DURATION_HELP = "Days, hours, minutes and seconds, e.g. '3 12:30:00' or '01:30:00'."
+DURATION_HELP = _("Days, hours, minutes and seconds, e.g. '3 12:30:00' or '01:30:00'.")
 
 
 # ── classification ──────────────────────────────────────────────────────────
@@ -267,6 +290,205 @@ def _is_color(field: models.Field) -> bool:
     return bool(COLOR_NAMES.search(field.name)) and (field.max_length or 0) <= COLOR_MAX_LENGTH
 
 
+# ── the searchable relation control ─────────────────────────────────────────
+
+
+class SearchSelect(forms.Select):
+    """A relation ``<select>`` that stays a ``<select>`` however big the table is.
+
+    Two problems, one control. The first is the render: ``ModelChoiceField`` iterates
+    its whole queryset, so a foreign key to a fifty-thousand-row table puts fifty
+    thousand ``<option>`` elements on the page and the browser stops responding. The
+    second is the *use*: even if it rendered, nobody scrolls fifty thousand rows.
+
+    The fix for both is to stop rendering the full list. This widget probes the
+    queryset with one bounded query — ``LIMIT threshold + 1``, the same "one extra
+    row" trick the autocomplete endpoint uses instead of a ``COUNT`` — and then:
+
+    * **at or below the threshold** it behaves exactly like ``forms.Select``, options
+      and all. A combobox over five options is worse than a select, so a small
+      relation must not become one;
+    * **above it** it renders the currently selected row plus a first page, and marks
+      itself up for ``combobox.js`` to enhance into a type-to-search control.
+
+    The count is resolved here, at render time, rather than in :func:`infer_widget`,
+    because this is the only layer entitled to touch the database — and because the
+    queryset it sees is the *field's*, with ``limit_choices_to`` and any panel
+    narrowing already applied, which a count taken against the model would miss.
+
+    Nothing about the form contract changes. The element that submits is still the
+    real ``<select>``, still under the field's own name, still validated by
+    ``ModelChoiceField`` against the full queryset — a rendered option list has never
+    been what authorises a value, so shortening it cannot widen what is accepted.
+    """
+
+    template_name = "vantage/widgets/search_select.html"
+
+    #: Above this many rows the control becomes a search box. Same number the spec
+    #: uses, so ``needs_search`` and what actually renders cannot disagree.
+    threshold = RELATION_SEARCH_THRESHOLD
+
+    #: Set on every render by :meth:`optgroups`, read by :meth:`get_context`.
+    #: ``searchable`` asks whether to enhance the control; ``truncated`` asks whether
+    #: the option list is only a first page. They are not the same question.
+    searchable = False
+    truncated = False
+
+    # ── options ─────────────────────────────────────────────────────────────
+
+    def optgroups(self, name, value, attrs=None):
+        """The options to render: all of them, or the selection plus a first page."""
+        iterator = self.choices
+        queryset = getattr(iterator, "queryset", None)
+        if queryset is None:
+            # Not a model choice field at all — a panel handed us a plain choice list.
+            self.searchable = False
+            return super().optgroups(name, value, attrs)
+
+        from vantage.autocomplete import PAGE_SIZE
+
+        rows = list(queryset[: self.threshold + 1])
+        self.truncated = len(rows) > self.threshold
+        # Two separate questions, and conflating them is what left an eight-row tag
+        # field as a bare <select multiple>.
+        #
+        # Whether to *truncate* is about size: a list too long to render.
+        #
+        # Whether to *enhance* is about the control. A native <select> over a short
+        # list is genuinely good — it is keyboard-navigable, type-ahead works, and a
+        # combobox over eight options is worse. A native <select multiple> is not
+        # good at any size: the selection is hidden behind ctrl-click, there is no
+        # visible record of what is chosen, and one ordinary click silently discards
+        # every other selection. So a multi-valued relation always gets the chip
+        # picker, however few rows it has, while a single-valued one waits for the
+        # threshold.
+        self.searchable = (
+            self.truncated or self.allow_multiple_selected or _picker_is_unconditional()
+        )
+        if self.truncated:
+            rows = rows[:PAGE_SIZE]
+
+        pairs = []
+        empty_label = getattr(getattr(iterator, "field", None), "empty_label", None)
+        if empty_label is not None:
+            pairs.append(("", empty_label))
+        if self.truncated:
+            rows = self._with_selection(queryset, rows, value)
+        pairs.extend(iterator.choice(obj) for obj in rows)
+
+        groups = []
+        has_selected = False
+        for index, (option_value, option_label) in enumerate(pairs):
+            selected = (
+                not has_selected or self.allow_multiple_selected
+            ) and str(option_value) in value
+            has_selected |= selected
+            option = self.create_option(
+                name, option_value, option_label, selected, index, attrs=attrs
+            )
+            groups.append((None, [option], index))
+        return groups
+
+    def _with_selection(self, queryset, rows, value):
+        """The selected rows first, then the first page, each row appearing once.
+
+        Fetching the selection by primary key is what makes the control show its
+        current label on load without a round trip — and it is not optional: the
+        selected row is very unlikely to be in the first page of an alphabetical
+        list, and an option that is not rendered is a value the browser drops on
+        the next submit.
+
+        Only reached when the list is being truncated. Below the threshold the
+        options keep the queryset's own ordering, because there the selection is
+        already in the list and hoisting it would reorder a control that used to
+        render alphabetically.
+        """
+        chosen = [item for item in value if item not in ("", None)]
+        selected_rows = []
+        if chosen:
+            try:
+                selected_rows = list(queryset.filter(pk__in=chosen))
+            except (ValueError, TypeError, ValidationError):
+                # A bound form re-rendering after a failed POST can carry a value
+                # that is not a primary key at all. It is invalid, not fatal.
+                selected_rows = []
+
+        seen = set()
+        ordered = []
+        for obj in [*selected_rows, *rows]:
+            key = str(obj.pk)
+            if key in seen:
+                continue
+            seen.add(key)
+            ordered.append(obj)
+        return ordered
+
+    # ── the wrapper the browser enhances ────────────────────────────────────
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        widget = context["widget"]
+        widget["searchable"] = self.searchable
+        if not self.searchable:
+            # The flag was a prediction made without a row count; the count is in
+            # now and says otherwise. Leaving it on would tell the front end to
+            # enhance a control that has its whole option list already.
+            widget["attrs"].pop("data-vantage-search", None)
+            return context
+
+        model = getattr(getattr(self.choices, "queryset", None), "model", None)
+        widget["search_url"] = self._search_url()
+        widget["search_model"] = model._meta.label if model is not None else ""
+        widget["search_placeholder"] = self._placeholder(model)
+        # Only say the list is partial when it actually is. A short many-to-many now
+        # renders through this template too, and its option list is complete — the
+        # note would be telling the reader to enable JavaScript to reach rows that
+        # are already on the page.
+        widget["truncated"] = self.truncated
+        widget["search_note"] = (
+            _("Showing the first %(count)s of many. Turn on JavaScript to search the rest.")
+            % {"count": self._option_count(widget)}
+            if self.truncated
+            else ""
+        )
+        return context
+
+    @staticmethod
+    def _option_count(widget) -> int:
+        """Rendered options, not counting the empty "no choice" one."""
+        return sum(
+            1
+            for _group, options, _index in widget["optgroups"]
+            for option in options
+            if str(option["value"]) != ""
+        )
+
+    @staticmethod
+    def _placeholder(model) -> str:
+        if model is None:
+            return str(_("Type to search…"))
+        return str(_("Search %(name)s…") % {"name": model._meta.verbose_name_plural})
+
+    @staticmethod
+    def _search_url() -> str:
+        """The autocomplete endpoint, or "" when the panel is not mounted.
+
+        Reversed at render rather than stored on the widget so a widget built by
+        :func:`infer_widget` — which knows nothing about URLs, sites or requests —
+        still finds the endpoint of whichever site is serving the page.
+        """
+        from django.urls import NoReverseMatch, reverse
+
+        try:
+            return reverse("vantage:autocomplete")
+        except NoReverseMatch:  # pragma: no cover - only off a mounted panel
+            return ""
+
+
+class SearchSelectMultiple(SearchSelect, forms.SelectMultiple):
+    """:class:`SearchSelect` for a many-to-many. Same truncation, several values."""
+
+
 # ── the spec ────────────────────────────────────────────────────────────────
 
 
@@ -335,12 +557,25 @@ class WidgetSpec:
             if self.nullable:
                 return forms.NullBooleanSelect(attrs=attrs)
             return forms.CheckboxInput(attrs=attrs)
-        if kind in (FieldKind.CHOICE, FieldKind.RELATION_ONE):
+        if kind is FieldKind.RELATION_ONE:
+            # SearchSelect *is* a Select and renders as one below the threshold, so
+            # the searchable variant is safe whenever the count is unknown — which,
+            # since counting is a query and this layer does not make queries, is the
+            # normal case. A caller that has counted and said "small" gets the plain
+            # control and no probe query at all.
+            return SearchSelect(attrs=attrs) if self.needs_search else forms.Select(attrs=attrs)
+        if kind is FieldKind.CHOICE:
             return forms.Select(attrs=attrs)
         if kind is FieldKind.RELATION_MANY:
+            if self.needs_search:
+                return SearchSelectMultiple(attrs=attrs)
             return forms.SelectMultiple(attrs=attrs)
         if kind in (FieldKind.FILE, FieldKind.IMAGE):
-            return forms.ClearableFileInput(attrs=attrs)
+            # Imported here, not at module scope: vantage.media reaches for Pillow and
+            # for storage, and this module is imported while the app registry loads.
+            from vantage.media import file_widget
+
+            return file_widget(kind, attrs)
         if kind in (FieldKind.LONGTEXT, FieldKind.RICHTEXT, FieldKind.JSON, FieldKind.BINARY):
             return forms.Textarea(attrs=attrs)
         if kind in (FieldKind.NUMBER, FieldKind.DECIMAL):
@@ -384,8 +619,15 @@ def infer_widget(field: Any, *, related_count: int | None = None) -> WidgetSpec:
     choices = getattr(field, "choices", None)
     related = getattr(field, "related_model", None)
     is_relation = kind in (FieldKind.RELATION_ONE, FieldKind.RELATION_MANY)
+    # A many-to-many always gets the picker; see SearchSelect.optgroups for why a row
+    # count is the wrong question to ask about a <select multiple>. For a single-valued
+    # relation it is a genuine trade-off, so RELATION_PICKER decides: "always" for one
+    # consistent control, "threshold" to keep a native select while the list is short.
     needs_search = is_relation and (
-        related_count is None or related_count > RELATION_SEARCH_THRESHOLD
+        kind is FieldKind.RELATION_MANY
+        or _picker_is_unconditional()
+        or related_count is None
+        or related_count > RELATION_SEARCH_THRESHOLD
     )
 
     help_text = str(getattr(field, "help_text", "") or "")
@@ -474,10 +716,10 @@ def _accept(field: models.Field, kind: FieldKind) -> str | None:
 #: because it is what the editor came to change; audit metadata comes last because it
 #: is what they came to read.
 SECTIONS: tuple[tuple[str, str], ...] = (
-    ("main", "Details"),
-    ("relations", "Relationships"),
-    ("flags", "Options"),
-    ("metadata", "Metadata"),
+    ("main", _("Details")),
+    ("relations", _("Relationships")),
+    ("flags", _("Options")),
+    ("metadata", _("Metadata")),
 )
 
 _SECTION_ORDER = {key: index for index, (key, _) in enumerate(SECTIONS)}
@@ -582,7 +824,23 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
     intends. Only the widget is ours.
     """
     kwargs.setdefault("widget", infer_widget(db_field).build_widget())
-    return db_field.formfield(**kwargs)
+    # Every relation control in the package is built here, so this is the one place a
+    # dropdown can be stopped from offering another tenant's records. A no-op unless
+    # VANTAGE["TENANT_MODEL"] is set. See vantage.tenancy.scope_choices.
+    from vantage.tenancy import scope_choices
+
+    formfield = scope_choices(db_field.formfield(**kwargs))
+
+    # An upload is the one input a panel accepts that the browser did not type. The
+    # extension is a claim, the Content-Type is a claim, and both are chosen by whoever
+    # supplied the file; vantage.media checks the bytes instead. Appended rather than
+    # assigned so the field's own validators keep running.
+    if formfield is not None and isinstance(db_field, models.FileField):
+        from vantage.media import upload_validator
+
+        formfield.validators = [*formfield.validators, upload_validator(db_field)]
+
+    return formfield
 
 
 def build_form_class(

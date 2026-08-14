@@ -1,0 +1,25 @@
+{% comment %}
+  A relation picker over a table too big to render.
+
+  The control is the ``<select>`` and nothing else. Everything around it is a hook:
+  the wrapper carries the endpoint and the model label, and combobox.js turns the
+  pair into a type-to-search box *in front of* the select, which stays in the DOM,
+  keeps its name, and is what the browser submits. With JavaScript off the page is a
+  perfectly ordinary select holding the current value and a first page of options —
+  short, but working — which is why the note below says so out loud instead of
+  letting the list look complete when it is not.
+
+  `searchable` and `truncated` are separate. A short single-valued relation is
+  neither, and renders through this template as bare `<select>` markup, byte for
+  byte what forms.Select would have produced. A short many-to-many is searchable
+  but not truncated: it gets the chip picker, because a `<select multiple>` hides
+  its own selection behind ctrl-click, but its option list is complete, so the note
+  about showing only the first few would be a lie.
+{% endcomment %}
+{% if widget.searchable %}<div class="v-combo" data-vantage-combobox
+     data-url="{{ widget.search_url }}"
+     data-model="{{ widget.search_model }}"
+     data-placeholder="{{ widget.search_placeholder }}">{% endif %}
+{% include "django/forms/widgets/select.html" %}
+{% if widget.searchable %}{% if widget.truncated %}<p class="v-combo-note" data-combo-note>{{ widget.search_note }}</p>{% endif %}
+</div>{% endif %}

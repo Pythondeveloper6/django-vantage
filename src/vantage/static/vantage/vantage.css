@@ -808,7 +808,249 @@ textarea {
   color: var(--muted-foreground);
 }
 
+/* ── list control band ────────────────────────────────────────────────────── */
+/*
+ * One strip carrying every "how am I looking at this list" control: search, the
+ * trash tab, the saved-view picker, grouping, density and columns. It replaces four
+ * stacked strips, and it sits *above* the two columns rather than inside one of them.
+ *
+ * That position is the whole point. With the chrome hoisted out, the rail and the
+ * data start on the same line — neither column opens with a row of controls the
+ * other one lacks — and the table clears the fold on a 900px-tall window.
+ *
+ * The band is closed with a rule rather than a card: it is chrome about the content
+ * below it, and boxing it would make it a fifth thing to read instead of the edge
+ * between the controls and the data.
+ */
+
+.v-listbar {
+  display: grid;
+  gap: 0.625rem;
+  padding-block-end: 0.75rem;
+  margin-block-end: 1rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-listbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Search leads the band and is the only elastic thing in it, so the controls after
+ * it hold their positions from page to page instead of sliding with the label. */
+.v-listbar-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 14rem;
+  max-inline-size: 22rem;
+  min-inline-size: 0;
+}
+
+.v-listbar-search .v-search {
+  max-inline-size: none;
+}
+
+.v-listbar-spacer {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+/* The band owns the vertical rhythm; everything folded into it drops the margin it
+ * carried when it was a strip of its own. */
+.v-listbar .v-views,
+.v-listbar .v-tabs,
+.v-listbar .v-grid-controls,
+.v-listbar .v-chips {
+  margin-block-end: 0;
+}
+
+/* A tab rail draws its own underline, and inside the band that lands a second rule a
+ * few pixels above the band's own — read as a rendering fault, not as structure. So
+ * records-or-trash keeps its tab semantics and takes the band's visual language: the
+ * current one is filled, the way the density control and the view menu mark theirs. */
+.v-listbar-tabs {
+  border-block-end: none;
+  gap: 0.125rem;
+}
+
+.v-listbar-tabs .v-tab {
+  margin-block-end: 0;
+  padding: 0.3125rem 0.625rem;
+  border-block-end: none;
+  border-radius: var(--radius-sm);
+}
+
+.v-listbar-tabs .v-tab:hover {
+  background: var(--muted);
+}
+
+.v-listbar-tabs .v-tab[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 600;
+}
+
+.v-listbar .v-views {
+  gap: 0.375rem;
+  min-inline-size: 0;
+}
+
+/* Wrapped rather than nowrap: a saved view named by a human can be long, and
+ * truncating the name of the thing you are looking at is worse than a second line. */
+.v-listbar .v-views-bar {
+  gap: 0.375rem;
+}
+
+.v-listbar .v-grid-controls {
+  flex: 0 0 auto;
+}
+
+/* ── band menus ───────────────────────────────────────────────────────────── */
+/*
+ * Three <details> menus hold what used to be three full-width strips: the saved
+ * views, the group-by buckets and the keyboard preference. A <details> is used
+ * rather than a scripted popover so every one of them still opens with scripting
+ * off — the band must never become the reason a control is unreachable.
+ */
+
+.v-listbar-menu,
+.v-grid-menu {
+  position: relative;
+}
+
+.v-listbar-trigger {
+  list-style: none;
+  cursor: pointer;
+}
+
+.v-listbar-trigger::-webkit-details-marker {
+  display: none;
+}
+
+/* Drawn rather than borrowed from the marker, so it points the same way under
+ * dir="rtl": a chevron rotated about its own centre has no handedness. */
+.v-listbar-trigger::after {
+  content: "";
+  inline-size: 0.375rem;
+  block-size: 0.375rem;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  /* Translated as well as rotated: a square rotated about its centre puts the tip of
+   * the chevron below the text baseline, and 2px of lift is what optically centres it. */
+  transform: translateY(-2px) rotate(45deg);
+  opacity: 0.55;
+  transition: transform 0.12s;
+}
+
+[open] > .v-listbar-trigger::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.v-listbar-panel,
+.v-grid-menu-panel {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: calc(100% + 0.3125rem);
+  z-index: 40;
+  display: grid;
+  gap: 0.125rem;
+  min-inline-size: 11rem;
+  padding: 0.3125rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.v-listbar-option {
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.v-listbar-option:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.v-listbar-option[aria-current] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 550;
+}
+
+/* The shortcuts menu holds a checkbox and a button rather than a list of links, so
+ * it hangs off the end of the band and sizes to its contents. */
+.v-grid-menu-panel {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  gap: 0.5rem;
+  justify-items: start;
+  min-inline-size: 12rem;
+  padding: 0.625rem;
+}
+
+/* ── the saved-view picker inside the band ────────────────────────────────── */
+/*
+ * The rail of view tabs became the contents of one menu. The markup is unchanged —
+ * same nav landmark, same aria-current tab — so only the axis it lays out on and
+ * the underline it used to draw are overridden here.
+ */
+
+.v-views-picker > .v-views-panel {
+  inline-size: max-content;
+  min-inline-size: 12rem;
+  max-inline-size: 20rem;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  gap: 0.125rem;
+  padding: 0.3125rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-views-picker > .v-views-panel .v-views-tab {
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border-block-end: none;
+  margin-block-end: 0;
+}
+
+.v-views-picker > .v-views-panel .v-views-tab:hover {
+  background: var(--muted);
+}
+
+.v-views-picker > .v-views-panel .v-views-tab-current {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* The trigger states the open view, so the name must not stretch the band. */
+.v-views-picker > summary .v-views-current {
+  max-inline-size: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-listbar-trigger::after {
+    transition: none;
+  }
+}
+
 /* ── list layout: filter rail beside the table ────────────────────────────── */
+/*
+ * Two columns, both opening at the same y. `align-items: start` is what holds that
+ * true when the columns end at different depths, and it is the reason the rail no
+ * longer floats a card's height above the first stat.
+ */
 
 .v-list-layout {
   display: grid;
@@ -824,6 +1066,13 @@ textarea {
 
 .v-list-main {
   min-inline-size: 0;
+}
+
+/* Nothing in either column may open with a margin of its own: a stray one is exactly
+ * the half-line of drift that made the rail and the table look unaligned. */
+.v-list-rail > :first-child,
+.v-list-main > :first-child {
+  margin-block-start: 0;
 }
 
 @media (max-width: 60rem) {
@@ -1658,4 +1907,430 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .v-shell[data-collapsed="true"] .v-nav-item > span { transition: none; }
+}
+
+/* ── searchable relation picker ───────────────────────────────────────────── */
+
+/* The <select> is still the control; combobox.js only puts a text box in front of
+ * it. Everything below is written so that the styling arrives with the behaviour:
+ * without JavaScript the wrapper is a plain box around a plain select, and the
+ * `.v-combo-on` class — set by the script, never by the server — is what moves the
+ * select out of sight. Hiding it from the stylesheet alone would leave a form with
+ * no visible control the moment the script failed to load. */
+
+.v-combo {
+  position: relative;
+}
+
+/* Out of sight, not out of the form. `hidden`/`display: none` would make the
+ * element unfocusable, and the browser refuses to report a constraint violation
+ * against a control it cannot focus — the submit would then fail silently. */
+.v-combo-on select {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  min-block-size: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.v-combo-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3125rem;
+  inline-size: 100%;
+  min-block-size: 2.25rem;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.v-combo-field:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 25%, transparent);
+}
+
+.v-combo-input {
+  flex: 1;
+  min-inline-size: 6rem;
+  padding: 0.1875rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.v-combo-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* The same drawn chevron the list bar uses, for the same reason: a square rotated
+ * about its own centre has no handedness, so it points the right way under dir="rtl"
+ * without a second rule.
+ *
+ * It is not decoration. A many-to-many announces itself — the chips are visibly a
+ * selection and the placeholder invites typing. A single-valued picker holding one
+ * label is otherwise indistinguishable from a text input, and the affordance that
+ * said "this opens a list" belonged to the native <select> this control replaced. */
+.v-combo-on .v-combo-field::after {
+  content: "";
+  flex: none;
+  align-self: center;
+  inline-size: 0.375rem;
+  block-size: 0.375rem;
+  margin-inline: 0.125rem 0.3125rem;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  opacity: 0.55;
+  transition: transform 0.12s;
+}
+
+.v-combo-on .v-combo-field:has([aria-expanded="true"])::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.v-combo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.25rem 0.125rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.v-combo-chip-x {
+  padding: 0 0.1875rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--muted-foreground);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.v-combo-chip-x:hover {
+  color: var(--destructive);
+}
+
+/* Above the sticky save bar (20), below the toasts (60): a picker at the bottom of
+ * a long form opens over the bar rather than behind it. */
+.v-combo-pop {
+  position: absolute;
+  z-index: 25;
+  inset-inline: 0;
+  inset-block-start: calc(100% + 0.25rem);
+  max-block-size: 16rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.v-combo[data-busy] .v-combo-pop {
+  opacity: 0.7;
+}
+
+.v-combo-list {
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+}
+
+.v-combo-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.625rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  scroll-margin-block: 0.25rem;
+}
+
+/* Hover and keyboard highlight are the same state on purpose: a mouse user and a
+ * keyboard user should never be looking at two different "current" rows. */
+.v-combo-option:hover,
+.v-combo-option.v-combo-active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Already chosen — only reachable on a multiple, where the list stays open. */
+.v-combo-option[aria-selected="true"]::after {
+  content: "✓";
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-combo-option[aria-selected="true"].v-combo-active::after {
+  color: inherit;
+}
+
+.v-combo-foot {
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  border-block-start: 1px solid var(--border);
+}
+
+.v-combo-list:empty + .v-combo-foot {
+  border-block-start: 0;
+}
+
+/* Addressed to a browser without combobox.js: the option list it can see is a first
+ * page, not the whole table. The script hides it. */
+.v-combo-note {
+  margin-block: 0.375rem 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-combo-field {
+    transition: none;
+  }
+}
+
+/* ── media: thumbnails, file chips and uploads ────────────────────────────── */
+
+/* The box is sized by the width/height attributes on the <img> itself, never here.
+ * Those attributes are what reserve the space before the bytes arrive; a stylesheet
+ * that also declares a size is a second source of truth that will eventually disagree
+ * with the first and start the reflow it was meant to prevent. */
+.v-thumb {
+  display: inline-block;
+  overflow: hidden;
+  line-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  vertical-align: middle;
+  transition: border-color 0.12s ease;
+}
+
+a.v-thumb:hover,
+a.v-thumb:focus-visible {
+  border-color: var(--ring);
+}
+
+/* contain, not cover: the derived image already preserves its aspect ratio, so cover
+ * would either crop the subject out or scale a letterboxed bitmap up until it blurs. */
+.v-thumb img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  max-inline-size: 100%;
+}
+
+.v-thumb[data-size="lg"] {
+  border-radius: var(--radius);
+}
+
+/* What a file gets when there is no thumbnail: not a broken image, and not a raw path.
+ * Long names truncate from the end because the informative part of "invoice-2024-11-…"
+ * is at the front. */
+.v-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-inline-size: 18rem;
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 0.8125rem;
+  vertical-align: middle;
+}
+
+a.v-file-chip:hover,
+a.v-file-chip:focus-visible {
+  border-color: var(--ring);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.v-file-chip svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  flex: none;
+  opacity: 0.75;
+}
+
+.v-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── the upload control ───────────────────────────────────────────────────── */
+
+.v-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.v-upload-current,
+.v-upload-chosen {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+
+.v-upload-meta {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.8125rem;
+}
+
+.v-upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+
+.v-upload-remove {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+/* Struck through, not hidden. The file is still there until the form is saved, and a
+ * row that vanishes on a checkbox tick reads as "already deleted", which it is not. */
+.v-upload-current[data-removing] {
+  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+
+.v-upload-current[data-removing] .v-upload-name {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+.v-upload-current[data-removing] .v-thumb,
+.v-upload-current[data-removing] .v-file-chip {
+  opacity: 0.45;
+}
+
+/* The real <input type="file"> lives in here and stays visible. Hiding it behind a
+ * styled label is the usual trick and the usual bug: the hidden input drops out of the
+ * tab order in some browsers, and the file name the browser writes next to it — the
+ * only confirmation a no-JavaScript user gets — goes with it. */
+.v-upload-drop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.v-upload-drop:focus-within {
+  border-color: var(--ring);
+}
+
+.v-upload-drop[data-dragging] {
+  border-color: var(--primary);
+  border-style: solid;
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}
+
+.v-upload-hint {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.v-upload-drop[data-dragging] .v-upload-hint {
+  color: var(--primary);
+}
+
+.v-upload-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  object-fit: contain;
+  flex: none;
+}
+
+.v-upload-error {
+  color: var(--destructive);
+  font-size: 0.8125rem;
+}
+
+.v-upload[data-invalid] .v-upload-drop {
+  border-color: var(--destructive);
+}
+
+.v-upload-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+/* Indeterminate: the element carries no value attribute, so the bar sweeps rather than
+ * fills. See the note in the widget template — a form submit gives the page nothing
+ * truthful to fill it with. */
+.v-upload-progress {
+  inline-size: 8rem;
+  block-size: 0.375rem;
+  border: none;
+  border-radius: 9999px;
+  background: var(--muted);
+  appearance: none;
+}
+
+.v-upload-progress::-webkit-progress-bar {
+  border-radius: 9999px;
+  background: var(--muted);
+}
+
+.v-upload-progress::-webkit-progress-value {
+  border-radius: 9999px;
+  background: var(--primary);
+}
+
+.v-upload-progress::-moz-progress-bar {
+  border-radius: 9999px;
+  background: var(--primary);
+}
+
+/* An indeterminate bar is motion with no information in it, which is precisely what
+ * someone who asked for less motion asked to be spared. It becomes a still track, and
+ * the byte count beside it carries the whole message on its own. */
+@media (prefers-reduced-motion: reduce) {
+  .v-upload-progress {
+    background: color-mix(in oklab, var(--primary) 35%, var(--muted));
+  }
 }

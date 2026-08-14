@@ -57,9 +57,39 @@ DEFAULTS: dict[str, Any] = {
     "LIST_PREFS_PERMISSION": None,
     "READ_ONLY": False,
     "ENVIRONMENT": None,
+    # ── multi-tenancy ───────────────────────────────────────────────────────
+    # Off until TENANT_MODEL names a model, at which point every registered model must
+    # either have a path to it or be declared global — see vantage.tenancy.
+    "TENANT_MODEL": None,
+    # Dotted path to a TenantResolver subclass or to any callable taking a request.
+    # None means vantage.tenancy.UserAttributeResolver.
+    "TENANT_RESOLVER": None,
+    # The attribute the default resolver reads off the user, and the conventional
+    # column name on tenant-owned models.
+    "TENANT_FIELD": "tenant",
+    # {"app.model": "lookup__path"} for anything inference cannot see, and
+    # {"app.model": None} for a model that is deliberately shared.
+    "TENANT_SCOPE": {},
+    # Models every tenant shares. Reference data, mostly.
+    "TENANT_EXEMPT": [],
+    # What happens to a registered model with no path to the tenant and no exemption.
+    # "deny" shows no rows, which is the only default that makes forgetting safe.
+    "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
     "DEFAULT_PER_PAGE": 50,
+    # ── relation pickers ────────────────────────────────────────────────────
+    # Which relation fields become the searchable chip picker rather than a plain
+    # <select>. "always" is the default because one control for every relationship
+    # is easier to learn than two, and because a native <select multiple> is a poor
+    # control at any size — the selection hides behind ctrl-click and one ordinary
+    # click discards it.
+    #
+    # "threshold" restores a plain <select> for short single-valued relations. Worth
+    # setting on a panel used mostly from phones: a native select opens the platform
+    # picker, which beats anything a page can draw. A many-to-many is unaffected —
+    # it is always the picker.
+    "RELATION_PICKER": "always",
     # ── scale ───────────────────────────────────────────────────────────────
     # Rows counted exactly before the page reports "N+". COUNT(*) on Postgres is a
     # full relation scan and does not care that you are showing 25 rows.
@@ -91,6 +121,8 @@ DEFAULTS: dict[str, Any] = {
 CHOICES: dict[str, tuple[str, ...]] = {
     "THEME": ("light", "dark", "system"),
     "NAV_UNLISTED": ("append", "hide"),
+    "TENANT_UNSCOPED": ("deny", "allow"),
+    "RELATION_PICKER": ("always", "threshold"),
 }
 
 
