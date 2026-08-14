@@ -147,8 +147,12 @@ class TestListPage:
         assert len(large) == len(small), (
             f"{len(small)} queries for 5 rows but {len(large)} for 205 — an N+1 crept in."
         )
-        # A ceiling as well, so the constant cannot silently drift upward either.
-        assert len(small) <= 10
+        # A ceiling as well, so the constant cannot silently drift upward either. Eleven:
+        # session, user, the site config row, the list preference row, the one shared
+        # nav/topbar row (see vantage.nav._singleton_row), the pagination count, the row
+        # select, the view-count aggregate, saved views, and the two related-field
+        # dropdowns (author, category) the filter bar loads its options from.
+        assert len(small) <= 11
 
 
 class TestPagination:
