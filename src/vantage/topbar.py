@@ -37,8 +37,6 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from django.core.signals import request_started
-from django.dispatch import receiver
 from django.urls import NoReverseMatch, reverse
 from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
@@ -144,17 +142,19 @@ class Topbar:
 # sidebar are one arrangement made by one person in one sitting, so they are one row:
 # a second singleton would be a second thing to reset, a second thing to migrate and a
 # second query on every page that renders the shell.
+#
+# The row itself is read through :mod:`vantage.nav`'s cache rather than queried again
+# here — see that module's "reading the row" section. It already reads at most once per
+# request, already caches a miss (no row at all) the same way a hit is cached, and
+# already stays quiet when the table does not exist yet. A second, separate cache in
+# this module would either duplicate that machinery or, worse, disagree with it about
+# whether the database answered this request yet.
 
 
 #: The model and column the layout lives in. Named once so the reconciliation is one
 #: line if the sidebar's storage ever moves.
 LAYOUT_MODEL = ("vantage", "NavConfiguration")
 LAYOUT_FIELD = "topbar"
-
-_cache: dict[str, Any] | object | None = None
-
-#: Distinct from ``None``, which is a *cached* "there is no row".
-_UNREAD = object()
 
 
 def _model():
@@ -176,56 +176,30 @@ def stored_layout() -> dict | None:
     built-in arrangement, an empty dict means somebody saved an arrangement that
     happens to hold no custom items.
 
-    Failure-tolerant for the same reasons :mod:`vantage.siteconfig` is: this runs on
-    every rendered page, including ones served before ``migrate`` has been run and ones
-    in tests that never asked for a database. A missing table means "nothing stored".
+    Reads :func:`vantage.nav._singleton_row`, the same row
+    :func:`vantage.nav.stored_declaration` reads, so a page that renders both the
+    sidebar and the top bar pays for that row once. Failure-tolerant by inheritance:
+    that shared reader already stays quiet before ``migrate`` and in tests that never
+    asked for a database, for the reasons :mod:`vantage.siteconfig` states.
     """
-    global _cache
-    if _cache is not _UNREAD:
-        return _cache  # type: ignore[return-value]
+    from vantage.nav import _singleton_row
 
-    from django.db.utils import OperationalError, ProgrammingError
-
-    model = _model()
-    if model is None:
-        return None
-
-    try:
-        row = model.objects.filter(pk=model.SINGLETON_PK).first()
-    except (OperationalError, ProgrammingError):
-        # No table yet, or no database. Both mean the built-in arrangement, and
-        # neither is cached: a process that started before migrate must notice.
-        return None
-    except RuntimeError as exc:
-        # pytest-django blocks the connection for tests that did not ask for a
-        # database, and rendering a header is not a reason to fail one.
-        if "Database access not allowed" not in str(exc):
-            raise
-        return None
-
+    row = _singleton_row()
     raw = getattr(row, LAYOUT_FIELD, None) if row is not None else None
-    _cache = clean_layout(raw) if isinstance(raw, dict) else None
-    return _cache  # type: ignore[return-value]
+    return clean_layout(raw) if isinstance(raw, dict) else None
 
 
 def invalidate_topbar() -> None:
-    """Drop the cached layout. Saving must change the next page, not the next restart."""
-    global _cache
-    _cache = _UNREAD
+    """Drop the shared cached row. Saving must change the next page, not the next restart.
 
-
-invalidate_topbar()
-
-
-@receiver(request_started)
-def _invalidate_per_request(sender, **kwargs) -> None:
-    """One read per request, for the reason :mod:`vantage.siteconfig` states.
-
-    Without it a worker that did not handle the save would keep serving the old bar
-    until it was restarted, and the first request of a process would pay for a query
-    that later requests did not — which makes query-count assertions unrepeatable.
+    A thin alias for :func:`vantage.nav.invalidate_nav`. This module keeps no cache of
+    its own to drop — :func:`stored_layout` derives everything from the row that
+    function already caches — but a caller that writes to this row has no reason to
+    know that, so it still has something of this module's own to call afterwards.
     """
-    invalidate_topbar()
+    from vantage.nav import invalidate_nav
+
+    invalidate_nav()
 
 
 def save_layout(layout: dict, user=None) -> None:

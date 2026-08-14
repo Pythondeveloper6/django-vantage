@@ -544,10 +544,16 @@ def clean_declaration(raw: Any) -> list[dict] | None:
 # table must resolve to the code rather than raise, or the migration that would create
 # it could never run; and one read per request keeps a page's query count constant
 # instead of "one extra on whichever request happened to be first".
+#
+# The row itself, not just the declaration derived from it, is what is cached here,
+# because :mod:`vantage.topbar` needs the same row too. The sidebar's stored arrangement
+# and the top bar's stored layout are two columns of one row (see both modules'
+# docstrings), so a page that renders both must pay for that row once, not once per
+# module that asks for it.
 
 _UNSET: Any = object()
 _UNAVAILABLE: Any = object()
-_cache: Any = _UNSET
+_row_cache: Any = _UNSET
 
 
 def _config_model():
@@ -562,7 +568,8 @@ def _config_model():
         return None
 
 
-def _read() -> Any:
+def _read_row() -> Any:
+    """The stored row, or ``_UNAVAILABLE`` when the database cannot answer."""
     model = _config_model()
     if model is None:
         return _UNAVAILABLE
@@ -579,29 +586,37 @@ def _read() -> Any:
         if "Database access not allowed" not in str(exc):
             raise
         return _UNAVAILABLE
-    return None if row is None else clean_declaration(row.groups)
+    return row
+
+
+def _singleton_row() -> Any:
+    """The one ``NavConfiguration`` row for this request, or ``None``.
+
+    Read at most once per request no matter how many of :func:`stored_declaration` and
+    :mod:`vantage.topbar`'s ``stored_layout`` ask for it. A miss — no row at all — is
+    cached exactly like a hit; an *unavailable database* is not, or a process that
+    started before ``migrate`` would never notice the table appearing.
+    """
+    global _row_cache
+    if _row_cache is not _UNSET:
+        return _row_cache
+    value = _read_row()
+    if value is _UNAVAILABLE:
+        return None
+    _row_cache = value
+    return _row_cache
 
 
 def stored_declaration() -> list[dict] | None:
-    """The UI arrangement, or ``None`` when there is none and the code decides.
-
-    A miss is cached; an *unavailable database* is not, or a process that started
-    before ``migrate`` would never notice the table appearing.
-    """
-    global _cache
-    if _cache is not _UNSET:
-        return _cache
-    value = _read()
-    if value is _UNAVAILABLE:
-        return None
-    _cache = value
-    return value
+    """The UI arrangement, or ``None`` when there is none and the code decides."""
+    row = _singleton_row()
+    return None if row is None else clean_declaration(row.groups)
 
 
 def invalidate_nav() -> None:
-    """Forget the cached arrangement. Called on save and at the start of each request."""
-    global _cache
-    _cache = _UNSET
+    """Forget the shared row. Called on save, on delete, and at the start of each request."""
+    global _row_cache
+    _row_cache = _UNSET
 
 
 @receiver(request_started)
