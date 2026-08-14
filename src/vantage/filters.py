@@ -47,6 +47,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.http import QueryDict
 from django.utils import timezone
 from django.utils.text import capfirst
+from django.utils.translation import gettext_lazy as _
 
 from vantage import inference
 from vantage.introspection import PathHop, resolve_path
@@ -102,10 +103,10 @@ FACETS_PARAM = "_facets"
 #: local days and *includes today*, so "last 7 days" covers seven calendar days rather
 #: than the eight that a naive ``today - 7 days`` produces.
 DATE_PRESETS: dict[str, tuple[str, int]] = {
-    "P1D": ("Today", 1),
-    "P7D": ("Last 7 days", 7),
-    "P30D": ("Last 30 days", 30),
-    "P90D": ("Last 90 days", 90),
+    "P1D": (_("Today"), 1),
+    "P7D": (_("Last 7 days"), 7),
+    "P30D": (_("Last 30 days"), 30),
+    "P90D": (_("Last 90 days"), 90),
 }
 
 #: The calendar year to date. ISO-8601 has no notation for it, so it gets a token of
@@ -275,7 +276,7 @@ class Filter:
     def _empty_option(self) -> list[tuple[str, str]]:
         """The "no value" option, offered only where null is actually possible."""
         if getattr(self.field, "null", False):
-            return [(EMPTY, "Empty")]
+            return [(EMPTY, _("Empty"))]
         return []
 
     def _isnull_q(self) -> Q:
@@ -341,7 +342,7 @@ class BooleanFilter(Filter):
         return None
 
     def options(self) -> list[tuple[str, str]]:
-        return [("1", "Yes"), ("0", "No"), *self._empty_option()]
+        return [("1", _("Yes")), ("0", _("No")), *self._empty_option()]
 
     def value_q(self, value: str) -> Q | None:
         if value == EMPTY:
@@ -380,7 +381,7 @@ class DateFilter(Filter):
 
     def options(self) -> list[tuple[str, str]]:
         options = [(key, label) for key, (label, _) in DATE_PRESETS.items()]
-        options.append((CURRENT_YEAR, "This year"))
+        options.append((CURRENT_YEAR, _("This year")))
         return options + self._empty_option()
 
     def choices(self) -> list[Choice]:
@@ -667,7 +668,7 @@ def _count_group(
 ) -> None:
     aggregates: dict[str, Count] = {}
     aliases: dict[str, tuple[int, str]] = {}
-    for index, (_, pairs) in enumerate(group):
+    for index, (_filter, pairs) in enumerate(group):
         for position, (value, predicate) in enumerate(pairs):
             # Positional aliases, never the value itself: a choice key is user data and
             # has no obligation to be a valid Python identifier.
@@ -682,7 +683,7 @@ def _count_group(
     counts: dict[int, dict[str, int]] = {index: {} for index in range(len(group))}
     for alias, (index, value) in aliases.items():
         counts[index][value] = result[alias] or 0
-    for index, (filt, _) in enumerate(group):
+    for index, (filt, _pairs) in enumerate(group):
         filt.set_counts(counts[index])
 
 
@@ -759,7 +760,10 @@ def _parse_range(value: str) -> tuple[dt.date | None, dt.date | None] | None:
 
 def _range_label(start: dt.date | None, end: dt.date | None) -> str:
     if start and end:
-        return f"{start.isoformat()} to {end.isoformat()}"
+        return _("%(start)s to %(end)s") % {
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+        }
     if start:
-        return f"From {start.isoformat()}"
-    return f"Until {end.isoformat()}"
+        return _("From %(start)s") % {"start": start.isoformat()}
+    return _("Until %(end)s") % {"end": end.isoformat()}

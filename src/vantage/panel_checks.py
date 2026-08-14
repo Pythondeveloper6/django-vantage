@@ -19,6 +19,28 @@ from vantage.introspection import resolve_path
 if TYPE_CHECKING:
     from vantage.panels import ModelPanel
 
+#: Attributes removed from ``ModelPanel``, mapped to what replaced them. Setting one
+#: is an error rather than a no-op — a panel that quietly ignores what you wrote is
+#: precisely the problem these removals were addressing.
+REMOVED_ATTRIBUTES: dict[str, str] = {
+    "permissions": (
+        "Access is resolved in one place. Define has_view_permission / "
+        "has_add_permission / has_change_permission / has_delete_permission on the "
+        "panel, or point VANTAGE['PERMISSIONS'] at a PanelPermissions subclass."
+    ),
+}
+
+#: Attributes ``ModelPanel`` used to accept, and what replaced them. Silently ignoring
+#: one is the bug the removal was meant to fix — the project would keep believing it had
+#: configured something — so a still-set attribute is an error with the answer in it.
+REMOVED_ATTRS: dict[str, str] = {
+    "permissions": (
+        "Define has_view/add/change/delete_permission(self, request, obj=None) on the "
+        "panel, or point VANTAGE['PERMISSIONS'] at a PanelPermissions subclass for "
+        "site-wide policy."
+    ),
+}
+
 
 class ModelPanelChecks:
     """Validates the declarative attributes of one panel."""
@@ -32,6 +54,9 @@ class ModelPanelChecks:
             *self._check_list_link(panel),
             *self._check_list_editable(panel),
             *self._check_layout(panel),
+            *self._check_list_select_related(panel),
+            *self._check_related_tabs(panel),
+            *self._check_removed(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -174,6 +199,78 @@ class ModelPanelChecks:
                         hint="A column can be an editable input or a link, not both.",
                         obj=type(panel),
                         id="vantage.E016",
+                    )
+                )
+        return errors
+
+    # ── attributes that were wired or withdrawn ─────────────────────────────
+
+    def _check_list_select_related(self, panel: ModelPanel) -> list[Error]:
+        """Every declared join must resolve, and must be joinable.
+
+        The optimiser derives these from what the page renders, so anything set here
+        is an addition on top. A path that cannot be joined would raise ``FieldError``
+        deep inside the list query, which is exactly the class of failure the checks
+        exist to move to startup.
+        """
+        declared = panel.list_select_related
+        if not declared:
+            return []
+
+        errors: list[Error] = []
+        for path in declared:
+            hops = resolve_path(panel.model, str(path))
+            if not hops:
+                errors.append(
+                    Error(
+                        f"'list_select_related' refers to {path!r}, which is not a "
+                        f"field path on {panel.opts.label}.",
+                        obj=type(panel),
+                        id="vantage.E018",
+                    )
+                )
+            elif any(hop.is_multivalued for hop in hops):
+                errors.append(
+                    Error(
+                        f"'list_select_related' refers to {path!r}, which crosses a "
+                        f"multi-valued relation.",
+                        hint="select_related cannot follow a reverse FK or M2M; those "
+                        "are prefetched, and the optimiser already does it.",
+                        obj=type(panel),
+                        id="vantage.E018",
+                    )
+                )
+        return errors
+
+    def _check_related_tabs(self, panel: ModelPanel) -> list[Error]:
+        """``related_tabs`` is tri-state: None decides by count, True/False assert."""
+        value = panel.related_tabs
+        if value is None or isinstance(value, bool):
+            return []
+        return [
+            Error(
+                f"'related_tabs' must be True, False or None; got {value!r}.",
+                hint="None lets the panel decide from how many relations there are.",
+                obj=type(panel),
+                id="vantage.E019",
+            )
+        ]
+
+    def _check_removed(self, panel: ModelPanel) -> list[Error]:
+        """Fail loudly on an attribute that no longer exists.
+
+        Silently ignoring a withdrawn attribute is the same bug the withdrawal was
+        meant to fix: the author sets it, nothing happens, and nothing says so.
+        """
+        errors = []
+        for name, replacement in REMOVED_ATTRIBUTES.items():
+            if getattr(panel, name, None) is not None:
+                errors.append(
+                    Error(
+                        f"{name!r} is no longer a Vantage panel attribute.",
+                        hint=replacement,
+                        obj=type(panel),
+                        id="vantage.E020",
                     )
                 )
         return errors
