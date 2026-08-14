@@ -47,6 +47,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 
 from vantage.concurrency import StaleWrite, claim, token_for, version_column
 from vantage.introspection import (
@@ -879,6 +880,63 @@ def _row_spec(panel, entry) -> tuple[Any, str | None]:
     return built, built.permission
 
 
+def restore_action_for(panel, request, obj) -> RowAction | None:
+    """The Restore button, for a row that is currently in the trash.
+
+    Not declared in ``row_actions`` and deliberately not declarable. In the trash it is
+    the *only* thing anyone wants to do, and a trash whose restore button had to be
+    switched on first would be a trash people lose records in. Every other built-in is
+    opt-in because every other built-in is optional.
+
+    A POST, not a link, for the reason the rest of this module keeps repeating: it
+    mutates, and a GET that mutates is a URL a crawler or a prefetcher will fire.
+    """
+    pattern = panel.get_patterns().soft_delete
+    if pattern is None:
+        return None
+
+    value = getattr(obj, pattern.field, None)
+    trashed = bool(value) if pattern.kind == "boolean" else value is not None
+    if not trashed:
+        return None
+
+    # Memoised per request, like resolve_row_actions and for the same reason: the
+    # answer cannot differ between two rows of the same model, and asking once per row
+    # is the N+1 the permissions layer exists to prevent.
+    memo = _row_action_memo(request)
+    key = f"_restore:{panel.slug}"
+    if memo is not None and key in memo:
+        allowed = memo[key]
+    else:
+        from vantage.permissions import get_permissions
+
+        allowed = request is None or get_permissions().has_model_perm(
+            request, panel.model, "delete"
+        )
+        if memo is not None:
+            memo[key] = allowed
+    if not allowed:
+        return None
+
+    url = _reverse(f"vantage:{panel.slug}-restore", obj.pk)
+    if url is None:
+        return None
+    # The page's own filters ride along, exactly as they do for a declared action:
+    # restoring row nine of page two of the trash should come back to page two of the
+    # trash, not to the unfiltered first page of the live list.
+    query = _query_string(request)
+    if query:
+        url = f"{url}?{query}"
+    return RowAction(
+        name="restore",
+        label=str(_("Restore")),
+        icon="rotate-ccw",
+        url=None,
+        post_url=url,
+        destructive=False,
+    )
+
+
 def row_actions_for(panel, request, obj) -> list[RowAction]:
     """The buttons for one row, with their URLs filled in.
 
@@ -887,9 +945,12 @@ def row_actions_for(panel, request, obj) -> list[RowAction]:
     subset, and a ``NoReverseMatch`` from inside a table cell is a 500 on a page that
     was only trying to draw a button.
     """
+    restore = restore_action_for(panel, request, obj)
     resolved = resolve_row_actions(panel, request)
     if not resolved:
-        return []
+        # Restore still shows: it is the trash's own button, not one of the declared
+        # ones, so a panel that declares no row actions must still be able to undo.
+        return [restore] if restore is not None else []
 
     post_url = _reverse(f"vantage:{panel.slug}-row-action", obj.pk)
     if post_url is not None:
@@ -899,7 +960,8 @@ def row_actions_for(panel, request, obj) -> list[RowAction]:
         query = _query_string(request)
         if query:
             post_url = f"{post_url}?{query}"
-    buttons: list[RowAction] = []
+    # First, so the primary thing to do with a trashed row is the leftmost button.
+    buttons: list[RowAction] = [restore] if restore is not None else []
     for spec, _permission in resolved:
         if isinstance(spec, BuiltinRowAction):
             url = _reverse(f"vantage:{panel.slug}-{spec.route}", obj.pk)
@@ -954,14 +1016,19 @@ def render_row_actions(panel, context: dict | None) -> Any:
     two of everything.
     """
     if context is None:
-        # ``slots.is_filled`` asks without a context, to decide whether the column
-        # exists at all. Answering "yes, if this panel declares any" is the most it
-        # can know, and an unanswerable question is not a reason to skip the column.
+        # No context at all: the most that can be known is whether this panel declares
+        # any, and an unanswerable question is not a reason to skip the column.
         return bool(panel.row_actions)
 
     obj = context.get("object")
     if obj is None or getattr(obj, "pk", None) is None:
-        return None
+        # A context but no row: this is ``slots.is_filled`` asking whether the column
+        # should exist, not a request to draw a cell. The trash answers yes even for a
+        # panel that declares nothing, because every row in it gets a Restore button —
+        # and the column has to exist before the buttons can go in it.
+        showing_trash = bool(context.get("showing_trash"))
+        has_trash = panel.get_patterns().soft_delete is not None
+        return bool(panel.row_actions) or (showing_trash and has_trash)
     buttons = row_actions_for(panel, context.get("request"), obj)
     if not buttons:
         return None

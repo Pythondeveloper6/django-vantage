@@ -338,6 +338,11 @@ class VantageLogEntry(models.Model):
         CREATE = "create", _("Created")
         UPDATE = "update", _("Updated")
         DELETE = "delete", _("Deleted")
+        # Distinct from DELETE because the difference is the whole point: one is
+        # recoverable and one is not, and a log that calls both "Deleted" cannot
+        # answer the only question anyone asks it afterwards.
+        TRASH = "trash", _("Moved to trash")
+        RESTORE = "restore", _("Restored")
         ACTION = "action", _("Ran an action")
 
     # ── who ─────────────────────────────────────────────────────────────────
