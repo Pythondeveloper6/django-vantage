@@ -68,15 +68,23 @@ def audit_hooks():
 
     def wrap(owner, name, replacement):
         original = getattr(owner, name)
-        if "audit" in inspect.getsource(original):
+        sources = [inspect.getsource(original)]
+        # Follow one level of delegation. ``PanelFormView.save_form`` is a two-line
+        # method that hands off to the module-level ``save_form``, which is where the
+        # real audit call lives — so reading only the method would miss it and wrap a
+        # path that already logs, recording every write twice.
+        delegate = getattr(inspect.getmodule(original), name, None)
+        if delegate is not None and delegate is not original:
+            sources.append(inspect.getsource(delegate))
+        if any("audit" in source for source in sources):
             return original
         setattr(owner, name, replacement(original))
         patches.append((owner, name, original))
         return original
 
     def form_hook(original):
-        def save_form(self, form):
-            obj = original(self, form)
+        def save_form(self, form, *args, **kwargs):
+            obj = original(self, form, *args, **kwargs)
             audit.log_form_save(self.request, obj, form, self.change)
             return obj
 
