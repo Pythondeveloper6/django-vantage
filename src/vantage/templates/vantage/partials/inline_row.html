@@ -1,0 +1,126 @@
+{% load i18n %}
+{% comment %} One child record, in whichever layout the group resolved to.
+
+   Three invariants hold in both branches.
+
+   The hidden fields — the primary key, and the InlineForeignKeyField tying the row to its
+   parent — live INSIDE the row element, so pulling the row out of the DOM takes them with
+   it and a half-removed row cannot post an orphan pk.
+
+   The DELETE checkbox is a real, working control, so the page still adds up with no
+   JavaScript at all; vantage-inlines.js hides it and reveals the button beside it. A
+   removed row is HIDDEN rather than marked aria-hidden: an aria-hidden element that still
+   contains focusable inputs is reachable by Tab and invisible to a screen reader at the
+   same time, which is worse than either. Hiding it takes it out of both, and the undo
+   strip that replaces it is what keeps the removal reversible.
+
+   And every error renders in the cell that caused it. A tabular row is a <tbody> rather
+   than a <tr> precisely so it can hold that extra error row and the undo strip and still
+   be added or removed as one unit. {% endcomment %}
+
+{% if group.is_tabular %}
+  <tbody class="v-inline-row" data-inline-row {% if row.errors %}data-invalid="true"{% endif %}>
+    {% if row.non_field_errors %}
+      <tr class="v-inline-row-errors" data-inline-fields>
+        <td colspan="{{ group.colspan }}">
+          <ul class="v-form-errors" role="alert">
+            {% for error in row.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        </td>
+      </tr>
+    {% endif %}
+    <tr data-inline-fields>
+      {% for cell in row.cells %}
+        <td class="v-inline-td" {% if cell.errors %}data-invalid="true"{% endif %}>
+          {% if forloop.first %}{% for hidden in row.hidden %}{{ hidden }}{% endfor %}{% endif %}
+          <label class="v-sr-only" for="{{ cell.id_for_label }}">{{ cell.label }}{% if row.label %} — {{ row.label }}{% endif %}</label>
+          {{ cell }}
+          {% if cell.help_text %}<p class="v-form-help" id="{{ cell.auto_id }}_helptext">{{ cell.help_text }}</p>{% endif %}
+          {% if cell.errors %}
+            <ul class="v-form-errors" id="{{ cell.auto_id }}_error">
+              {% for error in cell.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </td>
+      {% endfor %}
+      {% if group.can_delete or group.can_add %}
+        <td class="v-inline-td v-inline-td-actions">
+          {% if row.delete %}
+            <label class="v-inline-delete" data-inline-delete-label>
+              {{ row.delete }} <span>{% translate "Remove" %}</span>
+            </label>
+          {% endif %}
+          <button type="button" class="v-inline-remove" data-inline-remove hidden
+                  aria-label="{% blocktranslate with label=group.label|lower %}Remove this {{ label }}{% endblocktranslate %}">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </td>
+      {% endif %}
+    </tr>
+    {% if row.delete %}
+      <tr class="v-inline-undo" data-inline-undo hidden>
+        <td colspan="{{ group.colspan }}">
+          <span>{% blocktranslate with label=row.label %}“{{ label }}” will be removed when you save.{% endblocktranslate %}</span>
+          <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-inline-restore>{% translate "Undo" %}</button>
+        </td>
+      </tr>
+    {% endif %}
+  </tbody>
+
+{% else %}
+  <div class="v-inline-card" data-inline-row {% if row.errors %}data-invalid="true"{% endif %}>
+    <div data-inline-fields>
+      <div class="v-inline-card-head">
+        <h3 class="v-inline-card-title">{% if row.label %}{{ row.label }}{% else %}{% blocktranslate with label=group.label|lower %}New {{ label }}{% endblocktranslate %}{% endif %}</h3>
+        <div class="v-inline-card-actions">
+          {% if row.delete %}
+            <label class="v-inline-delete" data-inline-delete-label>
+              {{ row.delete }} <span>{% translate "Remove" %}</span>
+            </label>
+          {% endif %}
+          {% if group.can_delete or group.can_add %}
+            <button type="button" class="v-inline-remove" data-inline-remove hidden
+                    aria-label="{% blocktranslate with label=group.label|lower %}Remove this {{ label }}{% endblocktranslate %}">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if row.non_field_errors %}
+        <ul class="v-form-errors" role="alert">
+          {% for error in row.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="v-form-grid">
+        {% for cell in row.cells %}
+          <div class="v-form-field" {% if cell.errors %}data-invalid="true"{% endif %}>
+            <label class="v-form-label" for="{{ cell.id_for_label }}">
+              {{ cell.label }}
+              {% if cell.field.required %}<span class="v-form-required" title="{% translate 'Required' %}">*<span class="v-sr-only"> {% translate "required" %}</span></span>{% endif %}
+            </label>
+            {{ cell }}
+            {% if cell.help_text %}<p class="v-form-help" id="{{ cell.auto_id }}_helptext">{{ cell.help_text }}</p>{% endif %}
+            {% if cell.errors %}
+              <ul class="v-form-errors" id="{{ cell.auto_id }}_error">
+                {% for error in cell.errors %}<li>{{ error }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% comment %} Outside data-inline-fields on purpose: it is what stays visible when the
+       fields are hidden, so the removal can be taken back. {% endcomment %}
+    {% for hidden in row.hidden %}{{ hidden }}{% endfor %}
+
+    {% if row.delete %}
+      <div class="v-inline-undo" data-inline-undo hidden>
+        <span>{% blocktranslate with label=row.label %}“{{ label }}” will be removed when you save.{% endblocktranslate %}</span>
+        <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-inline-restore>{% translate "Undo" %}</button>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

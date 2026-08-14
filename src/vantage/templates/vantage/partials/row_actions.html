@@ -1,0 +1,46 @@
+{% load vantage i18n %}
+{% comment %}
+  One row's buttons, rendered into the trailing cell through the row_actions slot.
+
+  Two kinds of control, and the difference is not cosmetic. A built-in is an anchor,
+  because every one of them leads to a page that already does the job properly —
+  including delete, whose page shows the cascade before it happens. A panel's own
+  action is a submit button, never a link: an action mutates, and a mutation behind a
+  GET is something a crawler, a prefetcher or a browser's back button can fire without
+  anybody clicking anything.
+
+  The buttons carry no form of their own. HTML forbids nesting a form inside the bulk
+  action form this cell already sits in, and the parser silently drops the inner one —
+  so the control is re-parented with form="v-action-form" instead, and formaction sends
+  it to this record's own endpoint. That URL carries the pk, so the row acted on is
+  named by the address and never by whatever checkboxes happen to be ticked: the
+  endpoint ignores the selection fields that ride along in the body.
+
+  Destructive actions are not confirmed here. The POST lands on RowActionView, which
+  renders the same confirmation card the bulk bar uses and requires a second POST with
+  confirmed=1 — a server-side step that survives a disabled script and cannot be
+  skipped by replaying the request.
+
+  Everything is tabindex="-1" by the grid's contract: exactly one element in the table
+  is in the tab order and everything inside a cell is reached with the arrow keys.
+{% endcomment %}
+<div class="v-row-actions">
+  {% for act in row_actions %}
+    {% if act.is_link %}
+      <a class="v-btn v-btn-ghost v-btn-sm v-btn-icon{% if act.destructive %} v-row-action-destructive{% endif %}"
+         href="{{ act.url }}" tabindex="-1"
+         title="{{ act.label }}"
+         aria-label="{% blocktranslate with label=act.label obj=object %}{{ label }} {{ obj }}{% endblocktranslate %}">
+        {% if act.icon %}{% icon act.icon %}{% else %}<span aria-hidden="true">{{ act.label|first }}</span>{% endif %}
+      </a>
+    {% else %}
+      <button type="submit" form="v-action-form" formaction="{{ act.post_url }}"
+              name="action" value="{{ act.name }}" tabindex="-1"
+              class="v-btn v-btn-ghost v-btn-sm v-btn-icon{% if act.destructive %} v-row-action-destructive{% endif %}"
+              title="{{ act.label }}"
+              aria-label="{% blocktranslate with label=act.label obj=object %}{{ label }} {{ obj }}{% endblocktranslate %}">
+        {% if act.icon %}{% icon act.icon %}{% else %}<span aria-hidden="true">{{ act.label|first }}</span>{% endif %}
+      </button>
+    {% endif %}
+  {% endfor %}
+</div>

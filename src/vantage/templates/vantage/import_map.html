@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage i18n %}
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
@@ -9,30 +9,30 @@
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">Map columns</h1>
+    <h1 class="v-page-title">{% translate "Map columns" %}</h1>
     <p class="v-page-description">
-      {{ row_count }} row{{ row_count|pluralize }} · {{ encoding }} ·
-      delimiter <span class="v-mono">{{ delimiter }}</span>
+      {% blocktranslate count counter=row_count %}{{ counter }} row{% plural %}{{ counter }} rows{% endblocktranslate %} · {{ encoding }} ·
+      {% blocktranslate %}delimiter <span class="v-mono">{{ delimiter }}</span>{% endblocktranslate %}
     </p>
   </div>
   <div class="v-page-actions">
     <form method="post" action="{{ upload_url }}">
       {% csrf_token %}
       <input type="hidden" name="discard" value="{{ token }}">
-      <button class="v-btn v-btn-secondary" type="submit">Start over</button>
+      <button class="v-btn v-btn-secondary" type="submit">{% translate "Start over" %}</button>
     </form>
   </div>
 </div>
 
-<ol class="v-import-steps" aria-label="Import steps">
-  <li class="v-import-step-done"><span class="v-import-step-n">1</span> Upload</li>
-  <li aria-current="step"><span class="v-import-step-n">2</span> Map columns</li>
-  <li><span class="v-import-step-n">3</span> Preview</li>
+<ol class="v-import-steps" aria-label="{% translate "Import steps" %}">
+  <li class="v-import-step-done"><span class="v-import-step-n">1</span> {% translate "Upload" %}</li>
+  <li aria-current="step"><span class="v-import-step-n">2</span> {% translate "Map columns" %}</li>
+  <li><span class="v-import-step-n">3</span> {% translate "Preview" %}</li>
 </ol>
 
 {% if error %}
   <div class="v-form-alert" data-tone="error" role="alert" tabindex="-1">
-    <p class="v-form-alert-title">This mapping cannot be used.</p>
+    <p class="v-form-alert-title">{% translate "This mapping cannot be used." %}</p>
     <p>{{ error }}</p>
   </div>
 {% endif %}
@@ -42,19 +42,19 @@
 
   <section class="v-card v-import-card">
     <div class="v-card-head">
-      <h2 class="v-card-title">Your columns</h2>
+      <h2 class="v-card-title">{% translate "Your columns" %}</h2>
       <p class="v-muted">
-        Each column feeds one field, or nothing. The first values from your file are
-        shown so you can check the guess without opening the spreadsheet again.
+        {% blocktranslate trimmed %}Each column feeds one field, or nothing. The first values from your file are
+        shown so you can check the guess without opening the spreadsheet again.{% endblocktranslate %}
       </p>
     </div>
     <div class="v-table-wrap">
       <table class="v-table v-import-table">
         <thead>
           <tr>
-            <th scope="col">Column in your file</th>
-            <th scope="col">First values</th>
-            <th scope="col">Field it writes</th>
+            <th scope="col">{% translate "Column in your file" %}</th>
+            <th scope="col">{% translate "First values" %}</th>
+            <th scope="col">{% translate "Field it writes" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -68,13 +68,13 @@
               </td>
               <td>
                 <label class="v-sr-only" for="v-map-{{ column.index }}">
-                  Field for column {{ column.header }}
+                  {% blocktranslate with header=column.header %}Field for column {{ header }}{% endblocktranslate %}
                 </label>
                 <select class="v-select" name="map-{{ column.index }}" id="v-map-{{ column.index }}">
-                  <option value=""{% if not column.target %} selected{% endif %}>Skip this column</option>
+                  <option value=""{% if not column.target %} selected{% endif %}>{% translate "Skip this column" %}</option>
                   {% for option in options %}
                     <option value="{{ option.name }}"{% if option.name == column.target %} selected{% endif %}>
-                      {{ option.label }}{% if not option.writable %} (identifier only){% endif %}
+                      {{ option.label }}{% if not option.writable %} {% translate "(identifier only)" %}{% endif %}
                     </option>
                   {% endfor %}
                 </select>
@@ -88,14 +88,14 @@
 
   <section class="v-card v-import-card">
     <div class="v-card-head">
-      <h2 class="v-card-title">What to do with each row</h2>
+      <h2 class="v-card-title">{% translate "What to do with each row" %}</h2>
     </div>
     <div class="v-card-body v-import-options">
       <div class="v-form-field">
-        <label class="v-form-label" for="v-import-key">Match existing records on</label>
+        <label class="v-form-label" for="v-import-key">{% translate "Match existing records on" %}</label>
         <select class="v-select" name="key_field" id="v-import-key"
                 aria-describedby="v-import-key-help">
-          <option value=""{% if not default_key %} selected{% endif %}>Nothing — every row is new</option>
+          <option value=""{% if not default_key %} selected{% endif %}>{% translate "Nothing — every row is new" %}</option>
           {% for option in keys %}
             <option value="{{ option.name }}"{% if option.name == default_key %} selected{% endif %}>
               {{ option.label }}
@@ -107,13 +107,13 @@
             Only unique columns are offered. Matching on something non-unique would pick
             an arbitrary row to overwrite, which is the worst kind of silent data loss.
           {% endcomment %}
-          Only the primary key and unique columns can identify a record, and only if you
-          mapped one above.
+          {% blocktranslate trimmed %}Only the primary key and unique columns can identify a record, and only if you
+          mapped one above.{% endblocktranslate %}
         </p>
       </div>
 
       <fieldset class="v-form-field">
-        <legend class="v-form-label">Then</legend>
+        <legend class="v-form-label">{% translate "Then" %}</legend>
         {% for mode in modes %}
           <label class="v-import-radio">
             <input type="radio" name="mode" value="{{ mode.value }}"
@@ -122,14 +122,14 @@
           </label>
         {% endfor %}
         <p class="v-form-help v-muted">
-          Only the modes your permissions allow are listed. Updating needs the change
-          permission; an upsert needs both.
+          {% blocktranslate trimmed %}Only the modes your permissions allow are listed. Updating needs the change
+          permission; an upsert needs both.{% endblocktranslate %}
         </p>
       </fieldset>
     </div>
     <div class="v-import-foot">
-      <a class="v-btn v-btn-ghost" href="{{ list_url }}">Cancel</a>
-      <button class="v-btn v-btn-primary" type="submit">Preview changes</button>
+      <a class="v-btn v-btn-ghost" href="{{ list_url }}">{% translate "Cancel" %}</a>
+      <button class="v-btn v-btn-primary" type="submit">{% translate "Preview changes" %}</button>
     </div>
   </section>
 </form>

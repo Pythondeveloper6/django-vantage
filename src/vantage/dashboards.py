@@ -53,6 +53,7 @@ from django.db.models import Count, QuerySet
 from django.template.loader import render_to_string
 from django.urls import NoReverseMatch, reverse
 from django.utils.module_loading import import_string
+from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
 from vantage.permissions import get_permissions
@@ -547,7 +548,7 @@ class DefaultDashboard(Dashboard):
         for panel, field in timestamped[:1]:
             widgets.append(
                 ChartCard(
-                    f"New {panel.get_label_plural().lower()}",
+                    _("New %(model)s") % {"model": panel.get_label_plural().lower()},
                     panel.get_queryset(request),
                     model=panel.model,
                     chart=Chart.timeseries(
@@ -559,7 +560,7 @@ class DefaultDashboard(Dashboard):
         for panel, field in timestamped[:MAX_DEFAULT_TABLES]:
             widgets.append(
                 TableCard(
-                    f"Recent {panel.get_label_plural().lower()}",
+                    _("Recent %(model)s") % {"model": panel.get_label_plural().lower()},
                     panel.get_queryset(request),
                     model=panel.model,
                     order_by=[f"-{field}"],
@@ -604,7 +605,7 @@ def dashboard_context(site, request, permissions=None) -> dict[str, Any]:
         "widgets": dashboard.render(request, permissions=permissions),
         # The heading may fall back to the site title; the browser tab must not, or it
         # reads "Acme · Acme".
-        "page_title": dashboard.title or "Dashboard",
+        "page_title": dashboard.title or _("Dashboard"),
         "page_description": dashboard.description,
     }
 

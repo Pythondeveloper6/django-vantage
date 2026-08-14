@@ -59,7 +59,10 @@ UNCOLUMNABLE = (
     models.TextField,
     models.JSONField,
     models.BinaryField,
-    models.FileField,  # ImageField subclasses this
+    # A file path in a table cell is noise. An ImageField subclasses this and is
+    # deliberately promoted before the check reaches here — it renders as a thumbnail,
+    # which is the opposite of noise.
+    models.FileField,
 )
 
 #: Field classes worth searching.
@@ -84,6 +87,14 @@ def _column_score(field: models.Field) -> int | None:
     """
     if _is_sensitive(field):
         return None
+    if isinstance(field, models.ImageField):
+        # Ranked just under the record's own name and above everything else. A
+        # thumbnail is the fastest cell on the page to read — the eye resolves a
+        # picture before it reads a word — and a catalogue with no pictures in it does
+        # not look like a catalogue. This outranks the FileField exclusion below on
+        # purpose: see vantage.media, which is what makes the cell an image rather
+        # than the storage path a column of these used to print.
+        return 90
     if isinstance(field, UNCOLUMNABLE):
         return None
     if field.primary_key:

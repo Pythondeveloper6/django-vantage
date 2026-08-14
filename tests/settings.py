@@ -1,5 +1,8 @@
 """Minimal Django settings for the test suite."""
 
+import tempfile
+from pathlib import Path
+
 SECRET_KEY = "vantage-test-key-not-secret"
 DEBUG = False
 USE_TZ = True
@@ -45,3 +48,11 @@ TEMPLATES = [
 ROOT_URLCONF = "tests.urls"
 STATIC_URL = "/static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MEDIA_URL = "/media/"
+# Unset, MEDIA_ROOT is "" and every upload lands relative to the working directory —
+# so a test that saved a logo wrote vantage/branding/ into the repository root, and
+# three of those had already been committed-adjacent before anyone noticed. Point it
+# at a temporary directory instead: tests should not be able to write into the tree
+# they are testing.
+MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="vantage-test-media-"))

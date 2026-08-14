@@ -1,0 +1,68 @@
+{% load static vantage i18n %}{% comment %}
+The upload control, for any file field.
+
+Progressive by construction. What a browser with JavaScript disabled renders is a
+labelled <input type="file"> and Django's own clear checkbox — a complete, working
+upload control. Everything else here is inert markup that upload.js finds by its
+data- attributes; if the script never runs, nothing below is missing, only quieter.
+
+The clear checkbox is emitted only when the field is not required, which is Django's
+reading of blank=True on the model. Offering to remove a value the database will refuse
+to unset produces an error on save and no way to recover from it.
+
+The <script> is external on purpose: a strict CSP allows 'self' for script-src, and a
+widget template has no access to the request and therefore no nonce for an inline one.
+One tag per file field on the page; upload.js guards against running twice.
+{% endcomment %}
+<div class="v-upload" data-vantage-upload
+     data-max-bytes="{{ widget.max_bytes }}"
+     {% if widget.is_image %}data-preview="image"{% endif %}>
+
+  {% if widget.is_initial %}
+    <div class="v-upload-current" data-vantage-upload-current>
+      {% include "vantage/partials/thumb.html" with thumb=widget.thumb file_url=widget.file_url file_name=widget.file_name alt=widget.alt icon=widget.icon size="md" %}
+      <div class="v-upload-meta">
+        <span class="v-upload-name">{{ widget.file_name }}</span>
+        {% if not widget.required %}
+          <span class="v-upload-remove">
+            <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"
+                   data-vantage-upload-clear{% if widget.attrs.disabled %} disabled{% endif %}>
+            <label for="{{ widget.checkbox_id }}">{% translate "Remove this file when I save" %}</label>
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="v-upload-drop" data-vantage-upload-drop>
+    <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+    <span class="v-upload-hint">{% translate "or drop a file here" %}</span>
+  </div>
+
+  {% comment %} What is about to be uploaded, drawn from the file the browser already
+     holds — no round trip, and no pretending the file is saved until it is. {% endcomment %}
+  <div class="v-upload-chosen" data-vantage-upload-chosen hidden>
+    <img class="v-upload-preview" data-vantage-upload-preview alt=""
+         width="{{ widget.preview_box }}" height="{{ widget.preview_box }}" hidden>
+    <div class="v-upload-meta">
+      <span class="v-upload-name" data-vantage-upload-chosen-name></span>
+      <span class="v-muted" data-vantage-upload-chosen-size></span>
+    </div>
+    <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-vantage-upload-undo>
+      {% translate "Undo" %}
+    </button>
+  </div>
+
+  <p class="v-upload-error" data-vantage-upload-error role="alert" hidden></p>
+
+  {% comment %} Indeterminate on purpose, and labelled with the real byte count. A form
+     posts as one multipart body, so the page cannot know how much of it has left the
+     machine without taking the submit over with XHR — and a percentage invented to look
+     reassuring is the one thing worse than not knowing. {% endcomment %}
+  <p class="v-upload-progress-row" data-vantage-upload-progress hidden>
+    <progress class="v-upload-progress"></progress>
+    <span class="v-muted" data-vantage-upload-progress-text></span>
+  </p>
+
+  <script src="{% static 'vantage/upload.js' %}" defer></script>
+</div>

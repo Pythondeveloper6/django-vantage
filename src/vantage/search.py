@@ -27,6 +27,7 @@ from django.http import JsonResponse
 from django.urls import NoReverseMatch, reverse
 from django.utils.http import urlencode
 from django.utils.text import Truncator
+from django.utils.translation import gettext_lazy as _
 
 from vantage.introspection import resolve_path
 from vantage.optimizer import plan_related
@@ -222,7 +223,7 @@ class GlobalSearch:
         # Only the joinable half of the plan: a search row shows a name and a subtitle,
         # never a multi-valued column, so a prefetch here would be an extra query per
         # model bought for nothing.
-        select, _ = plan_related(panel.model, paths)
+        select, _prefetch = plan_related(panel.model, paths)
         if select:
             queryset = queryset.select_related(*sorted(select))
 
@@ -378,10 +379,10 @@ class SearchView(SiteView):
     """
 
     template_name = "vantage/search.html"
-    page_title = "Search"
+    page_title = _("Search")
 
     def get_breadcrumbs(self):
-        return [("Search", None)]
+        return [(_("Search"), None)]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -393,7 +394,9 @@ class SearchView(SiteView):
             groups=groups,
             total=sum(len(group.hits) for group in groups),
             min_length=search.min_length,
-            page_title=f"Search: {query}" if query else "Search",
+            page_title=(
+                _("Search: %(query)s") % {"query": query} if query else _("Search")
+            ),
         )
         return context
 

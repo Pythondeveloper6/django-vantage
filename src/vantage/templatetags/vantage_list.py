@@ -25,6 +25,8 @@ from decimal import Decimal
 from typing import Any
 
 from django import template
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 register = template.Library()
 
@@ -53,6 +55,17 @@ SEGMENT_STEP = 0.11
 #: How many segments an ``aria-label`` names before it summarises the rest. A screen
 #: reader announcing forty segments is not more accessible than one announcing five.
 SPOKEN_SEGMENTS = 5
+
+#: The kind of chart, as a whole phrase per kind, lazily translated because this is
+#: evaluated at import. Never ``str.lower()`` of a translated word: lowercasing is not
+#: a safe transform — a German noun loses its capital and a Turkish "I" loses its dot —
+#: and the phrase a translator writes for the middle of a sentence is frequently not
+#: the one they would write at the start of it.
+CHART_SHAPES: dict[str, Any] = {
+    "bar": _("bar chart"),
+    "donut": _("donut chart"),
+    "line": _("line chart"),
+}
 
 
 # ── charts ──────────────────────────────────────────────────────────────────
@@ -191,35 +204,75 @@ def _number(value: float) -> str:
     return f"{value:,.2f}"
 
 
+def _spoken_period(bucket: str, count: int) -> str:
+    """``"3 days"`` — a count and its unit, as one translated phrase.
+
+    One message per bucket, pluralised on the count, because "day" and "days" differ by
+    more than a letter in most languages and by more than two forms in several.
+    """
+    if bucket == "week":
+        return ngettext("%(count)s week", "%(count)s weeks", count) % {"count": count}
+    if bucket == "month":
+        return ngettext("%(count)s month", "%(count)s months", count) % {"count": count}
+    if bucket == "day":
+        return ngettext("%(count)s day", "%(count)s days", count) % {"count": count}
+    # Unreachable through ``Chart``, which validates the bucket, but a chart arriving as
+    # a plain dict can say anything and a screen reader must still get a whole word.
+    return ngettext("%(count)s point", "%(count)s points", count) % {"count": count}
+
+
 def _aria_label(chart: Any, values: list[float], labels: list[str], kind: str) -> str:
     """A sentence that answers the same question the picture does.
 
     ``role="img"`` replaces the graphic entirely for a screen reader, so this string is
     the chart for that user. It names the shape, the range and the extremes rather than
     reciting every point.
-    """
-    label = _get(chart, "label", "") or "Chart"
-    if not values:
-        return f"{label}: no data."
 
-    shape = {"bar": "Bar chart", "donut": "Donut chart"}.get(kind, "Line chart")
-    if _get(chart, "bucket"):
-        bucket = _get(chart, "bucket")
-        window = ""
+    Every branch returns one whole sentence with named placeholders. Assembling this
+    text from clauses would be worse here than anywhere else in the package: the reader
+    has no picture to fall back on when the word order comes out wrong, and the
+    placeholders arrive in an order no translator can change from Python.
+    """
+    label = _get(chart, "label", "") or _("Chart")
+    if not values:
+        return _("%(label)s: no data.") % {"label": label}
+
+    shape = CHART_SHAPES.get(kind, CHART_SHAPES["line"])
+    bucket = _get(chart, "bucket")
+    if bucket:
+        parts = {
+            "label": label,
+            "shape": shape,
+            "period": _spoken_period(str(bucket), len(values)),
+            "low": _number(min(values)),
+            "high": _number(max(values)),
+        }
         if labels:
-            window = f", {labels[0]} to {labels[-1]}"
-        return (
-            f"{label}: {shape.lower()} of {len(values)} {bucket}s{window}, "
-            f"from {_number(min(values))} to {_number(max(values))}."
-        )
+            return _(
+                "%(label)s: %(shape)s of %(period)s, %(first)s to %(last)s, "
+                "from %(low)s to %(high)s."
+            ) % {**parts, "first": labels[0], "last": labels[-1]}
+        return _("%(label)s: %(shape)s of %(period)s, from %(low)s to %(high)s.") % parts
 
     named = []
     for index, value in enumerate(values[:SPOKEN_SEGMENTS]):
-        name = labels[index] if index < len(labels) else f"item {index + 1}"
+        # A label and a number side by side: data, not prose, so nothing to translate
+        # beyond the stand-in used when a series arrived without labels.
+        name = labels[index] if index < len(labels) else _("item %(number)s") % {
+            "number": index + 1
+        }
         named.append(f"{name} {_number(value)}")
+
+    parts = {"label": label, "shape": shape, "segments": "; ".join(named)}
     rest = len(values) - len(named)
-    tail = f", and {rest} more" if rest > 0 else ""
-    return f"{label}: {shape.lower()}, {'; '.join(named)}{tail}."
+    if rest > 0:
+        # English needs no plural here; Polish and Russian need three forms of it.
+        return ngettext(
+            "%(label)s: %(shape)s, %(segments)s, and %(count)s more.",
+            "%(label)s: %(shape)s, %(segments)s, and %(count)s more.",
+            rest,
+        ) % {**parts, "count": rest}
+    return _("%(label)s: %(shape)s, %(segments)s.") % parts
 
 
 @register.inclusion_tag("vantage/partials/chart_svg.html")

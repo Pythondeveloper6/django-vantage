@@ -11,6 +11,7 @@ from django.db import models
 from django.utils.html import format_html
 from django.utils.safestring import SafeString, mark_safe
 from django.utils.text import Truncator
+from django.utils.translation import gettext_lazy as _
 
 from vantage.introspection import resolve_path
 
@@ -44,8 +45,14 @@ def _money_fields(panel) -> dict[str, int]:
     return cached
 
 
-def render_cell(panel, obj, name: str) -> SafeString | str:
-    """Render one cell of ``obj`` for the column ``name``."""
+def render_cell(panel, obj, name: str, *, size: str = "sm") -> SafeString | str:
+    """Render one cell of ``obj`` for the column ``name``.
+
+    ``size`` is the thumbnail box a file column uses, and is the one thing about a cell
+    that depends on where the cell is: a 40-pixel thumbnail is right in a table row and
+    is not a detail page's idea of showing you the picture. It is keyword-only and
+    defaults to the table size, so every existing caller keeps its behaviour.
+    """
     # A panel method wins, so a project can always override rendering in Python.
     method = getattr(panel, name, None)
     if callable(method):
@@ -72,6 +79,16 @@ def render_cell(panel, obj, name: str) -> SafeString | str:
             '<span class="v-money">{}</span>', f"{value:,.{places}f}"
         )
 
+    # Before the generic path, because the generic path would print the storage key.
+    # An empty file is handled here too: a FieldFile with no name is falsy, and letting
+    # it reach the renderer would draw a chip with no name on it.
+    if isinstance(field, models.FileField):
+        if not value:
+            return EMPTY
+        from vantage.media import render_file
+
+        return render_file(value, obj=obj, size=size)
+
     return _render_value(value, field, obj, hops[0])
 
 
@@ -87,7 +104,7 @@ def _render_value(value, field, obj, first_hop):
         return format_html(
             '<span class="v-cell-bool" data-value="{}">{}</span>',
             "true" if value else "false",
-            "Yes" if value else "No",
+            _("Yes") if value else _("No"),
         )
 
     if getattr(field, "choices", None):
@@ -120,5 +137,5 @@ def _plain(value):
     if value is None or value == "":
         return EMPTY
     if isinstance(value, bool):
-        return "Yes" if value else "No"
+        return _("Yes") if value else _("No")
     return Truncator(str(value)).chars(80)

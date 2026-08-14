@@ -1,5 +1,5 @@
 {% extends "vantage/base.html" %}
-{% load static vantage %}
+{% load static vantage i18n %}
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
@@ -9,7 +9,7 @@
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">{% if done %}Import finished{% else %}Preview{% endif %}</h1>
+    <h1 class="v-page-title">{% if done %}{% translate "Import finished" %}{% else %}{% translate "Preview" %}{% endif %}</h1>
     <p class="v-page-description">
       {% if done %}
         {{ result.summary }} · {{ stashed.filename }}
@@ -18,59 +18,59 @@
           Said in full, every time. "Dry run" is jargon; "nothing has been written" is
           the sentence that decides whether someone reads the rest of this page calmly.
         {% endcomment %}
-        Nothing has been written yet. Every row below was validated and saved inside a
-        transaction that was then rolled back.
+        {% blocktranslate trimmed %}Nothing has been written yet. Every row below was validated and saved inside a
+        transaction that was then rolled back.{% endblocktranslate %}
       {% endif %}
     </p>
   </div>
   <div class="v-page-actions">
     {% if done %}
-      <a class="v-btn v-btn-secondary" href="{{ list_url }}">Back to {{ panel.get_label_plural|lower }}</a>
+      <a class="v-btn v-btn-secondary" href="{{ list_url }}">{% blocktranslate with plural_label=panel.get_label_plural|lower %}Back to {{ plural_label }}{% endblocktranslate %}</a>
     {% else %}
-      <a class="v-btn v-btn-secondary" href="{{ map_url }}">Change the mapping</a>
+      <a class="v-btn v-btn-secondary" href="{{ map_url }}">{% translate "Change the mapping" %}</a>
     {% endif %}
   </div>
 </div>
 
-<ol class="v-import-steps" aria-label="Import steps">
-  <li class="v-import-step-done"><span class="v-import-step-n">1</span> Upload</li>
-  <li class="v-import-step-done"><span class="v-import-step-n">2</span> Map columns</li>
-  <li aria-current="step"><span class="v-import-step-n">3</span> Preview</li>
+<ol class="v-import-steps" aria-label="{% translate "Import steps" %}">
+  <li class="v-import-step-done"><span class="v-import-step-n">1</span> {% translate "Upload" %}</li>
+  <li class="v-import-step-done"><span class="v-import-step-n">2</span> {% translate "Map columns" %}</li>
+  <li aria-current="step"><span class="v-import-step-n">3</span> {% translate "Preview" %}</li>
 </ol>
 
 <div class="v-import-counts">
   <div class="v-card v-import-count" data-tone="create">
     <span class="v-import-count-n">{{ result.created }}</span>
-    <span class="v-import-count-label">{% if done %}created{% else %}would be created{% endif %}</span>
+    <span class="v-import-count-label">{% if done %}{% translate "created" %}{% else %}{% translate "would be created" %}{% endif %}</span>
   </div>
   <div class="v-card v-import-count" data-tone="update">
     <span class="v-import-count-n">{{ result.updated }}</span>
-    <span class="v-import-count-label">{% if done %}updated{% else %}would be updated{% endif %}</span>
+    <span class="v-import-count-label">{% if done %}{% translate "updated" %}{% else %}{% translate "would be updated" %}{% endif %}</span>
   </div>
   <div class="v-card v-import-count" data-tone="quiet">
     <span class="v-import-count-n">{{ result.unchanged }}</span>
-    <span class="v-import-count-label">unchanged</span>
+    <span class="v-import-count-label">{% translate "unchanged" %}</span>
   </div>
   <div class="v-card v-import-count" data-tone="{% if result.failed %}error{% else %}quiet{% endif %}">
     <span class="v-import-count-n">{{ result.failed }}</span>
-    <span class="v-import-count-label">{% if done %}failed{% else %}would fail{% endif %}</span>
+    <span class="v-import-count-label">{% if done %}{% translate "failed" %}{% else %}{% translate "would fail" %}{% endif %}</span>
   </div>
 </div>
 
 {% if mapping.missing_required %}
   <div class="v-form-alert" data-tone="warning" role="status">
-    <p class="v-form-alert-title">Some required fields have no column.</p>
+    <p class="v-form-alert-title">{% translate "Some required fields have no column." %}</p>
     <p>
       {% for name, label in mapping.missing_required %}{{ label }}{% if not forloop.last %}, {% endif %}{% endfor %}
-      must have a value, and nothing in this file supplies one. Rows that create a new
-      record will fail; rows that update an existing one are unaffected.
+      {% blocktranslate trimmed %}must have a value, and nothing in this file supplies one. Rows that create a new
+      record will fail; rows that update an existing one are unaffected.{% endblocktranslate %}
     </p>
   </div>
 {% endif %}
 
 {% if mapping.ignored %}
   <section class="v-card v-import-card">
-    <div class="v-card-head"><h2 class="v-card-title">Columns not being written</h2></div>
+    <div class="v-card-head"><h2 class="v-card-title">{% translate "Columns not being written" %}</h2></div>
     <div class="v-card-body">
       <ul class="v-import-ignored">
         {% for header, reason in mapping.ignored %}
@@ -85,18 +85,21 @@
   <section class="v-card v-import-card" data-tone="error">
     <div class="v-card-head">
       <h2 class="v-card-title">
-        {{ result.errors|length }} problem{{ result.errors|length|pluralize }}
-        {% if not done %}to fix first{% endif %}
+        {% if done %}
+          {% blocktranslate count counter=result.errors|length %}{{ counter }} problem{% plural %}{{ counter }} problems{% endblocktranslate %}
+        {% else %}
+          {% blocktranslate count counter=result.errors|length %}{{ counter }} problem to fix first{% plural %}{{ counter }} problems to fix first{% endblocktranslate %}
+        {% endif %}
       </h2>
-      <a class="v-btn v-btn-secondary v-btn-sm" href="{{ errors_url }}">Download as CSV</a>
+      <a class="v-btn v-btn-secondary v-btn-sm" href="{{ errors_url }}">{% translate "Download as CSV" %}</a>
     </div>
     <div class="v-table-wrap">
       <table class="v-table v-import-errors">
         <thead>
           <tr>
-            <th scope="col">Row</th>
-            <th scope="col">Column</th>
-            <th scope="col">Problem</th>
+            <th scope="col">{% translate "Row" %}</th>
+            <th scope="col">{% translate "Column" %}</th>
+            <th scope="col">{% translate "Problem" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -113,8 +116,8 @@
     {% if errors_hidden %}
       <div class="v-card-body">
         <p class="v-muted">
-          {{ errors_hidden }} more not shown. The CSV above has every one, with its row
-          number and column.
+          {% blocktranslate trimmed %}{{ errors_hidden }} more not shown. The CSV above has every one, with its row
+          number and column.{% endblocktranslate %}
         </p>
       </div>
     {% endif %}
@@ -125,16 +128,16 @@
   <section class="v-card v-import-card">
     <div class="v-card-head">
       <h2 class="v-card-title">
-        {% if done %}What changed{% else %}What would change{% endif %}
+        {% if done %}{% translate "What changed" %}{% else %}{% translate "What would change" %}{% endif %}
       </h2>
-      <p class="v-muted">The first {{ result.diffs|length }} updated record{{ result.diffs|length|pluralize }}.</p>
+      <p class="v-muted">{% blocktranslate count counter=result.diffs|length %}The first {{ counter }} updated record.{% plural %}The first {{ counter }} updated records.{% endblocktranslate %}</p>
     </div>
     <div class="v-card-body v-import-diffs">
       {% for diff in result.diffs %}
         <article class="v-import-diff">
           <h3 class="v-import-diff-title">
             {{ diff.label }}
-            <span class="v-muted v-mono">#{{ diff.pk }} · row {{ diff.row }}</span>
+            <span class="v-muted v-mono">{% blocktranslate with pk=diff.pk row=diff.row %}#{{ pk }} · row {{ row }}{% endblocktranslate %}</span>
           </h3>
           <dl>
             {% for change in diff.changes %}
@@ -166,20 +169,26 @@
             Stated on the control itself. The counts are at the top of a long page, and
             the last thing a person reads before clicking is the button.
           {% endcomment %}
-          · {{ result.failed }} row{{ result.failed|pluralize }} will be skipped
+          {% comment %} The `pluralize` filter only ever appends an English "s"; a plural
+             sentence has to go through blocktranslate count so a language with three
+             plural forms — or none — gets all of them. {% endcomment %}
+          · {% blocktranslate count counter=result.failed %}{{ counter }} row will be skipped{% plural %}{{ counter }} rows will be skipped{% endblocktranslate %}
         {% endif %}
       </span>
-      <a class="v-btn v-btn-ghost" href="{{ map_url }}">Back</a>
+      <a class="v-btn v-btn-ghost" href="{{ map_url }}">{% translate "Back" %}</a>
       <button class="v-btn v-btn-primary" type="submit"
               {% if not result.created and not result.updated %}disabled{% endif %}>
+        {% comment %} The mixed case pluralises on two independent counts at once, which
+           gettext cannot express. It is kept as one whole sentence with both numbers as
+           placeholders rather than being welded together from two pluralised halves. {% endcomment %}
         {% if result.created and result.updated %}
-          Create {{ result.created }} and update {{ result.updated }}
+          {% blocktranslate with created=result.created updated=result.updated %}Create {{ created }} and update {{ updated }}{% endblocktranslate %}
         {% elif result.updated %}
-          Update {{ result.updated }} record{{ result.updated|pluralize }}
+          {% blocktranslate count counter=result.updated %}Update {{ counter }} record{% plural %}Update {{ counter }} records{% endblocktranslate %}
         {% elif result.created %}
-          Create {{ result.created }} record{{ result.created|pluralize }}
+          {% blocktranslate count counter=result.created %}Create {{ counter }} record{% plural %}Create {{ counter }} records{% endblocktranslate %}
         {% else %}
-          Nothing to import
+          {% translate "Nothing to import" %}
         {% endif %}
       </button>
     </div>

@@ -69,6 +69,9 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.8",
     "model-bakery>=1.20",
+    # Optional at runtime (see vantage.media.has_pillow) but needed here so the
+    # with-Pillow code paths in tests/test_media.py are actually exercised.
+    "Pillow>=10.0",
 ]
 # Release plumbing, kept out of `dev` so a contributor's `uv sync` stays small.
 release = ["build>=1.2", "twine>=6.0"]
