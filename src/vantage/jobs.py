@@ -64,9 +64,13 @@ from typing import Any
 from django.db import router, transaction
 from django.http import HttpRequest, QueryDict
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from vantage.actions import Selection
 from vantage.models import VantageJob
+from vantage.tenancy import restore as tenancy_restore
+from vantage.tenancy import snapshot as tenancy_snapshot
 
 __all__ = [
     "CHUNK_SIZE",
@@ -209,6 +213,9 @@ def selection_payload(selection: Selection, request, *, count: int | None = None
         "path": getattr(request, "path", "") or "",
         "count": count,
         "selected_at": timezone.now().isoformat(),
+        # A worker has no host and no headers, so a subdomain or header resolver
+        # cannot run there. None unless tenancy is on. See vantage.tenancy.snapshot.
+        "tenant": tenancy_snapshot(request),
     }
 
 
@@ -277,16 +284,20 @@ class Backend:
     def hint(self) -> str:
         if self.deferred:
             return ""
-        return (
+        return _(
             "No task backend is configured, so this ran in the web request. "
             "Configure TASKS, Celery or RQ to move it off."
         )
 
 
+# ``name`` is an identifier — stored on the job row and matched on in ``_submit`` — so
+# it is never translated. ``label`` is shown on the jobs page and the health page:
+# "Django Tasks", "Celery" and "RQ" are product names and stay literal in every
+# language, while "In-process" is a description of what happened and does not.
 DJANGO_TASKS = Backend("django_tasks", "Django Tasks", True)
 CELERY = Backend("celery", "Celery", True)
 RQ = Backend("rq", "RQ", True)
-IN_PROCESS = Backend("inprocess", "In-process", False)
+IN_PROCESS = Backend("inprocess", _("In-process"), False)
 
 BACKENDS = {b.name: b for b in (DJANGO_TASKS, CELERY, RQ, IN_PROCESS)}
 
@@ -510,23 +521,37 @@ def _summary(job: VantageJob, status: str) -> str:
     worse than no summary at all.
     """
     if status == VantageJob.Status.FAILED and not job.processed:
-        return "Nothing ran."
+        return str(_("Nothing ran."))
+    # Each clause is a whole translatable phrase and the count is a placeholder, never
+    # a number glued to a word: the thousands separator is applied first and the
+    # *formatted* string is what the placeholder receives, so no locale loses its
+    # grouping to a bare ``%d``.
     parts = []
     if job.succeeded:
-        parts.append(f"{job.succeeded:,} succeeded")
+        parts.append(
+            ngettext("%(count)s succeeded", "%(count)s succeeded", job.succeeded)
+            % {"count": f"{job.succeeded:,}"}
+        )
     if job.failed:
-        parts.append(f"{job.failed:,} failed")
+        parts.append(
+            ngettext("%(count)s failed", "%(count)s failed", job.failed)
+            % {"count": f"{job.failed:,}"}
+        )
     if status == VantageJob.Status.DENIED:
-        parts.append("stopped: permission withdrawn")
+        parts.append(str(_("stopped: permission withdrawn")))
     elif status == VantageJob.Status.FAILED:
-        parts.append("stopped: the job could not continue")
-    stated = ", ".join(parts) if parts else "nothing to do"
+        parts.append(str(_("stopped: the job could not continue")))
+    stated = ", ".join(parts) if parts else str(_("nothing to do"))
 
     # The one honest use of the click-time count: naming the drift rather than hiding
     # it. Never the reverse — the count reported is always the one that ran.
     claimed = (job.selection or {}).get("count")
     if isinstance(claimed, int) and job.total and claimed != job.total:
-        stated += f" ({claimed:,} were selected; {job.total:,} still matched)"
+        stated += ngettext(
+            " (%(claimed)s was selected; %(matched)s still matched)",
+            " (%(claimed)s were selected; %(matched)s still matched)",
+            claimed,
+        ) % {"claimed": f"{claimed:,}", "matched": f"{job.total:,}"}
     return stated[:300]
 
 
@@ -565,7 +590,7 @@ def _execute(job: VantageJob) -> None:
         # re-deriving the chunk from ``_default_manager`` would quietly hand the action
         # rows the actor was never allowed to see.
         rows = queryset.filter(pk__in=chunk)
-        _, failure = _attempt(db, lambda rows=rows: action.run(panel, request, rows))
+        _value, failure = _attempt(db, lambda rows=rows: action.run(panel, request, rows))
         if failure is None:
             position += len(chunk)
             job.processed = position
@@ -576,7 +601,7 @@ def _execute(job: VantageJob) -> None:
             for pk in chunk:
                 position += 1
                 one = queryset.filter(pk=pk)
-                _, row_failure = _attempt(db, lambda one=one: action.run(panel, request, one))
+                _value, row_failure = _attempt(db, lambda one=one: action.run(panel, request, one))
                 if row_failure is not None:
                     job.failed += 1
                     if len(errors) < cap:
@@ -604,7 +629,8 @@ def _rehydrate(job: VantageJob):
     panel = _panel_for(job.resource_key)
     if panel is None:
         raise JobBroken(
-            f"No panel is registered for {job.resource_key}; this job can no longer run."
+            _("No panel is registered for %(key)s; this job can no longer run.")
+            % {"key": job.resource_key}
         )
 
     # Unfiltered on purpose: "does this action still exist" and "may this person still
@@ -612,16 +638,23 @@ def _rehydrate(job: VantageJob):
     # permission as a deleted action.
     action = next((a for a in resolve_actions(panel) if a.name == job.action_name), None)
     if action is None:
-        raise JobBroken(f"The action {job.action_name!r} no longer exists on this panel.")
+        raise JobBroken(
+            _("The action %(action)s no longer exists on this panel.")
+            % {"action": repr(job.action_name)}
+        )
 
     actor = _load_actor(job)
     if actor is None:
-        raise JobDenied("The account that started this job is gone or has been disabled.")
+        raise JobDenied(_("The account that started this job is gone or has been disabled."))
 
     payload = job.selection or {}
     request = JobRequest(
         user=actor, query=payload.get("query", ""), path=payload.get("path", "/")
     )
+    # The tenant the selection was made under, put back before anything reads a row.
+    # Without it a host- or header-based resolver finds nothing here and the job —
+    # correctly, but uselessly — resolves to zero rows. No-op unless tenancy is on.
+    tenancy_restore(request, payload.get("tenant"))
     return panel, action, request
 
 
@@ -644,8 +677,25 @@ def _resolve_queryset(panel, action, request, job: VantageJob):
     listprefs.resolve(panel, request)
     view = ListView(site=_site_for(panel), panel=panel)
     view.request = request
-    queryset, *_ = view.build_queryset(request)
+    queryset, *_rest = view.build_queryset(request)
     return selection_from_payload(job.selection or {}).apply(queryset)
+
+
+#: One whole sentence per permission verb rather than one sentence with the verb
+#: interpolated into it. "may no longer" + a separately translated "change" is a
+#: translator trap: in most languages the verb has to agree with what follows it and a
+#: bare infinitive handed over on its own has nothing to agree with. The keys are
+#: Django's permission codenames — identifiers, never translated.
+_REFUSALS = {
+    "view": _("%(actor)s may no longer view %(records)s."),
+    "add": _("%(actor)s may no longer add %(records)s."),
+    "change": _("%(actor)s may no longer change %(records)s."),
+    "delete": _("%(actor)s may no longer delete %(records)s."),
+}
+
+#: For a panel that declares a permission of its own. The codename stays a quoted
+#: identifier here rather than being glued into the sentence as an English word.
+_REFUSAL_OTHER = _("%(actor)s no longer has the “%(permission)s” permission on %(records)s.")
 
 
 def _refusal(request, panel, action, job, *, reload_user: bool = True) -> str | None:
@@ -655,15 +705,20 @@ def _refusal(request, panel, action, job, *, reload_user: bool = True) -> str | 
     if reload_user:
         actor = _load_actor(job)
         if actor is None:
-            return "The account that started this job is gone or has been disabled."
+            return str(_("The account that started this job is gone or has been disabled."))
         request.user = actor
     if action.permission is None:
         return None
     if get_permissions().has_model_perm(request, panel.model, action.permission):
         return None
-    return (
-        f"{job.actor_repr or 'The actor'} may no longer "
-        f"{action.permission} {panel.get_label_plural().lower()}."
+    sentence = _REFUSALS.get(action.permission, _REFUSAL_OTHER)
+    return str(
+        sentence
+        % {
+            "actor": job.actor_repr or _("The actor"),
+            "records": panel.get_label_plural().lower(),
+            "permission": action.permission,
+        }
     )
 
 
@@ -756,7 +811,7 @@ def error_csv_rows(job: VantageJob) -> list[list[str]]:
     """
     from vantage.importer import armour
 
-    rows = [["Row", "Record", "Error"]]
+    rows: list[list[str]] = [[str(_("Row")), str(_("Record")), str(_("Error"))]]
     stored = job.errors or []
     rows.extend(
         [
@@ -768,9 +823,12 @@ def error_csv_rows(job: VantageJob) -> list[list[str]]:
     )
     hidden = max(job.failed - len(stored), 0)
     if hidden:
-        rows.append(
-            ["", "", armour(f"{hidden:,} further failures were not recorded individually.")]
-        )
+        note = ngettext(
+            "%(count)s further failure was not recorded individually.",
+            "%(count)s further failures were not recorded individually.",
+            hidden,
+        ) % {"count": f"{hidden:,}"}
+        rows.append(["", "", armour(note)])
     return rows
 
 
@@ -793,7 +851,7 @@ def sweep(*, days: int | None = None) -> int:
 
     window = days or int(setting("JOB_RETENTION_DAYS", RETENTION_DAYS))
     horizon = timezone.now() - dt.timedelta(days=window)
-    deleted, _ = VantageJob.objects.filter(
+    deleted, _per_model = VantageJob.objects.filter(
         status__in=VantageJob.TERMINAL, created_at__lt=horizon
     ).delete()
     return deleted

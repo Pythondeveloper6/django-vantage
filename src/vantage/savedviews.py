@@ -52,6 +52,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.http import HttpResponseRedirect, QueryDict
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
 from vantage.models import SavedView, SavedViewGrant, SavedViewUserState
@@ -209,8 +210,11 @@ def hydrate(panel, state: dict | None) -> Hydrated:
                 BrokenReference(
                     SORT_PARAM,
                     [sort],
-                    f"“{sort.lstrip('-')}” is no longer a column on this page, "
-                    "so the saved ordering was not applied.",
+                    _(
+                        "“%(column)s” is no longer a column on this page, "
+                        "so the saved ordering was not applied."
+                    )
+                    % {"column": sort.lstrip("-")},
                     widens=False,
                 )
             )
@@ -235,8 +239,11 @@ def _why_broken(panel, parameter: str) -> str:
             base = base[: -len(suffix)]
             break
     if not resolve_path(panel.model, base):
-        return f"“{base}” no longer exists on {panel.get_label_plural().lower()}."
-    return f"“{base}” is no longer one of this page's filters."
+        return _("“%(field)s” no longer exists on %(records)s.") % {
+            "field": base,
+            "records": panel.get_label_plural().lower(),
+        }
+    return _("“%(field)s” is no longer one of this page's filters.") % {"field": base}
 
 
 def _normalise(state: dict | None) -> tuple:
@@ -367,8 +374,11 @@ def write_state(view: SavedView, request, state: dict, expected_version: int | N
     )
     if not updated:
         raise VersionConflict(
-            f"“{view.name}” was changed by someone else while this page was open. "
-            "Reload to see their version, or use Save as to keep yours."
+            _(
+                "“%(name)s” was changed by someone else while this page was open. "
+                "Reload to see their version, or use Save as to keep yours."
+            )
+            % {"name": view.name}
         )
     view.refresh_from_db()
     return view
@@ -518,13 +528,13 @@ class SavedViewBase(SiteView):
     def resolve(self, view: SavedView):
         panel = _panel_for(self.site, view.model_label)
         if panel is None:
-            raise PermissionDenied("That saved view points at a model this panel does not show.")
+            raise PermissionDenied(_("That saved view points at a model this panel does not show."))
         # The model permission again, on every request. The stored query string is
         # user data and proves nothing; this is the check that actually holds.
         if not self.permissions.has_model_perm(self.request, panel.model, "view"):
-            raise PermissionDenied("You do not have permission to view those records.")
+            raise PermissionDenied(_("You do not have permission to view those records."))
         if not can_use(view, self.request):
-            raise PermissionDenied("That saved view is not shared with you.")
+            raise PermissionDenied(_("That saved view is not shared with you."))
         return panel
 
 
@@ -589,11 +599,11 @@ class SavedViewWriteView(SavedViewBase):
 
     def post(self, request, *args, **kwargs):
         if not enabled():
-            raise PermissionDenied("Saved views are switched off.")
+            raise PermissionDenied(_("Saved views are switched off."))
 
         intent = request.POST.get("intent", "")
         if intent not in self.INTENTS:
-            raise PermissionDenied("That is not something a saved view can do.")
+            raise PermissionDenied(_("That is not something a saved view can do."))
 
         target = request.POST.get("next") or "/"
         handler = getattr(self, f"_{intent}")
@@ -611,19 +621,19 @@ class SavedViewWriteView(SavedViewBase):
         if not can_edit(view, request):
             # The Save button should already have read "Save as", so reaching here
             # means a stale page or a hand-made POST. Both get the same answer.
-            raise PermissionDenied("You cannot change that view. Use Save as instead.")
+            raise PermissionDenied(_("You cannot change that view. Use Save as instead."))
         state = capture(panel, self._params(target))
         # Shared views carry the version check; a private one has no second writer.
         expected = self._expected_version(request) if view.is_shared else None
         write_state(view, request, state, expected)
-        messages.success(request, f"Saved “{view.name}”.")
+        messages.success(request, _("Saved “%(name)s”.") % {"name": view.name})
         return HttpResponseRedirect(_with_view(target, view.pk))
 
     def _save_as(self, request, target: str):
         panel = self._panel(request)
         name = (request.POST.get("name") or "").strip()
         if not name:
-            messages.error(request, "A saved view needs a name.")
+            messages.error(request, _("A saved view needs a name."))
             return HttpResponseRedirect(target)
 
         visibility = _choice(
@@ -649,24 +659,26 @@ class SavedViewWriteView(SavedViewBase):
             # invent a second name for the thing they were trying to replace.
             write_state(view, request, capture(panel, self._params(target)), None)
 
-        messages.success(request, f"Saved “{view.name}”.")
+        messages.success(request, _("Saved “%(name)s”.") % {"name": view.name})
         return HttpResponseRedirect(_with_view(target, view.pk))
 
     def _delete(self, request, target: str):
         view = self._view(request)
         self.resolve(view)
         if not (view.owner_id == request.user.pk or can_edit(view, request)):
-            raise PermissionDenied("You cannot delete that view.")
+            raise PermissionDenied(_("You cannot delete that view."))
         name = view.name
         view.delete()
-        messages.success(request, f"Deleted “{name}”.")
+        messages.success(request, _("Deleted “%(name)s”.") % {"name": name})
         return HttpResponseRedirect(_without_view(target))
 
     def _default(self, request, target: str):
         view = self._view(request)
         self.resolve(view)
         set_default(request, view)
-        messages.success(request, f"“{view.name}” now opens by default for you.")
+        messages.success(
+            request, _("“%(name)s” now opens by default for you.") % {"name": view.name}
+        )
         return HttpResponseRedirect(_with_view(target, view.pk))
 
     def _clear_default(self, request, target: str):
@@ -685,14 +697,15 @@ class SavedViewWriteView(SavedViewBase):
     def _panel(self, request):
         panel = _panel_for(self.site, request.POST.get("model", ""))
         if panel is None:
-            raise PermissionDenied("That is not a model this panel shows.")
+            raise PermissionDenied(_("That is not a model this panel shows."))
         if not self.permissions.has_model_perm(request, panel.model, "view"):
-            raise PermissionDenied("You do not have permission to view those records.")
+            raise PermissionDenied(_("You do not have permission to view those records."))
         return panel
 
     @staticmethod
     def _params(target: str) -> QueryDict:
-        _, _, query = target.partition("?")
+        # Not ``_, _, query``: ``_`` is the translation callable in this module.
+        query = target.partition("?")[2]
         return QueryDict(query)
 
     @staticmethod
@@ -716,7 +729,8 @@ def _with_view(target: str, pk: int) -> str:
     Saving is what makes a page pristine again: the thing it diverged from is now what
     it shows.
     """
-    path, _, query = target.partition("?")
+    # Not ``path, _, query``: ``_`` is the translation callable in this module.
+    path, _sep, query = target.partition("?")
     params = QueryDict(query, mutable=True)
     params.pop(OVERRIDE_PARAM, None)
     params[VIEW_PARAM] = str(pk)
@@ -724,7 +738,7 @@ def _with_view(target: str, pk: int) -> str:
 
 
 def _without_view(target: str) -> str:
-    path, _, query = target.partition("?")
+    path, _sep, query = target.partition("?")
     params = QueryDict(query, mutable=True)
     params.pop(VIEW_PARAM, None)
     params.pop(OVERRIDE_PARAM, None)
@@ -761,5 +775,5 @@ def _as_query_dict(params) -> QueryDict:
 
 
 def _choice(raw, choices, fallback):
-    values = {value for value, _ in choices.choices}
+    values = {value for value, _label in choices.choices}
     return raw if raw in values else fallback

@@ -27,6 +27,7 @@ from __future__ import annotations
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse
+from django.utils.translation import gettext_lazy as _
 
 from vantage import jobs
 from vantage.models import VantageJob
@@ -55,7 +56,7 @@ class JobsBase(SiteView):
 
     def check_permission(self, request):
         if not jobs.jobs_enabled():
-            raise PermissionDenied("Background jobs are switched off for this panel.")
+            raise PermissionDenied(_("Background jobs are switched off for this panel."))
         return None
 
     def get_job(self) -> VantageJob:
@@ -67,7 +68,7 @@ class JobsBase(SiteView):
         """
         job = VantageJob.objects.filter(pk=self.kwargs["pk"]).first()
         if job is None or not job.may_be_viewed_by(getattr(self.request, "user", None)):
-            raise Http404("No such job.")
+            raise Http404(_("No such job."))
         return job
 
 
@@ -75,11 +76,11 @@ class JobsView(JobsBase):
     """Recent jobs, newest first, with a live bar on anything still running."""
 
     template_name = "vantage/jobs.html"
-    page_title = "Background jobs"
-    page_description = "Bulk actions too large to run in a request, and how they went."
+    page_title = _("Background jobs")
+    page_description = _("Bulk actions too large to run in a request, and how they went.")
 
     def get_breadcrumbs(self):
-        return [("Background jobs", None)]
+        return [(_("Background jobs"), None)]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
