@@ -280,8 +280,10 @@ filters and widgets.
 Nothing is dropped silently. Each of these is reported per model by `manage.py check`
 as `vantage.W040`:
 
-- **`inlines`** — no equivalent. Edit the related model from its own page, or lean on
-  Vantage's related tabs.
+- **`inlines`** — not translated automatically; `ModelAdmin.InlineModelAdmin` classes
+  do not carry across. Vantage has its own, differently-shaped mechanism —
+  [`ModelPanel.inlines`](forms.md#editable-inlines) — but it is declared by hand on the
+  new panel rather than inferred from the adopted `ModelAdmin`.
 - **`formfield_overrides`** — Vantage infers widgets from the field.
 - **`raw_id_fields`, `autocomplete_fields`, `filter_horizontal`, `filter_vertical`,
   `radio_fields`, `prepopulated_fields`** — widget choices; Vantage picks its own.

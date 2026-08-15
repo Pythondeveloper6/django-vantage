@@ -172,6 +172,7 @@ strictness, so an item that cannot be shown is omitted.
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
+| `RELATION_PICKER` | `"always"` | — | `"always"` or `"threshold"`. Whether a single-valued relation gets the searchable picker regardless of row count, or only above 50 — see [Relations and the search threshold](forms.md#relations-and-the-search-threshold) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
 
@@ -191,6 +192,55 @@ self-grant.
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
 bypass. See [Read-only mode](permissions.md#read-only-mode).
+
+## Multi-tenancy
+
+Off by default. Setting `TENANT_MODEL` is the only thing that turns any of it on — see
+[Multi-tenancy](tenancy.md) for the full design (fail-closed checks, resolvers, the
+middleware requirement, and how writes are protected, not only reads).
+
+| Key | Default | Effect |
+|---|---|---|
+| `TENANT_MODEL` | `None` | The model every other registered model is scoped to, `"app_label.ModelName"`. Every model must either resolve a path to it or be declared exempt once this is set |
+| `TENANT_RESOLVER` | `None` | Dotted path to a `TenantResolver` subclass or any callable taking a request. `None` means [`vantage.tenancy.UserAttributeResolver`](tenancy.md#choosing-a-resolver) |
+| `TENANT_FIELD` | `"tenant"` | The attribute the default resolver reads off the user, and the conventional column name on tenant-owned models |
+| `TENANT_SCOPE` | `{}` | `{"app.model": "lookup__path"}` for anything inference cannot see on its own, and `{"app.model": None}` for a model that is deliberately shared across every tenant |
+| `TENANT_EXEMPT` | `[]` | Models every tenant shares — reference data, mostly |
+| `TENANT_UNSCOPED` | `"deny"` | What happens to a registered model with no path to the tenant and no exemption. `"deny"` shows no rows and is a `manage.py check` error (`vantage.E060`); `"allow"` shows every tenant's rows and downgrades the check to a warning (`vantage.W060`) |
+
+None of the six are editable from the panel's own UI, deliberately: a tenant boundary is
+not a preference, and a signed-in user narrowing or widening it from inside the panel
+would not be a boundary.
+
+```python
+VANTAGE = {"TENANT_MODEL": "accounts.Organisation"}
+
+MIDDLEWARE = [
+    ...,
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "vantage.tenancy.TenantMiddleware",
+]
+```
+
+`vantage.tenancy.TenantMiddleware` is not optional once `TENANT_MODEL` is set —
+`manage.py check` refuses to pass without it (`vantage.E065`), because a resolver
+without the request published to it fails closed rather than resolving nothing.
+
+## Background jobs
+
+A bulk action estimated at more than `JOB_THRESHOLD_SECONDS` of work is written as a
+job row and worked off the request instead of run inline — see
+[Background jobs](lists.md#background-jobs) for the routing rule, the chunking and
+retry behaviour, and the backends it is tried against.
+
+| Key | Default | Effect |
+|---|---|---|
+| `JOBS` | `True` | Whether large bulk actions may be offloaded at all. `False` always runs in the request, whatever the estimate |
+| `JOB_THRESHOLD_SECONDS` | `2.0` | The line between running in the request and writing a job row, in seconds of estimated work |
+| `JOB_CHUNK_SIZE` | `500` | Rows per transaction while a job runs |
+| `JOB_MAX_STORED_ERRORS` | `1000` | Most per-row errors kept for the downloadable report |
+| `JOB_RETENTION_DAYS` | `30` | How long a finished job's row is kept before it is swept |
+| `JOB_QUEUE` | `"default"` | Queue name passed to `django.tasks` or RQ. Celery uses its own routing instead |
 
 ## Scale
 
@@ -222,7 +272,9 @@ turning it off is that it is broken. See [Extending](extending.md).
 
 ## The complete list
 
-Thirty-four keys, matching `vantage.conf.DEFAULTS` exactly:
+Forty-seven keys, matching `vantage.conf.DEFAULTS` exactly — run
+`python -c "from vantage.conf import DEFAULTS; print(len(DEFAULTS))"` against your own
+install if this drifts, since it is exactly the number of lines in that dict:
 
 ```
 SITE_TITLE   SITE_ACRONYM   LOGO   LOGO_DARK   FAVICON
@@ -235,7 +287,14 @@ PLUGINS  PLUGINS_EXCLUDE
 
 PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION
 READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE
-DEFAULT_PER_PAGE  IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
+DEFAULT_PER_PAGE  RELATION_PICKER
+IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
+
+TENANT_MODEL  TENANT_RESOLVER  TENANT_FIELD
+TENANT_SCOPE  TENANT_EXEMPT  TENANT_UNSCOPED
+
+JOBS  JOB_THRESHOLD_SECONDS  JOB_CHUNK_SIZE
+JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS
@@ -270,6 +329,10 @@ works as expected in tests.
 
 ## See also
 
+- [How configuration resolves](configuration.md) — the order this dict is read in
+  relative to a `SiteConfiguration` row and a panel's own Python
 - [Theming](theming.md) — branding in detail, and the settings screen
 - [Permissions](permissions.md) — `PERMISSIONS`, `READ_ONLY`, `AUDIT_LOG`
+- [Multi-tenancy](tenancy.md) — the `TENANT_*` family in full
+- [Lists](lists.md#background-jobs) — the `JOB_*` family, and what triggers an offload
 - [Deployment](deployment.md) — which of these to check before going live

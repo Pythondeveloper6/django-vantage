@@ -9,8 +9,10 @@ Zero config to start. One line to override anything.
 
 ---
 
-> **Status: early development.** Working and heavily tested, but not yet released to PyPI
-> and the API may still move.
+> **Status: alpha (`0.1.0.dev0`).** Working and heavily tested — close to 3,000 tests —
+> but not yet on PyPI, and the API may still move. See the
+> [FAQ](docs/faq.md#how-finished-is-this) for an honest account of what is and is not
+> done. Use it on an internal tool; do not build a product on it this month.
 
 ## Why
 
@@ -26,6 +28,14 @@ Two rules govern the whole package:
 2. **Easy.** Every inferred default is overridable in one line. If it takes more, the API is wrong.
 
 ## Install
+
+Not on PyPI yet — install from the repository until the first release:
+
+```bash
+pip install "django-vantage @ git+https://github.com/your-org/django-vantage"
+```
+
+Once released, the usual will work:
 
 ```bash
 pip install django-vantage
@@ -192,10 +202,27 @@ class RevenuePage(Page):
 A class, a title, and a method. The URL, the nav entry and the rendering all have defaults, so a
 page with no template of its own still produces a presentable screen.
 
+## Configure it from the UI too
+
+Everything above is the developer's API. The person running the panel day to day can
+often reach the same knobs without a deploy: a list's columns, filters, stats and
+charts have a customisation rail, the dashboard has its own "Add a card" editor, and
+branding and behaviour have a settings screen. All of it composes in one fixed
+order — **UI override → `panel.py` / `VANTAGE` → inference** — stated once in
+[How configuration resolves](docs/configuration.md), so "why is my `panel.py` being
+ignored?" has a single, findable answer.
+
 ## What else is in the box
 
+- **A JSON API** over every panel — the same permission and validation path as the UI, cursor
+  pagination, optimistic concurrency, errors as structured data — see [the docs](docs/api.md)
 - **Command palette** (⌘K) with global search across every model you can see
-- **Dashboard** of widgets declared in Python — stat, chart, table, list, or your own template
+- **Dashboard** of widgets declared in Python, or built and arranged from the UI — stat, chart,
+  table, list, or your own template
+- **Soft delete, with a real Trash tab and Restore** on any model that carries a `deleted_at`
+  or `is_deleted` column, detected automatically
+- **Duplicate and bulk edit**, both reusing the exact same form and validation a single record uses
+- **Multi-tenancy** — scope every registered model to a tenant with one setting, fail-closed
 - **Schema map** derived from the registry, so it is never out of date, with clickable models
 - **Cascade-delete preview** — the real tree of what a delete takes with it, counted
 - **Read-only mode** and **user impersonation**, both enforced in the permission layer
@@ -227,6 +254,12 @@ A full demo project lives in `example/`:
 ```
 
 Sign in as `admin` / `admin12345`.
+
+## Documentation
+
+The full docs live in [`docs/`](docs/index.md) — start there for the complete
+`ModelPanel` reference, the settings reference, and pages on lists, forms, permissions,
+the JSON API, multi-tenancy, theming, extending and more.
 
 ## Licence
 

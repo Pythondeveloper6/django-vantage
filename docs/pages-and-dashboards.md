@@ -310,6 +310,103 @@ proof of that and wins outright.
 A nullable date is no good here — half the rows would fall outside every bucket — so it
 is refused.
 
+## Arranging the dashboard from the UI
+
+Everything above is the *code* layer. `?arrange=1` puts the dashboard into an editing
+mode with a row underneath that code, following the same shape
+[the per-list customisation rail](lists.md#the-customisation-rail) and
+[`vantage.listprefs`](configuration.md#the-same-shape-wherever-it-appears)
+established first:
+
+```
+per-user row  >  site-wide row  >  VANTAGE["DASHBOARD"]  >  DefaultDashboard
+```
+
+A stored arrangement is a list of entries, and each entry is one of two things: a
+pointer at a card the code already declares — by key, so the declaration stays the
+source of what the card *means* while the row only says where it sits, how wide it is
+and whether it currently shows — or a card someone built entirely in the UI, over any
+model they may view.
+
+### Building a card without writing Python
+
+The "Add a card" picker offers exactly two shapes — a stat or a chart, not the table
+and list cards, which need columns and hand-written pairs no picker can meaningfully
+ask for. Choosing a model, an aggregate (count, sum, average, min, max), a column to
+aggregate over, and — for a chart — a date field to bucket by or a low-cardinality
+column to break down by, produces a card that runs through exactly the same
+`vantage.stats.compute_panel` every Python-declared `Stat` and `Chart` does. There is
+one aggregation engine in this package; a card built in the UI is not a second,
+lesser one.
+
+A card may also carry a **filter**, re-expressed as the query string the list page's
+own filter rail would produce — the same parsing, the same rejection of a parameter
+the panel does not own. A filter path that would fan rows out through a to-many join is
+refused outright rather than silently double-counted: a list page can hide that fan-out
+behind `DISTINCT`, but a sum cannot, and a card reporting a number nobody can reproduce
+is worse than a card that refuses to build.
+
+**The model picker only ever offers what the viewer may already open** —
+`permissions.visible_panels(request, ...)`, computed before any cap is applied, because
+capping a registry slice *before* filtering it by permission is exactly the bug that
+once gave a restricted user a blank default dashboard (see
+[the default dashboard](#the-default-dashboard)). Every field offered for aggregation,
+grouping or dating is drawn from that model's own panel, so the picker can never offer
+a column the panel does not expose, and the same allowlist validates the POST that
+follows — the editor cannot offer a control whose value the write end would then
+reject.
+
+### Rearranging, hiding, and the two save scopes
+
+Cards drag to reorder within the grid and resize across it (1 to 4 columns wide); a
+declared card can be switched off (`show: False`) without touching the Python that
+declares it, and a UI-built card can be deleted outright.
+
+Saving for yourself is the default. Saving "for everyone" — what every colleague sees
+tomorrow morning — needs the same permission [the customisation rail's site-wide
+save](lists.md#the-customisation-rail) does,
+[`LIST_PREFS_PERMISSION`](settings.md#behaviour) (superuser by default): a request for
+the site-wide row without it is refused outright rather than quietly downgraded to a
+personal save, because a silent downgrade looks exactly like success and the person
+would never learn their colleagues saw nothing change. "Reset" writes `NULL`, not
+today's resolved layout, for the same reason a Python `panel.py` has to stay the
+answer after a reset — see [How configuration resolves](configuration.md).
+
+### `known_keys`: telling "removed" from "not yet seen"
+
+A declared card the stored arrangement never mentions is appended at the end rather
+than dropped — the same choice `NAV_UNLISTED = "append"` makes for the sidebar, and for
+the same reason: a developer adding a card to `get_widgets()` after a colleague last
+saved an arrangement must not have it silently swallowed by that older row.
+
+But "never mentions" is ambiguous by itself — a key absent from a stored arrangement is
+either a card that did not exist when the arrangement was last saved, or one that did
+and was deliberately left out. `known_keys` is the snapshot that tells the two apart:
+every declared key that existed in the code the moment the layout was last written is
+recorded on the row alongside it. A key recorded there and now absent from the
+arrangement was a decision, and stays gone; a key that is neither mentioned nor
+recorded is new since that save, and is appended automatically.
+
+```pycon
+>>> layout.known_keys      # captured at the moment this row was last saved
+['stat:revenue', 'chart:orders-over-time', 'table:latest-orders']
+>>> # a fourth card added to get_widgets() afterwards is not in known_keys,
+>>> # so it appears on every dashboard using this layout without anyone re-saving
+```
+
+### What this costs, and what it does not widen
+
+The two properties that carry the code layer carry this one too: **the permission
+check happens before the query**, so a card over a model the viewer cannot see is
+neither drawn nor computed and never reaches `aggregate()`; and **the cost is one
+aggregate per card**, because every card — declared or UI-built — goes through
+`compute_panel` and inherits its join-bucket partitioning rather than growing a second
+aggregation path here. A stored arrangement is capped (60 entries total, 24 of them
+UI-built — the smaller number bounds the query cost, since a pointer at a declared card
+costs nothing the code was not already going to spend) and a card's filter is capped in
+length, but neither cap is a security boundary: every card is a validated aggregate
+over a column the panel already exposes, never an arbitrary expression.
+
 ## The command palette
 
 <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>. A palette is a promise that anything reachable by
@@ -352,3 +449,7 @@ results page stays available and styled either way.
 - [Permissions](permissions.md) — how a widget is gated
 - [Extending](extending.md) — slots, for putting your own HTML on an existing page
 - [Settings](settings.md) — `DASHBOARD`, `COMMAND_PALETTE`
+- [How configuration resolves](configuration.md) — the resolution order the dashboard's
+  UI arrangement layer follows, stated once for every surface that uses it
+- [Lists](lists.md#the-customisation-rail) — the same UI-override pattern, one page
+  over, including `LIST_PREFS_PERMISSION` and what "reset" actually does to the row

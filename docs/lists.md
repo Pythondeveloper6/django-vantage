@@ -291,6 +291,39 @@ rows. When the model's default manager already excludes them the trash queryset 
 from `_base_manager`, because a trash view built on `get_queryset()` would filter a
 queryset that can never contain what it is looking for and silently show nothing.
 
+### Deleting, and undoing it
+
+Pressing Delete on a model with a [`soft_delete` pattern](panels.md#detected-conventions)
+does not destroy the row — it stamps the detected column (`deleted_at` set to now, or
+`is_deleted` set to `True`) with an `UPDATE`, not `instance.save()`, so a model whose
+`save()` stamps `updated_at` or fires a signal meant for edits does not have that fire
+because someone pressed Delete. No cascade check runs first, on purpose: nothing is
+being destroyed, so a `PROTECT` reference downstream does not block it — the same
+button that would refuse to hard-delete a customer with orders archives that customer
+without complaint, because archiving does not touch the orders.
+
+**A trashed row's Restore button undoes exactly that stamp** — it sets the column back
+to `None`/`False`, again as an `UPDATE`, and is reachable only as a row action on the
+trash tab (`?trash=1`); there is no restore URL to type. It is deliberately **POST-only**
+(`http_method_names = ["post"]`, so a GET answers `405`) because restoring changes what
+every other list on the site shows, and a GET that mutates is a link a crawler or a
+chat client's link-preview fetch will trigger on its own. It is gated on the **delete**
+permission, not a separate one — whoever is trusted to move a record into the trash is
+trusted to take it back out, and requiring a wider permission to reverse a narrower
+action would leave rows only an editor could trash and only an administrator could
+recover.
+
+**Pressing Delete on a row that is already in the trash destroys it, permanently, with
+no further confirmation beyond the one the button already asked for.** This is what
+makes the Trash tab's own Delete button actually empty the bin: once a row is trashed,
+`get_soft_delete()` returns `None` for it (the pattern is honoured once, not
+recursively), so the same view falls through to the ordinary cascade-delete path —
+counted, blocked by `PROTECT` references the same as any other hard delete, and
+irreversible. There is no separate "empty trash" action; deleting each row from the
+trash tab is emptying it one row at a time, and the confirmation button's label always
+says which one of the two it is about to do — "Move *order* to trash" versus "Delete
+*order*" — never a bare "Delete" that leaves you to guess.
+
 ## Inline cell editing
 
 `list_editable` turns chosen columns into controls in the grid.
@@ -472,7 +505,10 @@ silent downgrade would look exactly like success.
 
 ## Bulk actions
 
-An action is an ordinary method with a decorator.
+An action is an ordinary method with a decorator. This is not the same feature as
+[bulk edit](forms.md#bulk-edit) — a generic, code-free "change one field on many rows"
+screen reached from the same selection bar — despite the neighbouring name; a bulk
+action is behaviour a developer wrote, and bulk edit needs no `panel.py` code at all.
 
 ```python
 from vantage import ModelPanel, action, register
@@ -540,9 +576,65 @@ That sentence is appended to whatever the action itself reports, so the message 
 so an action reports what it actually affected rather than echoing the number shown at
 selection time. If nothing still matches, the page says so and nothing runs.
 
-Actions run **in the request**. That is fine below a few thousand rows; `max_rows` is
-how you keep it that way. The system page reports whether a background-task backend is
-available.
+Actions run **in the request** below a certain size, and are automatically moved off it
+above that size — see [Background jobs](#background-jobs). `max_rows` is a hard refusal
+regardless of that threshold; the two are independent guards for two different risks.
+
+## Background jobs
+
+A bulk action over nine rows and a bulk action over ninety thousand are the same
+feature and cannot honestly be the same code path. Nine rows is 40ms and belongs in the
+request, where the user gets an answer and a redirect. Ninety thousand is minutes, and
+running it in the request means a gateway timeout half way through with no record of
+how far it got.
+
+**The threshold is estimated cost, not row count.** [`JOB_THRESHOLD_SECONDS`](settings.md#background-jobs)
+(default `2.0`) is compared against an estimate: a `bulk_strategy = "sql"` action (one
+`UPDATE ... WHERE`) barely grows with row count, while `"instances"` (loading and
+saving every row, running signals and `full_clean`) costs roughly per row. Declare
+`bulk_strategy` on an `@action` that does per-instance work so the estimate is honest —
+see [Bulk actions](#bulk-actions) for the decorator. Below the threshold nothing changes
+about how an action runs; above it, a job row is written and the request redirects to
+its status page instead of waiting.
+
+**No queue is required.** Four backends are tried in order, and the package depends on
+nothing beyond Django to make the feature work:
+
+1. `django.tasks` (Django 6.0+), if `TASKS` names a real queue backend.
+2. Celery, when it is importable *and* has a broker configured — being merely
+   installed is not enough, since Celery is a transitive dependency of several
+   unrelated packages.
+3. RQ, via `django_rq` in `INSTALLED_APPS`.
+4. **In-process, synchronously** — the fallback on the overwhelmingly common Django
+   project with no worker at all. The request pays for the work exactly as it would
+   have without this feature, but the job row, the honest per-row counts and the
+   downloadable error report all exist afterwards, which is the part that was missing.
+   [The system page](deployment.md#the-system-page) reports which backend is in play.
+
+**Chunking, and what a partial failure means.** The selection is sliced into chunks of
+[`JOB_CHUNK_SIZE`](settings.md#background-jobs) rows, each its own transaction — a
+failure at row 39,000 rolls back the few hundred rows around it, not the 38,500 already
+committed. A failed chunk is then retried row by row, so the finished job can report
+*which* rows failed rather than condemning the whole chunk. The job itself is
+deliberately not one transaction: that is the trade that turns "the whole thing blew
+up" into "38,000 succeeded, 12 failed."
+
+**Permission is re-checked as the job runs, not only when it was enqueued.** A job can
+sit in a queue for an hour, which is long enough for someone to be moved out of a
+group; the check runs again before every chunk against a freshly loaded user.
+
+**Watching it run.** Submitting an action that crosses the threshold redirects to a
+jobs inbox at `/admin/_/jobs/`, showing every job the current user started (and, for a
+superuser, everyone's). A running job's progress bar polls its own status endpoint
+every 1.5 seconds and stops once the job reaches a terminal state — nothing streams. A
+finished job with any failures offers a CSV of exactly which rows failed and why,
+values passed through the same armouring the CSV exporter uses against formula
+injection. A job is visible to the person who started it and to superusers, and to
+nobody else — a job for a different user answers `404`, not `403`, so its existence is
+not confirmed to a guesser.
+
+Settings: [`JOBS`, `JOB_THRESHOLD_SECONDS`, `JOB_CHUNK_SIZE`, `JOB_MAX_STORED_ERRORS`,
+`JOB_RETENTION_DAYS`, `JOB_QUEUE`](settings.md#background-jobs).
 
 ## Export
 

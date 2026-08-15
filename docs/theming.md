@@ -181,7 +181,9 @@ Django's own `get_language_bidi()`, so `<html dir="rtl">` is set whenever the ac
 language is right-to-left. The stylesheets use logical properties, so nothing needs a
 mirrored build.
 
-Set `LANGUAGE_CODE = "ar"` (or use `LocaleMiddleware`) and the panel flips.
+Set `LANGUAGE_CODE = "ar"` (or use `LocaleMiddleware`) and the panel flips. The
+package ships a compiled Arabic catalogue for exactly this — see
+[Internationalization](internationalization.md).
 
 ## Logos and marks
 

@@ -101,28 +101,26 @@ is reversible from the surface that set it.
 
 ## What is configurable from the UI today, and what is not
 
-Not every knob has a UI layer yet. The two that do are substantial — a whole list page,
-and the whole of branding and day-to-day behaviour — and both follow the order above
-exactly. Sidebar navigation and the dashboard are Python-only for now: there is no
-database-backed override for either, so `VANTAGE["NAV"]` and `VANTAGE["DASHBOARD"]` are
-the only word on those two, and there is nothing to reset because nothing can be
-overridden.
+Not every knob has a UI layer yet. Sidebar navigation is Python-only for now: there is
+no database-backed override for it, so `VANTAGE["NAV"]` is the only word on it, and
+there is nothing to reset because nothing can be overridden. Everything else in the
+table below — including the dashboard — has one.
 
 | Surface | UI layer | Python layer | Docs |
 |---|---|---|---|
 | List columns, filters, search, stats, charts, summary bar | [The customisation rail](lists.md#the-customisation-rail), per list | `list_display`, `list_filter`, `list_search`, `list_stats`, `list_charts`, `list_aggregates` on `ModelPanel` | [Lists](lists.md), [Panels](panels.md) |
+| Dashboard cards: which show, their order and width, and cards built entirely in the UI over any model | [`?arrange=1`](pages-and-dashboards.md#arranging-the-dashboard-from-the-ui) on the dashboard itself | `VANTAGE["DASHBOARD"]`, a `Dashboard` subclass | [Pages and dashboards](pages-and-dashboards.md#dashboards) |
 | Branding: title, logo, favicon, brand colour, corner radius, theme | [The settings screen](theming.md#the-settings-screen) | `SITE_TITLE`, `LOGO`, `BRAND_COLOR`… in `VANTAGE` | [Theming](theming.md) |
 | Behaviour: environment banner, rows per page, command palette, read-only mode | [The settings screen](theming.md#the-settings-screen) | `ENVIRONMENT`, `DEFAULT_PER_PAGE`, `COMMAND_PALETTE`, `READ_ONLY` in `VANTAGE` | [Settings](settings.md#behaviour) |
-| Sidebar navigation | — Python only | `VANTAGE["NAV"]` | [Settings](settings.md#navigation) |
-| Dashboard widgets | — Python only | `VANTAGE["DASHBOARD"]`, a `Dashboard` subclass | [Pages and dashboards](pages-and-dashboards.md#dashboards) |
+| Sidebar navigation | — Python only, for now: no UI has been built yet | `VANTAGE["NAV"]` | [Settings](settings.md#navigation) |
 | Permissions, tenancy | — Python only, deliberately: a permission boundary is not a preference | `VANTAGE["PERMISSIONS"]`, per-panel hooks, `VANTAGE["TENANT_MODEL"]` | [Permissions](permissions.md), [Multi-tenancy](tenancy.md) |
 
-The bottom two rows are not an oversight to apologise for: a permission boundary that a
+The bottom row is not an oversight to apologise for: a permission boundary that a
 signed-in user could loosen from inside the panel would not be a boundary, and CSRF
 tokens aside, "everyone who can reach the settings screen can also decide who can
-delete records" is a sentence that should make you uneasy on sight. Some things are
-Python-only on purpose and will stay that way; sidebar and dashboard arrangement are
-Python-only simply because a UI for them has not been built yet.
+delete records" is a sentence that should make you uneasy on sight. That one is
+Python-only on purpose and will stay that way; the sidebar is Python-only simply
+because a UI for it has not been built yet.
 
 ## See also
 
