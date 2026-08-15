@@ -70,7 +70,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.signals import setting_changed
 from django.db.models import ForeignKey, Model, OneToOneField, QuerySet
 from django.dispatch import receiver
@@ -702,7 +702,29 @@ def scope_queryset(queryset: QuerySet, request=None, action: str = "view") -> Qu
         )
         return queryset.none()
 
-    return queryset.filter(**{scope.path: tenant})
+    # Unwrapped to the key, exactly as ``enforce`` already does before it compares.
+    # A relation lookup accepts either an instance or a key, so passing the instance
+    # worked everywhere the path crossed a foreign key — and raised the moment it did
+    # not. The tenant model scoped to *itself* has the path "pk", which is not a
+    # relation, so ``filter(pk=<instance>)`` is a TypeError. Every resolver the package
+    # ships returns an instance, so that was a 500 on the tenant model's own list page,
+    # its filter dropdowns and its autocomplete, for anyone using the defaults.
+    tenant_pk = getattr(tenant, "pk", tenant)
+
+    try:
+        return queryset.filter(**{scope.path: tenant_pk})
+    except (TypeError, ValueError, ValidationError) as exc:
+        # A resolver is project code and can hand back anything. ``None`` already fails
+        # closed above; something that is merely not a usable key used to reach the ORM
+        # and raise from inside the query, which is the one outcome this module is
+        # written to avoid — a tenancy failure must never be an error page that a
+        # retry might get past. Refuse it the same way, and say why.
+        _refuse(
+            request,
+            f"The resolved tenant ({tenant_pk!r}) is not a usable key for "
+            f"{model._meta.label}.{scope.path}, so no rows are visible: {exc}",
+        )
+        return queryset.none()
 
 
 def _refuse(request, message: str) -> None:
