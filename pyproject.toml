@@ -82,6 +82,14 @@ packages = ["src/vantage"]
 # rebuild or an export without VCS metadata cannot, and shipping another interpreter's
 # bytecode is both dead weight and a source of confusing import behaviour.
 exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]
+# `locale/**/*.mo` is tracked in git (see .gitignore), so this is redundant today —
+# but hatchling's default file selection is "whatever VCS is not ignoring", and that
+# default silently drops compiled catalogues the moment someone gitignores *.mo
+# without noticing they also stopped shipping. `artifacts` is not subject to that
+# default, so translations keep shipping even if the git-tracking decision changes.
+# Verified by building a wheel and inspecting it, not by reasoning about this
+# config: see tests/test_i18n.py::TestCompiledCataloguesShipInTheWheel.
+artifacts = ["*.mo"]
 
 [tool.hatch.build.targets.sdist]
 # Leading slashes anchor these at the project root. Without them hatchling applies
@@ -91,6 +99,7 @@ exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]
 # conda-forge) build from the sdist and run the suite from it, and a package whose tests
 # cannot be run downstream gets shipped untested or not at all. `example/` is omitted —
 # it carries a seeded SQLite database and serves no one installing from source.
+artifacts = ["*.mo"]
 include = [
     "/src/vantage",
     "/tests",

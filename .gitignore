@@ -30,3 +30,13 @@ node_modules/
 *.sqlite3
 .DS_Store
 .env
+
+# Translations
+# `locale/**/*.mo` is deliberately NOT ignored — it stays committed alongside the
+# `.po` it is compiled from. This project has no build hook that runs
+# `compilemessages` on `pip install`, so an editable/source-checkout install (the
+# thing a contributor and a downstream packager both do) would ship with no working
+# Arabic until someone remembered a separate step. `pyproject.toml` also force-includes
+# `*.mo` into the wheel via `artifacts`, independent of this file, so a later change
+# here can't silently break translations in a *built* package either way. See
+# docs/internationalization.md.
