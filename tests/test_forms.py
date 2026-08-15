@@ -466,3 +466,45 @@ class TestScopedQuerysets:
             post_panel, "get_queryset", lambda request: Post.objects.filter(status="published")
         )
         assert boss.get(change_url(post)).status_code == 404
+
+
+class TestWhenTheCascadePreviewCannotBeComputed:
+    """A preview that fails must not read as a preview that found nothing.
+
+    Django's ``Collector`` walks every model in the process with a foreign key into
+    the target — not only the ones this panel registers, and not only the ones that
+    have been migrated. So a missing table anywhere in that graph used to 500 a page
+    that was merely counting rows: an app installed but not migrated, a model behind
+    a feature flag, or one routed to a database this connection cannot reach.
+
+    The count is advisory, so losing it must not block the delete. But an empty
+    summary and a failed one look identical on the page and lead to opposite
+    decisions, which is why the failure is its own state rather than a fallback to
+    "nothing else references this record".
+    """
+
+    @pytest.fixture
+    def broken_collector(self, monkeypatch):
+        from django.db import DatabaseError
+        from django.db.models.deletion import Collector
+
+        def explode(self, *args, **kwargs):
+            raise DatabaseError("no such table: some_unmigrated_thing")
+
+        monkeypatch.setattr(Collector, "collect", explode)
+
+    def test_the_page_still_renders(self, boss, post, broken_collector):
+        assert boss.get(delete_url(post)).status_code == 200
+
+    def test_it_says_the_preview_is_missing_rather_than_saying_nothing_is_affected(
+        self, boss, post, broken_collector
+    ):
+        body = boss.get(delete_url(post)).content.decode()
+        assert "could not be worked out" in body
+        assert "Nothing else references this record" not in body
+
+    def test_the_delete_is_not_blocked_by_a_failed_preview(self, boss, post, broken_collector):
+        """Advisory means advisory: losing the count must not remove the button."""
+        summary = formviews.collect_cascade(post)
+        assert summary.unavailable is not None
+        assert summary.is_blocked is False
