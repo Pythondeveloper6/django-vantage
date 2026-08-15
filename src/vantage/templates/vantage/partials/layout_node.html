@@ -1,0 +1,69 @@
+{% load i18n %}{% comment %} One node of a panel's declared ``layout`` (see
+   vantage.layout: Row, Section, Tab, Tabs), already resolved against this form's actual
+   fields by PanelFormView.get_layout. Recurses over ``node.children`` — a container node
+   includes itself for each child, a leaf field node renders through partials/field.html
+   the same way the fixed-section layout does, so the two paths can never draw a field
+   two different ways.
+
+   ``node`` uses the key "node" for its own shape (tabs / tab / row / section / field)
+   because a field entry already uses "kind" for its own meaning, the field's
+   FieldKind — the two must not collide. {% endcomment %}
+
+{% if node.node == "field" %}
+  {% include "vantage/partials/field.html" with field=node.field %}
+
+{% elif node.node == "row" %}
+  <div class="v-form-row">
+    {% for child in node.children %}
+      {% include "vantage/partials/layout_node.html" with node=child %}
+    {% endfor %}
+  </div>
+
+{% elif node.node == "section" %}
+  {% if node.collapsed %}
+    <details class="v-card v-form-card v-form-section">
+      <summary class="v-card-head">
+        <h2 class="v-card-title">{{ node.title }}</h2>
+      </summary>
+      {% if node.description %}<p class="v-form-help v-form-section-desc">{{ node.description }}</p>{% endif %}
+      <div class="v-card-body v-form-grid">
+        {% for child in node.children %}
+          {% include "vantage/partials/layout_node.html" with node=child %}
+        {% endfor %}
+      </div>
+    </details>
+  {% else %}
+    <section class="v-card v-form-card v-form-section">
+      {% if node.title %}
+        <div class="v-card-head"><h2 class="v-card-title">{{ node.title }}</h2></div>
+      {% endif %}
+      {% if node.description %}<p class="v-form-help v-form-section-desc">{{ node.description }}</p>{% endif %}
+      <div class="v-card-body v-form-grid">
+        {% for child in node.children %}
+          {% include "vantage/partials/layout_node.html" with node=child %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+{% elif node.node == "tabs" %}
+  {% comment %} Same radio-group technique as detail.html's related-records tab strip —
+     see the shared CSS comment in vantage.css. `node.id` scopes the radio group's
+     `name`/ids to this one Tabs node, so a Tabs nested inside a Tab inside another Tabs
+     — unusual, but the DSL does not forbid it — does not fight its parent for clicks. {% endcomment %}
+  <fieldset class="v-tabstrip v-form-tabstrip">
+    <legend class="v-sr-only">{% translate "Sections" %}</legend>
+    {% for tab in node.children %}
+      <input type="radio" name="v-form-tabs-{{ node.id }}" id="v-form-tab-{{ node.id }}-{{ forloop.counter }}"
+             class="v-tabstrip-input" {% if forloop.first %}checked{% endif %}>
+      <label class="v-tabstrip-tab" for="v-form-tab-{{ node.id }}-{{ forloop.counter }}">
+        {{ tab.label }}
+      </label>
+      <div class="v-tabstrip-panel v-form-tabpanel">
+        {% for child in tab.children %}
+          {% include "vantage/partials/layout_node.html" with node=child %}
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </fieldset>
+{% endif %}

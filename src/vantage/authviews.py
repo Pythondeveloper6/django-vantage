@@ -130,6 +130,14 @@ def _safe_topbar(site, request) -> dict:
         return {"topbar": Topbar(), "account_name": "", "account_initials": ""}
 
 
+#: The id of the ``role="alert"`` box ``login.html`` renders for a non-field error.
+#: Named here rather than only in the template because the widget attributes that point
+#: at it are built in this module, and an ``aria-describedby`` naming an element that
+#: does not exist is worse than none: a screen reader announces nothing and there is no
+#: warning anywhere that the reference is dangling.
+SUMMARY_ID = "v-auth-summary"
+
+
 def _style_form(form):
     """Give Django's own auth forms the panel's input styling and error wiring.
 
@@ -138,6 +146,15 @@ def _style_form(form):
     ``aria-invalid`` and ``aria-describedby`` matter more than the class: without them
     a screen reader reaches a red-bordered field and is told nothing at all.
     """
+    # "Please enter a correct username and password" is the *common* failure, and
+    # Django puts it in non_field_errors — so a per-field loop alone leaves the one
+    # error people actually hit attached to nothing. A screen-reader user tabs through
+    # two fields that announce no problem at all, and the alert is only found by
+    # exploring the page. Both credential fields point at the summary instead: the
+    # message does not say which of the two was wrong, deliberately, so neither field
+    # can honestly claim it alone.
+    summary_id = SUMMARY_ID if (form.is_bound and form.non_field_errors()) else None
+
     for name, field in form.fields.items():
         bound = form[name]
         attrs = field.widget.attrs
@@ -149,6 +166,9 @@ def _style_form(form):
         if form.is_bound and bound.errors:
             attrs["aria-invalid"] = "true"
             described.append(f"{bound.auto_id}_error")
+        elif summary_id:
+            attrs["aria-invalid"] = "true"
+            described.append(summary_id)
         if described:
             # Both, in reading order. Pointing only at the error would silently drop
             # the password rules at the exact moment the user needs to read them.

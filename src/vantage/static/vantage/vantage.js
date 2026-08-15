@@ -78,8 +78,38 @@
     });
   }
 
+  /* Move focus to the error summary a failed save just rendered.
+   *
+   * The server does its half correctly: the summary is role="alert", it has real text,
+   * tabindex="-1" so it can receive focus, and the offending fields carry aria-invalid
+   * and aria-describedby. What was missing is the last step. After a full page reload
+   * focus is on <body>, so a screen-reader user is told nothing went wrong and has to
+   * explore the page to discover the save failed — and a keyboard user starts tabbing
+   * from the top of the document rather than at the problem.
+   *
+   * role="alert" alone is not enough here. It announces on insertion into a live
+   * document; on a fresh page load the whole document arrives at once and there is no
+   * insertion to notice. Focus is what makes it read.
+   */
+  function focusErrorSummary() {
+    var summary = document.getElementById("v-form-summary");
+    if (!summary) return;
+    // preventScroll, then scroll deliberately: focusing an element near the top of a
+    // long form is fine, but the browser's own jump is abrupt and lands differently
+    // depending on where the summary sits.
+    try {
+      summary.focus({ preventScroll: true });
+    } catch (err) {
+      summary.focus();
+    }
+    if (summary.scrollIntoView) {
+      summary.scrollIntoView({ block: "nearest" });
+    }
+  }
+
   function init() {
     paintTheme();
+    focusErrorSummary();
 
     document.querySelectorAll("[data-vantage-theme-toggle]").forEach(function (button) {
       button.addEventListener("click", function () {

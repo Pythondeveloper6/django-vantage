@@ -199,6 +199,10 @@
         remove.textContent = "×";
         remove.addEventListener("click", function () {
           deselect(item.id);
+          // Said out loud, because the only other feedback is a chip disappearing —
+          // which is nothing at all to a screen reader. Adding already announces; the
+          // two halves of the same action should not differ in whether they are heard.
+          announce(item.text + " removed");
           input.focus();
         });
 

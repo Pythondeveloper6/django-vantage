@@ -105,6 +105,112 @@
   font-size: 0.8125rem;
 }
 
+/* ── markdown toolbar (vantage-editors.js) ────────────────────────────────── */
+
+/* The bar sits directly above the textarea it controls; squaring off the shared edge
+ * reads as one control rather than two stacked ones. */
+.v-md-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border: 1px solid var(--input);
+  border-block-end: 0;
+  border-start-start-radius: var(--radius-sm);
+  border-start-end-radius: var(--radius-sm);
+  background: var(--muted);
+}
+
+.v-md-btn {
+  min-inline-size: 1.75rem;
+  block-size: 1.75rem;
+  padding: 0 0.375rem;
+  border-radius: calc(var(--radius-sm) - 0.125rem);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.v-md-btn:hover {
+  background: var(--accent);
+}
+
+.v-md-btn:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 25%, transparent);
+}
+
+.v-md-count {
+  margin-inline-start: auto;
+  padding-inline-end: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.v-md-field {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* ── the layout DSL (ModelPanel.layout) ───────────────────────────────────────
+ *
+ * Row, Section and Tabs resolve to nested vantage/partials/layout_node.html
+ * includes. Section reuses the plain .v-card/.v-form-card look the fixed-section
+ * layout already has, so a panel that sets `layout` only to reorder or tab its
+ * fields does not also get a different visual language for them.
+ */
+
+/* Fields side by side. Full width within a .v-form-grid section — a Row exists to
+ * give its own children room, and half of a two-column grid cell is the opposite
+ * of that. */
+.v-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.125rem 1.25rem;
+  grid-column: 1 / -1;
+}
+
+.v-form-row > .v-form-field,
+.v-form-row > .v-form-field-check {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+/* A collapsed Section renders as <details>; the summary carries the same
+ * .v-card-head look an open one has, plus a pointer cursor for the affordance. */
+.v-form-section > summary {
+  cursor: pointer;
+}
+
+.v-form-section-desc {
+  padding: 0.75rem 1.25rem 0;
+}
+
+.v-form-section .v-form-section-desc + .v-form-grid,
+.v-form-section > .v-form-grid:first-of-type {
+  margin-block-start: 0.25rem;
+}
+
+/* A Tabs node in a declared layout: the shared .v-tabstrip component (vantage.css),
+ * with a bottom border under the strip and breathing room above each panel's
+ * first card to match the spacing .v-form already keeps between sections. */
+.v-form-tabstrip {
+  margin-block-end: 1.25rem;
+}
+
+/* Spacing between stacked children of a shown panel — margin rather than flex/gap,
+ * because .v-tabstrip-panel (vantage.css) already owns this class's `display` to
+ * hide every panel but the checked one, and a later `display` here would fight it. */
+.v-form-tabpanel > * + * {
+  margin-block-start: 1.25rem;
+}
+
 .v-select-multiple {
   block-size: auto;
   min-block-size: 6rem;

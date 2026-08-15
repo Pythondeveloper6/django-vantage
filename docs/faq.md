@@ -105,19 +105,19 @@ An honest list. Some of these are decisions; some are gaps.
 
 | | Notes |
 |---|---|
-| **`related_tabs`** | Ignored. Related blocks always render on the detail page as an unconditional stack, never as tabs |
 | **`panel.permissions`** | Removed outright, not merely ignored. Setting it fails `manage.py check` (`vantage.E020`). Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks — see [Panels](panels.md#removed-attributes) |
-| **A per-field widget override hook** | There is no `formfield_overrides` equivalent, and no `get_form_widgets` method despite what the admin adapter's message suggests. Widgets are inferred per field kind; supply your own form if you need something specific |
+| **A per-field widget override hook** | There is no `formfield_overrides` equivalent. Widgets are inferred per field kind; supply your own form if you need something specific |
 | **Sidebar arrangement from the UI** | The [per-list customisation rail](lists.md#the-customisation-rail), the [dashboard's own arrange mode](pages-and-dashboards.md#arranging-the-dashboard-from-the-ui) and the [settings screen](theming.md#the-settings-screen) all have UI layers now; the sidebar (`VANTAGE["NAV"]`) does not yet — it is Python-only today. See [How configuration resolves](configuration.md#what-is-configurable-from-the-ui-today-and-what-is-not) |
 | **A lightbox on image thumbnails** | Clicking a thumbnail opens the original in a new tab; there is no click-to-enlarge overlay. See [Media and uploads](forms.md#media-and-uploads) |
 | **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (high-traffic strings — nav, buttons, list and form pages, confirmations; the rest falls back to English) — see [Internationalization](internationalization.md). The JavaScript in `static/vantage/*.js` is not wired into i18n yet: its user-facing strings are plain literals, not `gettext()` calls |
 | **Column resize and pinning** | Reorder and hide are done; drag-resize and a pinned/sticky column are not |
 
-`inlines`, `row_actions`, `list_select_related` and background job offload for bulk
-actions used to belong on this table and no longer do — all four are real, tested
-features now. See [Editable inlines](forms.md#editable-inlines),
-[Row actions](panels.md#row-actions), [Panels](panels.md#declared-but-not-yet-wired-up)
-and [Bulk actions](lists.md#bulk-actions) respectively.
+`inlines`, `row_actions`, `list_select_related`, `related_tabs`, `layout` and background
+job offload for bulk actions used to belong on this table and no longer do — all six are
+real, tested features now. See [Editable inlines](forms.md#editable-inlines),
+[Row actions](panels.md#row-actions), [The record page](forms.md#the-record-page),
+[The layout DSL](forms.md#the-layout-dsl) and [Bulk actions](lists.md#bulk-actions)
+respectively.
 
 **The JSON API is built.** [`vantage.api`](api.md) is a full read/write API over every
 registered panel — cursor pagination, optimistic concurrency, the same permission and

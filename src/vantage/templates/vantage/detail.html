@@ -39,66 +39,36 @@
   {% include "vantage/partials/history.html" %}
 
   {% if related %}
-    <div class="v-related-blocks">
-      {% for block in related %}
-        <section class="v-card">
-          <div class="v-card-head">
-            <h2 class="v-card-title">{{ block.label }}</h2>
-            {% comment %} A bare number beside a heading reads as "Orders 47" and could be
-               anything; the noun makes the count self-describing. {% endcomment %}
-            <span class="v-badge">{{ block.count }}<span class="v-sr-only"> {% translate "records" %}</span></span>
-            {% if block.url %}
-              {% comment %} Every related block ships a "View all", so out of context the links
-                 are indistinguishable from one another. The hidden suffix is what a
-                 screen reader's link list needs to tell them apart. {% endcomment %}
-              <a class="v-btn v-btn-ghost v-btn-sm v-card-action" href="{{ block.url }}">
-                {% translate "View all" %}<span class="v-sr-only"> {{ block.label }}</span>
-              </a>
-            {% endif %}
+    {% if related_tabs %}
+      {% comment %}
+        A tab strip built entirely from a radio group: input, its label, and its panel
+        are consecutive siblings so ``:checked + label + panel`` can target exactly one
+        panel per input with nothing fancier than adjacent-sibling selectors, and CSS
+        ``order`` regroups the (hidden) inputs' labels into a row above the panels
+        without needing them adjacent in the markup too. No JavaScript is involved:
+        the browser's own radio-group keyboard handling (Tab in, arrow keys between,
+        native and free) is the whole interaction model. See ModelPanel.related_tabs.
+      {% endcomment %}
+      <fieldset class="v-tabstrip">
+        <legend class="v-sr-only">{% translate "Related records" %}</legend>
+        {% for block in related %}
+          <input type="radio" name="v-tabstrip-tab" id="v-tabstrip-tab-{{ forloop.counter }}"
+                 class="v-tabstrip-input" {% if forloop.first %}checked{% endif %}>
+          <label class="v-tabstrip-tab" for="v-tabstrip-tab-{{ forloop.counter }}">
+            {{ block.label }}<span class="v-badge">{{ block.count }}</span>
+          </label>
+          <div class="v-tabstrip-panel">
+            {% include "vantage/partials/related_block.html" with block=block %}
           </div>
-
-          {% if block.rows %}
-            {% comment %}
-              A bounded preview, never the whole set. Loading every child row is what
-              makes a contrib.admin record with fifty thousand children impossible to
-              open; five rows and a link cost the same whatever the count.
-            {% endcomment %}
-            <div class="v-table-wrap v-table-flush">
-              <table class="v-table">
-                <caption class="v-sr-only">
-                  {% blocktranslate with label=block.label shown=block.rows|length total=block.count %}{{ label }} — first {{ shown }} of {{ total }}{% endblocktranslate %}
-                </caption>
-                <thead>
-                  <tr>{% for column in block.columns %}<th scope="col">{{ column.label }}</th>{% endfor %}</tr>
-                </thead>
-                <tbody>
-                  {% for row in block.rows %}
-                    <tr>
-                      {% for cell in row.cells %}
-                        <td>
-                          {% if cell.is_link and row.url %}
-                            <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
-                          {% else %}{{ cell.value }}{% endif %}
-                        </td>
-                      {% endfor %}
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% if block.more %}
-              <div class="v-card-body v-related-more">
-                <a href="{{ block.url }}">{% blocktranslate with more=block.more %}{{ more }} more{% endblocktranslate %}<span class="v-sr-only"> {{ block.label }}</span>…</a>
-              </div>
-            {% endif %}
-          {% else %}
-            <div class="v-card-body v-muted">
-              {% if block.count %}{% translate "Not shown here." %}{% else %}{% translate "None yet." %}{% endif %}
-            </div>
-          {% endif %}
-        </section>
-      {% endfor %}
-    </div>
+        {% endfor %}
+      </fieldset>
+    {% else %}
+      <div class="v-related-blocks">
+        {% for block in related %}
+          {% include "vantage/partials/related_block.html" with block=block %}
+        {% endfor %}
+      </div>
+    {% endif %}
   {% endif %}
 </div>
 {% endblock %}
