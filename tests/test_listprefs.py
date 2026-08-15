@@ -459,6 +459,150 @@ class TestAHostilePost:
             listprefs.clean_section(panel, get_request(rf, person), "sudo", {})
 
 
+# ── resize and pin ──────────────────────────────────────────────────────────
+
+
+class TestColumnResizeAndPin:
+    """Width and pin ride in the "columns" section: the same row, the same
+    per-attribute cascade and the same allowlist that reorder and hide already use —
+    see the section's docstring at the top of this module."""
+
+    def test_a_width_is_clamped_to_the_minimum(self, panel, rf, person):
+        values = listprefs.clean_section(
+            panel, get_request(rf, person), "columns",
+            {"columns": ["number"], "width__number": "1"},
+        )
+        assert values["column_widths"] == {"number": listprefs.MIN_COLUMN_WIDTH}
+
+    def test_a_width_is_clamped_to_the_maximum(self, panel, rf, person):
+        values = listprefs.clean_section(
+            panel, get_request(rf, person), "columns",
+            {"columns": ["number"], "width__number": "99999"},
+        )
+        assert values["column_widths"] == {"number": listprefs.MAX_COLUMN_WIDTH}
+
+    def test_an_ordinary_width_is_kept_exactly(self, panel, rf, person):
+        values = listprefs.clean_section(
+            panel, get_request(rf, person), "columns",
+            {"columns": ["number"], "width__number": "180"},
+        )
+        assert values["column_widths"] == {"number": 180}
+
+    def test_a_width_for_a_column_the_panel_does_not_expose_is_dropped(self, panel, rf, person):
+        stored = listprefs.clean_value(
+            "column_widths", {"customer": 200, "total": 150}, listprefs.options(panel)
+        )
+        assert stored == {"total": 150}
+
+    def test_a_non_integer_width_is_dropped(self, panel, rf, person):
+        stored = listprefs.clean_value(
+            "column_widths", {"total": "wide", "number": 12.5}, listprefs.options(panel)
+        )
+        assert stored is None
+
+    def test_the_width_form_scans_every_option_not_only_the_checked_ones(self, panel, rf, person):
+        """A width set on a column that is not currently ticked "shown" must not be
+        lost — the checkbox and the width are independent questions about a column."""
+        values = listprefs.clean_section(
+            panel, get_request(rf, person), "columns",
+            {"columns": ["number"], "width__status": "150"},
+        )
+        assert values["column_widths"] == {"status": 150}
+
+    def test_pinned_columns_are_validated_against_the_same_allowlist_as_columns(
+        self, panel, rf, person
+    ):
+        values = listprefs.clean_section(
+            panel, get_request(rf, person), "columns",
+            {"columns": ["number", "total"], "pinned_columns": ["total", "customer"]},
+        )
+        assert values["pinned_columns"] == ["total"]
+
+    def test_a_stored_width_survives_a_round_trip_through_resolve(self, panel, rf, person):
+        write(panel, person, column_widths={"total": 220})
+        spec = listprefs.resolve(panel, get_request(rf, person))
+        assert spec.column_widths == {"total": 220}
+
+    def test_a_width_for_a_column_the_panel_has_since_dropped_is_ignored(self, panel, rf, person):
+        write(panel, person, column_widths={"customer": 200})
+        assert listprefs.resolve(panel, get_request(rf, person)).column_widths == {}
+
+    def test_a_width_for_a_column_hidden_by_the_same_row_does_not_linger(self, panel, rf, person):
+        """A width can be stored against a column this very row goes on to hide. The
+        spec must not carry a size for a column that is not actually rendered — the
+        general "re-validate on read" rule, applied one step further than the panel's
+        own allowlist reaches."""
+        write(panel, person, columns=["number", "status"], column_widths={"total": 220})
+        assert listprefs.resolve(panel, get_request(rf, person)).column_widths == {}
+
+    def test_a_pinned_column_hidden_by_the_same_row_is_not_pinned(self, panel, rf, person):
+        write(panel, person, columns=["number", "status"], pinned_columns=["total"])
+        assert listprefs.resolve(panel, get_request(rf, person)).pinned_columns == []
+
+    def test_pin_order_follows_the_effective_column_order_not_the_stored_order(
+        self, panel, rf, person
+    ):
+        write(panel, person, pinned_columns=["created_at", "number"])
+        spec = listprefs.resolve(panel, get_request(rf, person))
+        # The panel's own order is number, status, total, created_at — the sticky
+        # offset a template accumulates over has to follow that, not the order the
+        # two names happened to be stored in.
+        assert spec.pinned_columns == ["number", "created_at"]
+
+    def test_more_than_one_column_can_be_pinned(self, panel, rf, person):
+        write(panel, person, pinned_columns=["number", "status"])
+        assert listprefs.resolve(panel, get_request(rf, person)).pinned_columns == [
+            "number", "status"
+        ]
+
+    def test_reset_clears_widths_and_pins_along_with_the_rest_of_the_section(
+        self, panel, rf, person
+    ):
+        write(panel, person, column_widths={"total": 220}, pinned_columns=["number"])
+        listprefs.reset_section(panel, post_request(rf, person, {}), "columns", user=person)
+        spec = listprefs.resolve(panel, get_request(rf, person))
+        assert spec.column_widths == {}
+        assert spec.pinned_columns == []
+
+    def test_panel_context_carries_width_pin_and_bounds_per_column(self, panel, rf, person):
+        write(panel, person, column_widths={"total": 220}, pinned_columns=["total"])
+        context = listprefs.panel_context(panel, get_request(rf, person))
+        total = next(c for c in context["columns"] if c["name"] == "total")
+        assert total["width"] == 220
+        assert total["pinned"] is True
+        assert context["column_width_min"] == listprefs.MIN_COLUMN_WIDTH
+        assert context["column_width_max"] == listprefs.MAX_COLUMN_WIDTH
+
+    def test_an_unpinned_unsized_column_reports_falsy_context_values(self, panel, rf, person):
+        context = listprefs.panel_context(panel, get_request(rf, person))
+        number = next(c for c in context["columns"] if c["name"] == "number")
+        assert number["width"] is None
+        assert number["pinned"] is False
+
+    def test_saved_through_the_view_and_read_back(self, panel, rf, boss):
+        """The same round trip a drag-and-drop resize makes: a POST to the section,
+        then an ordinary render reading the spec back."""
+        from vantage.listprefsview import ListPrefsView
+
+        view = ListPrefsView.as_view(site=site, panel=panel)
+        request = post_request(
+            rf,
+            boss,
+            {
+                "section": "columns",
+                "do": "save:user",
+                "columns": ["number", "total"],
+                "width__total": "300",
+                "pinned_columns": ["number"],
+            },
+        )
+        assert view(request).status_code == 302
+
+        spec = listprefs.resolve(panel, get_request(rf, boss))
+        assert spec.column_widths == {"total": 300}
+        assert spec.pinned_columns == ["number"]
+
+
 class TestAStoredRowIsValidatedOnTheWayOut:
     """The second half of the boundary. What a panel exposed when a row was written is
     not what it exposes today, and a row is not re-checked when the code changes."""

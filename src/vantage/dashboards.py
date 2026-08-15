@@ -538,6 +538,22 @@ class Dashboard:
         """The cards, in order. Override this; it is the whole point."""
         return []
 
+    def get_declared_keys(self, request) -> set[str]:
+        """Every key this dashboard could ever produce, regardless of what this
+        particular viewer may see.
+
+        This is the baseline an arrangement is compared against to tell a declared
+        card that already existed and was left out on purpose from one that is new to
+        the code and must not be swallowed — see :meth:`ArrangedDashboard.plan`.
+
+        The default assumes ``get_widgets`` does not itself vary with permission, true
+        of every hand-written dashboard: per-card visibility there is decided by
+        :meth:`Widget.has_permission` once the list comes back, not by filtering the
+        list itself. :class:`DefaultDashboard` is the one dashboard where that
+        assumption is false, so it overrides this rather than inheriting it.
+        """
+        return set(keyed_widgets(self.get_widgets(request)))
+
     def get_site(self):
         from vantage.sites import site as default_site
 
@@ -585,6 +601,42 @@ class DefaultDashboard(Dashboard):
         from vantage.permissions import get_permissions
 
         panels = get_permissions().visible_panels(request, list(self.get_site().panels()))
+        return self._widgets_for(request, panels)
+
+    def get_declared_keys(self, request) -> set[str]:
+        """Every model's card, whether or not this viewer may see the model, and
+        whether or not the display cap would have drawn it.
+
+        The base implementation compares against ``get_widgets``, but this dashboard's
+        own ``get_widgets`` both filters by permission and caps what it shows — either
+        one, left in, would make a card that only a *differently* scoped viewer would
+        ever produce look new to the code:
+
+        * A permission filter, because a card that only becomes visible once somebody
+          is granted it would otherwise read as new and get appended back into an
+          arrangement that never mentioned it on purpose. A model's card exists once
+          the model is registered, not once a particular viewer may open it.
+        * The cap, because it is computed *after* permission-filtering (a restricted
+          viewer's one visible model must never be capped away), so the one model that
+          wins the single timeseries chart slot for a narrowly-scoped viewer is not
+          necessarily the one that would win it across every registered model. Both
+          are legitimate "the code could produce this" answers, so both count as
+          known.
+        """
+        panels = list(self.get_site().panels())
+        return set(keyed_widgets(self._widgets_for(request, panels, capped=False)))
+
+    def _widgets_for(self, request, panels: list, *, capped: bool = True) -> list[Widget]:
+        """The cards for ``panels``, in the shape :meth:`get_widgets` promises.
+
+        Factored out so :meth:`get_declared_keys` can ask the same question over every
+        registered panel instead of only the ones this request may see, and without the
+        display cap — ``capped=False`` answers "could the code ever produce this key",
+        not "does this request's grid have room for it".
+        """
+        stat_cap = MAX_DEFAULT_STATS if capped else len(panels)
+        chart_cap = 1 if capped else len(panels)
+        table_cap = MAX_DEFAULT_TABLES if capped else len(panels)
 
         widgets: list[Widget] = [
             StatCard(
@@ -594,7 +646,7 @@ class DefaultDashboard(Dashboard):
                 icon=panel.get_icon(),
                 url=_list_url(panel),
             )
-            for panel in panels[:MAX_DEFAULT_STATS]
+            for panel in panels[:stat_cap]
         ]
 
         # Registry order for the counts, so the cards read in the same order as the
@@ -604,7 +656,7 @@ class DefaultDashboard(Dashboard):
             key=lambda pair: pair[0].opts.app_label in FRAMEWORK_APPS,
         )
 
-        for panel, field in timestamped[:1]:
+        for panel, field in timestamped[:chart_cap]:
             widgets.append(
                 ChartCard(
                     _("New %(model)s") % {"model": panel.get_label_plural().lower()},
@@ -616,7 +668,7 @@ class DefaultDashboard(Dashboard):
                 )
             )
 
-        for panel, field in timestamped[:MAX_DEFAULT_TABLES]:
+        for panel, field in timestamped[:table_cap]:
             widgets.append(
                 TableCard(
                     _("Recent %(model)s") % {"model": panel.get_label_plural().lower()},
@@ -659,10 +711,12 @@ def get_dashboard(site=None, request=None) -> Dashboard:
     that asks the question outside a request is actually asking. Same rule, and the
     same reason, as :func:`vantage.listprefs.override`.
     """
-    layout = stored_layout(site, request)
-    if layout is None:
+    bundle = _stored_bundle(site, request)
+    if bundle is None:
         return code_dashboard(site)
-    return ArrangedDashboard(code_dashboard(site), layout, site)
+    return ArrangedDashboard(
+        code_dashboard(site), bundle.cards, site, known_keys=bundle.known_keys
+    )
 
 
 def dashboard_context(site, request, permissions=None) -> dict[str, Any]:
@@ -1153,10 +1207,23 @@ class ArrangedDashboard(Dashboard):
     of them appear, in what order, how wide, and what has been added alongside them.
     """
 
-    def __init__(self, base: Dashboard, layout: list[dict[str, Any]], site=None) -> None:
+    def __init__(
+        self,
+        base: Dashboard,
+        layout: list[dict[str, Any]],
+        site=None,
+        *,
+        known_keys: frozenset[str] = frozenset(),
+    ) -> None:
         super().__init__(site or base.site)
         self.base = base
         self.layout = list(layout)
+        # The declared keys that existed the moment this layout was last saved,
+        # independent of who saved it. Empty means "no snapshot" — either nothing has
+        # ever been saved (the editor's own preview wrapper) or the row predates this
+        # field — and both read the same way: nothing is known to have been removed, so
+        # every declared card is still a candidate to append. See ``plan``.
+        self.known_keys = known_keys
         # Instance attributes shadowing the class ones, so the page heading and the
         # browser tab still read what the project named its dashboard.
         self.title = base.title
@@ -1172,10 +1239,18 @@ class ArrangedDashboard(Dashboard):
         """Every slot, in order, before anything is gated or computed.
 
         A declared card the arrangement never mentions is appended at the end rather
-        than dropped. That is the same choice ``NAV_UNLISTED = "append"`` makes for the
-        sidebar and it exists for the same reason: a developer adding a card in Python
-        must not have it silently swallowed by an arrangement saved before it existed.
-        Hiding a card is therefore a stored decision, not an absence.
+        than dropped — the same choice ``NAV_UNLISTED = "append"`` makes for the
+        sidebar, and for the same reason: a developer adding a card in Python must not
+        have it silently swallowed by an arrangement saved before it existed.
+
+        But "never mentions" is ambiguous on its own: a key absent from the layout is
+        either a card that did not exist when the arrangement was last saved, or one
+        that did and was left out on purpose — a removal. ``self.known_keys`` is what
+        tells the two apart: a key recorded there existed at save time, so its absence
+        now is a decision and the card stays gone. A key that is neither mentioned nor
+        recorded is new since that save, so it is appended. Hiding a card the
+        arrangement *does* mention is a separate, explicit ``show: False`` — see
+        :meth:`arrange`.
         """
         declared = keyed_widgets(list(self.base.get_widgets(request)))
         items: list[PlanItem] = []
@@ -1196,9 +1271,10 @@ class ArrangedDashboard(Dashboard):
                 items.append(PlanItem(entry=entry, widget=widget))
 
         for key, widget in declared.items():
-            if key not in used:
-                items.append(PlanItem(entry={"card": DECLARED, "key": key, "show": True},
-                                      widget=widget))
+            if key in used or key in self.known_keys:
+                continue
+            items.append(PlanItem(entry={"card": DECLARED, "key": key, "show": True},
+                                  widget=widget))
         return items
 
     def arrange(self, request, permissions=None) -> Arrangement:
@@ -1309,6 +1385,15 @@ def _rows(site_name: str, user) -> tuple[Any, Any] | None:
     )
 
 
+@dataclass(frozen=True)
+class _StoredLayout:
+    """A row's two halves, read together: what to draw, and what existed when it was
+    last written. Bundled so a single cached read serves both."""
+
+    cards: list[dict[str, Any]]
+    known_keys: frozenset[str]
+
+
 def stored_layout(site=None, request=None) -> list[dict[str, Any]] | None:
     """The arrangement in force, or ``None`` to let the code decide.
 
@@ -1318,6 +1403,17 @@ def stored_layout(site=None, request=None) -> list[dict[str, Any]] | None:
     indivisible thing, and interleaving two people's card orders would produce a page
     neither of them arranged.
     """
+    bundle = _stored_bundle(site, request)
+    return None if bundle is None else bundle.cards
+
+
+def _stored_bundle(site, request) -> _StoredLayout | None:
+    """:func:`stored_layout`'s cards, plus the ``known_keys`` snapshot beside them.
+
+    Cached on the request under the same attribute :func:`stored_layout` always used,
+    so the two never disagree about which row they came from and a request that reads
+    both pays for the query once.
+    """
     if request is None:
         return None
 
@@ -1325,15 +1421,15 @@ def stored_layout(site=None, request=None) -> list[dict[str, Any]] | None:
     if cached is not _MISSING:
         return cached
 
-    layout = _read_layout(site, request)
+    bundle = _read_layout(site, request)
     try:
-        setattr(request, _LAYOUT_ATTR, layout)
+        setattr(request, _LAYOUT_ATTR, bundle)
     except AttributeError:  # pragma: no cover - an exotic request object
         pass
-    return layout
+    return bundle
 
 
-def _read_layout(site, request) -> list[dict[str, Any]] | None:
+def _read_layout(site, request) -> _StoredLayout | None:
     from vantage.sites import site as default_site
 
     site = site or default_site
@@ -1345,7 +1441,7 @@ def _read_layout(site, request) -> list[dict[str, Any]] | None:
             continue
         cleaned = clean_cards(row.cards, site, request)
         if cleaned is not None:
-            return cleaned
+            return _StoredLayout(cards=cleaned, known_keys=frozenset(row.known_keys or ()))
     return None
 
 
@@ -1478,6 +1574,11 @@ def store_layout(site, request, cards: list[dict[str, Any]], *, user) -> None:
 
     row = row_for(site, user) or model(site_name=site.name, user=user)
     row.cards = cards
+    # The code's own declared keys, right now — always the *code's* dashboard, never a
+    # previously stored arrangement, because "known" means "existed in Python", and an
+    # arrangement's own opinion about which cards to show is exactly what this snapshot
+    # exists to be compared against later. See ``ArrangedDashboard.plan``.
+    row.known_keys = sorted(code_dashboard(site).get_declared_keys(request))
     _persist(row, request)
 
 

@@ -206,6 +206,149 @@
   color: var(--muted-foreground);
 }
 
+/* ── column heads: pin toggle and resize handle ───────────────────────────── */
+
+/* The positioning root for the resize handle below, and the stacking root that keeps
+ * its z-index scoped to this one header cell rather than leaking across the row. */
+.v-table thead th.v-col {
+  position: relative;
+}
+
+.v-col-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.v-col-head-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v-col-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-inline-start: auto;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  /* Visible once it matters — pinned, hovered or focused — and out of the way
+   * otherwise. Forty columns of visible pin glyphs is the same clutter a header of
+   * forty visible sort arrows would be. */
+  opacity: 0;
+}
+
+.v-col-pin svg {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+
+.v-table thead th.v-col:hover .v-col-pin,
+.v-col-pin:focus-visible,
+.v-col-pin[aria-pressed="true"] {
+  opacity: 1;
+}
+
+.v-col-pin[aria-pressed="true"] {
+  color: var(--primary);
+}
+
+.v-col-pin:hover {
+  background: var(--secondary);
+}
+
+.v-col-pin:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* A hit target straddling the column boundary, the same idea as a splitter in any
+ * desktop grid. `touch-action: none` is what stops the browser from interpreting the
+ * drag as a page scroll on a touch screen before vantage-grid.js sees the pointer. */
+.v-col-resize {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -0.1875rem;
+  inline-size: 0.375rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 1;
+}
+
+.v-col-resize:hover,
+.v-col-resize:focus-visible,
+.v-col-resize[data-col-resizing] {
+  background: var(--primary);
+}
+
+.v-col-resize:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* The last column's handle would otherwise sit half past the table's own border. */
+.v-table thead th.v-col:last-child .v-col-resize {
+  inset-inline-end: 0;
+}
+
+/* ── pinned columns ───────────────────────────────────────────────────────── */
+/*
+ * `--v-pin-offset` is written by vantage-grid.js, per cell, as the sum of the measured
+ * width of every pinned column before this one in the *rendered* order — not computed
+ * here, because a column with no explicit width takes whatever the browser gives it,
+ * and only the browser knows that number once layout has run. Pinning still degrades
+ * gracefully without the script: every pinned cell resolves the custom property's
+ * fallback of 0, which is the correct offset for the first pinned column in the row
+ * and simply overlaps for a second one — no worse than not being pinned at all, and
+ * no `left`/`right` involved either way (see tests/test_stylesheets.py).
+ */
+.v-table th[data-col-pinned],
+.v-table td[data-col-pinned] {
+  position: sticky;
+  inset-inline-start: var(--v-pin-offset, 0px);
+  z-index: 1;
+  background: var(--card);
+}
+
+.v-table thead th[data-col-pinned] {
+  /* Above a plain sticky header (z-index: 2, set below) and above a pinned body cell
+   * scrolling underneath it — the frozen corner has to win both axes at once. */
+  z-index: 3;
+  background: var(--muted);
+}
+
+.v-table-summary td[data-col-pinned] {
+  z-index: 2;
+  background: var(--muted);
+}
+
+/* The trailing edge of the frozen group, so the reader can see where "always visible"
+ * stops and "scrolls away" starts. Set only on the last pinned cell in visual order —
+ * vantage-grid.js's job, the same one that computes the offset above. Shadow, not a
+ * border: a border would double up with the 1px cell borders already drawn everywhere
+ * else in this table. */
+.v-table [data-col-pinned].v-col-pin-edge {
+  box-shadow: 0.1875rem 0 0.375rem -0.1875rem color-mix(in oklab, var(--foreground) 30%, transparent);
+}
+
+[dir="rtl"] .v-table [data-col-pinned].v-col-pin-edge {
+  /* The shadow is a physical offset with no logical equivalent in CSS, so it is the
+   * one place in this file that has to know about direction explicitly rather than
+   * through a logical property — mirrored here rather than left to point the wrong
+   * way under dir="rtl", where the frozen group's trailing edge is the *left* side. */
+  box-shadow: -0.1875rem 0 0.375rem -0.1875rem color-mix(in oklab, var(--foreground) 30%, transparent);
+}
+
 /* ── row focus ────────────────────────────────────────────────────────────── */
 
 /* Reserved on every first cell, header included, so marking the current row cannot

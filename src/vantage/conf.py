@@ -77,6 +77,25 @@ DEFAULTS: dict[str, Any] = {
     "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
+    # ── security ────────────────────────────────────────────────────────────
+    # Registered here, but described and defaulted in vantage.security.DEFAULTS,
+    # which is where the reasoning for each number lives. They have to appear in
+    # this registry as well because it rejects unknown keys on purpose: until they
+    # did, writing one of these documented settings into VANTAGE raised
+    # ImproperlyConfigured the next time anything read any setting — which is nearly
+    # every page render. Following the documentation took the site down.
+    #
+    # None here means "whatever security.DEFAULTS says", so the reasoning stays in
+    # one place and the two cannot drift into disagreeing about a default.
+    "LOGIN_THROTTLE": None,
+    "LOGIN_THROTTLE_LIMIT": None,
+    "LOGIN_THROTTLE_WINDOW": None,
+    "LOGIN_THROTTLE_CACHE": None,
+    "LOGIN_THROTTLE_IP_HEADER": None,
+    "RATE_LIMIT": None,
+    "RATE_LIMIT_CACHE": None,
+    "RATE_LIMITS": None,
+    "UPLOAD_MAX_BYTES": None,
     "DEFAULT_PER_PAGE": 50,
     # ── relation pickers ────────────────────────────────────────────────────
     # Which relation fields become the searchable chip picker rather than a plain

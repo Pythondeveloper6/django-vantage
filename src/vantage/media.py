@@ -127,24 +127,23 @@ FALLBACK_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 
 
 def upload_max_bytes() -> int:
-    """The per-file upload ceiling, whether or not the settings layer knows the key yet.
+    """The per-file upload ceiling.
 
-    Mirrors ``vantage.security._setting``: ``vantage.conf.DEFAULTS`` rejects unknown
-    ``VANTAGE`` keys on purpose, so a module that reads a not-yet-registered setting has
-    to fall back rather than make the key unusable. This starts working the day
-    ``UPLOAD_MAX_BYTES`` is registered, with no change here.
+    Delegates to :func:`vantage.security._setting` rather than reading the setting a
+    second way. This used to mirror that helper's logic instead, and the two promptly
+    disagreed: once ``UPLOAD_MAX_BYTES`` was registered in ``vantage.conf.DEFAULTS``,
+    the copy here read the registered ``None`` and called ``int(None)`` on it, while
+    the original had learnt to fall through to the module default. Two readers of one
+    setting is one reader too many.
+
+    ``security`` is treated as optional because this module works without it: a
+    project can render thumbnails with the security middleware unwired, and losing the
+    ceiling to an ImportError would be worse than falling back to a sane one.
     """
-    from vantage.conf import DEFAULTS as CONF_DEFAULTS
-
-    if "UPLOAD_MAX_BYTES" in CONF_DEFAULTS:
-        from vantage.conf import vantage_settings
-
-        return int(vantage_settings.UPLOAD_MAX_BYTES)
-
     try:
         from vantage import security
 
-        declared = getattr(security, "DEFAULTS", {}).get("UPLOAD_MAX_BYTES")
+        declared = security._setting("UPLOAD_MAX_BYTES")
     except Exception:  # pragma: no cover - security.py is optional to this module
         declared = None
     return int(declared or FALLBACK_UPLOAD_MAX_BYTES)

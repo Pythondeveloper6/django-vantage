@@ -124,9 +124,45 @@
 
 .v-listprefs-order {
   inline-size: 3.25rem;
-  margin-inline-start: auto;
   text-align: end;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── column sizing and pinning ────────────────────────────────────────────── */
+
+/* The "show this column" checkbox and its text, on their own — see the comment in
+ * list_prefs.html on why this is not the whole row's label any more. `flex: 1` is
+ * also what pushes the width, pin and order controls to the row's far end, the same
+ * job `margin-inline-start: auto` did on the order box alone before this had
+ * neighbours. */
+.v-listprefs-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.v-listprefs-width {
+  inline-size: 3.75rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-listprefs-pin {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.v-listprefs-pin:has(input:checked) {
+  color: var(--primary);
+  font-weight: 600;
 }
 
 .v-listprefs-add {

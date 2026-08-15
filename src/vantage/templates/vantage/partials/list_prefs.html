@@ -43,8 +43,14 @@
   <div class="v-listprefs-body">
 
   {% comment %} ── columns and page size ───────────────────────────────────── {% endcomment %}
+  {% comment %}
+    data-prefs-columns-form is the hook vantage-grid.js uses to auto-save a drag-resize
+    or an in-header pin toggle: it submits this exact form in the background, with
+    whatever the checkboxes and number boxes in it already say, so a resize can never
+    clobber a reorder or a hide that has not been saved yet.
+  {% endcomment %}
   <form class="v-listprefs-section" method="post" action="{{ list_prefs.action }}"
-        data-prefs-form>
+        data-prefs-form data-prefs-columns-form>
     {% csrf_token %}
     <input type="hidden" name="section" value="columns">
     <input type="hidden" name="next" value="{{ list_prefs.next }}">
@@ -57,16 +63,41 @@
     </div>
 
     <div class="v-listprefs-options" data-prefs-sortable>
+      {% comment %}
+        A plain <div>, not a <label>, is what wraps the row. Two checkboxes and a
+        number box share it — "shown" and "pinned" are independent questions about the
+        same column — and a label with more than one control inside it is the classic
+        trap vantage-listprefs.js already works around for the reorder buttons below:
+        a click meant for the second control silently re-toggles the first. Each
+        control gets its own, narrow label instead.
+      {% endcomment %}
       {% for column in list_prefs.columns %}
-        <label class="v-filter-option" data-prefs-row>
-          <input type="checkbox" name="columns" value="{{ column.name }}"
-                 {% if column.selected %}checked{% endif %}>
-          <span class="v-filter-option-label">{{ column.label }}</span>
+        <div class="v-filter-option" data-prefs-row>
+          <label class="v-listprefs-check">
+            <input type="checkbox" name="columns" value="{{ column.name }}"
+                   {% if column.selected %}checked{% endif %}>
+            <span class="v-filter-option-label">{{ column.label }}</span>
+          </label>
+          <input class="v-input v-input-sm v-listprefs-width" type="number"
+                 inputmode="numeric" min="{{ list_prefs.column_width_min }}"
+                 max="{{ list_prefs.column_width_max }}"
+                 name="width__{{ column.name }}"
+                 value="{% if column.width %}{{ column.width }}{% endif %}"
+                 data-prefs-width="{{ column.name }}"
+                 placeholder="{% translate "auto" context "column width placeholder: no width has been set for this column" %}"
+                 aria-label="{% blocktranslate with label=column.label %}Width of {{ label }}, in pixels{% endblocktranslate %}">
+          <label class="v-listprefs-pin">
+            <input type="checkbox" name="pinned_columns" value="{{ column.name }}"
+                   {% if column.pinned %}checked{% endif %}
+                   data-prefs-pin="{{ column.name }}"
+                   aria-label="{% blocktranslate with label=column.label %}Pin {{ label }} so it stays in view while scrolling sideways{% endblocktranslate %}">
+            <span aria-hidden="true">{% translate "Pin" context "checkbox: freeze this column while scrolling sideways" %}</span>
+          </label>
           <input class="v-input v-input-sm v-listprefs-order" type="number" min="1"
                  name="order__{{ column.name }}" value="{{ column.position }}"
                  data-prefs-position
                  aria-label="{% blocktranslate with label=column.label %}Position of {{ label }}{% endblocktranslate %}">
-        </label>
+        </div>
       {% endfor %}
     </div>
 

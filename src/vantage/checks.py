@@ -137,23 +137,30 @@ def panel_is_mounted() -> bool:
 def _vantage_setting(name: str):
     """One Vantage setting, resolved through the settings layer, never raising.
 
-    Two fallbacks, because there are two sets of defaults. Keys the settings layer knows
-    about resolve through it and pick up database overrides; the hardening keys that
-    :mod:`vantage.security` owns are not registered there yet, and reading them from
-    ``conf.DEFAULTS`` would silently return ``None`` — which for a boolean like
-    ``RATE_LIMIT`` means a check quietly deciding the feature is off.
+    Two sets of defaults, so two paths. The hardening keys belong to
+    :mod:`vantage.security` and are asked of it directly: ``conf.DEFAULTS`` registers
+    them as ``None`` so they are *settable*, but ``None`` there means "no opinion", and
+    reading it as the value would have a check quietly decide the feature is off. This
+    docstring predicted that failure before the registration landed and then it
+    happened — ``check_deploy_cache`` stopped seeing the rate limiter as installed.
+
+    Everything else resolves through the settings layer and picks up database
+    overrides.
     """
+    from vantage.security import DEFAULTS as SECURITY_DEFAULTS
+
+    if name in SECURITY_DEFAULTS:
+        from vantage.security import _setting
+
+        return _setting(name)
+
     from vantage.conf import vantage_settings
 
     try:
         return getattr(vantage_settings, name)
     except Exception:  # a broken VANTAGE dict is check_vantage_settings' problem
         pass
-    if name in DEFAULTS:
-        return DEFAULTS[name]
-    from vantage.security import DEFAULTS as SECURITY_DEFAULTS
-
-    return SECURITY_DEFAULTS.get(name)
+    return DEFAULTS.get(name)
 
 
 def _middleware() -> list[str]:
