@@ -203,13 +203,13 @@
       cell.mark.setAttribute(
         "title",
         cell.state === "staged"
-          ? "Not saved yet"
+          ? gettext("Not saved yet")
           : cell.state === "saved"
-            ? "Saved"
+            ? gettext("Saved")
             : cell.state === "unchecked"
-              ? "Could not be checked"
+              ? gettext("Could not be checked")
               : cell.state === "invalid" || cell.state === "rejected"
-                ? "Rejected"
+                ? gettext("Rejected")
                 : ""
       );
     }
@@ -218,10 +218,18 @@
   function paintBar() {
     var count = stagedCount();
     bar.hidden = count === 0;
-    countEl.textContent = count === 1 ? "1 change" : count + " changes";
+    countEl.textContent = interpolate(
+      ngettext("%(count)s change", "%(count)s changes", count),
+      { count: count },
+      true
+    );
     // The number goes on the control being pressed, not only beside it: nobody should
     // commit twelve edits under a button that just says "Save".
-    saveButton.textContent = count === 1 ? "Save 1 change" : "Save " + count + " changes";
+    saveButton.textContent = interpolate(
+      ngettext("Save %(count)s change", "Save %(count)s changes", count),
+      { count: count },
+      true
+    );
     saveButton.disabled = saving || count === 0;
     discardButton.disabled = saving;
   }
@@ -277,7 +285,15 @@
         cell.messages = data.valid ? [] : data.errors || [];
         cell.state = data.valid ? (isDirty(cell) ? "staged" : "") : "invalid";
         paintCell(cell);
-        if (!data.valid) announce(cell.label + ": " + cell.messages.join(" "));
+        if (!data.valid) {
+          announce(
+            interpolate(
+              gettext("%(label)s: %(messages)s"),
+              { label: cell.label, messages: cell.messages.join(" ") },
+              true
+            )
+          );
+        }
       })
       .catch(function (error) {
         if (error && error.name === "AbortError") return;
@@ -382,7 +398,7 @@
   function leaveCellMode(cell) {
     var tr = rows[cell.pk].row;
     tr.focus();
-    announce("Left cell mode.");
+    announce(gettext("Left cell mode."));
   }
 
   table.addEventListener("keydown", function (event) {
@@ -398,10 +414,15 @@
     controls[0].focus();
     if (controls[0].select) controls[0].select();
     announce(
-      "Cell mode. " +
-        controls.length +
-        (controls.length === 1 ? " editable cell" : " editable cells") +
-        ". Escape to leave."
+      interpolate(
+        ngettext(
+          "Cell mode. %(count)s editable cell. Escape to leave.",
+          "Cell mode. %(count)s editable cells. Escape to leave.",
+          controls.length
+        ),
+        { count: controls.length },
+        true
+      )
     );
   });
 
@@ -427,7 +448,7 @@
     var sent = new Set(staged);
     saving = true;
     clearOutcomes();
-    setNote("Saving…");
+    setNote(gettext("Saving…"));
     paintBar();
 
     window
@@ -453,11 +474,14 @@
         if (result.status === 409) return showConflicts(result.data);
         if (result.status === 422) return applyErrors(result.data);
         if (result.status === 403) {
-          setNote("You do not have permission to change these records.", "error");
+          setNote(gettext("You do not have permission to change these records."), "error");
         } else if (result.status === 404) {
-          setNote("One of these records no longer exists. Reload the page.", "error");
+          setNote(gettext("One of these records no longer exists. Reload the page."), "error");
         } else {
-          setNote("The server refused the changeset (" + result.status + ").", "error");
+          setNote(
+            interpolate(gettext("The server refused the changeset (%s)."), [result.status]),
+            "error"
+          );
         }
         paintBar();
         announce(noteEl.textContent);
@@ -466,7 +490,10 @@
         saving = false;
         // Nothing was reverted and nothing was cleared: the changeset is still staged
         // and the button says Save again, which is the whole recovery story.
-        setNote("Could not reach the server. Your changes are still here — try again.", "error");
+        setNote(
+          gettext("Could not reach the server. Your changes are still here — try again."),
+          "error"
+        );
         paintBar();
         announce(noteEl.textContent);
       });
@@ -496,7 +523,14 @@
         paintCell(cell);
       });
     });
-    setNote(data.saved === 1 ? "1 change saved." : data.saved + " changes saved.", "success");
+    setNote(
+      interpolate(
+        ngettext("%(count)s change saved.", "%(count)s changes saved.", data.saved),
+        { count: data.saved },
+        true
+      ),
+      "success"
+    );
     paintBar();
     announce(noteEl.textContent);
   }
@@ -517,9 +551,15 @@
       });
     });
     setNote(
-      "Nothing was saved: " +
-        (total === 1 ? "one value was rejected" : total + " values were rejected") +
-        ". Fix them and save again, or discard.",
+      interpolate(
+        ngettext(
+          "Nothing was saved: one value was rejected. Fix them and save again, or discard.",
+          "Nothing was saved: %(count)s values were rejected. Fix them and save again, or discard.",
+          total
+        ),
+        { count: total },
+        true
+      ),
       "error"
     );
     paintBar();
@@ -540,7 +580,7 @@
   function showConflicts(data) {
     conflictState = data.conflicts || [];
     if (!dialog || !conflictState.length) {
-      setNote("Someone else changed these records. Reload the page.", "error");
+      setNote(gettext("Someone else changed these records. Reload the page."), "error");
       paintBar();
       return;
     }
@@ -556,7 +596,7 @@
 
       var heading = document.createElement("h3");
       heading.className = "v-inline-conflict-record-title";
-      heading.textContent = conflict.label || "Record " + conflict.pk;
+      heading.textContent = conflict.label || interpolate(gettext("Record %s"), [conflict.pk]);
       block.appendChild(heading);
 
       Object.keys(conflict.fields || {}).forEach(function (field) {
@@ -569,14 +609,26 @@
     });
 
     summary.textContent =
-      (conflictState.length === 1 ? "This record" : conflictState.length + " records") +
-      " changed while you were editing. Nothing was saved. " +
-      (fieldCount === 1
-        ? "The field below is shown both ways — choose a side."
-        : "The " +
-          fieldCount +
-          " fields below are shown both ways — choose a side for each, or take one" +
-          " side for all of them.");
+      interpolate(
+        ngettext(
+          "This record changed while you were editing. Nothing was saved.",
+          "%(count)s records changed while you were editing. Nothing was saved.",
+          conflictState.length
+        ),
+        { count: conflictState.length },
+        true
+      ) +
+      " " +
+      interpolate(
+        ngettext(
+          "The field below is shown both ways — choose a side.",
+          "The %(count)s fields below are shown both ways — choose a side for each, or " +
+            "take one side for all of them.",
+          fieldCount
+        ),
+        { count: fieldCount },
+        true
+      );
 
     if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
     announce(summary.textContent);
@@ -594,8 +646,10 @@
     wrap.appendChild(name);
 
     var group = "v-conflict-" + conflict.pk + "-" + field;
-    wrap.appendChild(sideChoice(group, "mine", "Yours", diff.mine_display, diff.conflict));
-    wrap.appendChild(sideChoice(group, "theirs", "Theirs", diff.theirs_display, !diff.conflict));
+    wrap.appendChild(sideChoice(group, "mine", gettext("Yours"), diff.mine_display, diff.conflict));
+    wrap.appendChild(
+      sideChoice(group, "theirs", gettext("Theirs"), diff.theirs_display, !diff.conflict)
+    );
     return wrap;
   }
 
@@ -674,11 +728,11 @@
     if (dialog.open) dialog.close();
 
     if (stagedCount()) {
-      setNote("Resolved against the current version. Save again to apply.");
+      setNote(gettext("Resolved against the current version. Save again to apply."));
       paintBar();
       announce(noteEl.textContent);
     } else {
-      setNote("Their version kept. Nothing left to save.");
+      setNote(gettext("Their version kept. Nothing left to save."));
       paintBar();
       announce(noteEl.textContent);
     }
@@ -699,7 +753,7 @@
       // changeset is still staged and still conflicting, which is the truth.
       conflictState = null;
       if (dialog.open) dialog.close();
-      setNote("Still unresolved. Nothing was saved.", "error");
+      setNote(gettext("Still unresolved. Nothing was saved."), "error");
       paintBar();
     });
   }
@@ -711,9 +765,11 @@
     if (!count) return;
     if (
       !window.confirm(
-        count === 1
-          ? "Discard 1 unsaved change?"
-          : "Discard all " + count + " unsaved changes?"
+        interpolate(
+          ngettext("Discard 1 unsaved change?", "Discard all %(count)s unsaved changes?", count),
+          { count: count },
+          true
+        )
       )
     ) {
       return;
@@ -725,9 +781,9 @@
       staged.delete(cell);
       paintCell(cell);
     });
-    setNote("Changes discarded.");
+    setNote(gettext("Changes discarded."));
     paintBar();
-    announce("All unsaved changes discarded.");
+    announce(gettext("All unsaved changes discarded."));
   });
 
   saveButton.addEventListener("click", save);

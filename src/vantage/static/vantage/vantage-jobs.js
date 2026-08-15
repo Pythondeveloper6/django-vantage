@@ -105,10 +105,17 @@
        * the moment that is written as markup the report becomes stored XSS. */
       counts.textContent = data.terminal
         ? data.summary || data.status_label
-        : format(data.processed) +
-          " of " +
-          format(data.total) +
-          (data.failed ? ", " + format(data.failed) + " failed" : "");
+        : data.failed
+          ? interpolate(
+              gettext("%(processed)s of %(total)s, %(failed)s failed"),
+              { processed: format(data.processed), total: format(data.total), failed: format(data.failed) },
+              true
+            )
+          : interpolate(
+              gettext("%(processed)s of %(total)s"),
+              { processed: format(data.processed), total: format(data.total) },
+              true
+            );
     }
 
     if (link && data.errors_url) {

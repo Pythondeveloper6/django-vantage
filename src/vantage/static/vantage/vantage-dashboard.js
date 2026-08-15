@@ -138,10 +138,10 @@
   slots().forEach(function (slot) {
     var bar = slot.querySelector("[data-arrange-handle]");
     if (!bar) return;
-    var name = (slot.querySelector(".v-arrange-name") || {}).textContent || "this card";
+    var name = (slot.querySelector(".v-arrange-name") || {}).textContent || gettext("this card");
     name = name.trim();
-    bar.appendChild(moveButton(slot, -1, "Move " + name + " earlier", "↑"));
-    bar.appendChild(moveButton(slot, 1, "Move " + name + " later", "↓"));
+    bar.appendChild(moveButton(slot, -1, interpolate(gettext("Move %s earlier"), [name]), "↑"));
+    bar.appendChild(moveButton(slot, 1, interpolate(gettext("Move %s later"), [name]), "↓"));
     wireDragging(slot, bar);
   });
   renumber();

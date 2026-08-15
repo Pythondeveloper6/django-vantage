@@ -1,13 +1,21 @@
 # Continuous integration.
 #
-# Four jobs, in rough order of how fast they tell you something useful: lint, then the
-# test matrix, then the type check (advisory), then the packaging check.
+# Five jobs, in rough order of how fast they tell you something useful: lint, then the
+# test matrix, then the browser layer, then the type check (advisory), then the
+# packaging check.
 #
 # The packaging job is the one worth explaining. `vantage` is mostly not Python — 30
 # templates, 16 static files, a templatetags module — and every one is located by path
 # at runtime rather than imported. A wheel that dropped them would still import, still
 # pass `twine check`, still install cleanly, and 500 on the first page view. So the job
 # installs the built wheel into an empty virtualenv and renders a template out of it.
+#
+# The browser job is the other one worth explaining. `tests/test_browser.py` is
+# `pytest.importorskip`'d and marked `browser`, so the main `test` job above collects
+# it and skips it cleanly (no Chromium there) rather than ignoring it outright — this
+# job is what actually runs it, against a `pytest-django` `live_server` it boots
+# itself, needing neither the demo project nor a server anyone had to remember to
+# start.
 name: CI
 
 on:
@@ -120,6 +128,34 @@ jobs:
       # no business here.
       - name: pytest
         run: uv run --no-sync pytest
+
+  browser:
+    name: browser (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - run: uv sync --group dev --group browser --frozen
+
+      # `--with-deps` also installs the OS packages Chromium needs on a bare runner
+      # image; `enable-cache` above only caches uv's own downloads, not this.
+      - name: Install Chromium
+        run: uv run --no-sync playwright install --with-deps chromium
+
+      # `-m browser` rather than a plain `pytest`: the main `test` job above already
+      # collects tests/test_browser.py and skips it (no Chromium there), so running
+      # the whole suite here too would just repeat 3400+ tests this job adds nothing
+      # to. Everything else stays deselected by the marker, not by path, so a
+      # contributor who adds a second browser-marked file needs no workflow change.
+      - name: pytest -m browser
+        run: uv run --no-sync pytest -m browser
 
   typecheck:
     # Advisory, and honestly so. `ty` reports a few hundred diagnostics against src/

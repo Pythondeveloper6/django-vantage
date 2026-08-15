@@ -23,14 +23,14 @@
   "use strict";
 
   var ACTIONS = [
-    { key: "bold", label: "B", title: "Bold  (Ctrl+B)", wrap: ["**", "**"] },
-    { key: "italic", label: "I", title: "Italic  (Ctrl+I)", wrap: ["_", "_"] },
-    { key: "code", label: "‹›", title: "Code", wrap: ["`", "`"] },
-    { key: "link", label: "🔗", title: "Link  (Ctrl+K)", wrap: ["[", "](url)"] },
-    { key: "h2", label: "H", title: "Heading", prefix: "## " },
-    { key: "ul", label: "•", title: "Bullet list", prefix: "- " },
-    { key: "ol", label: "1.", title: "Numbered list", prefix: "1. " },
-    { key: "quote", label: "❝", title: "Quote", prefix: "> " },
+    { key: "bold", label: "B", aria: gettext("Bold"), title: gettext("Bold  (Ctrl+B)"), wrap: ["**", "**"] },
+    { key: "italic", label: "I", aria: gettext("Italic"), title: gettext("Italic  (Ctrl+I)"), wrap: ["_", "_"] },
+    { key: "code", label: "‹›", aria: gettext("Code"), title: gettext("Code"), wrap: ["`", "`"] },
+    { key: "link", label: "🔗", aria: gettext("Link"), title: gettext("Link  (Ctrl+K)"), wrap: ["[", "](url)"] },
+    { key: "h2", label: "H", aria: gettext("Heading"), title: gettext("Heading"), prefix: "## " },
+    { key: "ul", label: "•", aria: gettext("Bullet list"), title: gettext("Bullet list"), prefix: "- " },
+    { key: "ol", label: "1.", aria: gettext("Numbered list"), title: gettext("Numbered list"), prefix: "1. " },
+    { key: "quote", label: "❝", aria: gettext("Quote"), title: gettext("Quote"), prefix: "> " },
   ];
 
   function surround(field, before, after) {
@@ -79,7 +79,7 @@
     var bar = document.createElement("div");
     bar.className = "v-md-bar";
     bar.setAttribute("role", "toolbar");
-    bar.setAttribute("aria-label", "Formatting");
+    bar.setAttribute("aria-label", gettext("Formatting"));
     bar.setAttribute("aria-controls", field.id);
 
     ACTIONS.forEach(function (action) {
@@ -88,7 +88,7 @@
       button.className = "v-md-btn";
       button.textContent = action.label;
       button.title = action.title;
-      button.setAttribute("aria-label", action.title.split("  ")[0]);
+      button.setAttribute("aria-label", action.aria);
       button.addEventListener("click", function () {
         apply(field, action);
       });
@@ -99,7 +99,11 @@
     count.className = "v-md-count";
     function paint() {
       var chars = field.value.length;
-      count.textContent = chars + (chars === 1 ? " character" : " characters");
+      count.textContent = interpolate(
+        ngettext("%(count)s character", "%(count)s characters", chars),
+        { count: chars },
+        true
+      );
     }
     field.addEventListener("input", paint);
     paint();

@@ -326,7 +326,7 @@
       toggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
       toggle.setAttribute(
         "aria-label",
-        isCollapsed ? "Expand navigation" : "Collapse navigation"
+        isCollapsed ? gettext("Expand navigation") : gettext("Collapse navigation")
       );
     }
 
@@ -379,9 +379,13 @@
       bar.hidden = chosen === 0 && !acrossPages;
 
       if (acrossPages) {
-        countEl.textContent = "All " + total + " matching records selected";
+        countEl.textContent = interpolate(gettext("All %s matching records selected"), [total]);
       } else {
-        countEl.textContent = chosen + (chosen === 1 ? " record" : " records") + " selected";
+        countEl.textContent = interpolate(
+          ngettext("%(count)s record selected", "%(count)s records selected", chosen),
+          { count: chosen },
+          true
+        );
       }
 
       // Offering "select all matching" before the page is fully ticked would be

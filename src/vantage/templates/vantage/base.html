@@ -165,6 +165,20 @@
   </div>
 </div>
 
+{% comment %}
+  Django's JS translation catalogue, scoped to this package only — see
+  JavaScriptCatalog(packages=["vantage"]) in urls.py. Not deferred, and deliberately
+  first: every script below calls gettext()/ngettext(), so it has to have already run
+  by the time they do. vantage-i18n-fallback.js right after it is what keeps that safe
+  when the catalogue route 404s, a proxy strips it, or a project has not wired i18n at
+  all — it defines pass-through stand-ins only if the real ones never showed up, so
+  nothing downstream throws "gettext is not defined" and every string still renders,
+  in English, exactly as it was written. Both are external `<script src>` tags, not
+  inline blocks, so this needs no nonce and adds nothing for a strict
+  Content-Security-Policy to worry about — see security.py.
+{% endcomment %}
+<script src="{% url 'vantage:jsi18n' %}"></script>
+<script src="{% static 'vantage/vantage-i18n-fallback.js' %}"></script>
 <script src="{% static 'vantage/vantage.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>

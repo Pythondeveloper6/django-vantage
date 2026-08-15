@@ -173,7 +173,7 @@
   function groupColumns() {
     // Own fields first, then one section per relation. Thirty-one columns in one
     // flat list is a scrolling exercise; grouped, it is a glance.
-    var own = { label: "Fields", items: [] };
+    var own = { label: gettext("Fields"), items: [] };
     var groups = [own];
     var byPrefix = {};
 
@@ -199,7 +199,13 @@
 
   function paintCount() {
     if (columnsCount) {
-      columnsCount.textContent = "· " + visibleNames().length + " of " + columns.length;
+      columnsCount.textContent =
+        "· " +
+        interpolate(
+          gettext("%(visible)s of %(total)s"),
+          { visible: visibleNames().length, total: columns.length },
+          true
+        );
     }
   }
 
@@ -224,7 +230,13 @@
 
     var label = columnByName[name].label;
     var visible = visibleNames();
-    announce(label + " moved to position " + (visible.indexOf(name) + 1) + " of " + visible.length);
+    announce(
+      interpolate(
+        gettext("%(label)s moved to position %(position)s of %(total)s"),
+        { label: label, position: visible.indexOf(name) + 1, total: visible.length },
+        true
+      )
+    );
 
     // The list re-rendered under the user's fingers; put focus back on the button
     // they pressed, or on its sibling if that one just ran out of room.
@@ -248,7 +260,9 @@
     button.textContent = direction === "up" ? "↑" : "↓";
     button.setAttribute(
       "aria-label",
-      "Move " + column.label + (direction === "up" ? " earlier" : " later")
+      direction === "up"
+        ? interpolate(gettext("Move %s earlier"), [column.label])
+        : interpolate(gettext("Move %s later"), [column.label])
     );
     // Drag is not the only way to reorder — WCAG 2.5.7 is failed by drag-only, and a
     // keyboard path does not answer it, because the criterion is about pointer users
@@ -316,7 +330,7 @@
     if (!shown) {
       var empty = document.createElement("p");
       empty.className = "v-grid-col-empty";
-      empty.textContent = "No column matches “" + term + "”.";
+      empty.textContent = interpolate(gettext("No column matches “%s”."), [term]);
       columnsList.appendChild(empty);
     }
   }
@@ -326,7 +340,7 @@
       // Hiding the last column leaves a table of nothing, which looks like a bug
       // rather than a preference.
       box.checked = true;
-      announce("At least one column has to stay visible.");
+      announce(gettext("At least one column has to stay visible."));
       return;
     }
     if (box.checked) delete hidden[column.name];
@@ -337,8 +351,17 @@
     recalcPinOffsets(); // hiding a column can move a pinned one into first place
     paintCount();
     renderColumns();
-    announce(column.label + (box.checked ? " shown" : " hidden") + ". " + visibleNames().length +
-      " of " + columns.length + " columns visible.");
+    announce(
+      (box.checked
+        ? interpolate(gettext("%s shown."), [column.label])
+        : interpolate(gettext("%s hidden."), [column.label])) +
+        " " +
+        interpolate(
+          gettext("%(visible)s of %(total)s columns visible."),
+          { visible: visibleNames().length, total: columns.length },
+          true
+        )
+    );
   }
 
   function setColumnsOpen(open) {
@@ -393,7 +416,7 @@
       recalcPinOffsets();
       paintCount();
       renderColumns();
-      announce("Columns reset to the panel's own order.");
+      announce(gettext("Columns reset to the panel's own order."));
     });
   }
 
@@ -417,7 +440,7 @@
       // and compact products. Column choices are per model, because they are about
       // the fields of one thing.
       writeStore(DENSITY_KEY, density);
-      announce(density === "compact" ? "Compact rows" : "Comfortable rows");
+      announce(density === "compact" ? gettext("Compact rows") : gettext("Comfortable rows"));
     });
   });
 
@@ -434,8 +457,8 @@
       writeStore(SHORTCUTS_KEY, shortcutsOn);
       announce(
         shortcutsOn
-          ? "Keyboard shortcuts on. Press ? for the list."
-          : "Keyboard shortcuts off. Arrow keys, Home, End and Enter still work."
+          ? gettext("Keyboard shortcuts on. Press ? for the list.")
+          : gettext("Keyboard shortcuts off. Arrow keys, Home, End and Enter still work.")
       );
     });
   }
@@ -522,7 +545,7 @@
     // exclusion set. Flipping the input and firing its change event runs all of that
     // rather than reimplementing any of it here.
     box.dispatchEvent(new Event("change", { bubbles: true }));
-    announce(box.checked ? "Row selected" : "Row deselected");
+    announce(box.checked ? gettext("Row selected") : gettext("Row deselected"));
   }
 
   function openRecord(row) {
@@ -643,11 +666,11 @@
         break;
       case "[":
         event.preventDefault();
-        turnPage("data-prev-url", "This is the first page.");
+        turnPage("data-prev-url", gettext("This is the first page."));
         break;
       case "]":
         event.preventDefault();
-        turnPage("data-next-url", "This is the last page.");
+        turnPage("data-next-url", gettext("This is the last page."));
         break;
       case "?":
         event.preventDefault();
@@ -678,7 +701,9 @@
 
   function rowLabel(row) {
     var link = row.querySelector("a.v-cell-link");
-    return link ? link.textContent.trim() : "Record " + row.getAttribute("data-pk");
+    return link
+      ? link.textContent.trim()
+      : interpolate(gettext("Record %s"), [row.getAttribute("data-pk")]);
   }
 
   function showPeek(row, historyMode, focusDrawer) {
@@ -716,7 +741,7 @@
     var slow = window.setTimeout(function () {
       if (token === peekToken) {
         drawerBody.textContent = "";
-        drawerBody.appendChild(note("Loading…"));
+        drawerBody.appendChild(note(gettext("Loading…")));
       }
     }, LOADER_DELAY_MS);
 
@@ -739,17 +764,19 @@
         var title = parsed.querySelector(".v-page-title");
         drawerBody.textContent = "";
         drawerBody.appendChild(
-          detail ? document.importNode(detail, true) : note("This record has no preview.")
+          detail ? document.importNode(detail, true) : note(gettext("This record has no preview."))
         );
         if (title) drawerTitle.textContent = title.textContent.trim();
         drawerBody.setAttribute("aria-busy", "false");
-        announce("Previewing " + drawerTitle.textContent);
+        announce(interpolate(gettext("Previewing %s"), [drawerTitle.textContent]));
       })
       .catch(function () {
         window.clearTimeout(slow);
         if (token !== peekToken) return;
         drawerBody.textContent = "";
-        drawerBody.appendChild(note("Could not load this record. Open it in full instead."));
+        drawerBody.appendChild(
+          note(gettext("Could not load this record. Open it in full instead."))
+        );
         drawerBody.setAttribute("aria-busy", "false");
       });
   }
@@ -852,6 +879,7 @@
   var MIN_COL_WIDTH = parseInt(root.getAttribute("data-col-width-min"), 10) || 60;
   var MAX_COL_WIDTH = parseInt(root.getAttribute("data-col-width-max"), 10) || 640;
   var PERSIST_DEBOUNCE_MS = 500;
+  var RESIZE_ANNOUNCE_DEBOUNCE_MS = 500;
 
   var widths = {}; // column name -> px, only for columns someone has actually sized
   var pinned = {}; // column name -> true
@@ -985,12 +1013,40 @@
       });
   }
 
+  var resizeAnnounceTimer = null;
+
+  // The resize handle genuinely changes a column's width in real time on every
+  // Left/Right (and every pointermove frame of a drag), but nothing told a screen
+  // reader user what it had become — the control was operable and its effect
+  // invisible. Debounced rather than sent from every keypress: a held arrow key
+  // repeats several times a second and a drag is dozens of animation frames, and a
+  // live region is not a log to flood. One announcement lands once the width
+  // settles, naming the column alongside the number — a pixel count on its own
+  // tells nobody which column just changed, so it is close to meaningless without
+  // the label riding along with it.
+  function scheduleResizeAnnounce(name) {
+    window.clearTimeout(resizeAnnounceTimer);
+    resizeAnnounceTimer = window.setTimeout(function () {
+      resizeAnnounceTimer = null;
+      announce(
+        interpolate(
+          // Translators: %(label)s is a column name, e.g. "Title"; %(width)s a
+          // pixel count, e.g. "240".
+          gettext("%(label)s column, %(width)spx wide."),
+          { label: columnByName[name].label, width: widths[name] },
+          true
+        )
+      );
+    }, RESIZE_ANNOUNCE_DEBOUNCE_MS);
+  }
+
   function setWidth(name, px, persist) {
     widths[name] = clampWidth(px);
     applyWidth(name);
     recalcPinOffsets();
     syncPrefsForm(name);
     if (persist !== false) schedulePersist();
+    scheduleResizeAnnounce(name);
   }
 
   function setPinned(name, isPinned, persist) {
@@ -999,7 +1055,11 @@
     recalcPinOffsets();
     syncPrefsForm(name);
     if (persist !== false) schedulePersist();
-    announce(columnByName[name].label + (isPinned ? " pinned." : " unpinned."));
+    announce(
+      isPinned
+        ? interpolate(gettext("%s pinned."), [columnByName[name].label])
+        : interpolate(gettext("%s unpinned."), [columnByName[name].label])
+    );
   }
 
   // ── pin toggle ──────────────────────────────────────────────────────────

@@ -111,6 +111,7 @@ django-simple-history are all used when present and never required.
 | [Settings](settings.md) | Every `VANTAGE` key, its default and its effect |
 | [Deployment](deployment.md) | What to check before pointing this at production |
 | [Accessibility](accessibility.md) | What is guaranteed, what you must supply, what is still broken |
+| [Browser tests](browser-tests.md) | The Playwright layer over what a test client cannot see: focus, console errors, keyboard behaviour |
 | [Extending](extending.md) | Slots, plugins, and adopting an existing `admin.py` |
 | [FAQ](faq.md) | How it differs from `django.contrib.admin`, what it does not do |
 

@@ -31,6 +31,8 @@ not merely intended. If one regresses, the build fails.
 | A hovered primary button keeps its label at ≥4.5:1 for every brand hue | 1.4.3 | swept in tests |
 | Sign-in errors announced via `role="alert"`, with `aria-invalid` and `aria-describedby` on the offending field | 3.3.1 Error Identification | `login.html`, `authviews._style_form` |
 | A 403 says "not allowed" and never "not found" | 3.3.1, and plain honesty | `403.html` |
+| Resizing a grid column, by drag or by keyboard, announces the column's name and its new width through the grid's own live region, debounced rather than sent on every keypress or drag frame | 4.1.3 Status Messages | `vantage-grid.js`, `tests/test_accessibility.py` |
+| The relation picker's real `<select>` is `inert`, not merely `tabindex="-1"` plus `aria-hidden`, so it does not surface as a second, nameless combobox in the accessibility tree | 4.1.2 Name, Role, Value | `combobox.js`, `tests/test_accessibility.py` |
 
 ### The live region, specifically
 
@@ -42,6 +44,86 @@ zero height when empty, so it costs nothing to leave in place.
 
 Script that needs to announce something should append into `#v-toasts`, or write into
 it directly. Do not create a new live region per feature.
+
+### The resize announcement, specifically
+
+The resize handle genuinely changes a column's width in real time — the control was
+always operable — but until this pass nothing told a screen reader user what it had
+become, so the effect was invisible even though the cause was not. Two things matter
+about the fix:
+
+- **It is debounced, not sent per keypress or per drag frame.** A held arrow key
+  repeats several times a second and a drag is dozens of `pointermove` events; a live
+  region is not a log for a screen reader to keep up with. One announcement lands
+  half a second after the width stops changing, however many keys or frames it took
+  to get there.
+- **The column's name rides with the number.** "240 pixels wide" on its own does not
+  say which column, and a screen reader user resizing by keyboard is not looking at
+  the header to remind themselves. The announcement is always "*Column* column, *N*
+  pixels wide."
+
+It reuses the grid's existing `[data-grid-live]` region — the same one column
+move, visibility, pin, density and shortcut-preference changes already announce
+through — rather than adding a second live region for one more feature, for the
+reason `#v-toasts` gives above: one region, watched from boot, is the whole
+mechanism this package uses for status messages.
+
+### The relation picker's hidden `<select>`, specifically
+
+The control the browser submits is a real `<select>`, moved out of sight and driven
+by `combobox.js`'s type-to-search box in front of it (see that file's own header
+comment). Hiding it used to mean `tabindex="-1"` plus `aria-hidden="true"` — kept
+focusable on purpose, the old comment said, "so the browser can report a constraint
+violation against it." That reasoning is a real one in the abstract and a genuine
+platform conflict when it applies: the WAI-ARIA spec says `aria-hidden` must not be
+used on a focusable element, and Chromium resolves that conflict in the element's
+favour, not the attribute's — a select kept focusable this way stays in the
+accessibility tree as a second, nameless combobox next to the one the script draws.
+Confirmed live against the demo (an Order's `Customer` field) with Playwright's
+accessibility snapshot: two `combobox` nodes where a screen reader user should find
+one.
+
+Investigating rather than picking a side of that trade-off first: the reason given
+for keeping the select focusable does not hold for this widget as it stands.
+`required` is the only HTML5 constraint a `<select>` can carry, and `combobox.js`
+already moves it onto the visible `input` before the select is ever hidden
+(`input.required = true; select.required = false;`); nothing calls
+`select.setCustomValidity` anywhere in the file. By the time the select is hidden it
+has no constraint left for a browser to need focus in order to report — the concern
+was real when the comment was written and is not live today.
+
+That makes `inert` the honest fix rather than a compromise between the two options:
+it drops the element from the accessibility tree without the `aria-hidden` conflict,
+because it also makes the element genuinely unfocusable — which costs nothing here,
+precisely because nothing above still needs it focusable. Script access
+(`.selected`, `.value`, adding an `<option>` for a value that arrived from the
+search endpoint) is untouched, since `inert` blocks user interaction and focus, not
+code. A browser old enough to lack `inert` (older than Chrome 102 / Firefox 112 /
+Safari 15.5 — in line with the `fetch`/`AbortController`/`DOMParser` this file
+already assumes without a fallback) falls back to the previous `tabindex="-1"` plus
+`aria-hidden` shape, which is the known phantom-combobox behaviour rather than an
+interactive select sitting in the tab order.
+
+**The trade-off, spelled out rather than left implicit:** this fix depends on the
+select never again being a control a browser needs to focus. If `required` were
+ever left on the select instead of moved to the input, or a future change relied on
+a native validation bubble against it, `inert` would silently swallow that too.
+Nothing in `combobox.js` does either today, and the comment beside the `inert` line
+is the tripwire for the day something wants to.
+
+**A tooling note for whoever re-checks this next:** Playwright's own
+`locator.ariaSnapshot()` (what the MCP `browser_snapshot` tool is built on) still
+lists the select after this fix — it was verified, in this same session, to not
+consult `inert` at all, on a page with nothing else wrong (a bare
+`<select inert>` in a scratch page still shows up as a `combobox` under that API).
+It does correctly drop `hidden`, `display: none` and `aria-hidden`, which is why it
+caught the original bug in the first place. The claim above is verified instead
+against Chromium's real accessibility tree — CDP's `Accessibility.getFullAXTree`,
+reachable from a Playwright session via `page.context().newCDPSession(page)` — which
+reports the select with `ignored: true, ignoredReasons: [{name: "inertElement"}]`.
+That CDP tree is the one platform screen readers actually query; `ariaSnapshot()` is
+not a reliable check for an `inert`-based fix specifically, and reading it naively
+here would look like a regression that is not one.
 
 ### Colour is never the only signal
 
@@ -114,24 +196,20 @@ Ordered by how much they matter. Nothing here is disputed; it is all simply not 
    approximation of scoping rather than true scoping: a custom element or a shadow root
    that owns its own keyboard handling is invisible to it. **Fix:** ship a remap option,
    or scope the listener to a container. Related: the `e` shortcut in
-   `vantage-inline.js:389` is correctly table-scoped (it only fires when the row itself,
+   `vantage-inline.js:405` is correctly table-scoped (it only fires when the row itself,
    not a control inside it, has focus) but still does **not** check
    `vantage-grid-shortcuts` — confirmed absent from that file — so switching shortcuts
    off from the cheat sheet silences `/` but not `e`. `⌘K` requires a modifier and is
    exempt throughout.
 
-2. **Heading order breaks on the list page.** `partials/list_prefs.html` emits `<h3>`
-   at lines 51, 103, 145, 204, 272 and 361 with no `<h2>` above them; the nearest
-   heading is the page `<h1>` in `list.html:15`. Confirmed by rendering the page and
-   parsing it. **Fix:** promote them to `<h2>`, or give the rail a wrapping `<h2>`.
-
-3. **Links with no accessible name in table cells.** `list.html:262` and
+2. **Links with no accessible name in table cells.** `list.html:286` and
    `partials/widget.html:87` wrap the rendered cell value in `<a class="v-cell-link">`.
-   When the value is empty, `render.py` emits the em-dash placeholder, so the link's
-   entire accessible name is `—`. A screen reader announces "link, dash". **Fix:** fall
-   back to the record's `__str__`, or add visually hidden text.
+   When the value is empty, `render.py`'s `EMPTY` constant emits the em-dash
+   placeholder, so the link's entire accessible name is `—`. A screen reader announces
+   "link, dash". **Fix:** fall back to the record's `__str__`, or add visually hidden
+   text.
 
-4. **The dark theme's `--border` and `--input` cannot be measured.** They are
+3. **The dark theme's `--border` and `--input` cannot be measured.** They are
    `oklch(1 0 0 / 12%)` and `/ 16%` — translucent, so their real contrast depends on
    what is behind them. Against `--background` in the light theme, `--input` computes
    to **1.27:1**, far under the 3:1 that 1.4.11 requires of a control boundary. Form
@@ -139,26 +217,34 @@ Ordered by how much they matter. Nothing here is disputed; it is all simply not 
    `test_accessibility.py::test_alpha_tokens_are_knowingly_excluded` pins this hole
    open so it cannot be quietly forgotten.
 
+Heading order on the list page was on this list in an earlier pass of this audit:
+`partials/list_prefs.html`'s `<h3>` section titles had no `<h2>` above them. They now
+sit under a wrapping `<h2 class="v-sr-only">` (`list_prefs.html:38`) — visually hidden,
+since the rail already has a visible label, but present in the outline — confirmed by
+rendering `/admin/<app>/<model>/` and walking the heading sequence live: `h1` → `h2`
+→ `h3` × 6 → `h2` → `h3` × 3 → `h2` → `h2` → `h2`, no skip anywhere.
+
 ### Not yet verified
 
-5. **The guard covers only the pages this work owns.** `ALL_PAGES` in
-   `tests/test_accessibility.py` is `login`, `logged_out`, `password_change`,
-   `dashboard`, `detail`, a custom page, `403`, `404`, `500`. The list, form, delete,
-   import, audit, search and settings pages are **not** in it. A one-off probe of those
-   pages found them clean on the mechanical checks above, except for the two entries
-   already listed — but "clean when probed once" is not "guarded". Widening `ALL_PAGES`
-   is the next unit of work.
+4. **The guard covers most, not all, of the pages this work owns.** `ALL_PAGES` in
+   `tests/test_accessibility.py` was `login`, `logged_out`, `password_change`,
+   `dashboard`, `detail`, a custom page, `403`, `404`, `500` when this gap was first
+   written. It has since widened to include `list`, `add`, `delete` and `settings` too
+   — confirmed by reading the fixture, not assumed. `import`, `audit` and `search` are
+   still **not** in it. A one-off probe of those three found them clean on the
+   mechanical checks above — but "clean when probed once" is not "guarded". Widening
+   `ALL_PAGES` to cover them is the next unit of work.
 
-6. **No screen-reader testing has been done.** Everything above is static analysis and
+5. **No screen-reader testing has been done.** Everything above is static analysis and
    parsed HTML. NVDA, JAWS and VoiceOver have not been run against a single page.
    Announcement order, table navigation and the palette's combobox are unverified in
    practice.
 
-7. **Focus behaviour after JS DOM replacement is unverified.** The grid, the inline
+6. **Focus behaviour after JS DOM replacement is unverified.** The grid, the inline
    editor and the palette all replace DOM. Whether focus survives has not been tested
    in a browser here.
 
-8. **No automated axe/Lighthouse run in CI.** The Python guard catches structural
+7. **No automated axe/Lighthouse run in CI.** The Python guard catches structural
    defects; it cannot catch computed contrast, overlapping focus, or reflow at 320 px.
 
 ### Found elsewhere in the package, not fixed here
@@ -177,10 +263,12 @@ only); `partials/saved_views.html` (locked and shared are icon + `title` on a sp
 `pages/schema.html` (`fk` and `o2o` edges differ only in stroke colour).
 
 **4.1.3 Status Messages — changes nothing announces.** The selection count and the bulk
-action bar in `list.html` / `vantage.js`; the contrast readout and warning in
-`settings.html`; the peek-drawer load failure and loading state in `vantage-grid.js`;
-the reorder result in `vantage-listprefs.js`; the character counter in
-`vantage-editors.js`.
+action bar in `list.html` / `vantage.js`; the peek-drawer load failure and loading
+state in `vantage-grid.js`; the reorder result in `vantage-listprefs.js`; the
+character counter in `vantage-editors.js`. (The contrast readout and warning in
+`settings.html` were on this list in an earlier pass; `data-preview-ratio` now
+carries `role="status" aria-live="polite"`, confirmed by reading the rendered
+template, so both are covered by the guarantee above instead.)
 
 **2.1.1 Keyboard — server HTML that is unusable without JavaScript.** `list.html` ships
 `tabindex="-1"` in the template on the select-all box, every row checkbox, every sort
@@ -204,21 +292,17 @@ focus to `<body>`; light-dismissing the columns popover loses focus the same way
 error summaries in `form.html`, `import_upload.html` and `import_map.html` carry
 `tabindex="-1"` but nothing ever focuses them after a failed POST.
 
-**Headings.** `partials/widget.html` and `partials/analytics.html` use
-`<span class="v-card-title">` where a heading belongs, so dashboard cards and charts
-contribute nothing to the outline.
-
 ### Deliberately out of scope for now
 
-9. **WCAG 2.5.7 Dragging Movements is satisfied, and was checked.** No `draggable`
+8. **WCAG 2.5.7 Dragging Movements is satisfied, and was checked.** No `draggable`
    attribute or `dragstart` handler exists anywhere in the package; both reorder
    surfaces ship pointer button alternatives (`vantage-grid.js`, `vantage-listprefs.js`)
    and the file drop zone keeps the real file input. This is recorded because "we never
    shipped drag" is the reason it passes, and adding drag later would silently break it.
-10. **The 500 page cannot honour an explicit theme choice made in a cookie.** It reads
-    `localStorage` only, because reading the cookie needs the request and the request
-    is exactly what may be broken. It follows `prefers-color-scheme` otherwise.
-11. **`lang` on the 500 page defaults to `en`** when rendered with no context, for the
+9. **The 500 page cannot honour an explicit theme choice made in a cookie.** It reads
+   `localStorage` only, because reading the cookie needs the request and the request
+   is exactly what may be broken. It follows `prefers-color-scheme` otherwise.
+10. **`lang` on the 500 page defaults to `en`** when rendered with no context, for the
     same reason.
 
 ---

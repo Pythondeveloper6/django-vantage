@@ -1,0 +1,575 @@
+# Arabic translation catalogue for django-vantage's JavaScript strings.
+# This file is distributed under the same license as the django-vantage package.
+#
+# This catalogue is intentionally partial: the same high-traffic strings the
+# django domain (locale/ar/LC_MESSAGES/django.po) prioritises — confirmations,
+# counts, buttons, empty states — are translated here; the rest is left with an
+# empty msgstr, which falls back cleanly to the English source rather than
+# shipping a guessed translation. See docs/internationalization.md.
+msgid ""
+msgstr ""
+"Project-Id-Version: django-vantage\n"
+"Report-Msgid-Bugs-To: https://github.com/mahmoudahmed/django-vantage/issues\n"
+"POT-Creation-Date: 2026-08-15 12:00-0500\n"
+"PO-Revision-Date: 2026-08-15 12:00-0500\n"
+"Last-Translator: django-vantage contributors\n"
+"Language-Team: Arabic <https://github.com/mahmoudahmed/django-vantage>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#: static/vantage/combobox.js:77
+msgid "Type to search…"
+msgstr "اكتب للبحث…"
+
+#: static/vantage/combobox.js:235
+#, javascript-format
+msgid "Remove %s"
+msgstr ""
+
+#: static/vantage/combobox.js:242
+#, javascript-format
+msgid "%s removed"
+msgstr ""
+
+#: static/vantage/combobox.js:261
+#, javascript-format
+msgid "%s added"
+msgstr ""
+
+#: static/vantage/combobox.js:269
+#, javascript-format
+msgid "%s selected"
+msgstr ""
+
+#: static/vantage/combobox.js:278
+#, javascript-format
+msgid "Removed %s"
+msgstr ""
+
+#: static/vantage/combobox.js:290
+msgid "Selection cleared"
+msgstr "تم مسح التحديد"
+
+#: static/vantage/combobox.js:372
+#, javascript-format
+msgid "No matches for “%s”."
+msgstr "لا توجد نتائج مطابقة لـ “%s”."
+
+#: static/vantage/combobox.js:373
+msgid "Nothing to show."
+msgstr "لا يوجد ما يُعرض."
+
+#: static/vantage/combobox.js:382
+msgid "More matches than fit here — keep typing to narrow the list."
+msgstr ""
+
+#: static/vantage/combobox.js:387
+msgid ""
+"%(count)s result shown, and there are more. Keep typing to narrow the list."
+msgid_plural ""
+"%(count)s results shown, and there are more. Keep typing to narrow the list."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/combobox.js:399
+msgid "%(count)s result"
+msgid_plural "%(count)s results"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/combobox.js:417
+msgid "Could not load matches. Check your connection."
+msgstr "تعذّر تحميل النتائج. تحقق من اتصالك."
+
+#: static/vantage/upload.js:123
+msgid "That file is %(size)s. The limit is %(limit)s."
+msgstr ""
+
+#: static/vantage/upload.js:193
+msgid "This browser cannot accept a dropped file. Use the button instead."
+msgstr ""
+
+#: static/vantage/upload.js:244
+#, javascript-format
+msgid "Uploading %s…"
+msgstr ""
+
+#: static/vantage/vantage-dashboard.js:141
+msgid "this card"
+msgstr ""
+
+#: static/vantage/vantage-dashboard.js:143 static/vantage/vantage-grid.js:264
+#, javascript-format
+msgid "Move %s earlier"
+msgstr ""
+
+#: static/vantage/vantage-dashboard.js:144 static/vantage/vantage-grid.js:265
+#, javascript-format
+msgid "Move %s later"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:26
+msgid "Bold"
+msgstr "عريض"
+
+#: static/vantage/vantage-editors.js:26
+msgid "Bold  (Ctrl+B)"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:27
+msgid "Italic"
+msgstr "مائل"
+
+#: static/vantage/vantage-editors.js:27
+msgid "Italic  (Ctrl+I)"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:28
+msgid "Code"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:29
+msgid "Link"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:29
+msgid "Link  (Ctrl+K)"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:30
+msgid "Heading"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:31
+msgid "Bullet list"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:32
+msgid "Numbered list"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:33
+msgid "Quote"
+msgstr ""
+
+#: static/vantage/vantage-editors.js:82
+msgid "Formatting"
+msgstr "التنسيق"
+
+#: static/vantage/vantage-editors.js:103
+msgid "%(count)s character"
+msgid_plural "%(count)s characters"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-grid.js:176
+msgid "Fields"
+msgstr "الحقول"
+
+#: static/vantage/vantage-grid.js:205
+msgid "%(visible)s of %(total)s"
+msgstr ""
+
+#: static/vantage/vantage-grid.js:235
+msgid "%(label)s moved to position %(position)s of %(total)s"
+msgstr ""
+
+#: static/vantage/vantage-grid.js:333
+#, javascript-format
+msgid "No column matches “%s”."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:343
+msgid "At least one column has to stay visible."
+msgstr "يجب أن يبقى عمود واحد على الأقل مرئيًا."
+
+#: static/vantage/vantage-grid.js:356
+#, javascript-format
+msgid "%s shown."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:357
+#, javascript-format
+msgid "%s hidden."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:360
+msgid "%(visible)s of %(total)s columns visible."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:419
+msgid "Columns reset to the panel's own order."
+msgstr "أُعيد ترتيب الأعمدة إلى ترتيب اللوحة الافتراضي."
+
+#: static/vantage/vantage-grid.js:443
+msgid "Compact rows"
+msgstr "صفوف مضغوطة"
+
+#: static/vantage/vantage-grid.js:443
+msgid "Comfortable rows"
+msgstr "صفوف مريحة"
+
+#: static/vantage/vantage-grid.js:460
+msgid "Keyboard shortcuts on. Press ? for the list."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:461
+msgid "Keyboard shortcuts off. Arrow keys, Home, End and Enter still work."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:548
+msgid "Row selected"
+msgstr "تم تحديد الصف"
+
+#: static/vantage/vantage-grid.js:548
+msgid "Row deselected"
+msgstr "تم إلغاء تحديد الصف"
+
+#: static/vantage/vantage-grid.js:669
+msgid "This is the first page."
+msgstr "هذه هي الصفحة الأولى."
+
+#: static/vantage/vantage-grid.js:673
+msgid "This is the last page."
+msgstr "هذه هي الصفحة الأخيرة."
+
+#: static/vantage/vantage-grid.js:706 static/vantage/vantage-inline.js:599
+#, javascript-format
+msgid "Record %s"
+msgstr ""
+
+#: static/vantage/vantage-grid.js:744
+msgid "Loading…"
+msgstr "جارٍ التحميل…"
+
+#: static/vantage/vantage-grid.js:767
+msgid "This record has no preview."
+msgstr "لا تتوفر معاينة لهذا السجل."
+
+#: static/vantage/vantage-grid.js:771
+#, javascript-format
+msgid "Previewing %s"
+msgstr ""
+
+#: static/vantage/vantage-grid.js:778
+msgid "Could not load this record. Open it in full instead."
+msgstr "تعذّر تحميل هذا السجل. افتحه كاملاً بدلاً من ذلك."
+
+#. Translators: %(label)s is a column name, e.g. "Title"; %(width)s a
+#. pixel count, e.g. "240".
+#: static/vantage/vantage-grid.js:1035
+msgid "%(label)s column, %(width)spx wide."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:1060
+#, javascript-format
+msgid "%s pinned."
+msgstr ""
+
+#: static/vantage/vantage-grid.js:1061
+#, javascript-format
+msgid "%s unpinned."
+msgstr ""
+
+#: static/vantage/vantage-inline.js:206
+msgid "Not saved yet"
+msgstr "لم يُحفظ بعد"
+
+#: static/vantage/vantage-inline.js:208
+msgid "Saved"
+msgstr "تم الحفظ"
+
+#: static/vantage/vantage-inline.js:210
+msgid "Could not be checked"
+msgstr "تعذّر التحقق"
+
+#: static/vantage/vantage-inline.js:212
+msgid "Rejected"
+msgstr "مرفوض"
+
+#: static/vantage/vantage-inline.js:222
+msgid "%(count)s change"
+msgid_plural "%(count)s changes"
+msgstr[0] "لا تغييرات"
+msgstr[1] "تغيير واحد"
+msgstr[2] "تغييران"
+msgstr[3] "%(count)s تغييرات"
+msgstr[4] "%(count)s تغييراً"
+msgstr[5] "%(count)s تغيير"
+
+#: static/vantage/vantage-inline.js:229
+msgid "Save %(count)s change"
+msgid_plural "Save %(count)s changes"
+msgstr[0] "احفظ التغييرات"
+msgstr[1] "احفظ تغييرًا واحدًا"
+msgstr[2] "احفظ التغييرين"
+msgstr[3] "احفظ %(count)s تغييرات"
+msgstr[4] "احفظ %(count)s تغييراً"
+msgstr[5] "احفظ %(count)s تغييرًا"
+
+#: static/vantage/vantage-inline.js:291
+msgid "%(label)s: %(messages)s"
+msgstr ""
+
+#: static/vantage/vantage-inline.js:401
+msgid "Left cell mode."
+msgstr "تم الخروج من وضع تحرير الخلية."
+
+#: static/vantage/vantage-inline.js:419
+msgid "Cell mode. %(count)s editable cell. Escape to leave."
+msgid_plural "Cell mode. %(count)s editable cells. Escape to leave."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-inline.js:451
+msgid "Saving…"
+msgstr "جارٍ الحفظ…"
+
+#: static/vantage/vantage-inline.js:477
+msgid "You do not have permission to change these records."
+msgstr "ليست لديك صلاحية لتعديل هذه السجلات."
+
+#: static/vantage/vantage-inline.js:479
+msgid "One of these records no longer exists. Reload the page."
+msgstr "أحد هذه السجلات لم يعد موجودًا. أعد تحميل الصفحة."
+
+#: static/vantage/vantage-inline.js:482
+#, javascript-format
+msgid "The server refused the changeset (%s)."
+msgstr ""
+
+#: static/vantage/vantage-inline.js:494
+msgid "Could not reach the server. Your changes are still here — try again."
+msgstr "تعذّر الوصول إلى الخادم. تغييراتك ما زالت هنا — حاول مرة أخرى."
+
+#: static/vantage/vantage-inline.js:528
+msgid "%(count)s change saved."
+msgid_plural "%(count)s changes saved."
+msgstr[0] "لم يُحفظ أي تغيير."
+msgstr[1] "تم حفظ تغيير واحد."
+msgstr[2] "تم حفظ تغييرين."
+msgstr[3] "تم حفظ %(count)s تغييرات."
+msgstr[4] "تم حفظ %(count)s تغييراً."
+msgstr[5] "تم حفظ %(count)s تغيير."
+
+#: static/vantage/vantage-inline.js:556
+msgid ""
+"Nothing was saved: one value was rejected. Fix them and save again, or "
+"discard."
+msgid_plural ""
+"Nothing was saved: %(count)s values were rejected. Fix them and save again, "
+"or discard."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-inline.js:583
+msgid "Someone else changed these records. Reload the page."
+msgstr "قام شخص آخر بتعديل هذه السجلات. أعد تحميل الصفحة."
+
+#: static/vantage/vantage-inline.js:614
+msgid "This record changed while you were editing. Nothing was saved."
+msgid_plural ""
+"%(count)s records changed while you were editing. Nothing was saved."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-inline.js:624
+msgid "The field below is shown both ways — choose a side."
+msgid_plural ""
+"The %(count)s fields below are shown both ways — choose a side for each, or "
+"take one side for all of them."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-inline.js:649
+msgid "Yours"
+msgstr "نسختك"
+
+#: static/vantage/vantage-inline.js:651
+msgid "Theirs"
+msgstr "نسختهم"
+
+#: static/vantage/vantage-inline.js:731
+msgid "Resolved against the current version. Save again to apply."
+msgstr "تمت التسوية وفق النسخة الحالية. احفظ مجددًا للتطبيق."
+
+#: static/vantage/vantage-inline.js:735
+msgid "Their version kept. Nothing left to save."
+msgstr "تم الاحتفاظ بنسختهم. لا يوجد شيء لحفظه."
+
+#: static/vantage/vantage-inline.js:756
+msgid "Still unresolved. Nothing was saved."
+msgstr "لم يُحل الخلاف بعد. لم يُحفظ شيء."
+
+#: static/vantage/vantage-inline.js:769
+msgid "Discard 1 unsaved change?"
+msgid_plural "Discard all %(count)s unsaved changes?"
+msgstr[0] "تجاهل التغييرات غير المحفوظة؟"
+msgstr[1] "تجاهل التغيير غير المحفوظ؟"
+msgstr[2] "تجاهل التغييرين غير المحفوظين؟"
+msgstr[3] "تجاهل %(count)s تغييرات غير محفوظة؟"
+msgstr[4] "تجاهل %(count)s تغييراً غير محفوظ؟"
+msgstr[5] "تجاهل %(count)s تغيير غير محفوظ؟"
+
+#: static/vantage/vantage-inline.js:784
+msgid "Changes discarded."
+msgstr "تم تجاهل التغييرات."
+
+#: static/vantage/vantage-inline.js:786
+msgid "All unsaved changes discarded."
+msgstr "تم تجاهل كل التغييرات غير المحفوظة."
+
+#: static/vantage/vantage-jobs.js:110
+msgid "%(processed)s of %(total)s, %(failed)s failed"
+msgstr ""
+
+#: static/vantage/vantage-jobs.js:115
+msgid "%(processed)s of %(total)s"
+msgstr ""
+
+#: static/vantage/vantage-listprefs.js:92
+msgid "this row"
+msgstr ""
+
+#: static/vantage/vantage-listprefs.js:93
+#: static/vantage/vantage-settings.js:253
+#, javascript-format
+msgid "Move %s up"
+msgstr ""
+
+#: static/vantage/vantage-listprefs.js:94
+#: static/vantage/vantage-settings.js:252
+#, javascript-format
+msgid "Move %s down"
+msgstr ""
+
+#: static/vantage/vantage-palette.js:262
+msgid "Search"
+msgstr "بحث"
+
+#: static/vantage/vantage-palette.js:265
+#, javascript-format
+msgid "See all results for “%s”"
+msgstr ""
+
+#: static/vantage/vantage-palette.js:378
+msgid "%(count)s command"
+msgid_plural "%(count)s commands"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-palette.js:383
+msgid "%(count)s result for %(query)s"
+msgid_plural "%(count)s results for %(query)s"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""
+
+#: static/vantage/vantage-settings.js:68
+msgid "this item"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:74
+msgid "this group"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:115
+msgid "%(name)s is now %(position)s of %(total)s in %(group)s"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:136
+#: static/vantage/vantage-settings.js:411
+msgid "%(name)s moved to %(group)s"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:153
+msgid "%(name)s is now group %(position)s of %(total)s"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:235
+#, javascript-format
+msgid "Move the group %s down"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:236
+#, javascript-format
+msgid "Move the group %s up"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:299
+msgid "Drag to move, or use the arrows"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:314
+msgid "%(name)s dropped into %(group)s"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:355
+msgid "Drag to reorder the group, or use the arrows"
+msgstr ""
+
+#: static/vantage/vantage-settings.js:369
+#, javascript-format
+msgid "%s moved"
+msgstr ""
+
+#: static/vantage/vantage.js:329
+msgid "Expand navigation"
+msgstr "توسيع التنقل"
+
+#: static/vantage/vantage.js:329
+msgid "Collapse navigation"
+msgstr "طي التنقل"
+
+#: static/vantage/vantage.js:382
+#, javascript-format
+msgid "All %s matching records selected"
+msgstr ""
+
+#: static/vantage/vantage.js:385
+msgid "%(count)s record selected"
+msgid_plural "%(count)s records selected"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+msgstr[4] ""
+msgstr[5] ""

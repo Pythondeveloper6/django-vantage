@@ -7,6 +7,8 @@ reachable without touching a urlconf.
 from __future__ import annotations
 
 from django.urls import path
+from django.views.decorators.cache import cache_page
+from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
     api,
@@ -31,6 +33,15 @@ def build(site) -> list:
     urlpatterns = [
         path("", views.DashboardView.as_view(site=site), name="dashboard"),
         path("_/theme/", views.ThemeView.as_view(site=site), name="theme"),
+        path(
+            "_/jsi18n/",
+            # `packages` scopes this to vantage's own catalogue — never the whole
+            # project's, which is a project's own view to add if it wants one.
+            # Cached: the response is identical for every request in one language, and
+            # generating it means walking every .mo file's plural forms on every hit.
+            cache_page(86400)(JavaScriptCatalog.as_view(packages=["vantage"])),
+            name="jsi18n",
+        ),
         path(
             "_/settings/",
             settingsview.SiteSettingsView.as_view(site=site),

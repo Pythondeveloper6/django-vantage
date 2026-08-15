@@ -65,13 +65,13 @@
   function nameOf(row) {
     var box = row.querySelector(".v-navedit-name");
     if (box && (box.value || box.placeholder)) return box.value || box.placeholder;
-    return "this item";
+    return gettext("this item");
   }
 
   function headingOf(group) {
     var box = group.querySelector(".v-navedit-groupname");
     if (box && (box.value || box.placeholder)) return box.value || box.placeholder;
-    return "this group";
+    return gettext("this group");
   }
 
   // ── keeping the form honest ───────────────────────────────────────────────
@@ -111,8 +111,11 @@
       else listOf(group).insertBefore(rows[target], row);
       renumber();
       announce(
-        nameOf(row) + " is now " + (target + 1) + " of " + rows.length + " in " +
-        headingOf(group)
+        interpolate(
+          gettext("%(name)s is now %(position)s of %(total)s in %(group)s"),
+          { name: nameOf(row), position: target + 1, total: rows.length, group: headingOf(group) },
+          true
+        )
       );
       focusMove(row, delta);
       return;
@@ -128,7 +131,13 @@
     if (delta < 0) into.appendChild(row);
     else into.insertBefore(row, into.firstChild);
     renumber();
-    announce(nameOf(row) + " moved to " + headingOf(neighbour));
+    announce(
+      interpolate(
+        gettext("%(name)s moved to %(group)s"),
+        { name: nameOf(row), group: headingOf(neighbour) },
+        true
+      )
+    );
     focusMove(row, delta);
   }
 
@@ -139,7 +148,13 @@
     if (delta < 0) container.insertBefore(group, all[target]);
     else container.insertBefore(all[target], group);
     renumber();
-    announce(headingOf(group) + " is now group " + (target + 1) + " of " + all.length);
+    announce(
+      interpolate(
+        gettext("%(name)s is now group %(position)s of %(total)s"),
+        { name: headingOf(group), position: target + 1, total: all.length },
+        true
+      )
+    );
     focusMove(group, delta);
   }
 
@@ -215,7 +230,11 @@
           head,
           grip ? grip.nextSibling : head.firstChild,
           "data-nav-group-move",
-          function (way) { return "Move the group " + headingOf(group) + " " + way; },
+          function (way) {
+            return way === "down"
+              ? interpolate(gettext("Move the group %s down"), [headingOf(group)])
+              : interpolate(gettext("Move the group %s up"), [headingOf(group)]);
+          },
           function (delta) { moveGroup(group, delta); }
         );
       }
@@ -228,7 +247,11 @@
           line,
           grip ? grip.nextSibling : line.firstChild,
           "data-nav-move",
-          function (way) { return "Move " + nameOf(row) + " " + way; },
+          function (way) {
+            return way === "down"
+              ? interpolate(gettext("Move %s down"), [nameOf(row)])
+              : interpolate(gettext("Move %s up"), [nameOf(row)]);
+          },
           function (delta) { moveRow(row, delta); }
         );
       });
@@ -273,7 +296,7 @@
       function (grip) {
         if (grip.getAttribute("draggable") === "true") return;
         grip.setAttribute("draggable", "true");
-        grip.setAttribute("title", "Drag to move, or use the arrows");
+        grip.setAttribute("title", gettext("Drag to move, or use the arrows"));
         var row = grip.closest("[data-nav-item]");
 
         grip.addEventListener("dragstart", function (event) {
@@ -287,8 +310,14 @@
           if (!draggingRow) return;
           draggingRow.classList.remove("is-dragging");
           announce(
-            nameOf(draggingRow) + " dropped into " +
-            headingOf(draggingRow.closest("[data-nav-group]"))
+            interpolate(
+              gettext("%(name)s dropped into %(group)s"),
+              {
+                name: nameOf(draggingRow),
+                group: headingOf(draggingRow.closest("[data-nav-group]")),
+              },
+              true
+            )
           );
           draggingRow = null;
           renumber();
@@ -323,7 +352,7 @@
     each(root.querySelectorAll("[data-nav-group-head] > [data-nav-grip]"), function (grip) {
       if (grip.getAttribute("draggable") === "true") return;
       grip.setAttribute("draggable", "true");
-      grip.setAttribute("title", "Drag to reorder the group, or use the arrows");
+      grip.setAttribute("title", gettext("Drag to reorder the group, or use the arrows"));
       var group = grip.closest("[data-nav-group]");
 
       grip.addEventListener("dragstart", function (event) {
@@ -337,7 +366,7 @@
       grip.addEventListener("dragend", function () {
         if (!draggingGroup) return;
         draggingGroup.classList.remove("is-dragging");
-        announce(headingOf(draggingGroup) + " moved");
+        announce(interpolate(gettext("%s moved"), [headingOf(draggingGroup)]));
         draggingGroup = null;
         renumber();
       });
@@ -377,7 +406,13 @@
         if (!target || !row) return;
         listOf(target).appendChild(row);
         renumber();
-        announce(nameOf(row) + " moved to " + headingOf(target));
+        announce(
+          interpolate(
+            gettext("%(name)s moved to %(group)s"),
+            { name: nameOf(row), group: headingOf(target) },
+            true
+          )
+        );
         select.focus();
       });
     });

@@ -89,9 +89,9 @@
 
   Array.prototype.forEach.call(root.querySelectorAll("[data-prefs-sortable]"), function (list) {
     positions(list).forEach(function (row) {
-      var name = (row.textContent || "this row").trim();
-      row.appendChild(button("Move " + name + " up", "↑", list, row, -1));
-      row.appendChild(button("Move " + name + " down", "↓", list, row, 1));
+      var name = (row.textContent || gettext("this row")).trim();
+      row.appendChild(button(interpolate(gettext("Move %s up"), [name]), "↑", list, row, -1));
+      row.appendChild(button(interpolate(gettext("Move %s down"), [name]), "↓", list, row, 1));
     });
     renumber(list);
   });
