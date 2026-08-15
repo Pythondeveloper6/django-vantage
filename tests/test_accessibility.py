@@ -218,6 +218,16 @@ def pages(client, staff, post) -> dict[str, str]:
             "custom_page": client.get(reverse("vantage:page-revenue")).content.decode(),
             "404": client.get("/no/such/page/").content.decode(),
             "403": client.get("/denied/").content.decode(),
+            # The pages docs/accessibility.md names as "not yet verified" (gap 5):
+            # never rendered through this guard before. Widening coverage to them is
+            # the whole point of this pass — see the live-demo findings that motivated
+            # each one, referenced on the tests below.
+            "list": client.get(reverse("vantage:testapp-post-list")).content.decode(),
+            "add": client.get(reverse("vantage:testapp-post-add")).content.decode(),
+            "delete": client.get(
+                reverse("vantage:testapp-post-delete", args=[post.pk])
+            ).content.decode(),
+            "settings": client.get(reverse("vantage:settings")).content.decode(),
         }
     )
     return rendered
@@ -225,7 +235,10 @@ def pages(client, staff, post) -> dict[str, str]:
 
 #: Everything rendered inside vantage/base.html. These get the landmark and skip-link
 #: guarantees; the standalone pages below deliberately do not.
-SHELL_PAGES = ("password_change", "dashboard", "detail", "custom_page", "404", "403")
+SHELL_PAGES = (
+    "password_change", "dashboard", "detail", "custom_page", "404", "403",
+    "list", "add", "delete", "settings",
+)
 ALL_PAGES = (*SHELL_PAGES, "login", "logged_out", "500")
 
 
@@ -372,6 +385,97 @@ class TestTheShell:
         )
         body = client.get(reverse("vantage:dashboard")).content.decode()
         assert 'class="v-sr-only">Success:' in body, "the toast level is colour only"
+
+
+class TestLiveDemoFindings:
+    """Regressions confirmed by driving the running demo (localhost:8765) with
+    Playwright -- keyboard only, the accessibility tree, and both themes -- rather
+    than by reading templates. Kept here as failing tests per the audit brief: a
+    failing test is the clearest statement of a finding, and each one turns green
+    the day the gap it names is actually closed. Where a finding cannot be expressed
+    against server-rendered HTML at all (it is a client-side behaviour a Django test
+    client has no JavaScript to reproduce), it is not here -- see the audit's ranked
+    list instead.
+    """
+
+    def test_a_failed_sign_in_is_not_associated_with_either_field(self, client, staff):
+        """WCAG 3.3.1 Error Identification, 4.1.2 Name, Role, Value.
+
+        docs/accessibility.md's guarantees table claims: 'Sign-in errors announced
+        via role="alert", with aria-invalid and aria-describedby on the offending
+        field.' True for a *field-level* error (a blank password, with novalidate
+        bypassed) -- false for the failure every user actually hits first: a wrong
+        username/password pair. Django's AuthenticationForm attaches that as a
+        non-field error, so authviews._style_form's ``if bound.errors`` never fires
+        for either field. Confirmed live: the alert renders with real text ("Please
+        enter a correct username and password...") and role="alert", but neither
+        input carries aria-invalid or aria-describedby, and the alert <div> itself
+        has no id for anything to point at. A screen reader user who tabs back into
+        the username field hears "edit text, username" -- nothing marks it invalid,
+        nothing describes what to fix.
+        """
+        response = client.post(
+            "/accounts/login/", {"username": staff.username, "password": "definitely-wrong"}
+        )
+        document = Document.parse(response.content.decode())
+        alerts = [el for el in document.of("div") if el.attrs.get("role") == "alert"]
+        assert alerts, "fixture drifted: no failed-login alert rendered"
+        fields = [
+            el for el in document.of("input") if el.attrs.get("name") in ("username", "password")
+        ]
+        assert fields, "fixture drifted: no username/password field rendered"
+        assert any(
+            field.attrs.get("aria-invalid") == "true" or field.attrs.get("aria-describedby")
+            for field in fields
+        ), "neither field is associated with the failed-login alert"
+
+    def test_dashboard_cards_are_headings_not_styled_spans(self, docs):
+        """WCAG 1.3.1 Info and Relationships, 2.4.6 Headings and Labels.
+
+        The dashboard's outline used to be exactly one heading long — the page's own
+        ``<h1>`` — however many stat cards, charts and list panels rendered under it,
+        because every card was titled with ``<span class="v-card-title">``. Someone
+        navigating by heading found one stop on the whole page and no way to reach
+        "Revenue" or "Latest orders" directly.
+
+        They are ``<h2>`` rather than ``<h3>``: the page ``<h1>`` is the only thing
+        above them, and jumping a level is its own outline bug.
+        """
+        document = docs["dashboard"]
+        titles = [el for el in document.elements if el.attrs.get("class") == "v-card-title"]
+        assert titles, "fixture drifted: no card titles rendered at all"
+
+        spans = [el.text.strip() for el in titles if el.tag == "span"]
+        assert not spans, f"card title(s) still contribute nothing to the outline: {spans}"
+
+        headings = {el.text.strip() for el in document.of("h2")}
+        missing = [el.text.strip() for el in titles if el.text.strip() not in headings]
+        assert not missing, f"card title(s) are not h2: {missing}"
+
+    def test_the_settings_contrast_readout_is_a_live_region(self, pages):
+        """WCAG 4.1.3 Status Messages.
+
+        Confirmed live: typing a new BRAND_COLOR on this page updates the
+        "N.N:1 on button text" badge instantly and correctly as you type -- but
+        neither the badge nor anything wrapping it carries aria-live, so nothing is
+        announced while the value changes under the user's fingers. A screen reader
+        user has to stop, tab away from the field they are editing, and go find the
+        badge by hand to learn whether their new colour still passes. docs/
+        accessibility.md already names this gap ("the contrast readout and warning
+        in settings.html"); this pins it to the actual markup so a fix has something
+        to turn green.
+        """
+        html = pages["settings"]
+        assert "data-preview-ratio" in html, "fixture drifted: no contrast badge rendered"
+
+        # The whole opening tag, not the markup preceding the marker. Attribute order
+        # is arbitrary, and a window that only looks backwards from `data-preview-ratio`
+        # reports a correctly-wired element as broken whenever aria-live happens to be
+        # written after it — which is what this assertion did.
+        start = html.rindex("<", 0, html.index("data-preview-ratio"))
+        tag = html[start : html.index(">", start) + 1]
+        assert "aria-live" in tag, f"the contrast readout is not a live region: {tag}"
+        assert "role=" in tag, f"the contrast readout has no status role: {tag}"
 
 
 class TestTheErrorPages:

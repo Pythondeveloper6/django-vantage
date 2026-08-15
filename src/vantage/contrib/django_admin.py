@@ -71,7 +71,8 @@ UNMAPPED_ATTRS: dict[str, str] = {
     "inlines": "inline formsets — edit the related model from its own page, or add it "
     "as a related tab",
     "formfield_overrides": "per-field-class widget overrides — Vantage infers widgets "
-    "from the field, override ModelPanel.get_form_widgets for the rest",
+    "from the field and has no override hook for this; supply your own form if you "
+    "need something specific",
     "raw_id_fields": "raw id inputs — Vantage uses a searching select for relations",
     "autocomplete_fields": "autocomplete selects — Vantage's relation widget already "
     "searches, so this is usually a no-op",

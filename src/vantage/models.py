@@ -362,6 +362,17 @@ class NavConfiguration(models.Model):
     #: cache, so rendering both costs one query between them.
     topbar = models.JSONField(null=True, blank=True)
 
+    #: Every model key that has ever been *claimed* — placed in a group, hidden or
+    #: not — by a save of :attr:`groups`. This is what lets :mod:`vantage.nav` tell
+    #: "never arranged, so still an unlisted leftover" from "arranged once, then
+    #: explicitly removed", the same distinction :attr:`DashboardLayout.known_keys`
+    #: draws for the dashboard. It only ever grows: a key already here stays here even
+    #: once its item is removed, because removing it *is* the fact this field exists to
+    #: remember. A key that was never claimed — the sidebar editor never turns an
+    #: unlisted leftover into an editable row — is untouched by a save and keeps
+    #: reappearing through ``NAV_UNLISTED`` for as long as nobody places it.
+    known_keys = models.JSONField(default=list, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL,

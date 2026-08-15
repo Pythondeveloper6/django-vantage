@@ -614,6 +614,9 @@ class DetailView(PanelView):
             panel=panel,
             fields=fields,
             related=related,
+            # None decides by count (two or more blocks); True/False assert. See
+            # ModelPanel.get_related_tabs.
+            related_tabs=panel.get_related_tabs(len(related)),
             page_title=str(obj),
         )
         from vantage import audit

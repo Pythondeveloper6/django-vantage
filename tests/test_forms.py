@@ -256,6 +256,92 @@ class TestReadonlyFields:
         assert "Created at" not in boss.get(add_url(Post)).content.decode()
 
 
+class TestDeclaredLayout:
+    """``ModelPanel.layout``: Row, Section, Tab and Tabs actually shape the form."""
+
+    def test_no_layout_falls_back_to_the_fixed_sections(self, boss, post, post_panel):
+        assert post_panel.layout is None
+        body = boss.get(change_url(post)).content.decode()
+        assert 'data-section="main"' in body
+
+    def test_a_plain_section_layout_is_used_instead_of_the_fixed_sections(
+        self, boss, post, post_panel, monkeypatch
+    ):
+        from vantage.layout import Row, Section
+
+        monkeypatch.setattr(
+            post_panel, "layout", Section(Row("title", "slug"), "body", title="Content")
+        )
+        body = boss.get(change_url(post)).content.decode()
+        assert "data-section=" not in body  # the fixed grouping did not also render
+        assert "v-form-row" in body
+        assert "Content" in body
+        for name in ("title", "slug", "body"):
+            assert f'name="{name}"' in body
+
+    def test_fields_the_layout_forgot_are_still_on_the_form(
+        self, boss, post, post_panel, monkeypatch
+    ):
+        """A field missing from the form cannot be saved and would say nothing why."""
+        from vantage.layout import Section
+
+        monkeypatch.setattr(post_panel, "layout", Section("title"))
+        body = boss.get(change_url(post)).content.decode()
+        assert 'name="slug"' in body
+        assert "Other" in body
+
+    def test_fields_the_layout_names_but_the_form_lacks_are_dropped(
+        self, boss, post, post_panel, monkeypatch
+    ):
+        """Usually a field this user has no permission to edit — it must not appear
+        as a stray, unbound control."""
+        from vantage.layout import Section
+
+        monkeypatch.setattr(post_panel, "layout", Section("title", "not_a_real_field"))
+        body = boss.get(change_url(post)).content.decode()
+        assert 'name="not_a_real_field"' not in body
+
+    def test_a_tabs_layout_renders_a_tab_strip(self, boss, post, post_panel, monkeypatch):
+        from vantage.layout import Tab, Tabs
+
+        monkeypatch.setattr(
+            post_panel,
+            "layout",
+            Tabs(Tab("Content", "title", "slug"), Tab("Body", "body")),
+        )
+        body = boss.get(change_url(post)).content.decode()
+        assert "v-tabstrip" in body
+        assert "Content" in body
+        assert "Body" in body
+        # Every field is in the markup, including a field in a tab that is not the
+        # default one shown — the switch is CSS, not a server round trip.
+        assert 'name="title"' in body
+        assert 'name="body"' in body
+
+    def test_a_collapsed_section_renders_as_a_details_element(
+        self, boss, post, post_panel, monkeypatch
+    ):
+        from vantage.layout import Section
+
+        monkeypatch.setattr(
+            post_panel, "layout", Section("title", title="Advanced", collapsed=True)
+        )
+        body = boss.get(change_url(post)).content.decode()
+        assert "<details" in body
+        assert "Advanced" in body
+
+    def test_readonly_fields_still_render_inside_a_layout(
+        self, boss, post, post_panel, monkeypatch
+    ):
+        monkeypatch.setattr(post_panel, "readonly_fields", ["status"])
+        from vantage.layout import Section
+
+        monkeypatch.setattr(post_panel, "layout", Section("title", "status"))
+        body = boss.get(change_url(post)).content.decode()
+        assert 'name="status"' not in body
+        assert "v-form-static" in body
+
+
 class TestSaveModelHook:
     def test_the_panel_hook_replaces_the_default_save(self, boss, author, post_panel, monkeypatch):
         seen = {}

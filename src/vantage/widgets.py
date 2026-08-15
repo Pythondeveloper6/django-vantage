@@ -609,6 +609,11 @@ def infer_widget(field: Any, *, related_count: int | None = None) -> WidgetSpec:
         attrs["rows"] = str(TEXTAREA_ROWS)
     if kind is FieldKind.RICHTEXT:
         attrs["rows"] = str(RICHTEXT_ROWS)
+        # Picked up by vantage-editors.js: a plain <textarea> is what every richtext
+        # kind renders as (Vantage integrates no CKEditor/TinyMCE/Quill of its own,
+        # whichever package's class name triggered the classification), so a markdown
+        # toolbar is the one enhancement that suits all of them.
+        attrs["data-markdown"] = "1"
     if kind is FieldKind.JSON:
         attrs["rows"] = str(JSON_ROWS)
     if kind in (FieldKind.FILE, FieldKind.IMAGE):

@@ -130,7 +130,14 @@
 {% endcomment %}
 {% if actions or "change" in allowed %}
   <div class="v-action-bar" data-action-bar data-total="{{ paginator.count }}" hidden>
-    <span class="v-action-count" data-selection-count></span>
+    {% comment %}
+      A live region, because ticking a checkbox is otherwise silent: the count is the
+      only feedback that the selection changed, and it is the number every destructive
+      button in this bar acts on. role="status" rather than aria-live alone so the bar
+      appearing from hidden is announced too, not just later edits to the text.
+    {% endcomment %}
+    <span class="v-action-count" data-selection-count
+          role="status" aria-live="polite" aria-atomic="true"></span>
     <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-select-all-matching hidden>
       {% translate "Select all matching" %}
     </button>

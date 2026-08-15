@@ -204,6 +204,7 @@ column is averaged, and an identifier is left alone. Details:
 | `layout` | `Node` | `None` | Tabs, sections and rows — see the [layout DSL](forms.md#the-layout-dsl) |
 | `readonly_fields` | `list[str]` | `None` | Shown but not editable, and *removed from the form entirely* |
 | `inlines` | `list[type[Inline]]` | `None` | Child records editable on the parent's own form — see [Editable inlines](forms.md#editable-inlines) |
+| `related_tabs` | `bool \| None` | `None` | Group the detail page's related-record blocks into a tab strip. `None` decides by count (two or more); `True`/`False` assert it either way — see [The record page](forms.md#the-record-page) |
 
 `readonly_fields` is a security boundary rather than a UI affordance. A readonly field
 is not rendered as a control **and** is not in the form's field list, so a hand-crafted
@@ -457,21 +458,20 @@ To extend this for your own panel base class, subclass `ModelPanelChecks` and po
 
 ## Declared but not yet wired up
 
-One attribute exists on `ModelPanel`, is accepted without error, and is currently read
-by nothing:
+Nothing, currently. `inlines`, `row_actions`, `list_select_related`, `related_tabs` and
+`layout` all used to belong on this list and no longer do:
 
-| Attribute | Status |
-|---|---|
-| `related_tabs` | Not implemented. The detail page always shows an unconditional stack of related-record blocks; `related_tabs = True` (or `False`) is validated (`vantage.E019`) but has no reader beyond its own tests |
-
-`inlines`, `row_actions` and `list_select_related` used to belong on this list and no
-longer do — see [Editable inlines](forms.md#editable-inlines) and
-[Row actions](#row-actions) above, and the note on `list_select_related` below.
-`list_select_related` **is** read: it is unioned into the query plan the optimiser
-already derives from the rendered columns
-(`get_list_queryset`), and it is validated (`vantage.E018`) — set it only for a join
-the optimiser has no other reason to make, such as one your own overridden
-`get_list_queryset` needs but no column or search path names.
+- [Editable inlines](forms.md#editable-inlines) and [Row actions](#row-actions) above.
+- `list_select_related` **is** read: it is unioned into the query plan the optimiser
+  already derives from the rendered columns (`get_list_queryset`), and it is validated
+  (`vantage.E018`) — set it only for a join the optimiser has no other reason to make,
+  such as one your own overridden `get_list_queryset` needs but no column or search
+  path names.
+- `related_tabs` groups the detail page's related-record blocks into a tab strip once
+  there is a choice to make — two or more blocks by default, or always/never with an
+  explicit `True`/`False`. See [The record page](forms.md#the-record-page).
+- `layout` — `Tabs`, `Tab`, `Section` and `Row` — now replaces the fixed-section
+  grouping on the create/edit form outright. See [The layout DSL](forms.md#the-layout-dsl).
 
 ## Removed attributes
 
