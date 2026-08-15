@@ -243,7 +243,10 @@ A string doubles as the explanation shown to the user, which beats a bare "permi
 denied" for something that is a deliberate operational choice.
 
 **It is enforced in the permission layer, not in the views.** Denying the permission
-means every existing check — buttons, actions, forms, the importer, inline editing —
+means every existing check — buttons, actions, forms (including
+[editable inlines](forms.md#editable-inlines), which submit as part of the parent
+form), [inline cell editing](lists.md#inline-cell-editing), the importer,
+[duplicate](forms.md#duplicating-a-record) and [bulk edit](forms.md#bulk-edit) —
 refuses at once, and a new write path inherits the refusal without anyone thinking
 about it.
 
