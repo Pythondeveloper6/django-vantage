@@ -101,6 +101,22 @@ class TestResolve:
         resolved = resolve_layout(Section("title", "body"), ["title", "body"])
         assert len(resolved.children) == 2
 
+    def test_the_root_sections_own_attributes_survive_appending_other(self):
+        """Appending the leftovers must not rebuild the root and lose what it carried.
+
+        A titled, described or collapsed root ``Section`` is the common case — most
+        layouts do not enumerate every field the model has — so this is not an edge
+        case, it is close to the default path.
+        """
+        resolved = resolve_layout(
+            Section("title", title="Content", description="Why", collapsed=True),
+            ["title", "body"],
+        )
+        assert resolved.title == "Content"
+        assert resolved.description == "Why"
+        assert resolved.collapsed is True
+        assert set(resolved.fields()) == {"title", "body"}
+
 
 class TestChecks:
     def test_a_valid_layout_is_silent(self):

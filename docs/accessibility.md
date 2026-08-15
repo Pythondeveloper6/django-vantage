@@ -179,8 +179,8 @@ only); `partials/saved_views.html` (locked and shared are icon + `title` on a sp
 **4.1.3 Status Messages — changes nothing announces.** The selection count and the bulk
 action bar in `list.html` / `vantage.js`; the contrast readout and warning in
 `settings.html`; the peek-drawer load failure and loading state in `vantage-grid.js`;
-the reorder result in `vantage-listprefs.js`; the character counter and drop-zone
-filename in `vantage-editors.js`.
+the reorder result in `vantage-listprefs.js`; the character counter in
+`vantage-editors.js`.
 
 **2.1.1 Keyboard — server HTML that is unusable without JavaScript.** `list.html` ships
 `tabindex="-1"` in the template on the select-all box, every row checkbox, every sort

@@ -22,6 +22,13 @@ The other property worth stating once: a model registered *after* an arrangement
 saved still appears. Unmentioned panels are appended exactly as they are under a Python
 declaration, honouring ``VANTAGE["NAV_UNLISTED"]``, because a sidebar that silently
 omits new models is a worse failure than an untidy one.
+
+That leaves one more question the same paragraph raises: a panel absent from the
+arrangement is *either* new since the save *or* placed once and then taken out through
+the editor's own "remove" control, and those are opposite decisions. ``known_keys`` on
+:class:`~vantage.models.NavConfiguration` is what tells them apart — the same snapshot
+:class:`~vantage.models.DashboardLayout` keeps for the dashboard, for the identical
+reason. See :func:`save_declaration` and :func:`_stored_nav`.
 """
 
 from __future__ import annotations
@@ -63,6 +70,7 @@ __all__ = [
     "resolve_theme",
     "save_declaration",
     "stored_declaration",
+    "stored_known_keys",
 ]
 
 
@@ -613,6 +621,18 @@ def stored_declaration() -> list[dict] | None:
     return None if row is None else clean_declaration(row.groups)
 
 
+def stored_known_keys() -> frozenset[str]:
+    """Model keys ever claimed by a save of the stored arrangement.
+
+    Empty when there is no row, or when the row predates this field — both read as
+    "nothing is known to have been removed", which is the safe direction to be wrong
+    in: nothing is dropped from the sidebar that was not explicitly taken out through
+    the editor. See :func:`save_declaration` and :func:`_stored_nav`.
+    """
+    row = _singleton_row()
+    return frozenset(row.known_keys or ()) if row is not None else frozenset()
+
+
 def invalidate_nav() -> None:
     """Forget the shared row. Called on save, on delete, and at the start of each request."""
     global _row_cache
@@ -625,13 +645,38 @@ def _invalidate_per_request(sender, **kwargs) -> None:
     invalidate_nav()
 
 
+def _claimed_model_keys(declaration: list[dict] | None) -> set[str]:
+    """Every model key an arrangement names, hidden or not.
+
+    Matches exactly what :func:`_stored_nav` treats as "claimed" — a model mentioned
+    in the declaration, whichever way it is shown — because this is the record that
+    later tells the two kinds of "not mentioned" apart.
+    """
+    return {
+        item["target"]
+        for group in declaration or ()
+        for item in group.get("items") or ()
+        if item.get("kind") == "model"
+    }
+
+
 def save_declaration(declaration: list[dict] | None, *, user=None) -> None:
-    """Store an arrangement. ``None`` is not a save — use :func:`reset_declaration`."""
+    """Store an arrangement. ``None`` is not a save — use :func:`reset_declaration`.
+
+    Every model this declaration claims joins :attr:`NavConfiguration.known_keys`,
+    which only ever grows. That is what lets a later save tell "this model was never
+    placed" (still an unlisted leftover, appended for as long as ``NAV_UNLISTED`` says
+    so) apart from "this model was placed once and then explicitly taken out" (stays
+    gone) — see :func:`_stored_nav`. A key can only enter this set by having been an
+    editable row in the settings screen, which a leftover the user never touched never
+    was, so resaving the screen without touching a leftover can never make it vanish.
+    """
     model = _config_model()
     if model is None:  # pragma: no cover - only when the app is not installed
         return
     row = model.load()
     row.groups = declaration
+    row.known_keys = sorted(set(row.known_keys or ()) | _claimed_model_keys(declaration))
     row.updated_by = user if getattr(user, "is_authenticated", False) else None
     row.save()
 
@@ -713,7 +758,9 @@ def may_see(request, item: dict) -> bool:
     return not audiences or bool(set(audiences) & _audience_names(request, user))
 
 
-def _stored_nav(site, request, declaration: list[dict]) -> list[NavGroup]:
+def _stored_nav(
+    site, request, declaration: list[dict], known_keys: frozenset[str] = frozenset()
+) -> list[NavGroup]:
     panels = _visible_panels(site, request)
     panels_by_label = {p.opts.label_lower: p for p in panels}
     pages_by_slug = {p.get_slug(): p for p in _visible_pages(site, request)}
@@ -739,7 +786,17 @@ def _stored_nav(site, request, declaration: list[dict]) -> list[NavGroup]:
             groups.append(group)
 
     if vantage_settings.NAV_UNLISTED == "append":
-        leftovers = [p for p in panels if p.opts.label_lower not in claimed]
+        # A panel neither claimed here nor ever claimed by a past save is new since
+        # the arrangement began, or has simply never been touched — either way it
+        # keeps appearing. A panel that *was* claimed once (it is in ``known_keys``)
+        # but is not claimed now was taken out on purpose, through the editor's own
+        # "remove" control, and it stays gone rather than resurrecting through the
+        # leftovers it would otherwise fall into. See ``save_declaration``.
+        leftovers = [
+            p
+            for p in panels
+            if p.opts.label_lower not in claimed and p.opts.label_lower not in known_keys
+        ]
         groups.extend(_grouped(leftovers))
 
     return groups
@@ -968,6 +1025,12 @@ def editor_context(site, request) -> dict:
     listed = {
         item.target for group in groups for item in group.items if item.kind == "model"
     }
+    # A key claimed by some earlier save and not claimed now was removed on purpose —
+    # see ``save_declaration`` and ``_stored_nav`` — so it belongs in neither this list
+    # nor the leftovers the sidebar itself renders. Only asked when there is a stored
+    # arrangement to have removed anything from; the code's own declaration has no
+    # history to consult.
+    removed = (stored_known_keys() - listed) if stored is not None else frozenset()
     return {
         "overridden": stored is not None,
         "declared_in_code": bool(vantage_settings.NAV),
@@ -988,7 +1051,9 @@ def editor_context(site, request) -> dict:
         # Named so the screen can say what happens to a model nobody has placed, which
         # is the question "where did my new model go" asked before it is asked.
         "unlisted_models": sorted(
-            str(panel.get_label_plural()) for label, panel in panels.items() if label not in listed
+            str(panel.get_label_plural())
+            for label, panel in panels.items()
+            if label not in listed and label not in removed
         ),
     }
 
@@ -1165,7 +1230,7 @@ def build_nav(site, request=None) -> list[NavGroup]:
     """The sidebar for this request, resolved through all three layers."""
     stored = stored_declaration()
     if stored is not None:
-        return _stored_nav(site, request, stored)
+        return _stored_nav(site, request, stored, stored_known_keys())
     declaration = vantage_settings.NAV
     if declaration:
         return _declared_nav(site, request, declaration)

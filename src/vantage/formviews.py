@@ -332,6 +332,67 @@ class PanelFormView(PanelView):
                 )
         return entries_by_section
 
+    def get_layout(self, form: forms.ModelForm) -> dict[str, Any] | None:
+        """The panel's declared ``layout``, resolved against this form's actual fields.
+
+        ``None`` when the panel has not set ``layout`` — :meth:`get_sections` is what
+        renders in that case, unchanged. When it is set,
+        :func:`~vantage.layout.resolve_layout` guarantees every field the form has is
+        placed somewhere: whatever the layout forgot lands in a trailing "Other"
+        section (or tab, when the root is :class:`~vantage.layout.Tabs`), and whatever
+        it names but the form does not have — usually a field this user has no
+        permission to edit — is dropped rather than rendered as a stray, unbound
+        control.
+        """
+        if self.panel.layout is None:
+            return None
+        from vantage.layout import resolve_layout
+
+        return self._layout_entry(resolve_layout(self.panel.layout, self.get_field_names()), form)
+
+    def _layout_entry(self, node, form: forms.ModelForm) -> dict[str, Any] | None:
+        """One :mod:`vantage.layout` node, in the shape ``partials/layout_node.html``
+        recurses over.
+
+        A container that ends up with nothing to show — every child dropped, the same
+        way :meth:`get_sections` drops an emptied section — disappears rather than
+        rendering as chrome around nothing. ``"node"`` names the shape (``tabs``,
+        ``tab``, ``row``, ``section`` or ``field``) rather than reusing ``"kind"``,
+        which a field entry already uses for its *own* meaning — the field's
+        :class:`~vantage.widgets.FieldKind` — and the two must not collide.
+        """
+        from vantage.layout import Node, Row, Section, Tab, Tabs
+
+        children: list[dict[str, Any]] = []
+        for child in node.children:
+            if isinstance(child, Node):
+                entry = self._layout_entry(child, form)
+            else:
+                field = self.get_field_entry(str(child), form)
+                entry = {"node": "field", "field": field} if field is not None else None
+            if entry is not None:
+                children.append(entry)
+        if not children:
+            return None
+
+        if isinstance(node, Tabs):
+            # Scopes the radio group's name/ids to this one Tabs node, so a Tabs
+            # nested inside a Tab inside another Tabs — unusual, but the DSL does not
+            # forbid it — does not fight its parent group for clicks.
+            return {"node": "tabs", "id": id(node), "children": children}
+        if isinstance(node, Tab):
+            return {"node": "tab", "label": node.label, "slug": node.slug, "children": children}
+        if isinstance(node, Row):
+            return {"node": "row", "children": children}
+        assert isinstance(node, Section)
+        return {
+            "node": "section",
+            "title": node.title,
+            "description": node.description,
+            "collapsed": node.collapsed,
+            "children": children,
+        }
+
     def get_field_entry(self, name: str, form: forms.ModelForm) -> dict[str, Any] | None:
         from vantage.render import render_cell
 
@@ -370,10 +431,16 @@ class PanelFormView(PanelView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        form = context["form"]
+        # A declared `layout` replaces the fixed-section grouping outright rather than
+        # supplementing it — the same per-attribute override rule as everywhere else in
+        # a panel, and no reason to build the section list a layout will not use.
+        layout_tree = self.get_layout(form)
         context.update(
             panel=self.panel,
             object=self.object,
-            sections=self.get_sections(context["form"]),
+            sections=None if layout_tree is not None else self.get_sections(form),
+            layout=layout_tree,
             cancel_url=self.get_cancel_url(),
             submit_label=self.submit_label,
         )

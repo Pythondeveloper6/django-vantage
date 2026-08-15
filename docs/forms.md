@@ -114,6 +114,7 @@ Verified against the demo project's models:
 | `DecimalField(max_digits=8, decimal_places=2)` | `decimal` | `NumberInput` | `step=0.01`, `min=-999999.99`, `max=999999.99` |
 | `PositiveIntegerField` | `number` | `NumberInput` | `min=0`, `max=9223372036854775807` |
 | `TextField` | `longtext` | `Textarea` | `rows=6` |
+| `TextField` named `body_html`, or a field class matching a rich-text hint | `richtext` | `Textarea` | `rows=12`, `data-markdown` |
 | `ForeignKey` | `relation_one` | `Select` | `data-vantage-search` |
 | `ManyToManyField` | `relation_many` | `SelectMultiple` | `data-vantage-search` |
 | `SlugField` | `slug` | `TextInput` | `pattern=[-a-zA-Z0-9_]+` |
@@ -123,6 +124,15 @@ Verified against the demo project's models:
 A nullable boolean is a `<select>` rather than a checkbox because a checkbox can only
 report two states and would silently rewrite every unset value to `False` on first
 save.
+
+A `richtext` field carries `data-markdown`, which `static/vantage/vantage-editors.js`
+enhances into a small formatting toolbar (bold, italic, code, link, heading, lists,
+quote — `Ctrl+B`/`Ctrl+I`/`Ctrl+K` work too) plus a character count. Vantage integrates
+no CKEditor, TinyMCE or Quill of its own — whichever package's class name is what
+triggered the `richtext` classification, what actually renders is the same plain
+`Textarea` every `longtext` field gets, just with markdown buttons above it. With
+JavaScript off, or before the script has run, it is that `Textarea`, unenhanced and
+fully usable.
 
 Without a `step`, a browser rejects `12.50` in a `number` input as invalid, so a
 `DecimalField` has to state its scale. The bounds come from `max_digits`, because that
@@ -499,9 +509,10 @@ any is marked so it can be found without reading every one.
 - **Not a replacement for the read-only [related blocks](#the-record-page).** Those
   still render for every reverse relation a panel does *not* declare as an inline — a
   quick look-through with a link to the full list, not something to edit here.
-- **Not tabbed.** `ModelPanel.related_tabs` is a separate, still-unwired attribute — see
-  [Declared but not yet wired up](panels.md#declared-but-not-yet-wired-up). Declaring
-  `inlines` does not turn the related blocks into tabs.
+- **Not the same control as `related_tabs`.** [`ModelPanel.related_tabs`](#the-record-page)
+  groups the *read-only* related blocks below into a tab strip; declaring `inlines` puts
+  a different set of records — the ones a panel opted into editing — on the form itself
+  and has no effect on the tab strip either way.
 - **Not the same thing as [inline cell editing](lists.md#inline-cell-editing)** on the
   list page, despite the name. That feature edits one field of many *rows of the model
   you are already looking at*; this one edits many rows of a *different, related*

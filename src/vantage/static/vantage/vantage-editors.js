@@ -1,15 +1,26 @@
-/* Progressive enhancement for two controls the browser renders badly.
+/* Progressive enhancement for one control the browser renders badly: a plain
+ * <textarea> that is expected to hold markdown.
  *
- * Both are deliberately dependency-free. Shipping CodeMirror or Dropzone would mean a
+ * Dependency-free on purpose. Shipping CodeMirror or a WYSIWYG package would mean a
  * bundler, a build step for contributors, and a hundred kilobytes for a text box —
  * against a package whose whole premise is `pip install` and nothing else. What is
- * here is small enough to read, and everything degrades to the plain control it
- * enhances: with JavaScript off you get a textarea and a file input, which work.
+ * here is small enough to read, and it degrades to the plain textarea it enhances:
+ * with JavaScript off you get a working textarea, just without the buttons.
+ *
+ * Every field a RICHTEXT-classified model field renders as carries `data-markdown` —
+ * see `vantage.widgets.infer_widget` — because Vantage integrates no CKEditor, TinyMCE
+ * or Quill of its own: whichever package's class name triggered the classification,
+ * what actually renders is this same textarea, so the same toolbar suits all of them.
+ *
+ * A drop zone for file inputs used to live in this file too. It is gone: every upload
+ * control in the package is now built from `vantage/widgets/file.html`, which already
+ * wires drag-and-drop, a preview and a byte-size check through `upload.js`. A second,
+ * independent drop zone here would not enhance those controls, it would wrap them a
+ * second time in different markup — so it was dead weight duplicating something better,
+ * not a working feature waiting to be linked in.
  */
 (function () {
   "use strict";
-
-  // ── markdown toolbar ──────────────────────────────────────────────────────
 
   var ACTIONS = [
     { key: "bold", label: "B", title: "Bold  (Ctrl+B)", wrap: ["**", "**"] },
@@ -112,73 +123,8 @@
     field.classList.add("v-md-field");
   }
 
-  // ── file drop zone ────────────────────────────────────────────────────────
-
-  function humanSize(bytes) {
-    var units = ["B", "KB", "MB", "GB"];
-    var index = 0;
-    while (bytes >= 1024 && index < units.length - 1) {
-      bytes /= 1024;
-      index += 1;
-    }
-    return (index === 0 ? bytes : bytes.toFixed(1)) + " " + units[index];
-  }
-
-  function buildDropzone(input) {
-    var zone = document.createElement("div");
-    zone.className = "v-drop";
-    // Not a button: the real <input type=file> stays in the DOM and keeps its own
-    // keyboard behaviour and its label association. This is decoration over it.
-    zone.innerHTML =
-      '<p class="v-drop-hint">Drop a file here, or <span class="v-drop-link">choose one</span></p>' +
-      '<p class="v-drop-name" hidden></p>';
-
-    input.parentNode.insertBefore(zone, input);
-    zone.appendChild(input);
-    input.classList.add("v-drop-input");
-
-    var name = zone.querySelector(".v-drop-name");
-
-    function describe() {
-      var file = input.files && input.files[0];
-      name.hidden = !file;
-      if (file) {
-        name.textContent = file.name + " · " + humanSize(file.size);
-      }
-    }
-
-    input.addEventListener("change", describe);
-    describe();
-
-    ["dragenter", "dragover"].forEach(function (type) {
-      zone.addEventListener(type, function (event) {
-        event.preventDefault();
-        zone.classList.add("v-drop-over");
-      });
-    });
-
-    ["dragleave", "drop"].forEach(function (type) {
-      zone.addEventListener(type, function (event) {
-        event.preventDefault();
-        zone.classList.remove("v-drop-over");
-      });
-    });
-
-    zone.addEventListener("drop", function (event) {
-      var files = event.dataTransfer && event.dataTransfer.files;
-      if (!files || !files.length) return;
-      // Assigning to input.files means the normal form submit carries the file, so
-      // there is no second upload path to keep in step with the first.
-      input.files = files;
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-  }
-
   function init() {
     document.querySelectorAll("textarea[data-markdown]").forEach(buildToolbar);
-    document.querySelectorAll('input[type="file"]').forEach(function (input) {
-      if (!input.closest(".v-drop")) buildDropzone(input);
-    });
   }
 
   if (document.readyState === "loading") {

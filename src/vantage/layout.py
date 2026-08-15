@@ -156,9 +156,14 @@ def resolve_layout(layout: Any, available: list[str]) -> Node:
             # A stray section floating beside a tab strip has no home; give the
             # leftovers their own tab instead.
             root = Tabs(*root.children, Tab(_("Other"), extra))
-        elif root.kind == "section":
-            root = Section(*root.children, extra)
         else:
+            # _append mutates root.children in place and hands the same node back,
+            # which is what keeps a titled/collapsed/described root's own attributes
+            # intact. Rebuilding the node here instead — `Section(*root.children,
+            # extra)` — is the same append with extra ceremony, and the ceremony
+            # drops exactly those attributes, which is a real (if quiet) bug: a
+            # `Section(..., title="Content")` whose form has one forgotten field
+            # would silently lose its heading the moment that field existed.
             root = _append(root, extra)
 
     return root

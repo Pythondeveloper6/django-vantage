@@ -48,7 +48,7 @@
               reloads and a screen reader user otherwise lands on a form with no idea
               why they are back on it.
             {% endcomment %}
-            <div class="v-auth-alert" role="alert">
+            <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
               <span class="v-auth-alert-label">{% translate "Sign-in failed." %}</span>
               {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
             </div>

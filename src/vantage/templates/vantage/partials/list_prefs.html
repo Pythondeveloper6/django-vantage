@@ -28,6 +28,14 @@
   </summary>
 
   <div class="v-listprefs-panel">
+  {% comment %}
+    The level the sections below were skipping. Every section inside the rail is an h3,
+    the page's own title is the h1, and nothing sat between them — so a screen reader
+    reading the outline saw six h3s belonging to nothing. Visually hidden because the
+    trigger already labels the rail on screen; a heading is what makes that label exist
+    for a reader who is navigating by structure rather than looking at the button.
+  {% endcomment %}
+  <h2 class="v-sr-only">{% translate "Customise this list" %}</h2>
   <p class="v-listprefs-intro">
     {% blocktranslate trimmed %}
       Changes here affect this list only, and only for you — unless you save them for

@@ -19,6 +19,7 @@ from vantage.nav import (
     reset_declaration,
     save_declaration,
     stored_declaration,
+    stored_known_keys,
 )
 from vantage.sites import site
 
@@ -460,7 +461,42 @@ class TestArrangedNav:
         assert "Posts" not in flat(build_nav(site))
 
     def test_a_removed_model_reappears_because_nothing_claims_it(self, db):
-        """Remove and Hide are different words for different things, and this is why."""
+        """Remove and Hide are different words for different things, and this is why.
+
+        Nothing here ever claimed Posts, so there is nothing to distinguish "new since
+        the last save" from "taken out on purpose" — the safe reading, and the one the
+        leftovers fall back to, is the first.
+        """
+        store(group("G", item("model", "testapp.author")))
+        assert "Posts" in flat(build_nav(site))
+
+    def test_a_model_claimed_then_dropped_does_not_reappear(self, db):
+        """The other half of the same distinction: once Posts *has* been claimed, an
+        editor save that stops mentioning it is a removal, not an accident, and
+        ``known_keys`` is what tells the two apart."""
+        store(group("G", item("model", "testapp.post")))
+        store(group("G", item("model", "testapp.author")))
+        assert "Posts" not in flat(build_nav(site))
+        assert "Authors" in flat(build_nav(site))
+
+    def test_an_unclaimed_model_survives_repeated_unrelated_saves(self, db):
+        """Resaving the screen without ever placing Posts must never be the thing that
+        makes it vanish — only the editor's own "remove" control may do that."""
+        store(group("G", item("model", "testapp.author")))
+        store(group("G", item("model", "testapp.author"), item("model", "testapp.tag")))
+        store(group("G", item("model", "testapp.author")))
+        assert "Posts" in flat(build_nav(site))
+
+    def test_reset_forgets_what_was_removed(self, db):
+        """Reset deletes the row outright, so a fresh arrangement afterwards has no
+        memory of an earlier removal — the same "code becomes the sidebar again, and
+        stays it" promise the rest of this layer makes."""
+        store(group("G", item("model", "testapp.post")))
+        store(group("G", item("model", "testapp.author")))  # Posts dropped on purpose
+        assert "Posts" not in flat(build_nav(site))
+
+        reset_declaration()
+        invalidate_nav()
         store(group("G", item("model", "testapp.author")))
         assert "Posts" in flat(build_nav(site))
 
@@ -489,6 +525,35 @@ class TestArrangedNav:
     def test_a_page_item_resolves(self, db):
         store(group("G", item("page", "revenue")))
         assert "Revenue" in flat(build_nav(site))
+
+
+class TestKnownKeys:
+    """``NavConfiguration.known_keys`` directly — the dashboard's own known-keys fix,
+    read for the sidebar. See ``vantage.dashboards.ArrangedDashboard.plan``."""
+
+    def test_a_fresh_save_records_exactly_what_it_claims(self, db):
+        store(group("G", item("model", "testapp.post"), item("model", "testapp.author")))
+        assert stored_known_keys() == {"testapp.post", "testapp.author"}
+
+    def test_known_keys_only_grows(self, db):
+        store(group("G", item("model", "testapp.post")))
+        store(group("G", item("model", "testapp.author")))
+        assert stored_known_keys() == {"testapp.post", "testapp.author"}
+
+    def test_a_hidden_item_still_counts_as_claimed(self, db):
+        """Hidden is still a placement — the row exists, it is only switched off — so
+        it has to feed the same record a visible placement would."""
+        store(group("G", item("model", "testapp.post", hidden=True)))
+        assert "testapp.post" in stored_known_keys()
+
+    def test_no_row_has_no_known_keys(self, db):
+        assert stored_known_keys() == frozenset()
+
+    def test_reset_clears_known_keys(self, db):
+        store(group("G", item("model", "testapp.post")))
+        reset_declaration()
+        invalidate_nav()
+        assert stored_known_keys() == frozenset()
 
 
 class TestArrangementCannotGrantAccess:
@@ -675,6 +740,24 @@ class TestEditorContext:
         request = rf.get("/")
         request.user = User.objects.create_superuser("boss", "b@example.com", "x")
         assert set(editor_context(site, request)["icons"]) == set(ICONS)
+
+    def test_a_deliberately_removed_model_is_not_offered_as_unlisted(self, rf, db):
+        """The "still appearing that way right now" note must name what the sidebar
+        will actually render, not every model the declaration happens not to mention —
+        or it would tell the person who just removed Posts that Posts is still there."""
+        store(group("G", item("model", "testapp.post")))
+        store(group("G", item("model", "testapp.author")))
+        request = rf.get("/")
+        request.user = User.objects.create_superuser("boss", "b@example.com", "x")
+        context = editor_context(site, request)
+        assert "Posts" not in context["unlisted_models"]
+
+    def test_a_never_placed_model_is_still_offered_as_unlisted(self, rf, db):
+        store(group("G", item("model", "testapp.author")))
+        request = rf.get("/")
+        request.user = User.objects.create_superuser("boss", "b@example.com", "x")
+        context = editor_context(site, request)
+        assert "Posts" in context["unlisted_models"]
 
 
 class TestApplyEdits:

@@ -13,7 +13,7 @@
 {% if card.error %}
   <section class="v-card v-widget-card v-widget-failed">
     <header class="v-card-head">
-      <span class="v-card-title">{{ card.label }}</span>
+      <h2 class="v-card-title">{{ card.label }}</h2>
     </header>
     <div class="v-widget-body">
       <p class="v-widget-note v-widget-error">{% translate "This card could not be computed." %}</p>
@@ -37,7 +37,7 @@
   {% endcomment %}
   <figure class="v-card v-chart v-widget-card{% if card.chart.error %} v-chart-failed{% endif %}">
     <figcaption class="v-chart-head">
-      <span class="v-card-title">{{ card.label }}</span>
+      <h2 class="v-card-title">{{ card.label }}</h2>
       {% if card.chart.bucket %}<span class="v-badge">{% blocktranslate with bucket=card.chart.bucket %}by {{ bucket }}{% endblocktranslate %}</span>{% endif %}
     </figcaption>
     <div class="v-chart-body">
@@ -67,7 +67,7 @@
 {% elif card.kind == "table" %}
   <section class="v-card v-widget-card">
     <header class="v-card-head">
-      <span class="v-card-title">{{ card.label }}</span>
+      <h2 class="v-card-title">{{ card.label }}</h2>
       {% if card.url %}
         <a class="v-widget-more" href="{{ card.url }}">{% translate "View all" %}</a>
       {% endif %}
@@ -103,7 +103,7 @@
 {% elif card.kind == "list" %}
   <section class="v-card v-widget-card">
     <header class="v-card-head">
-      <span class="v-card-title">{{ card.label }}</span>
+      <h2 class="v-card-title">{{ card.label }}</h2>
     </header>
     {% if card.items %}
       <dl class="v-widget-list">
@@ -131,7 +131,7 @@
 
 {% else %}
   <section class="v-card v-widget-card">
-    <header class="v-card-head"><span class="v-card-title">{{ card.label }}</span></header>
+    <header class="v-card-head"><h2 class="v-card-title">{{ card.label }}</h2></header>
     <div class="v-widget-body">{{ card.html }}</div>
   </section>
 {% endif %}

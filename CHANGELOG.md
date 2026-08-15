@@ -155,8 +155,9 @@ and what was rejected.
 - `vantage.slots` and `vantage.plugins` — extension points.
 - `vantage.contrib.django_admin` — an adapter for projects with existing
   `contrib.admin` classes.
-- `vantage-editors.js` — a dependency-free markdown toolbar and file dropzone, both
-  degrading to the plain textarea and file input they enhance.
+- `vantage-editors.js` — a dependency-free markdown toolbar for `richtext` fields,
+  degrading to the plain textarea it enhances. File upload drag-and-drop is a separate
+  feature, `upload.js`, wired through `vantage/widgets/file.html`.
 
 #### Permissions
 

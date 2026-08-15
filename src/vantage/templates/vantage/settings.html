@@ -127,7 +127,16 @@
         <div class="v-card-body v-settings-preview" data-vantage-preview>
           <div class="v-settings-preview-head">
             <h3 class="v-settings-preview-title">{% translate "Derived palette" %}</h3>
-            <span class="v-badge" data-preview-ratio>
+            {% comment %}
+              A live region: this number changes under the user's fingers as they type
+              a brand colour, and it is the one thing on the page that says whether the
+              colour they have chosen is legible. Announcing it is the difference
+              between choosing a palette and guessing at one. Polite rather than
+              assertive — it updates on every keystroke, and interrupting that often
+              would make the field unusable.
+            {% endcomment %}
+            <span class="v-badge" data-preview-ratio
+                  role="status" aria-live="polite" aria-atomic="true">
               {% if brand %}{% blocktranslate with ratio=brand.ratio|floatformat:1 %}{{ ratio }}:1 on button text{% endblocktranslate %}{% endif %}
             </span>
           </div>

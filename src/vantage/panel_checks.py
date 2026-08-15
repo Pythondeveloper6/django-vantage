@@ -30,17 +30,6 @@ REMOVED_ATTRIBUTES: dict[str, str] = {
     ),
 }
 
-#: Attributes ``ModelPanel`` used to accept, and what replaced them. Silently ignoring
-#: one is the bug the removal was meant to fix — the project would keep believing it had
-#: configured something — so a still-set attribute is an error with the answer in it.
-REMOVED_ATTRS: dict[str, str] = {
-    "permissions": (
-        "Define has_view/add/change/delete_permission(self, request, obj=None) on the "
-        "panel, or point VANTAGE['PERMISSIONS'] at a PanelPermissions subclass for "
-        "site-wide policy."
-    ),
-}
-
 
 class ModelPanelChecks:
     """Validates the declarative attributes of one panel."""

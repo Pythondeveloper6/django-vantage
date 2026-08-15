@@ -38,7 +38,7 @@
       {% for chart in analytics.charts %}
         <figure class="v-card v-chart{% if chart.error %} v-chart-failed{% endif %}">
           <figcaption class="v-chart-head">
-            <span class="v-card-title">{{ chart.label }}</span>
+            <h2 class="v-card-title">{{ chart.label }}</h2>
             {% if chart.bucket %}
               <span class="v-badge">{% blocktranslate with bucket=chart.bucket %}by {{ bucket }}{% endblocktranslate %}</span>
             {% endif %}

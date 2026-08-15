@@ -136,3 +136,76 @@ class TestListLinksToDetail:
     def test_the_linked_column_is_an_anchor(self, client_in, post):
         body = client_in.get(reverse("vantage:testapp-post-list")).content.decode()
         assert f'href="{detail_url(post)}"' in body
+
+
+class TestRelatedTabs:
+    """``ModelPanel.related_tabs``: a tab strip once there is a choice to make."""
+
+    @pytest.fixture
+    def author_with_two_relations(self, db):
+        author = Author.objects.create(name="Grace Hopper", email="grace@example.com")
+        Post.objects.create(
+            title="On Compilers",
+            slug="on-compilers",
+            body="Body.",
+            author=author,
+            status=Post.Status.PUBLISHED,
+        )
+        from tests.testapp.models import Order
+
+        Order.objects.create(number="ORD-1", customer=author, total="10.00")
+        return author
+
+    def test_a_single_relation_stays_stacked_by_default(self, client_in, post):
+        """Post has one relation (comments): a one-tab strip is a control that does
+        nothing, so it stays the plain card."""
+        body = client_in.get(detail_url(post)).content.decode()
+        assert "v-related-blocks" in body
+        assert "v-tabstrip" not in body
+
+    def test_two_or_more_relations_become_tabs_by_default(
+        self, client_in, author_with_two_relations
+    ):
+        body = client_in.get(detail_url(author_with_two_relations)).content.decode()
+        assert "v-tabstrip" in body
+        assert "v-related-blocks" not in body
+        assert "Posts" in body
+        assert "Orders" in body
+
+    def test_related_tabs_true_asserts_a_strip_even_for_one_relation(
+        self, client_in, post
+    ):
+        from vantage import site
+
+        panel = site.get_panel(Post)
+        original = panel.related_tabs
+        panel.related_tabs = True
+        try:
+            body = client_in.get(detail_url(post)).content.decode()
+        finally:
+            panel.related_tabs = original
+        assert "v-tabstrip" in body
+        assert "v-related-blocks" not in body
+
+    def test_related_tabs_false_keeps_the_stack_even_for_several_relations(
+        self, client_in, author_with_two_relations
+    ):
+        from vantage import site
+
+        panel = site.get_panel(Author)
+        original = panel.related_tabs
+        panel.related_tabs = False
+        try:
+            body = client_in.get(detail_url(author_with_two_relations)).content.decode()
+        finally:
+            panel.related_tabs = original
+        assert "v-related-blocks" in body
+        assert "v-tabstrip" not in body
+
+    def test_every_related_block_still_renders_inside_the_tab_strip(
+        self, client_in, author_with_two_relations
+    ):
+        """The content itself — not just the chrome around it — must survive wiring."""
+        body = client_in.get(detail_url(author_with_two_relations)).content.decode()
+        assert "On Compilers" in body
+        assert "ORD-1" in body
