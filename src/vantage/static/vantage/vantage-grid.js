@@ -79,6 +79,7 @@
         name: th.getAttribute("data-col-name"),
         label: th.getAttribute("data-col-label") || th.textContent.trim(),
         index: index,
+        th: th,
         cells: Array.prototype.slice.call(
           table.querySelectorAll('[data-col-index="' + index + '"]')
         ),
@@ -218,6 +219,7 @@
     order.splice(to, 0, name);
     persistColumns();
     applyOrder();
+    recalcPinOffsets(); // a reorder can change which pinned column is now first
     renderColumns();
 
     var label = columnByName[name].label;
@@ -332,6 +334,7 @@
 
     persistColumns();
     applyVisibility();
+    recalcPinOffsets(); // hiding a column can move a pinned one into first place
     paintCount();
     renderColumns();
     announce(column.label + (box.checked ? " shown" : " hidden") + ". " + visibleNames().length +
@@ -387,6 +390,7 @@
       persistColumns();
       applyVisibility();
       applyOrder();
+      recalcPinOffsets();
       paintCount();
       renderColumns();
       announce("Columns reset to the panel's own order.");
@@ -833,6 +837,262 @@
     });
   }
 
+  // ── column resize and pin ────────────────────────────────────────────────
+  //
+  // Unlike the popover above, none of this is stored in localStorage. A width or a
+  // pin is a preference about *this* list for *this* person, saved through the same
+  // per-list customisation rail column reorder and hide already go through — see
+  // vantage/listprefs.py, section "columns" — so it follows them to another browser
+  // and another device, which the popover's ambient client-only state deliberately
+  // does not. What lives here is the initial state the server already rendered (read
+  // straight off the header cells, never off localStorage), the drag and keyboard
+  // interactions, the sticky-offset arithmetic, and a debounced background save to
+  // the rail's own form.
+
+  var MIN_COL_WIDTH = parseInt(root.getAttribute("data-col-width-min"), 10) || 60;
+  var MAX_COL_WIDTH = parseInt(root.getAttribute("data-col-width-max"), 10) || 640;
+  var PERSIST_DEBOUNCE_MS = 500;
+
+  var widths = {}; // column name -> px, only for columns someone has actually sized
+  var pinned = {}; // column name -> true
+  columns.forEach(function (column) {
+    var stored = parseInt(column.th.getAttribute("data-col-width"), 10);
+    if (!isNaN(stored)) widths[column.name] = stored;
+    if (column.th.hasAttribute("data-col-pinned")) pinned[column.name] = true;
+  });
+
+  function clampWidth(px) {
+    return Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, Math.round(px)));
+  }
+
+  // table-layout: fixed plus the table's own `inline-size: 100%` (vantage.css) means
+  // growing one column normally just steals space from its unset siblings — down to
+  // nothing, since nothing here has forced them to keep any. `min-width` on a *cell*
+  // does not change that; browsers do not consult it under fixed layout. What does is
+  // `min-width` on the *table* itself: once that exceeds the wrap's own width, "the
+  // width of the table is the greater of the specified width and the sum of the
+  // column widths" (CSS Tables §self) takes over, the table grows past its container,
+  // and only then does .v-table-wrap's own `overflow-x: auto` (vantage.css) put up a
+  // scrollbar instead of a table of invisible columns.
+  //
+  // Scoped to columns someone has actually touched: a page nobody has resized or
+  // pinned keeps exactly the width behaviour it always had, unset column and all.
+  function recalcTableMinWidth() {
+    if (!Object.keys(widths).length && !Object.keys(pinned).length) {
+      table.style.removeProperty("min-inline-size");
+      return;
+    }
+    var selectCell = table.querySelector("thead th.v-select-cell");
+    var actionsCell = table.querySelector("thead th.v-row-actions-cell");
+    var total = 0;
+    if (selectCell) total += selectCell.getBoundingClientRect().width;
+    if (actionsCell) total += actionsCell.getBoundingClientRect().width;
+    visibleNames().forEach(function (name) {
+      total += widths[name] != null ? widths[name] : MIN_COL_WIDTH;
+    });
+    table.style.minInlineSize = total + "px";
+  }
+
+  // The offset a sticky pinned cell needs is the summed *rendered* width of every
+  // pinned, visible column before it — not the stored width, which a column with no
+  // explicit size does not have at all. Only the browser knows that number, and only
+  // after layout has run, which is why this is arithmetic done here in the DOM and
+  // not a value computed once in Python and handed down. Cheap enough to redo on every
+  // change: a list page has a handful of columns, not thousands.
+  //
+  // recalcTableMinWidth runs first and is load-bearing here, not just alongside: the
+  // "rendered width" this function measures is only meaningful once the table has
+  // been allowed to actually grow to fit it.
+  function recalcPinOffsets() {
+    recalcTableMinWidth();
+    var names = order.filter(function (name) {
+      return isVisible(name) && pinned[name];
+    });
+    var offset = 0;
+    names.forEach(function (name, position) {
+      var column = columnByName[name];
+      column.cells.forEach(function (cell) {
+        cell.style.setProperty("--v-pin-offset", offset + "px");
+        cell.classList.toggle("v-col-pin-edge", position === names.length - 1);
+      });
+      offset += column.th.getBoundingClientRect().width;
+    });
+  }
+
+  function applyWidth(name) {
+    var px = widths[name];
+    columnByName[name].cells.forEach(function (cell) {
+      if (px == null) cell.style.removeProperty("inline-size");
+      else cell.style.inlineSize = px + "px";
+    });
+  }
+
+  function applyPinned(name) {
+    var isPinned = !!pinned[name];
+    columnByName[name].cells.forEach(function (cell) {
+      if (isPinned) cell.setAttribute("data-col-pinned", "");
+      else {
+        cell.removeAttribute("data-col-pinned");
+        cell.classList.remove("v-col-pin-edge");
+        cell.style.removeProperty("--v-pin-offset");
+      }
+    });
+    var button = table.querySelector('[data-col-pin="' + name + '"]');
+    if (button) button.setAttribute("aria-pressed", isPinned ? "true" : "false");
+  }
+
+  // ── saving ──────────────────────────────────────────────────────────────
+
+  var persistTimer = null;
+
+  function columnsForm() {
+    // Outside `root`: the rail sits in the page-action cluster above .v-grid, not
+    // inside it — see the comment on <div class="v-grid"> in list.html.
+    return document.querySelector("[data-prefs-columns-form]");
+  }
+
+  function syncPrefsForm(name) {
+    var form = columnsForm();
+    if (!form) return;
+    var widthInput = form.querySelector('[data-prefs-width="' + name + '"]');
+    if (widthInput) widthInput.value = widths[name] != null ? String(widths[name]) : "";
+    var pinInput = form.querySelector('[data-prefs-pin="' + name + '"]');
+    if (pinInput) pinInput.checked = !!pinned[name];
+  }
+
+  function schedulePersist() {
+    window.clearTimeout(persistTimer);
+    // Debounced rather than sent from every pointermove or every keypress: a drag is
+    // dozens of intermediate widths, and the row this feature lives in (see
+    // vantage/listprefs.py) writes the *whole* columns section on every save. Nobody
+    // needs forty requests for one resize.
+    persistTimer = window.setTimeout(persistNow, PERSIST_DEBOUNCE_MS);
+  }
+
+  function persistNow() {
+    var form = columnsForm();
+    if (!form || !form.action) return;
+    var data = new FormData(form);
+    // Always the person's own copy. A background save has no dialog to ask
+    // "for everyone too?", and a drag is not that decision anyway — see
+    // ListPrefsView.scope_user, which is exactly as strict about who may write the
+    // site-wide row when this same form is submitted the ordinary way.
+    data.set("do", "save:user");
+    window.fetch(form.action, { method: "POST", credentials: "same-origin", body: data })
+      .catch(function () {
+        // Best effort: the change is already live in this tab. A failed background
+        // save just means a reload will not remember it, and the drag can be redone.
+      });
+  }
+
+  function setWidth(name, px, persist) {
+    widths[name] = clampWidth(px);
+    applyWidth(name);
+    recalcPinOffsets();
+    syncPrefsForm(name);
+    if (persist !== false) schedulePersist();
+  }
+
+  function setPinned(name, isPinned, persist) {
+    pinned[name] = isPinned;
+    applyPinned(name);
+    recalcPinOffsets();
+    syncPrefsForm(name);
+    if (persist !== false) schedulePersist();
+    announce(columnByName[name].label + (isPinned ? " pinned." : " unpinned."));
+  }
+
+  // ── pin toggle ──────────────────────────────────────────────────────────
+
+  table.querySelectorAll("[data-col-pin]").forEach(function (button) {
+    var name = button.getAttribute("data-col-pin");
+    button.addEventListener("click", function () {
+      setPinned(name, !pinned[name]);
+    });
+  });
+
+  // ── drag and keyboard resize ───────────────────────────────────────────
+
+  table.querySelectorAll("[data-col-resize]").forEach(function (handle) {
+    var name = handle.getAttribute("data-col-resize");
+    var drag = null; // { startWidth, startX, pointerId }
+    var pendingFrame = null;
+
+    function isRtl() {
+      return getComputedStyle(table).direction === "rtl";
+    }
+
+    handle.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0 && event.pointerType === "mouse") return;
+      // The handle straddles the header text next to it (see the CSS): without this,
+      // starting a drag here would also fire the sort link's click a moment later.
+      event.preventDefault();
+      event.stopPropagation();
+      drag = {
+        startWidth: columnByName[name].th.getBoundingClientRect().width,
+        startX: event.clientX,
+        pointerId: event.pointerId,
+      };
+      handle.setAttribute("data-col-resizing", "");
+      handle.setPointerCapture(event.pointerId);
+    });
+
+    handle.addEventListener("pointermove", function (event) {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      var delta = event.clientX - drag.startX;
+      if (isRtl()) delta = -delta; // dragging toward the reading direction's end grows it
+      if (pendingFrame) return;
+      pendingFrame = window.requestAnimationFrame(function () {
+        pendingFrame = null;
+        if (drag) setWidth(name, drag.startWidth + delta, false);
+      });
+    });
+
+    function endDrag(event) {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      handle.releasePointerCapture(drag.pointerId);
+      handle.removeAttribute("data-col-resizing");
+      drag = null;
+      schedulePersist();
+    }
+    handle.addEventListener("pointerup", endDrag);
+    handle.addEventListener("pointercancel", endDrag);
+
+    // The keyboard equivalent WCAG 2.5.7 asks for. Reached the same way every other
+    // in-row control is — ArrowRight/ArrowLeft on the focused row — but once it has
+    // focus, those same two keys resize instead of moving to the next control. That
+    // is a deliberate, narrow exception to the roving-tabindex contract at the top of
+    // this file: it is scoped to this one element via stopPropagation, so the
+    // table's own keydown handler never sees the keypress and every other control's
+    // ArrowRight/ArrowLeft behaviour is untouched. Escape still bubbles, unstopped,
+    // so it keeps doing what it already does for any other in-row control: hand
+    // focus back to the row.
+    handle.addEventListener("keydown", function (event) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      event.stopPropagation();
+      var grows = event.key === (isRtl() ? "ArrowLeft" : "ArrowRight");
+      var step = event.shiftKey ? 32 : 8;
+      var current = widths[name] != null
+        ? widths[name]
+        : columnByName[name].th.getBoundingClientRect().width;
+      setWidth(name, current + (grows ? step : -step));
+    });
+  });
+
+  // A column with no explicit width can still change size across a viewport change —
+  // table-layout: fixed redistributes the leftover space — and a pinned column after
+  // it has to follow. Debounced to one recompute per settled resize, not one per
+  // pixel the browser reports along the way.
+  var viewportFrame = null;
+  window.addEventListener("resize", function () {
+    if (viewportFrame) return;
+    viewportFrame = window.requestAnimationFrame(function () {
+      viewportFrame = null;
+      recalcPinOffsets();
+    });
+  });
+
   // ── boot ──────────────────────────────────────────────────────────────────
 
   applyDensity(readStore(DENSITY_KEY, "comfortable") === "compact" ? "compact" : "comfortable");
@@ -840,6 +1100,11 @@
   applyOrder();
   paintCount();
   renderColumns();
+  // The server only marks the <th> — see the comment on data-col-pinned in list.html —
+  // so the body and footer cells of an already-pinned column need this to actually
+  // stick; recalcPinOffsets alone only positions cells that are pinned already.
+  Object.keys(pinned).forEach(applyPinned);
+  recalcPinOffsets();
   // No focusIndex() here on purpose: the server already rendered the single tab stop
   // on the first row, and the grid should look untouched until it is.
 })();

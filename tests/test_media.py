@@ -195,16 +195,19 @@ class TestFileValidation:
             media.validate_file_upload(upload("photo.png", PNG_1PX))
         assert "limit" in str(caught.value)
 
-    def test_the_ceiling_comes_from_the_setting_when_one_is_registered(self, monkeypatch):
-        """Reads through the settings layer the day UPLOAD_MAX_BYTES is registered there."""
-        from vantage import conf
+    def test_the_ceiling_comes_from_the_setting(self, settings):
+        """``UPLOAD_MAX_BYTES`` is a real, registered setting now.
 
-        monkeypatch.setitem(conf.DEFAULTS, "UPLOAD_MAX_BYTES", 4321)
-        conf.vantage_settings.reset()
-        try:
-            assert media.upload_max_bytes() == 4321
-        finally:
-            conf.vantage_settings.reset()
+        This used to fake the registration by patching ``conf.DEFAULTS``, because the
+        key was documented but unregistered and writing it into ``VANTAGE`` raised. It
+        can just be set.
+        """
+        settings.VANTAGE = {"UPLOAD_MAX_BYTES": 4321}
+        assert media.upload_max_bytes() == 4321
+
+    def test_an_unset_ceiling_falls_back_rather_than_becoming_zero(self, settings):
+        settings.VANTAGE = {}
+        assert media.upload_max_bytes() > 0
 
     def test_a_stored_file_is_not_re_read(self):
         """Re-validating what is already in the bucket turns a form render into a download."""

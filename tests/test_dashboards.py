@@ -606,6 +606,22 @@ declared_settings = override_settings(
 )
 
 
+class GrowableDashboard(Dashboard):
+    """One declared card to start with; more can be added in Python later, exactly
+    like editing a real dashboard module between two requests."""
+
+    title = "Growable"
+    widgets: list = [StatCard("Posts", Post.objects.all())]
+
+    def get_widgets(self, request):
+        return list(GrowableDashboard.widgets)
+
+
+growable_settings = override_settings(
+    VANTAGE={"DASHBOARD": "tests.test_dashboards.GrowableDashboard"}
+)
+
+
 def stat_card(**overrides):
     """A UI-built stat entry over Orders, as the picker would produce it."""
     return {
@@ -775,15 +791,20 @@ class TestResolutionOrder:
 
     @declared_settings
     def test_a_personal_arrangement_beats_the_site_wide_one(self, db, request_from, boss):
+        """Each arrangement is built entirely of cards somebody chose, so nothing
+        declared and never mentioned rides along with it — see ``TestArranging`` for
+        the cards that were mentioned or are new since the save."""
         other = User.objects.create_user("other", password="x", is_staff=True)
+        other.user_permissions.add(Permission.objects.get(codename="view_order"))
+        other = User.objects.get(pk=other.pk)  # drop the permission cache
         request = request_from(boss)
         save(site, request, [stat_card(label="Everyone's")], user=None)
         save(site, request, [stat_card(label="Mine")], user=boss)
 
         mine = get_dashboard(site, request_from(boss)).render(request_from(boss))
         theirs = get_dashboard(site, request_from(other)).render(request_from(other))
-        assert mine[0].label == "Mine"
-        assert theirs[0].label == "Everyone's"
+        assert [c.label for c in mine] == ["Mine"]
+        assert [c.label for c in theirs] == ["Everyone's"]
 
     @declared_settings
     def test_reset_hands_the_page_back_to_the_code(self, db, request_from, boss, orders):
@@ -857,25 +878,50 @@ class TestArranging:
         card = get_dashboard(site, request_from(boss)).render(request)[0]
         assert (card.label, card.width) == ("Posts", 3)
 
-    @declared_settings
+    @growable_settings
     def test_a_card_added_in_python_later_is_appended_rather_than_swallowed(
-        self, db, request_from, boss, content
+        self, db, request_from, boss, content, monkeypatch
     ):
         """A developer adding a card must not have it hidden by an arrangement saved
-        before it existed — the same choice NAV_UNLISTED = "append" makes."""
+        before it existed — the same choice NAV_UNLISTED = "append" makes.
+
+        A key already declared when the arrangement was saved and then left unmentioned
+        is a removal (see ``test_a_personal_arrangement_beats_the_site_wide_one`` and
+        ``test_a_narrower_colleague_rearranging_cannot_delete_what_they_never_saw``); a
+        key that did not exist yet is not, which is the distinction this test needs a
+        real temporal gap to exercise: the dashboard only declares "Posts" at save time,
+        and gains "Authors" afterwards, in Python, exactly as a developer would.
+        """
         request = request_from(boss)
         save(site, request, [{"card": "declared", "key": "posts"}], user=boss)
 
+        monkeypatch.setattr(
+            GrowableDashboard,
+            "widgets",
+            [StatCard("Posts", Post.objects.all()), StatCard("Authors", Author.objects.all())],
+        )
+
         labels = [c.label for c in get_dashboard(site, request_from(boss)).render(request)]
         assert labels[0] == "Posts"
-        assert set(labels) == {"Posts", "Authors", "Orders"}
+        assert set(labels) == {"Posts", "Authors"}
 
     @declared_settings
     def test_an_entry_for_a_card_the_code_no_longer_declares_is_inert(
         self, db, request_from, boss, content
     ):
+        """A stale reference — a key from a card the code has since renamed or
+        removed — is skipped rather than crashing the page. The arrangement also
+        names every card still declared, so this is purely about the dead entry: it
+        does not lean on "unmentioned declared cards are appended", which is a
+        separate, narrower rule now that an unmentioned card can just as easily mean
+        it was deliberately removed."""
         request = request_from(boss)
-        save(site, request, [{"card": "declared", "key": "revenue-2019"}], user=boss)
+        save(site, request, [
+            {"card": "declared", "key": "revenue-2019"},
+            {"card": "declared", "key": "posts"},
+            {"card": "declared", "key": "authors"},
+            {"card": "declared", "key": "orders"},
+        ], user=boss)
         labels = {c.label for c in get_dashboard(site, request_from(boss)).render(request)}
         assert labels == {"Posts", "Authors", "Orders"}
 
@@ -936,21 +982,32 @@ class TestBuiltCards:
 
 class TestArrangedPermissions:
     def test_a_card_over_a_forbidden_model_neither_renders_nor_queries(
-        self, db, request_from, django_assert_num_queries
+        self, db, request_from
     ):
         """The gate is before the query, exactly as it is for a declared card.
 
         A card that computes a number and then declines to show it has already paid for
-        it and already put it in the query log.
+        it and already put it in the query log. The render is not free — Django's own
+        permission check has to read the permission tables the first time it is asked —
+        but that cost is two fixed queries, not one that grows if the arrangement grows,
+        and neither of them is the card's own aggregate: nothing here may touch the
+        orders table.
         """
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
         user = User.objects.create_user("plain", password="x", is_staff=True)
         save(site, request_from(user), [stat_card()], user=user)
         user = User.objects.get(pk=user.pk)  # drop the permission cache
 
         request = request_from(user)
         dashboard = get_dashboard(site, request)
-        with django_assert_num_queries(0):
+        with CaptureQueriesContext(connection) as queries:
             assert dashboard.render(request) == []
+
+        # Permission lookups, not the card: the aggregate never ran.
+        assert not any("testapp_order" in q["sql"] for q in queries.captured_queries)
+        assert len(queries) <= 2, [q["sql"] for q in queries.captured_queries]
 
     def test_the_same_card_renders_once_the_permission_is_granted(self, db, request_from,
                                                                   orders):

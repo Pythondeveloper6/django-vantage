@@ -56,6 +56,8 @@ from vantage.summary import NUMERIC, SUMMARY_FUNCTIONS, compute_summary, infer_s
 __all__ = [
     "AGGREGATES",
     "CHART_MODES",
+    "MAX_COLUMN_WIDTH",
+    "MIN_COLUMN_WIDTH",
     "NO_AGGREGATE",
     "SECTIONS",
     "SECTION_COLUMNS",
@@ -82,7 +84,7 @@ PERMISSION_SETTING = "LIST_PREFS_PERMISSION"
 #: exactly this, so a "Reset filters" button can never clear something the filters card
 #: does not show — the mistake :mod:`vantage.settingsview` avoids the same way.
 SECTION_COLUMNS: dict[str, tuple[str, ...]] = {
-    "columns": ("columns", "per_page"),
+    "columns": ("columns", "per_page", "column_widths", "pinned_columns"),
     "search": ("search_enabled", "search_fields"),
     "filters": ("filters_enabled", "filter_fields", "facet_counts"),
     "stats": ("stats_enabled", "stat_keys", "extra_stats"),
@@ -128,6 +130,15 @@ MAX_EXTRA_STATS = 6
 MAX_EXTRA_CHARTS = 4
 MAX_LABEL = 60
 MAX_PER_PAGE = 500
+
+#: Pixel bounds on a dragged column. Below the minimum a column is not a column any
+#: more, it is a sliver with a sort arrow in it; above the maximum one wide column can
+#: push every other one off the visible table, which is the opposite of what resizing
+#: is for. Both ends are enforced again in :func:`_clean_widths` on every read, not
+#: only when a value is written — a bound moved in a later release must still apply to
+#: a width somebody stored last year.
+MIN_COLUMN_WIDTH = 60
+MAX_COLUMN_WIDTH = 640
 
 
 def resource_key(panel_or_model: Any) -> str:
@@ -310,6 +321,26 @@ def _clean_paths(value: Any, allowed: tuple[str, ...]) -> list[str] | None:
     return kept or None
 
 
+def _clean_widths(value: Any, opts: Options) -> dict[str, int] | None:
+    """Column name -> pixel width, every one clamped into range.
+
+    Clamped rather than dropped: a drag that overshoots the edge of the window, or a
+    bound tightened in a later release, is a harmless accident. Silently discarding the
+    whole entry would make the column jump back to its inferred width with no
+    explanation, which reads as a worse bug than an oversized value would have been.
+    """
+    if not isinstance(value, dict):
+        return None
+    kept: dict[str, int] = {}
+    for name, raw in value.items():
+        if not isinstance(name, str) or name not in opts.columns:
+            continue
+        if isinstance(raw, bool) or not isinstance(raw, int):
+            continue
+        kept[name] = min(MAX_COLUMN_WIDTH, max(MIN_COLUMN_WIDTH, raw))
+    return kept or None
+
+
 def _clean_label(value: Any, fallback: str) -> str:
     """The label to store: what was typed, else the generated one, always plain text.
 
@@ -442,6 +473,11 @@ def _clean_summary(value: Any, opts: Options) -> dict[str, str] | None:
 _CLEANERS = {
     "columns": lambda value, opts: _clean_paths(value, opts.columns),
     "per_page": lambda value, opts: _clean_per_page(value),
+    "column_widths": _clean_widths,
+    # A pinned column is still a column: the same allowlist that validates "columns"
+    # validates which of them may be frozen, and a name the panel has stopped
+    # exposing drops out here exactly as it would from the columns list itself.
+    "pinned_columns": lambda value, opts: _clean_paths(value, opts.columns),
     "search_enabled": lambda value, opts: _clean_bool(value),
     "search_fields": lambda value, opts: _clean_paths(value, opts.search_fields),
     "filters_enabled": lambda value, opts: _clean_bool(value),
@@ -524,6 +560,16 @@ class ListSpec:
 
     columns: list[str] = field(default_factory=list)
     per_page: int = 50
+    #: Column name -> pixel width, already bounds-checked and already filtered down to
+    #: columns that are actually in :attr:`columns` — a width stored against a column
+    #: that has since been hidden or removed would otherwise linger, unused but
+    #: unnoticed, until the day the column comes back with a stale size.
+    column_widths: dict[str, int] = field(default_factory=dict)
+    #: Frozen columns, in :attr:`columns` order rather than the order they were pinned
+    #: in — that is the order the sticky offsets in the template accumulate over, and
+    #: it is also what keeps a hidden-then-reshown pinned column from jumping to the
+    #: front of the frozen group.
+    pinned_columns: list[str] = field(default_factory=list)
 
     search_enabled: bool = True
     search_fields: list[str] = field(default_factory=list)
@@ -694,6 +740,19 @@ SETTING_NAMES: tuple[str, ...] = tuple(
 def _assemble(panel, opts: Options, key: str, stored: dict, sources: dict) -> ListSpec:
     columns = stored.get("columns") or list(opts.columns)
 
+    # Re-filtered against the *effective* columns, one step tighter than the
+    # panel-wide allowlist ``clean_value`` already applied: a width or a pin stored
+    # against a column this same row has since hidden must not linger unused, and a
+    # pinned name that no longer appears in ``columns`` at all cannot render as a
+    # frozen ``<th>`` that was never drawn. ``columns`` order, not the stored pin
+    # order, so the template's accumulated sticky offset is deterministic.
+    column_widths = {
+        name: width
+        for name, width in (stored.get("column_widths") or {}).items()
+        if name in columns
+    }
+    pinned_columns = [name for name in columns if name in (stored.get("pinned_columns") or ())]
+
     search_enabled = stored.get("search_enabled", True)
     search_fields = (
         list(stored.get("search_fields") or opts.search_fields) if search_enabled else []
@@ -748,6 +807,8 @@ def _assemble(panel, opts: Options, key: str, stored: dict, sources: dict) -> Li
         options=opts,
         columns=columns,
         per_page=stored.get("per_page") or opts.per_page,
+        column_widths=column_widths,
+        pinned_columns=pinned_columns,
         search_enabled=bool(search_enabled),
         search_fields=search_fields,
         filters_enabled=bool(filters_enabled),
@@ -855,6 +916,8 @@ def _posted(section: str, data, opts: Options, spec: ListSpec) -> dict[str, Any]
         return {
             "columns": _ordered(getlist("columns"), data),
             "per_page": _as_int(data.get("per_page")),
+            "column_widths": _widths(opts.columns, data),
+            "pinned_columns": getlist("pinned_columns") or None,
         }
 
     if section == "search":
@@ -929,6 +992,21 @@ def _as_int(value) -> int | None:
         return int(str(value).strip())
     except (TypeError, ValueError):
         return None
+
+
+def _widths(names, data) -> dict[str, int] | None:
+    """``width__<name>`` inputs, gathered by every column the panel could show.
+
+    Scanning every option rather than only the ones currently checked: a width is a
+    preference about a column, not about whether it happens to be visible right now,
+    and a column hidden and later re-shown should not have forgotten how wide it was.
+    """
+    out: dict[str, int] = {}
+    for name in names:
+        value = _as_int(data.get(f"width__{name}"))
+        if value is not None:
+            out[name] = value
+    return out or None
 
 
 def _ordered(names: list, data) -> list | None:
@@ -1160,10 +1238,14 @@ def panel_context(panel, request, spec: ListSpec | None = None) -> dict:
                 "label": _label(model, name),
                 "selected": name in spec.columns,
                 "position": _position(spec.columns, name, index),
+                "width": spec.column_widths.get(name),
+                "pinned": name in spec.pinned_columns,
             }
             for index, name in enumerate(opts.columns)
         ],
         "per_page": spec.per_page,
+        "column_width_min": MIN_COLUMN_WIDTH,
+        "column_width_max": MAX_COLUMN_WIDTH,
         "search_options": [
             {
                 "name": name,

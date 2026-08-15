@@ -61,7 +61,8 @@
 <div class="v-grid" data-grid data-grid-model="{{ panel.slug }}"
      {% if page.has_previous %}data-prev-url="?{% querystring_replace page=page.previous_page_number %}"{% endif %}
      {% if page.has_next %}data-next-url="?{% querystring_replace page=page.next_page_number %}"{% endif %}
-     {% if inline.enabled and rows %}data-inline data-inline-save-url="{{ inline.save_url }}" data-inline-validate-url="{{ inline.validate_url }}"{% endif %}>
+     {% if inline.enabled and rows %}data-inline data-inline-save-url="{{ inline.save_url }}" data-inline-validate-url="{{ inline.validate_url }}"{% endif %}
+     {% if list_prefs %}data-col-width-min="{{ list_prefs.column_width_min }}" data-col-width-max="{{ list_prefs.column_width_max }}"{% endif %}>
 
 {% if searchable or rows or saved_view_write_url or timeline_field or patterns.soft_delete or has_active_filters %}
   {% include "vantage/partials/list_toolbar.html" %}
@@ -183,18 +184,64 @@
                          aria-label="{% translate "Select all rows on this page" %}">
                 </th>
               {% endif %}
+              {% comment %}
+                Width and pin are read straight off list_prefs.spec rather than off
+                `column`: `columns` is built in views.py from panel.get_list_display,
+                which already carries a resized/pinned override through the same
+                cascade, but not the width or the pin state themselves — those are
+                presentation only, so they are looked up here instead of threading a
+                new field through a view this feature does not own.
+
+                data-col-pinned and the width style are only written on the <th>: a
+                <td> has no column *name* in this loop to look either up against (only
+                the row's own cell values), and table-layout: fixed already applies a
+                <th>'s width to the whole column without any help from its <td>s.
+                vantage-grid.js copies data-col-pinned onto the body and footer cells
+                itself, by data-col-index, the same way it already does for hide/show.
+              {% endcomment %}
               {% for column in columns %}
+                {% with col_width=list_prefs.spec.column_widths|dict_get:column.name %}
                 <th scope="col" data-col-index="{{ forloop.counter0 }}"
                     data-col-name="{{ column.name }}" data-col-label="{{ column.label }}"
-                    {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
-                  {% if column.sortable %}
-                    <a class="v-sort" tabindex="-1"
-                       href="?{% querystring_replace sort=column.next page=None %}">
-                      {{ column.label }}
-                      {% if column.active %}<span aria-hidden="true">{% if column.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
-                    </a>
-                  {% else %}{{ column.label }}{% endif %}
+                    class="v-col"
+                    {% if column.active %}aria-sort="{% if column.descending %}descending{% else %}ascending{% endif %}"{% endif %}
+                    {% if column.name in list_prefs.spec.pinned_columns %}data-col-pinned{% endif %}
+                    {% if col_width %}data-col-width="{{ col_width }}" style="inline-size: {{ col_width }}px"{% endif %}>
+                  <div class="v-col-head">
+                    {% if column.sortable %}
+                      <a class="v-sort" tabindex="-1"
+                         href="?{% querystring_replace sort=column.next page=None %}">
+                        {{ column.label }}
+                        {% if column.active %}<span aria-hidden="true">{% if column.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+                      </a>
+                    {% else %}<span class="v-col-head-label">{{ column.label }}</span>{% endif %}
+                    {% comment %}
+                      tabindex="-1" like every other in-row control: reached by the
+                      grid's own ArrowRight/ArrowLeft cycling, never by Tab — the
+                      roving-tabindex contract in vantage-grid.js does not gain a
+                      second tab stop just because a column grew a second control.
+                    {% endcomment %}
+                    <button type="button" class="v-col-pin" data-col-pin="{{ column.name }}"
+                            tabindex="-1"
+                            aria-pressed="{% if column.name in list_prefs.spec.pinned_columns %}true{% else %}false{% endif %}"
+                            aria-label="{% blocktranslate with label=column.label %}Pin {{ label }} so it stays in view while scrolling sideways{% endblocktranslate %}">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  {% comment %}
+                    The drag/keyboard resize grip. It sits in its own corner of the
+                    cell rather than inside .v-sort, so a pointerdown that starts a
+                    drag never lands on the sort link underneath it — see the
+                    stopPropagation in vantage-grid.js's own comment on this handle.
+                  {% endcomment %}
+                  <button type="button" class="v-col-resize" data-col-resize="{{ column.name }}"
+                          tabindex="-1"
+                          aria-label="{% blocktranslate with label=column.label %}Resize the {{ label }} column. Drag it, or focus it and press the Left and Right arrow keys{% endblocktranslate %}"></button>
                 </th>
+                {% endwith %}
               {% endfor %}
               {% if has_row_actions %}
                 <th scope="col" class="v-row-actions-cell">

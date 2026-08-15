@@ -92,12 +92,10 @@ logger = logging.getLogger("vantage.security")
 
 #: Settings this module reads, with the default each falls back to.
 #:
-#: These are *not* yet keys of :data:`vantage.conf.DEFAULTS`. Until they are registered
-#: there, putting one in the ``VANTAGE`` dict raises ``ImproperlyConfigured`` from the
-#: settings layer, which rejects unknown keys on purpose. :func:`_setting` therefore
-#: reads through ``vantage_settings`` only for keys that layer knows about and falls
-#: back to the value here otherwise — so this module works before the registration
-#: lands and picks the settings up automatically once it does. See ``docs/security.md``.
+#: Each is registered in :data:`vantage.conf.DEFAULTS` as ``None`` — that registration
+#: is what makes it settable, because the settings layer rejects unknown keys on
+#: purpose — while the value and the reasoning for it stay here, so the two files
+#: cannot drift into disagreeing about a default. See ``docs/security.md``.
 DEFAULTS: dict[str, object] = {
     # Off unless the middleware is installed; this is the switch for turning it back
     # off again without unwiring middleware, which is what you want in a hurry.
@@ -149,13 +147,33 @@ RATE_LIMITS: dict[str, tuple[int, int]] = {
 
 
 def _setting(name: str, default=None):
-    """One Vantage setting, whether or not the settings layer knows the key yet."""
-    from vantage.conf import DEFAULTS as CONF_DEFAULTS
+    """One Vantage setting, resolved through the settings layer then this module.
 
-    if name in CONF_DEFAULTS:
-        from vantage.conf import vantage_settings
+    ``vantage.conf.DEFAULTS`` registers each of these keys with ``None``, meaning "no
+    opinion here" — the defaults themselves stay in :data:`DEFAULTS` below, next to
+    the reasoning for each number, so the two files cannot drift into disagreeing.
+    Registration is what makes the keys settable at all: ``vantage_settings`` rejects
+    unknown keys on purpose, so before it a documented setting written into ``VANTAGE``
+    raised ``ImproperlyConfigured`` on the next settings read.
 
-        return getattr(vantage_settings, name)
+    Read from the raw ``VANTAGE`` dict rather than through ``vantage_settings``, and
+    that is deliberate on two counts.
+
+    The cascade consults the :class:`~vantage.models.SiteConfiguration` row, so going
+    through it would put a database read behind every one of these — including the
+    login throttle, whose entire job is to answer cheaply while somebody is hammering
+    the login form. A refused attempt must not cost a query.
+
+    And these must not be editable from the panel's own settings screen at all. A UI
+    that can switch off rate limiting is a UI that can be used to switch off rate
+    limiting. Deployment settings belong in the file the deployment owns.
+    """
+    from django.conf import settings as django_settings
+
+    configured = getattr(django_settings, "VANTAGE", None) or {}
+    value = configured.get(name)
+    if value is not None:
+        return value
     if default is not None:
         return default
     return DEFAULTS.get(name)
