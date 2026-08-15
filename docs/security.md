@@ -144,21 +144,28 @@ type against sniffed bytes, and an SVG containing a script, an event handler, a
 [Media and uploads](forms.md#media-and-uploads) for the field-level half of this that
 runs whether or not the middleware is installed.
 
-> **Known gap, as of this writing.** The SVG hazard scan quoted above —
-> `<script>`, an event handler, `javascript:`, an embedded document — is real for
-> this middleware and real for `vantage.models.validate_branding_upload` (the four
-> branding fields). It is **not** currently performed by
-> `vantage.media.validate_file_upload`, the field-level validator every plain
-> `FileField` on a registered model gets (`ImageField` is unaffected: it refuses
-> SVG outright). That validator only checks the sniffed content type against the
-> extension, so a file honestly named `.svg` that honestly *is* an SVG — script
-> included — passes it. A project running without `PanelSecurityMiddleware`
-> therefore has no SVG-content screening at all on an ordinary attachment field,
-> only on the branding fields. Until `vantage.media.validate_file_upload` is
-> brought in line with the other two layers, treat `PanelSecurityMiddleware` and a
-> separate `MEDIA_URL` origin (below) as required, not optional, on any project
-> whose registered models accept file uploads from less-than-fully-trusted users.
-> See `tests/test_security.py::TestFileFieldSvgScreening` for the failing case.
+> **All three layers screen SVG, as of the fix below.** The hazard scan quoted
+> above — `<script>`, an event handler, `javascript:`, an embedded document — runs in
+> this middleware, in `vantage.models.validate_branding_upload` (the four branding
+> fields), and now in `vantage.media.validate_file_upload`, the field-level validator
+> every plain `FileField` on a registered model gets. `ImageField` was never exposed:
+> it refuses SVG outright, because the only safe way to render an untrusted one is
+> not to.
+>
+> It was not always so. `validate_file_upload` used to check only the sniffed content
+> type against the extension, so a file honestly named `.svg` that honestly *was* an
+> SVG — script included — passed. Since `partials/thumb.html` links straight to the
+> stored file, the next person to open that attachment ran the script from the panel's
+> own origin with their own session, which on an admin panel is frequently a
+> superuser. Confirmed by calling the validator directly before the fix.
+>
+> The patterns come from `vantage.security.SVG_HAZARDS` rather than being restated in
+> the media layer: there were already two copies of that list, and a third would be a
+> third thing to update the next time somebody finds a new way to smuggle script into
+> an SVG. See `tests/test_security.py::TestFileFieldSvgScreening`.
+>
+> A separate `MEDIA_URL` origin (below) remains the defence in depth none of this
+> replaces.
 
 | `VANTAGE` key | Default | Effect |
 |---|---|---|
