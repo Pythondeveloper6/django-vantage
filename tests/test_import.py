@@ -297,6 +297,23 @@ class TestResolveMapping:
         assert mapping.columns == {"A": "title"}
         assert mapping.ignored == (("B", "“A” already feeds that field"),)
 
+    def test_a_required_field_left_unmapped_is_flagged_missing(self, panel):
+        """The general case the tenancy exemption in ``_missing_required`` must not
+        weaken: ``Post.author`` has no default and is not nullable, so a create without
+        it would fail a NOT NULL constraint one row at a time. This project has no
+        ``TENANT_MODEL`` configured, so ``vantage.tenancy.scope_for(Post)`` reports it
+        as unscoped (``GLOBAL``) and exempts nothing - the guard must still catch this
+        exactly as it always has."""
+        parsed = importer.read_csv(as_csv([["Title", "Slug", "Body"], ["A", "a", "x"]]))
+        mapping = importer.resolve_mapping(
+            panel,
+            parsed,
+            {"Title": "title", "Slug": "slug", "Body": "body"},
+            key_field=None,
+            mode="create",
+        )
+        assert ("author", "Author") in mapping.missing_required
+
     def test_a_non_unique_key_is_refused(self, panel):
         parsed = importer.read_csv(as_csv([["Title"], ["A"]]))
         with pytest.raises(importer.ImportRejected, match="unique field"):
@@ -556,6 +573,22 @@ class TestCommit:
         result = importer.commit(panel, parsed, mapping, chunk_size=1)
         assert (result.created, result.failed) == (3, 1)
         assert set(Post.objects.values_list("slug", flat=True)) == {"p0", "p1", "p3"}
+
+    def test_a_required_field_left_unmapped_without_tenancy_fails_every_row(self, panel, db):
+        """No tenancy is configured in this settings module, so there is nothing for
+        ``vantage.tenancy.scope_for`` to exempt: a genuinely required, unmapped column
+        must still refuse the row rather than let it half-create. This is the guard the
+        tenancy exemption must narrow around, never weaken."""
+        rows = [["Title", "Slug", "Body"], ["A", "a", "x"]]
+        parsed, mapping = plan(
+            panel, as_csv(rows), chosen={"Title": "title", "Slug": "slug", "Body": "body"}
+        )
+        assert mapping.missing_required
+        result = importer.commit(panel, parsed, mapping)
+        assert result.created == 0
+        assert result.failed == 1
+        assert "must have a value" in result.errors[0].message
+        assert not Post.objects.filter(slug="a").exists()
 
     def test_a_database_error_rolls_back_only_its_own_row(self, panel, ada, monkeypatch):
         """The savepoint per row is what makes "1,204 created, 3 failed" possible."""

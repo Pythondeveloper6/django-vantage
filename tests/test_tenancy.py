@@ -1111,21 +1111,26 @@ class TestImportRespectsTenancy:
     def test_a_required_tenant_owning_column_left_unmapped_is_wrongly_rejected(
         self, settings, orgs
     ):
-        """KNOWN GAP, reported rather than patched (tenancy.py and importer.py are not
-        this task's to change): the web create form and the JSON API both simply leave
-        a tenant-scoped foreign key off the form and let vantage.tenancy.enforce stamp
-        it - see TestHttpWritePaths.test_create_stamps_the_tenant_even_when_the_field_
-        is_never_on_the_form for TntSecret's editable=False version of exactly that. A
-        CSV import relying on the same convention for an *editable* required foreign
-        key is refused outright instead: importer._missing_required does not know
-        enforce() will supply the value, its guard only steps aside for a panel's own
-        save_model hook (importer.py's own comment: "stamping the acting user onto an
-        author field is the canonical example"), and tenancy's stamp is not that hook.
-        The whole file is rejected with "must have a value" rather than created with
-        the tenant filled in, even though the exact same create through the HTML form
-        or the JSON API succeeds. See the written report for the full writeup."""
+        """FIXED (was a known gap): the web create form and the JSON API both simply
+        leave a tenant-scoped foreign key off the form and let vantage.tenancy.enforce
+        stamp it - see TestHttpWritePaths.test_create_stamps_the_tenant_even_when_the_
+        field_is_never_on_the_form for TntSecret's editable=False version of exactly
+        that. A CSV import relying on the same convention for an *editable* required
+        foreign key used to be refused outright: importer._missing_required did not
+        know enforce() would supply the value, and its only exemption was a panel's own
+        save_model hook. It now asks vantage.tenancy.scope_for(model) the same question
+        enforce() itself answers - "is there a single, direct path from this model to
+        the tenant?" - and treats that field as supplied, exactly as it would be on the
+        HTML form or the JSON API, rather than reimplementing the answer by pattern-
+        matching a field name. TntWidget.org is exactly that field: a single, editable,
+        required, direct foreign key to the tenant model.
+
+        The name is kept (rather than renamed to "...is_now_accepted") because this is
+        the pinned regression test named in the bug report; what changed is the
+        assertions inside it, not its identity."""
         from vantage import importer, site
 
+        org_a, _ = orgs
         User.objects.create_user("acme", password="x")
         settings.VANTAGE = {
             "TENANT_MODEL": "testapp.TntOrg",
@@ -1144,11 +1149,67 @@ class TestImportRespectsTenancy:
             key_field=None,
             mode="create",
         )
-        assert mapping.missing_required  # confirms tenancy.py did not exempt "org"
+        # The fix, checked at its source: tenancy.scope_for says "org" is the single
+        # direct path to the tenant, so it is no longer reported as a missing-required
+        # column - the same fact the preview page's "Some required fields have no
+        # column" banner reads off this exact list.
+        assert mapping.missing_required == ()
+
+        # Preview (a dry run) and commit must agree with resolve_mapping and with each
+        # other - the whole import path, not just the one function the bug lived in.
+        preview = importer.dry_run(panel, parsed, mapping, request, None)
+        assert preview.created == 1
+        assert preview.failed == 0
+        assert not TntWidget.objects.filter(name="Widget C").exists()  # rolled back
+
+        result = importer.commit(panel, parsed, mapping, request, None)
+        assert result.created == 1
+        assert result.failed == 0
+        widget = TntWidget.objects.get(name="Widget C")
+        assert widget.org_id == org_a.pk  # stamped by enforce(), exactly as on the form
+
+    def test_a_mapped_tenant_column_naming_another_tenants_key_is_still_refused(
+        self, settings, orgs
+    ):
+        """The exemption above is about a column being *absent*. A column that *is*
+        present, and maps to another tenant's key, is a different situation entirely
+        and must still be refused - the guard in _missing_required never runs for it
+        (the column is in ``mapped``), but the row is not let through some other way:
+        "org" is a foreign key, so it goes through the same tenant-scoped relation
+        lookup (_resolve_one's manager is scope_queryset'd) as every other imported
+        relation, which narrows the visible TntOrg rows to the acting tenant's own -
+        naming another tenant's primary key resolves to "no match", not to a save."""
+        from vantage import importer, site
+
+        org_a, org_b = orgs
+        User.objects.create_user("acme", password="x")
+        settings.VANTAGE = {
+            "TENANT_MODEL": "testapp.TntOrg",
+            "TENANT_RESOLVER": "tests.test_tenancy.UsernameOrgResolver",
+        }
+        panel = site.get_panel(TntWidget)
+        request = RequestFactory().post("/")
+        request.user = SimpleNamespace(username="acme", is_authenticated=True)
+
+        parsed = importer.read_csv(
+            as_csv([["Name", "Org"], ["Widget C", str(org_b.pk)]])
+        )
+        options = importer.importable_fields(panel)
+        mapping = importer.resolve_mapping(
+            panel,
+            parsed,
+            importer.infer_mapping(parsed.headers, options),
+            key_field=None,
+            mode="create",
+        )
+        assert "org" in mapping.targets  # mapped, so the exemption never applies here
+        assert mapping.missing_required == ()
+
         result = importer.commit(panel, parsed, mapping, request, None)
         assert result.created == 0
         assert result.failed == 1
         assert not TntWidget.objects.filter(name="Widget C").exists()
+        assert org_a  # the acting tenant, never used to rescue the row
 
     def test_a_row_cannot_reach_another_tenants_parent_by_name(self, settings, orgs):
         """Export writes a related object as its __str__, so import accepts a label -
