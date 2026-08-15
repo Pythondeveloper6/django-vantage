@@ -286,6 +286,103 @@ class Upload(models.Model):
         return self.name
 
 
+
+# ── multi-tenancy ────────────────────────────────────────────────────────────
+#
+# One small constellation for tests/test_tenancy.py: a tenant, something scoped to it
+# directly, something scoped through an intermediate model, something ambiguous,
+# something with no path to it at all, something meant to be shared by every tenant,
+# and something whose tenant column a form never shows. Every name is prefixed ``Tnt``
+# so the group reads together and stays out of the way of the fixtures above it. Kept
+# separate from ``Snippet`` — the pre-existing single-FK tenancy fixture ``tests/test_
+# api.py`` already conscripts ``auth.User`` itself as the tenant for — because several
+# of these scenarios (ambiguous, multi-hop, exempt, orphaned) have no honest model to
+# reuse there.
+
+
+class TntOrg(models.Model):
+    """The tenant. A model in its own right, not ``auth.User`` wearing a second hat."""
+
+    name = models.CharField(max_length=80)
+    slug = models.SlugField(unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+class TntWidget(models.Model):
+    """Owned directly by an org — the single-foreign-key case inference handles alone."""
+
+    org = models.ForeignKey(TntOrg, on_delete=models.CASCADE, related_name="widgets")
+    name = models.CharField(max_length=80)
+    is_published = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+
+class TntSecret(models.Model):
+    """Owned by an org through a field no form ever shows.
+
+    ``editable=False`` drops it from every ModelForm the package builds, so the only
+    way this column is ever set is ``vantage.tenancy.enforce`` stamping it on create —
+    there is no dropdown standing in front of it to do that job first.
+    """
+
+    org = models.ForeignKey(
+        TntOrg, on_delete=models.CASCADE, editable=False, null=True, blank=True
+    )
+    label = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.label
+
+
+class TntGadget(models.Model):
+    """Owned through a widget, not directly.
+
+    The multi-hop case inference cannot see on its own — it only ever walks a single
+    direct foreign key — so a project has to spell the path out in ``TENANT_SCOPE``.
+    """
+
+    widget = models.ForeignKey(TntWidget, on_delete=models.CASCADE, related_name="gadgets")
+    name = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.name
+
+
+class TntAmbiguous(models.Model):
+    """Two foreign keys to the tenant — which one owns the row is not knowable from
+    the model, so scoping must refuse to guess and fail closed instead."""
+
+    primary_org = models.ForeignKey(TntOrg, on_delete=models.CASCADE, related_name="+")
+    secondary_org = models.ForeignKey(TntOrg, on_delete=models.CASCADE, related_name="+")
+    name = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.name
+
+
+class TntOrphan(models.Model):
+    """No relation to the tenant at all — the forgot-to-configure-it case that must
+    still show no rows rather than every tenant's."""
+
+    name = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.name
+
+
+class TntReference(models.Model):
+    """Shared lookup data every tenant reads — the ``TENANT_EXEMPT`` case."""
+
+    label = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.label
+
+
 class LedgerEntry(models.Model):
     """Deliberately dull, and the only model here meant to be created in bulk.
 
@@ -308,3 +405,80 @@ class LedgerEntry(models.Model):
 
     def __str__(self):
         return self.reference
+
+
+# ── inlines (tests/test_inlines.py) ─────────────────────────────────────────
+#
+# Prefixed ``ZInline`` rather than reusing ``Order``/``SaleLine``: these are registered
+# with an *explicit* panel carrying ``inlines`` on a dedicated ``VantageSite`` built in
+# the test module, and giving them their own models keeps that registration from ever
+# touching the panels the rest of the suite infers for ``Order``. The ``Z`` keeps them
+# last in the (app_label, model_name) ordering the registry sorts by, for the same
+# reason the pattern-detection fixtures above stay after ``post``.
+
+
+class ZInlinePart(models.Model):
+    """A small reference table: the ``product`` on a line item, and the M2M target."""
+
+    name = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.name
+
+
+class ZInlineOrder(models.Model):
+    """Parent for the FK-inline tests — ``ZInlineItem`` is its ``OrderItem``."""
+
+    reference = models.CharField(max_length=40, unique=True)
+
+    def __str__(self):
+        return self.reference
+
+
+class ZInlineItem(models.Model):
+    """Child of :class:`ZInlineOrder`.
+
+    Eight columns beyond the parent link on purpose: bound with the first three named
+    explicitly an inline infers the short-and-plain tabular layout; bound with every
+    field it infers stacked from the column count alone, with no long-text or
+    relation-many field anywhere in the model to confound that with the kind-based
+    rule. ``unit_price`` has no default and is not nullable, so leaving it blank is a
+    row-level validation failure to test atomicity and per-row error rendering against.
+    """
+
+    order = models.ForeignKey(ZInlineOrder, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(ZInlinePart, on_delete=models.PROTECT, related_name="+")
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=8, decimal_places=2)
+    sku = models.CharField(max_length=30, blank=True)
+    note = models.CharField(max_length=120, blank=True)
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    taxable = models.BooleanField(default=True)
+    backordered = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product}"
+
+
+class ZInlineWidget(models.Model):
+    """Parent for the M2M-through inline tests."""
+
+    name = models.CharField(max_length=80)
+    parts = models.ManyToManyField(
+        ZInlinePart, through="ZInlineWidgetPart", related_name="widgets"
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class ZInlineWidgetPart(models.Model):
+    """A hand-written through model — the case ``is_auto_created_through`` must say
+    ``False`` for, unlike ``Post.tags``'s Django-generated one."""
+
+    widget = models.ForeignKey(ZInlineWidget, on_delete=models.CASCADE)
+    part = models.ForeignKey(ZInlinePart, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.part}"

@@ -813,6 +813,16 @@ class ListPreference(models.Model):
     per_page = models.PositiveSmallIntegerField(
         null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(500)]
     )
+    #: ``{"total": 180}`` — pixel widths, keyed by column name. Only the columns a
+    #: person has actually dragged appear here; everything else keeps the width the
+    #: browser gives it. Bounds live in :mod:`vantage.listprefs`, next to the rest of
+    #: the validation, and are re-applied on every read: a width stored against a
+    #: column that has since changed still has to render inside them.
+    column_widths = models.JSONField(null=True, blank=True)
+    #: Column names frozen to the inline-start edge, in the order they render — not
+    #: the order they were pinned in. A plain list rather than a rank map: the table
+    #: itself already supplies the order sticky offsets have to accumulate in.
+    pinned_columns = models.JSONField(null=True, blank=True)
 
     # ── search ──────────────────────────────────────────────────────────────
 
@@ -909,6 +919,8 @@ class ListPreference(models.Model):
 SETTING_COLUMNS: tuple[str, ...] = (
     "columns",
     "per_page",
+    "column_widths",
+    "pinned_columns",
     "search_enabled",
     "search_fields",
     "filters_enabled",
