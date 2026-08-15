@@ -477,10 +477,41 @@ class ListCreateView(ModelApiView):
         )
 
     def _requested_fields(self, request) -> list[str]:
+        """The columns to serialise, refused unless the panel already offers them.
+
+        ``?fields=`` used to be split on commas and handed straight to the serialiser,
+        which walked it with ``resolve_path`` — and ``resolve_path`` knows about
+        Django's ``_meta`` graph, not about this panel's registry or its permissions.
+        So the parameter reached anything the ORM could join to: a field the
+        ``SENSITIVE`` name filter deliberately hides on the detail endpoint, or a
+        ``__``-chain into a related model the panel never registered and the caller has
+        no permission for. ``?fields=number,customer__api_token`` returned the token.
+
+        The allowlist is the union of two answers that already exist: what the list
+        page would render for this request, and what the detail endpoint would return
+        for one record. Neither is widened here — asking is now bounded by showing.
+
+        Unknown names are refused rather than dropped. A client that quietly gets back
+        fewer columns than it asked for reads the absence as "no value", and the bug
+        surfaces later as missing data rather than here as a mistake.
+        """
         raw = request.GET.get("fields", "").strip()
         if not raw:
             return self.panel.get_list_display(request)
-        return [name.strip() for name in raw.split(",") if name.strip()]
+
+        wanted = [name.strip() for name in raw.split(",") if name.strip()]
+        allowed = {
+            *self.panel.get_list_display(request),
+            *(field.name for field in record_fields(self.panel.model)),
+        }
+        unknown = [name for name in wanted if name not in allowed]
+        if unknown:
+            raise ApiError(
+                400,
+                f"Unknown field(s): {', '.join(sorted(unknown))}. "
+                "Ask the schema endpoint which fields this model offers.",
+            )
+        return wanted
 
     def _page_size(self, request) -> int:
         raw = request.GET.get("page_size")

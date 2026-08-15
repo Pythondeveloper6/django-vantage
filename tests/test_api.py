@@ -22,6 +22,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from tests.testapp.models import Author, Category, Order, Post, Snippet, Tag
+from vantage import site
 from vantage.models import VantageLogEntry
 from vantage.permissions import PanelPermissions
 
@@ -214,6 +215,48 @@ class TestSchema:
 
 
 # ── list: reuses filters, search, sort, pagination ──────────────────────────
+
+
+class TestRequestedFieldsAreBounded:
+    """``?fields=`` may only name what the panel already shows.
+
+    It used to be split on commas and handed to the serialiser, which resolved it with
+    ``resolve_path`` — and ``resolve_path`` walks Django's ``_meta`` graph, which knows
+    nothing about this panel's registry or its permissions. So the parameter reached
+    anything the ORM could join to. Against the demo, before the fix,
+    ``?fields=number,customer__api_token`` came back with a live API token: a field the
+    ``SENSITIVE`` name filter hides from the detail endpoint, on a model the caller had
+    no permission for, through a panel that merely had a foreign key to it.
+    """
+
+    def test_a_relation_hop_the_panel_does_not_show_is_refused(self, boss, posts):
+        response = boss.get(list_url(), {"fields": "title,author__email"})
+        assert response.status_code == 400
+        assert "author__email" in body(response)["detail"]
+
+    def test_the_refusal_names_every_offending_field_at_once(self, boss, posts):
+        """One round trip tells the client everything wrong with its request."""
+        detail = body(boss.get(list_url(), {"fields": "title,author__email,nonsense"}))["detail"]
+        assert "author__email" in detail and "nonsense" in detail
+
+    def test_a_field_the_list_page_shows_is_still_allowed(self, boss, posts):
+        """The gate must bound the parameter, not break it."""
+        shown = site.get_panel(Post).get_list_display(None)[0]
+        data = body(boss.get(list_url(), {"fields": shown}))
+        assert list(data["results"][0]["cells"]) == [shown]
+
+    def test_a_plain_field_of_the_model_is_allowed_even_if_it_is_not_a_column(
+        self, boss, posts
+    ):
+        """The detail endpoint would return it, so asking for it here is not widening."""
+        data = body(boss.get(list_url(), {"fields": "body"}))
+        assert list(data["results"][0]["cells"]) == ["body"]
+
+    def test_asking_for_nothing_still_gives_the_default_columns(self, boss, posts):
+        data = body(boss.get(list_url()))
+        assert list(data["results"][0]["cells"]) == list(
+            site.get_panel(Post).get_list_display(None)
+        )
 
 
 class TestList:
