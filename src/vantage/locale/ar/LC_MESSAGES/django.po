@@ -1,0 +1,4225 @@
+# Arabic translation catalogue for django-vantage.
+# This file is distributed under the same license as the django-vantage package.
+#
+# This catalogue is intentionally partial: high-traffic strings (navigation,
+# buttons, list/form pages, confirmations) are translated; the rest is left
+# with an empty msgstr, which falls back cleanly to the English source rather
+# than shipping a guessed translation. See docs/i18n.md.
+msgid ""
+msgstr ""
+"Project-Id-Version: django-vantage\n"
+"Report-Msgid-Bugs-To: https://github.com/mahmoudahmed/django-vantage/issues\n"
+"POT-Creation-Date: 2026-08-14 12:16-0500\n"
+"PO-Revision-Date: 2026-08-14 12:16-0500\n"
+"Last-Translator: django-vantage contributors\n"
+"Language-Team: Arabic <https://github.com/mahmoudahmed/django-vantage>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#: actions.py:85
+#, python-format
+msgid "%(label)s will be applied to %(count)d record. This cannot be undone."
+msgid_plural ""
+"%(label)s will be applied to %(count)d records. This cannot be undone."
+msgstr[0] ""
+msgstr[1] ""
+
+#: actions.py:95
+#, python-format
+msgid "%(label)s completed."
+msgstr "اكتمل %(label)s."
+
+#: actions.py:195
+#, python-format
+msgid "Published %(count)s record."
+msgid_plural "Published %(count)s records."
+msgstr[0] ""
+msgstr[1] ""
+
+#: actions.py:200
+#, python-format
+msgid "Unpublished %(count)s record."
+msgid_plural "Unpublished %(count)s records."
+msgstr[0] ""
+msgstr[1] ""
+
+#: actions.py:209
+msgid "Publish"
+msgstr "نشر"
+
+#: actions.py:210
+msgid "Unpublish"
+msgstr "إلغاء النشر"
+
+#: actions.py:311
+#, python-format
+msgid "all %(count)s matching record, %(excluded)s excluded"
+msgid_plural "all %(count)s matching records, %(excluded)s excluded"
+msgstr[0] ""
+msgstr[1] ""
+
+#: actions.py:317
+#, python-format
+msgid "all %(count)s matching record"
+msgid_plural "all %(count)s matching records"
+msgstr[0] ""
+msgstr[1] ""
+
+#: actions.py:322
+#, python-format
+msgid "%(count)s selected record"
+msgid_plural "%(count)s selected records"
+msgstr[0] "لا سجلات محددة"
+msgstr[1] "سجل واحد محدد"
+msgstr[2] "سجلان محددان"
+msgstr[3] "%(count)s سجلات محددة"
+msgstr[4] "%(count)s سجلاً محدداً"
+msgstr[5] "%(count)s سجل محدد"
+
+#: apps.py:15
+msgid "Vantage"
+msgstr ""
+
+#: auditviews.py:40 filters.py:107
+msgid "Today"
+msgstr ""
+
+#: auditviews.py:41 filters.py:108
+msgid "Last 7 days"
+msgstr ""
+
+#: auditviews.py:42 filters.py:109
+msgid "Last 30 days"
+msgstr ""
+
+#: auditviews.py:43 filters.py:110
+msgid "Last 90 days"
+msgstr ""
+
+#: auditviews.py:55 auditviews.py:66
+msgid "Audit log"
+msgstr ""
+
+#: auditviews.py:56
+msgid "Everything created, changed, deleted or run from this panel."
+msgstr ""
+
+#: auditviews.py:60
+msgid "The audit log is switched off for this panel."
+msgstr ""
+
+#: auditviews.py:62
+msgid "You do not have permission to read the audit log."
+msgstr ""
+
+#: authviews.py:214
+msgid "Your password has been changed."
+msgstr "تم تغيير كلمة المرور الخاصة بك."
+
+#: authviews.py:224 authviews.py:225 templates/vantage/account.html:53
+#: templates/vantage/partials/usermenu.html:84
+#: templates/vantage/password_change.html:14
+#: templates/vantage/password_change.html:50
+msgid "Change password"
+msgstr "تغيير كلمة المرور"
+
+#: authviews.py:270
+msgid "Return to the start"
+msgstr "العودة إلى البداية"
+
+#: authviews.py:286 templates/vantage/403.html:17
+msgid "Error 403"
+msgstr "خطأ 403"
+
+#: authviews.py:287 templates/vantage/403.html:18
+msgid "You do not have access to this"
+msgstr "ليست لديك صلاحية الوصول إلى هذا"
+
+#: authviews.py:288
+msgid "This page exists, but your account is not permitted to open it."
+msgstr "هذه الصفحة موجودة، لكن حسابك غير مصرح له بفتحها."
+
+#: authviews.py:291 templates/vantage/404.html:16
+msgid "Error 404"
+msgstr "خطأ 404"
+
+#: authviews.py:292 templates/vantage/404.html:17
+msgid "We could not find that page"
+msgstr "تعذّر العثور على هذه الصفحة"
+
+#: authviews.py:293
+msgid "The address may be mistyped, or what it pointed at may be gone."
+msgstr "قد يكون العنوان مكتوبًا خطأً، أو ربما لم يعد ما يشير إليه موجودًا."
+
+#: authviews.py:299
+msgid "Error 500"
+msgstr "خطأ 500"
+
+#: authviews.py:300
+msgid "Something went wrong"
+msgstr "حدث خطأ ما"
+
+#: authviews.py:302
+msgid ""
+"The server hit an error handling that request. It has been logged; nothing "
+"you did caused it and trying again is safe."
+msgstr "واجه الخادم خطأ أثناء معالجة هذا الطلب. تم تسجيل الخطأ؛ لم يتسبب أي فعل منك فيه، والمحاولة مرة أخرى آمنة."
+
+#: autocomplete.py:50
+msgid "Sign in required."
+msgstr ""
+
+#: autocomplete.py:60
+msgid "You cannot view those records."
+msgstr ""
+
+#: autocomplete.py:95 autocomplete.py:97
+msgid "Unknown model."
+msgstr ""
+
+#: concurrency.py:272
+msgctxt "value of a boolean field"
+msgid "Yes"
+msgstr ""
+
+#: concurrency.py:273
+msgctxt "value of a boolean field"
+msgid "No"
+msgstr ""
+
+#: dashboards.py:610 formviews.py:392 palette.py:325
+#, python-format
+msgid "New %(model)s"
+msgstr ""
+
+#: dashboards.py:622
+#, python-format
+msgid "Recent %(model)s"
+msgstr ""
+
+#: dashboards.py:700 palette.py:224 views.py:100
+msgid "Dashboard"
+msgstr ""
+
+#: dashboards.py:1642
+msgid "Dashboard reset to what the code declares, for everyone."
+msgstr ""
+
+#: dashboards.py:1644
+msgid "Dashboard reset to what the code declares, for you."
+msgstr ""
+
+#: dashboards.py:1650
+msgid "Dashboard saved for everyone."
+msgstr ""
+
+#: dashboards.py:1652
+msgid "Dashboard saved for you."
+msgstr ""
+
+#: dashboards.py:1685
+msgid "You do not have permission to change the dashboard for everyone."
+msgstr ""
+
+#: filters.py:280
+msgid "Empty"
+msgstr ""
+
+#: filters.py:348 render.py:107 render.py:140 stats.py:927
+msgid "Yes"
+msgstr ""
+
+#: filters.py:348 render.py:107 render.py:140 stats.py:927
+msgid "No"
+msgstr ""
+
+#: filters.py:387
+msgid "This year"
+msgstr ""
+
+#: filters.py:772
+#, python-format
+msgid "%(start)s to %(end)s"
+msgstr ""
+
+#: filters.py:777
+#, python-format
+msgid "From %(start)s"
+msgstr ""
+
+#: filters.py:778
+#, python-format
+msgid "Until %(end)s"
+msgstr ""
+
+#: formviews.py:196 recordviews.py:93
+#, python-format
+msgid "You do not have permission to view this %(model)s."
+msgstr ""
+
+#: formviews.py:197
+#, python-format
+msgid "You do not have permission to add this %(model)s."
+msgstr ""
+
+#: formviews.py:198
+#, python-format
+msgid "You do not have permission to change this %(model)s."
+msgstr ""
+
+#: formviews.py:199
+#, python-format
+msgid "You do not have permission to delete this %(model)s."
+msgstr ""
+
+#: formviews.py:208 recordviews.py:270
+#, python-format
+msgid "You do not have permission to %(action)s this %(model)s."
+msgstr ""
+
+#: formviews.py:388 palette.py:48 palette.py:330
+msgid "Create"
+msgstr ""
+
+#: formviews.py:401
+#, python-format
+msgid "Created %(model)s “%(object)s”."
+msgstr ""
+
+#: formviews.py:447 templates/vantage/list.html:341
+#: templates/vantage/settings.html:159
+msgid "Save changes"
+msgstr "حفظ التغييرات"
+
+#: formviews.py:452
+#, python-format
+msgid "Edit %(object)s"
+msgstr ""
+
+#: formviews.py:453 formviews.py:460 templates/vantage/detail.html:18
+msgid "Edit"
+msgstr ""
+
+#: formviews.py:467
+#, python-format
+msgid "Saved changes to %(model)s “%(object)s”."
+msgstr ""
+
+#: formviews.py:557
+#, python-format
+msgid "%(model)s — %(field)s cleared"
+msgstr ""
+
+#: formviews.py:582
+msgid "other records"
+msgstr ""
+
+#: formviews.py:584
+#, python-format
+msgid ""
+"This %(model)s cannot be deleted while %(blockers)s still reference it. "
+"Remove or reassign those first."
+msgstr ""
+
+#: formviews.py:599
+#, python-format
+msgid "Delete %(object)s"
+msgstr ""
+
+#: formviews.py:600 formviews.py:607 templates/vantage/detail.html:14
+msgid "Delete"
+msgstr ""
+
+#: formviews.py:684
+#, python-format
+msgid "Moved %(model)s “%(object)s” to the trash."
+msgstr ""
+
+#: formviews.py:692
+#, python-format
+msgid "Deleted %(model)s “%(object)s”."
+msgstr ""
+
+#: formviews.py:694
+#, python-format
+msgid "Deleted %(model)s “%(object)s” and %(count)s related record."
+msgid_plural "Deleted %(model)s “%(object)s” and %(count)s related records."
+msgstr[0] ""
+msgstr[1] ""
+
+#: formviews.py:730
+#, python-format
+msgid "Move %(model)s to trash"
+msgstr ""
+
+#: formviews.py:732
+#, python-format
+msgid "Delete %(model)s"
+msgstr ""
+
+#: formviews.py:734
+#, python-format
+msgid "Delete %(model)s and %(count)s related record"
+msgid_plural "Delete %(model)s and %(count)s related records"
+msgstr[0] ""
+msgstr[1] ""
+
+#: formviews.py:768
+msgid "This model has no trash."
+msgstr ""
+
+#: formviews.py:797
+#, python-format
+msgid "Restored %(model)s “%(object)s”."
+msgstr ""
+
+#: health.py:45 health.py:49 health.py:158
+msgid "Migrations"
+msgstr ""
+
+#: health.py:45
+msgid "All applied."
+msgstr ""
+
+#: health.py:47
+#, python-format
+msgid " (+%(count)d more)"
+msgstr ""
+
+#: health.py:51
+#, python-format
+msgid "%(count)d unapplied: %(names)s%(more)s"
+msgstr ""
+
+#: health.py:53
+msgid "Run manage.py migrate."
+msgstr ""
+
+#: health.py:68 health.py:159
+msgid "Database"
+msgstr ""
+
+#: health.py:77 health.py:85 health.py:160
+msgid "Cache"
+msgstr ""
+
+#: health.py:79
+msgid "A value written to the cache did not read back."
+msgstr ""
+
+#: health.py:80
+msgid "A dummy or misconfigured backend. Faceted counts will not be cached."
+msgstr ""
+
+#: health.py:101 health.py:105 health.py:161
+msgid "Background tasks"
+msgstr ""
+
+#: health.py:103
+#, python-format
+msgid "%(backend)s detected."
+msgstr ""
+
+#: health.py:105
+msgid "None configured."
+msgstr ""
+
+#: health.py:114 health.py:119 health.py:163
+msgid "Debug mode"
+msgstr ""
+
+#: health.py:116
+msgid "DEBUG is on."
+msgstr ""
+
+#: health.py:117
+msgid "Expected locally; a serious problem in production."
+msgstr ""
+
+#: health.py:119
+msgid "Off."
+msgstr ""
+
+#: health.py:128 health.py:133 health.py:162
+msgid "Media storage"
+msgstr ""
+
+#: health.py:130
+msgid "MEDIA_ROOT is unset."
+msgstr ""
+
+#: health.py:131
+msgid "Logo uploads on the settings screen will fail."
+msgstr ""
+
+#: health.py:145 health.py:164
+msgid "Versions"
+msgstr ""
+
+#: importer.py:193
+#, python-format
+msgid ""
+"That file is %(size)s; the limit is %(limit)s. Split it, or import it with a "
+"management command."
+msgstr ""
+
+#: importer.py:207
+#, python-format
+msgid "That file is not valid CSV: %(reason)s."
+msgstr ""
+
+#: importer.py:210 importer.py:280
+msgid "That file is empty."
+msgstr ""
+
+#: importer.py:224
+#, python-format
+msgid ""
+"That file has more than %(count)s row, which is the import limit. Split it, "
+"or import it with a management command."
+msgid_plural ""
+"That file has more than %(count)s rows, which is the import limit. Split it, "
+"or import it with a management command."
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:234
+#, python-format
+msgid "That file stopped being valid CSV: %(reason)s."
+msgstr ""
+
+#: importer.py:238
+msgid "That file has a header row but no data rows."
+msgstr ""
+
+#: importer.py:250
+#, python-format
+msgid "%(size)s MB"
+msgstr ""
+
+#: importer.py:251
+#, python-format
+msgid "%(size)s KB"
+msgstr ""
+
+#: importer.py:284
+msgid ""
+"That does not look like a text file. Export it as CSV — a .xlsx workbook or "
+"a PDF cannot be read here."
+msgstr ""
+
+#: importer.py:294
+msgid "That file is not readable as text in utf-8 or latin-1."
+msgstr ""
+
+#: importer.py:320
+msgid "The first row is blank. It must hold the column names."
+msgstr ""
+
+#: importer.py:324
+#, python-format
+msgid "That file has %(count)s column, more than the %(limit)s allowed."
+msgid_plural ""
+"That file has %(count)s columns, more than the %(limit)s allowed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:336
+#, python-format
+msgid ""
+"The first row must be column names, but column %(columns)s has no name. Name "
+"every column, or delete the empty ones."
+msgstr ""
+
+#: importer.py:344
+msgid ""
+"The first row looks like data, not column names — one of its values is "
+"longer than a column name would be. Add a header row."
+msgstr ""
+
+#: importer.py:351
+msgid ""
+"The first row is all numbers, so it looks like data rather than column "
+"names. Add a header row."
+msgstr ""
+
+#: importer.py:362
+#, python-format
+msgid ""
+"Two columns are both called “%(column)s”. Column names must be unique, or "
+"there is no way to say which one feeds a field."
+msgstr ""
+
+#: importer.py:540
+msgid "Create new records only"
+msgstr ""
+
+#: importer.py:541
+msgid "Update existing records only"
+msgstr ""
+
+#: importer.py:542
+msgid "Create or update (upsert)"
+msgstr ""
+
+#: importer.py:592
+msgid "Choose whether to create, update, or do both."
+msgstr ""
+
+#. Translators: why a CSV column was not imported, shown beside its name.
+#: importer.py:605
+msgid "skipped"
+msgstr ""
+
+#: importer.py:611 importer.py:666
+msgid "read-only — nothing is written to it"
+msgstr ""
+
+#: importer.py:617
+#, python-format
+msgid "“%(column)s” already feeds that field"
+msgstr ""
+
+#: importer.py:634
+msgid ""
+"The column that identifies a record must be a unique field or the primary "
+"key."
+msgstr ""
+
+#: importer.py:641
+#, python-format
+msgid ""
+"No column is mapped to “%(field)s”, so it cannot identify existing records."
+msgstr ""
+
+#: importer.py:649
+msgid "Choose the column that identifies an existing record before updating."
+msgstr ""
+
+#: importer.py:654
+msgid ""
+"No column is mapped to a field that can be written, so this import would do "
+"nothing."
+msgstr ""
+
+#: importer.py:664
+msgid "identifies the record; its value is never written"
+msgstr ""
+
+#: importer.py:765
+#, python-format
+msgid "%(count)s created"
+msgid_plural "%(count)s created"
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:769
+#, python-format
+msgid "%(count)s updated"
+msgid_plural "%(count)s updated"
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:773
+#, python-format
+msgid "%(count)s unchanged"
+msgid_plural "%(count)s unchanged"
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:777 jobs.py:537
+#, python-format
+msgid "%(count)s failed"
+msgid_plural "%(count)s failed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:783 jobs.py:544 templates/vantage/partials/job_progress.html:34
+msgid "nothing to do"
+msgstr ""
+
+#: importer.py:869
+#, python-format
+msgid "%(width)s column"
+msgid_plural "%(width)s columns"
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:878
+#, python-format
+msgid ""
+"This row has %(count)s value but the header has %(columns)s. A stray or "
+"missing separator shifts every value after it."
+msgid_plural ""
+"This row has %(count)s values but the header has %(columns)s. A stray or "
+"missing separator shifts every value after it."
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:906
+#, python-format
+msgid ""
+"A %(model)s with this value already exists (#%(pk)s). This import is set to "
+"create new records only."
+msgstr ""
+
+#: importer.py:919
+msgid "No existing record matches. This import is set to update only."
+msgstr ""
+
+#: importer.py:935
+#, python-format
+msgid ""
+"%(fields)s must have a value and no column feeds it, so this row cannot be "
+"created."
+msgid_plural ""
+"%(fields)s must have values and no column feeds them, so this row cannot be "
+"created."
+msgstr[0] ""
+msgstr[1] ""
+
+#: importer.py:1018
+msgid "This column identifies the record, so it cannot be empty."
+msgstr ""
+
+#: importer.py:1028
+#, python-format
+msgid "“%(value)s” is not a valid value."
+msgstr ""
+
+#: importer.py:1084
+#, python-format
+msgid ""
+"“%(value)s” matches more than one %(model)s. Use the numeric id instead."
+msgstr ""
+
+#: importer.py:1170
+#, python-format
+msgid "No %(model)s matches “%(value)s”."
+msgstr ""
+
+#. Translators: header row of the downloadable CSV listing what went wrong.
+#: importer.py:1311 jobs.py:814 templates/vantage/import_preview.html:101
+msgid "Row"
+msgstr ""
+
+#: importer.py:1311 templates/vantage/import_preview.html:102
+#: templates/vantage/partials/card_editor.html:81
+msgid "Column"
+msgstr ""
+
+#: importer.py:1311 jobs.py:814
+msgid "Error"
+msgstr ""
+
+#: importer.py:1400 importer.py:1405 importer.py:1409 importer.py:1422
+msgid "That upload is no longer available."
+msgstr ""
+
+#: importer.py:1412
+msgid "That upload has expired. Upload the file again."
+msgstr ""
+
+#: importer.py:1442
+msgid "That report is no longer available."
+msgstr ""
+
+#: importviews.py:56
+#, python-format
+msgid "You do not have permission to add %(objects)s."
+msgstr ""
+
+#: importviews.py:57
+#, python-format
+msgid "You do not have permission to change %(objects)s."
+msgstr ""
+
+#: importviews.py:61
+#, python-format
+msgid "You do not have permission to import %(objects)s."
+msgstr ""
+
+#: importviews.py:156
+msgid "Unknown import mode."
+msgstr ""
+
+#: importviews.py:250
+#, python-format
+msgid "Import %(objects)s"
+msgstr ""
+
+#: importviews.py:258
+msgctxt "breadcrumb"
+msgid "Import"
+msgstr ""
+
+#: importviews.py:289
+msgid "That upload was discarded."
+msgstr ""
+
+#: importviews.py:294
+msgid "Choose a CSV file to import."
+msgstr ""
+
+#: importviews.py:298
+#, python-format
+msgid "That file is %(size)s MB; the limit is %(limit)s MB."
+msgstr ""
+
+#: importviews.py:435
+#, python-format
+msgid "Import finished: %(summary)s."
+msgstr ""
+
+#: jobs.py:288
+msgid ""
+"No task backend is configured, so this ran in the web request. Configure "
+"TASKS, Celery or RQ to move it off."
+msgstr ""
+
+#: jobs.py:300
+msgid "In-process"
+msgstr ""
+
+#: jobs.py:524
+msgid "Nothing ran."
+msgstr ""
+
+#: jobs.py:532
+#, python-format
+msgid "%(count)s succeeded"
+msgid_plural "%(count)s succeeded"
+msgstr[0] ""
+msgstr[1] ""
+
+#: jobs.py:541
+msgid "stopped: permission withdrawn"
+msgstr ""
+
+#: jobs.py:543
+msgid "stopped: the job could not continue"
+msgstr ""
+
+#: jobs.py:551
+#, python-format
+msgid " (%(claimed)s was selected; %(matched)s still matched)"
+msgid_plural " (%(claimed)s were selected; %(matched)s still matched)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: jobs.py:632
+#, python-format
+msgid "No panel is registered for %(key)s; this job can no longer run."
+msgstr ""
+
+#: jobs.py:642
+#, python-format
+msgid "The action %(action)s no longer exists on this panel."
+msgstr ""
+
+#: jobs.py:648 jobs.py:708
+msgid "The account that started this job is gone or has been disabled."
+msgstr ""
+
+#: jobs.py:690
+#, python-format
+msgid "%(actor)s may no longer view %(records)s."
+msgstr ""
+
+#: jobs.py:691
+#, python-format
+msgid "%(actor)s may no longer add %(records)s."
+msgstr ""
+
+#: jobs.py:692
+#, python-format
+msgid "%(actor)s may no longer change %(records)s."
+msgstr ""
+
+#: jobs.py:693
+#, python-format
+msgid "%(actor)s may no longer delete %(records)s."
+msgstr ""
+
+#: jobs.py:698
+#, python-format
+msgid "%(actor)s no longer has the “%(permission)s” permission on %(records)s."
+msgstr ""
+
+#: jobs.py:718
+msgid "The actor"
+msgstr ""
+
+#: jobs.py:814 templates/vantage/audit.html:77
+msgid "Record"
+msgstr ""
+
+#: jobs.py:827
+#, python-format
+msgid "%(count)s further failure was not recorded individually."
+msgid_plural "%(count)s further failures were not recorded individually."
+msgstr[0] ""
+msgstr[1] ""
+
+#: jobviews.py:59
+msgid "Background jobs are switched off for this panel."
+msgstr ""
+
+#: jobviews.py:71
+msgid "No such job."
+msgstr ""
+
+#: jobviews.py:79 jobviews.py:83
+msgid "Background jobs"
+msgstr ""
+
+#: jobviews.py:80
+msgid "Bulk actions too large to run in a request, and how they went."
+msgstr ""
+
+#: layout.py:154 layout.py:158 stats.py:81
+msgid "Other"
+msgstr ""
+
+#: listprefs.py:105
+msgid "Sum"
+msgstr ""
+
+#: listprefs.py:106
+msgid "Avg"
+msgstr ""
+
+#: listprefs.py:107 templates/vantage/partials/filters.html:53
+msgid "Min"
+msgstr ""
+
+#: listprefs.py:108 templates/vantage/partials/filters.html:60
+msgid "Max"
+msgstr ""
+
+#: listprefs.py:109
+msgid "Count"
+msgstr ""
+
+#: listprefs.py:345
+#, python-format
+msgid "%(aggregate)s of %(field)s"
+msgstr ""
+
+#: listprefs.py:416
+#, python-format
+msgid "%(measure)s by %(target)s"
+msgstr ""
+
+#: listprefsview.py:53 templates/vantage/partials/grid_controls.html:34
+#: templates/vantage/partials/list_prefs.html:55
+msgid "Columns"
+msgstr "الأعمدة"
+
+#: listprefsview.py:54 templates/vantage/partials/list_prefs.html:109
+msgctxt "list preferences section, the noun"
+msgid "Search"
+msgstr ""
+
+#: listprefsview.py:55 templates/vantage/list.html:77
+#: templates/vantage/partials/filters.html:20
+#: templates/vantage/partials/list_prefs.html:152
+msgid "Filters"
+msgstr "التصفية"
+
+#: listprefsview.py:56 templates/vantage/partials/list_prefs.html:213
+msgid "Statistics"
+msgstr ""
+
+#: listprefsview.py:57 templates/vantage/partials/list_prefs.html:282
+msgid "Charts"
+msgstr ""
+
+#: listprefsview.py:58 templates/vantage/partials/list_prefs.html:372
+msgid "Summary bar"
+msgstr ""
+
+#: listprefsview.py:92
+#, python-format
+msgid "%(section)s reset to what the code declares, for everyone."
+msgstr ""
+
+#: listprefsview.py:94
+#, python-format
+msgid "%(section)s reset to what the code declares, for you."
+msgstr ""
+
+#: listprefsview.py:99
+#, python-format
+msgid "%(section)s saved for everyone."
+msgstr ""
+
+#: listprefsview.py:101
+#, python-format
+msgid "%(section)s saved for you."
+msgstr ""
+
+#: listprefsview.py:133
+msgid "You do not have permission to change the default for everyone."
+msgstr ""
+
+#: media.py:342
+#, python-format
+msgid "That file is %(size)s MB. The limit is %(limit)s MB."
+msgstr ""
+
+#: media.py:372
+#, python-format
+msgid ""
+"%(name)s is a web page, not a %(suffix)s file. A page stored under an "
+"innocent extension is how a file upload becomes a scripting hole."
+msgstr ""
+
+#: media.py:375
+msgid "data"
+msgstr ""
+
+#: media.py:381
+#, python-format
+msgid ""
+"%(name)s is an SVG wearing a %(suffix)s extension. Rename it or export a PNG."
+msgstr ""
+
+#: media.py:388
+#, python-format
+msgid ""
+"%(name)s is not really an image. Its contents do not match its extension."
+msgstr ""
+
+#: media.py:414
+msgid ""
+"SVG cannot be used here. An SVG is a document that can carry script, so the "
+"panel will not display an uploaded one. Export a PNG or WebP."
+msgstr ""
+
+#: media.py:420
+#, python-format
+msgid ""
+"%(name)s is not an image the panel can read. Use PNG, JPEG, WebP or GIF."
+msgstr ""
+
+#: media.py:421
+msgid "That file"
+msgstr ""
+
+#. Translators: each of these names one thing found inside an uploaded SVG, and is
+#. substituted into "That SVG contains %(hazard)s, which would run as script ...".
+#: models.py:125
+msgid "a <script> element"
+msgstr ""
+
+#: models.py:126
+msgid "an inline event handler"
+msgstr ""
+
+#: models.py:129
+msgid "an animation that writes an event handler"
+msgstr ""
+
+#: models.py:131
+msgid "a javascript: URL"
+msgstr ""
+
+#: models.py:134
+msgid "an embedded document"
+msgstr ""
+
+#: models.py:162
+#, python-format
+msgid ""
+"%(name)s is not an image this panel will serve. Use one of: %(allowed)s."
+msgstr ""
+
+#: models.py:166
+#, python-format
+msgid ""
+"That file is not an image this panel will serve. Use one of: %(allowed)s."
+msgstr ""
+
+#: models.py:173
+#, python-format
+msgid "That file is %(size)s KB. The limit is %(limit)s KB."
+msgstr ""
+
+#: models.py:192
+#, python-format
+msgid ""
+"That SVG contains %(hazard)s, which would run as script on every page of the "
+"panel. Export it without scripting, or upload a PNG."
+msgstr ""
+
+#: models.py:211
+#, python-format
+msgid "%(value)r is not a CSS length like '0.5rem', '8px' or '0'."
+msgstr ""
+
+#: models.py:264 templates/vantage/settings.html:137
+msgid "Light"
+msgstr ""
+
+#: models.py:265 templates/vantage/settings.html:146
+msgid "Dark"
+msgstr ""
+
+#: models.py:266 templates/vantage/account.html:102
+#: templates/vantage/partials/usermenu.html:119
+msgid "Follow the device"
+msgstr ""
+
+#: models.py:290 models.py:291
+msgid "site configuration"
+msgstr ""
+
+#: models.py:294
+msgid "Site configuration"
+msgstr ""
+
+#: models.py:365 models.py:366
+msgid "sidebar"
+msgstr ""
+
+#: models.py:369 templates/vantage/settings_nav.html:26
+msgid "Sidebar"
+msgstr ""
+
+#: models.py:408 templates/vantage/import_preview.html:45
+msgid "created"
+msgstr ""
+
+#: models.py:409 templates/vantage/import_preview.html:49
+msgid "updated"
+msgstr ""
+
+#: models.py:410
+msgid "deleted"
+msgstr ""
+
+#: models.py:411
+msgid "ran an action"
+msgstr ""
+
+#: models.py:433
+msgid "Created"
+msgstr ""
+
+#: models.py:434
+msgid "Updated"
+msgstr ""
+
+#: models.py:435
+msgid "Deleted"
+msgstr ""
+
+#: models.py:439
+msgid "Moved to trash"
+msgstr ""
+
+#: models.py:440
+msgid "Restored"
+msgstr ""
+
+#: models.py:441
+msgid "Ran an action"
+msgstr ""
+
+#: models.py:492
+msgid "log entry"
+msgstr ""
+
+#: models.py:493
+msgid "log entries"
+msgstr ""
+
+#: models.py:508
+#, python-format
+msgid "%(who)s %(did)s %(what)s"
+msgstr ""
+
+#: models.py:509 templates/vantage/partials/history.html:25
+msgid "Someone"
+msgstr ""
+
+#: models.py:511
+msgid "a record"
+msgstr ""
+
+#: models.py:551 templates/vantage/partials/saved_views.html:124
+#: templates/vantage/partials/saved_views.html:130
+msgid "Only me"
+msgstr "أنا فقط"
+
+#: models.py:552 templates/vantage/partials/saved_views.html:125
+msgid "Everyone who can see this model"
+msgstr ""
+
+#: models.py:555
+msgid "Only the owner"
+msgstr ""
+
+#: models.py:556
+msgid "The owner and named editors"
+msgstr ""
+
+#: models.py:557 templates/vantage/partials/saved_views.html:132
+msgid "Anyone who can see it"
+msgstr ""
+
+#: models.py:606
+msgid "saved view"
+msgstr ""
+
+#: models.py:607
+msgid "saved views"
+msgstr ""
+
+#: models.py:652
+msgid "can use"
+msgstr ""
+
+#: models.py:653
+msgid "can use and change"
+msgstr ""
+
+#: models.py:665
+msgid "Can use"
+msgstr ""
+
+#: models.py:666
+msgid "Can use and change"
+msgstr ""
+
+#: models.py:683
+msgid "saved view grant"
+msgstr ""
+
+#: models.py:684
+msgid "saved view grants"
+msgstr ""
+
+#: models.py:708
+#, python-format
+msgid "%(subject)s — %(role)s"
+msgstr ""
+
+#: models.py:741
+msgid "saved view state"
+msgstr ""
+
+#: models.py:742
+msgid "saved view states"
+msgstr ""
+
+#: models.py:854
+msgid "list preference"
+msgstr ""
+
+#: models.py:855
+msgid "list preferences"
+msgstr ""
+
+#: models.py:880 models.py:1167
+msgid "everyone"
+msgstr ""
+
+#: models.py:947
+msgid "Queued"
+msgstr ""
+
+#: models.py:948
+msgid "Running"
+msgstr ""
+
+#: models.py:949
+msgid "Finished"
+msgstr ""
+
+#: models.py:950
+msgid "Failed"
+msgstr ""
+
+#: models.py:955
+msgid "Stopped — permission withdrawn"
+msgstr ""
+
+#: models.py:1020
+msgid "background job"
+msgstr ""
+
+#: models.py:1021
+msgid "background jobs"
+msgstr ""
+
+#: models.py:1143
+msgid "dashboard layout"
+msgstr ""
+
+#: models.py:1144
+msgid "dashboard layouts"
+msgstr ""
+
+#: nav.py:175 palette.py:299
+msgid "Pages"
+msgstr ""
+
+#: nav.py:925 templates/vantage/partials/card_editor.html:56
+#: templates/vantage/settings_nav.html:225
+msgid "Model"
+msgstr ""
+
+#: nav.py:926 templates/vantage/settings_nav.html:236
+msgid "Page"
+msgstr ""
+
+#: nav.py:927
+msgid "Route"
+msgstr ""
+
+#: nav.py:928
+msgid "Link"
+msgstr ""
+
+#: nav.py:1098
+msgid "There is no group to add that to yet. Create one first."
+msgstr ""
+
+#: nav.py:1138
+#, python-format
+msgid ""
+"%(url)s was not added. A link must be a site path starting with “/”, or an "
+"http, https or mailto address — anything else, a javascript: URL most of "
+"all, is refused."
+msgstr ""
+
+#: nav.py:1142
+msgid "That item could not be added."
+msgstr ""
+
+#: pages.py:127 templates/vantage/pages/schema.html:27
+msgid "Schema"
+msgstr ""
+
+#: pages.py:129 pages.py:143 pages.py:145 templates/vantage/pages/health.html:7
+msgid "System"
+msgstr ""
+
+#: palette.py:48 palette.py:229 palette.py:253 palette.py:282 palette.py:303
+msgid "Go to"
+msgstr ""
+
+#: palette.py:48 palette.py:73 palette.py:242 templates/vantage/list.html:205
+#: templates/vantage/partials/inline_group.html:61
+msgid "Actions"
+msgstr "الإجراءات"
+
+#: palette.py:237
+msgid "Toggle theme"
+msgstr ""
+
+#: palette.py:238
+msgid "Light / dark"
+msgstr ""
+
+#: palette.py:248 templates/vantage/search.html:30
+#: templates/vantage/search.html:69
+msgid "Search everything"
+msgstr ""
+
+#: palette.py:249
+msgid "Full results page"
+msgstr ""
+
+#: records.py:932
+msgid "Restore"
+msgstr ""
+
+#: recordviews.py:74
+msgid "Create copy"
+msgstr ""
+
+#: recordviews.py:81
+#, python-format
+msgid "Duplicate %(object)s"
+msgstr ""
+
+#: recordviews.py:82 recordviews.py:167
+msgid "Duplicate"
+msgstr ""
+
+#: recordviews.py:141
+#, python-format
+msgid "Created %(model)s “%(object)s” as a copy of “%(source)s”."
+msgstr ""
+
+#: recordviews.py:150
+#, python-format
+msgid "%(base)s %(count)s related record(s) were copied with it."
+msgstr ""
+
+#: recordviews.py:230
+#, python-format
+msgid "%(message)s (%(object)s)"
+msgstr ""
+
+#: recordviews.py:250 views.py:177
+msgid "That action is not available."
+msgstr ""
+
+#: recordviews.py:290 recordviews.py:428 templates/vantage/list.html:147
+msgid "Bulk edit"
+msgstr "تعديل جماعي"
+
+#: recordviews.py:308 views.py:181
+msgid "Nothing was selected."
+msgstr ""
+
+#: recordviews.py:314 views.py:189
+msgid "Those records no longer match."
+msgstr ""
+
+#: recordviews.py:321
+#, python-format
+msgid "There is nothing on %(model)s that can be set in bulk."
+msgstr ""
+
+#: recordviews.py:331
+msgid "Tick the field you want to change."
+msgstr ""
+
+#: safety.py:59
+msgid "This panel is in read-only mode."
+msgstr ""
+
+#: safety.py:96
+msgid "Only superusers may impersonate."
+msgstr ""
+
+#: safety.py:98
+msgid "You are already signed in as that user."
+msgstr ""
+
+#: safety.py:102
+msgid "Superusers cannot be impersonated."
+msgstr ""
+
+#: safety.py:104
+msgid "That account is inactive."
+msgstr ""
+
+#: safety.py:126
+msgid "Not currently impersonating."
+msgstr ""
+
+#: safety.py:132
+msgid "The original account no longer exists."
+msgstr ""
+
+#: savedviews.py:214
+#, python-format
+msgid ""
+"“%(column)s” is no longer a column on this page, so the saved ordering was "
+"not applied."
+msgstr ""
+
+#: savedviews.py:242
+#, python-format
+msgid "“%(field)s” no longer exists on %(records)s."
+msgstr ""
+
+#: savedviews.py:246
+#, python-format
+msgid "“%(field)s” is no longer one of this page's filters."
+msgstr ""
+
+#: savedviews.py:378
+#, python-format
+msgid ""
+"“%(name)s” was changed by someone else while this page was open. Reload to "
+"see their version, or use Save as to keep yours."
+msgstr ""
+
+#: savedviews.py:531
+msgid "That saved view points at a model this panel does not show."
+msgstr ""
+
+#: savedviews.py:535 savedviews.py:702
+msgid "You do not have permission to view those records."
+msgstr ""
+
+#: savedviews.py:537
+msgid "That saved view is not shared with you."
+msgstr ""
+
+#: savedviews.py:602
+msgid "Saved views are switched off."
+msgstr ""
+
+#: savedviews.py:606
+msgid "That is not something a saved view can do."
+msgstr ""
+
+#: savedviews.py:624
+msgid "You cannot change that view. Use Save as instead."
+msgstr ""
+
+#: savedviews.py:629 savedviews.py:662
+#, python-format
+msgid "Saved “%(name)s”."
+msgstr ""
+
+#: savedviews.py:636
+msgid "A saved view needs a name."
+msgstr ""
+
+#: savedviews.py:669
+msgid "You cannot delete that view."
+msgstr ""
+
+#: savedviews.py:672
+#, python-format
+msgid "Deleted “%(name)s”."
+msgstr ""
+
+#: savedviews.py:680
+#, python-format
+msgid "“%(name)s” now opens by default for you."
+msgstr ""
+
+#: savedviews.py:700
+msgid "That is not a model this panel shows."
+msgstr ""
+
+#: search.py:382 search.py:385 search.py:398 topbar.py:659
+msgid "Search"
+msgstr ""
+
+#: search.py:398
+#, python-format
+msgid "Search: %(query)s"
+msgstr ""
+
+#: settingsview.py:101
+msgid "Branding"
+msgstr ""
+
+#: settingsview.py:102
+msgid "Appearance"
+msgstr ""
+
+#: settingsview.py:103
+msgid "Behaviour"
+msgstr ""
+
+#: settingsview.py:108
+msgid "The name and marks that identify this panel."
+msgstr ""
+
+#: settingsview.py:109
+msgid ""
+"One colour drives the whole palette. Everything else is derived from it."
+msgstr ""
+
+#: settingsview.py:110
+msgid "How the panel acts, for everyone who uses it."
+msgstr ""
+
+#: settingsview.py:116
+msgid "Site title"
+msgstr ""
+
+#: settingsview.py:117
+msgid "Short mark"
+msgstr ""
+
+#: settingsview.py:118
+msgid "Logo"
+msgstr ""
+
+#: settingsview.py:119
+msgid "Logo (dark theme)"
+msgstr ""
+
+#: settingsview.py:120
+msgid "Favicon"
+msgstr ""
+
+#: settingsview.py:121
+msgid "Login page image"
+msgstr ""
+
+#: settingsview.py:122
+msgid "Brand colour"
+msgstr ""
+
+#: settingsview.py:123
+msgid "Corner radius"
+msgstr ""
+
+#: settingsview.py:124
+msgid "Default theme"
+msgstr ""
+
+#: settingsview.py:125 topbar.py:660
+msgid "Theme toggle"
+msgstr ""
+
+#: settingsview.py:126 topbar.py:662
+msgid "Environment banner"
+msgstr ""
+
+#: settingsview.py:127 templates/vantage/partials/list_prefs.html:76
+msgid "Rows per page"
+msgstr ""
+
+#: settingsview.py:128
+msgid "Command palette"
+msgstr ""
+
+#: settingsview.py:129
+msgid "Read-only mode"
+msgstr ""
+
+#: settingsview.py:133
+msgid "Shown in the collapsed sidebar. Derived from the title when empty."
+msgstr ""
+
+#: settingsview.py:134
+msgid "Falls back to the light logo when empty."
+msgstr ""
+
+#: settingsview.py:135
+msgid "A hex colour. Every button, link and focus ring is derived from it."
+msgstr ""
+
+#: settingsview.py:136
+msgid "A CSS length: 0.5rem, 8px, or 0 for square corners."
+msgstr ""
+
+#: settingsview.py:137
+msgid "Lets each person choose light or dark for themselves."
+msgstr ""
+
+#: settingsview.py:138
+msgid "A banner across the top of every page. Empty hides it."
+msgstr ""
+
+#: settingsview.py:139
+msgid "Hides every create, edit and delete control for everyone."
+msgstr ""
+
+#: settingsview.py:144
+msgctxt "toggle state"
+msgid "On"
+msgstr ""
+
+#: settingsview.py:145
+msgctxt "toggle state"
+msgid "Off"
+msgstr ""
+
+#: settingsview.py:150
+msgid "On — nothing can be created, changed or deleted"
+msgstr ""
+
+#: settingsview.py:219
+#, python-format
+msgid ""
+"%(color)s cannot carry readable text at the lightness this panel uses for "
+"buttons: it scores %(requested_ratio)s:1 against the text colour that would "
+"sit on it, and WCAG AA needs %(required_ratio)s:1. The derived button colour "
+"was darkened until it reached %(ratio)s:1. Your colour is stored exactly as "
+"you entered it."
+msgstr ""
+
+#: settingsview.py:227
+#, python-format
+msgid ""
+"%(color)s cannot carry readable text at the lightness this panel uses for "
+"buttons: it scores %(requested_ratio)s:1 against the text colour that would "
+"sit on it, and WCAG AA needs %(required_ratio)s:1. The derived button colour "
+"was lightened until it reached %(ratio)s:1. Your colour is stored exactly as "
+"you entered it."
+msgstr ""
+
+#: settingsview.py:281
+msgid "Use the code default (on)"
+msgstr ""
+
+#: settingsview.py:281
+msgid "Use the code default (off)"
+msgstr ""
+
+#: settingsview.py:294
+#, python-format
+msgid "Use the code default (%(value)s)"
+msgstr ""
+
+#: settingsview.py:350 settingsview.py:359
+msgid "Settings"
+msgstr ""
+
+#: settingsview.py:351
+msgid "Change the panel's branding and behaviour without a deploy."
+msgstr ""
+
+#: settingsview.py:356
+msgid "You do not have permission to change the site settings."
+msgstr ""
+
+#: settingsview.py:422
+msgid "Settings saved."
+msgstr ""
+
+#: settingsview.py:435
+msgid "The sidebar is back to what the code declares."
+msgstr ""
+
+#: settingsview.py:442
+msgid "Sidebar saved."
+msgstr ""
+
+#: settingsview.py:474
+#, python-format
+msgid "%(section)s reset to the code defaults."
+msgstr ""
+
+#: stats.py:211
+msgid "disabled"
+msgstr ""
+
+#: stats.py:213
+#, python-format
+msgid "%(queries)s queries exceeds the budget of %(budget)s"
+msgstr ""
+
+#: stats.py:219
+#, python-format
+msgid "~%(rows)s rows exceeds the budget of %(budget)s"
+msgstr ""
+
+#: templates/vantage/403.html:13
+#, python-format
+msgid "Not allowed · %(site_title)s"
+msgstr ""
+
+#: templates/vantage/403.html:21
+msgid ""
+"This page exists, but your account is not permitted to open it. Ask whoever "
+"administers this panel if you need it."
+msgstr "هذه الصفحة موجودة، لكن حسابك غير مصرح له بفتحها. اسأل من يدير هذه اللوحة إذا احتجت إليها."
+
+#: templates/vantage/403.html:28 templates/vantage/404.html:22
+msgid "Back to the dashboard"
+msgstr "العودة إلى لوحة التحكم"
+
+#: templates/vantage/404.html:12
+#, python-format
+msgid "Not found · %(site_title)s"
+msgstr ""
+
+#: templates/vantage/404.html:19
+msgid ""
+"The address may be mistyped, or the record it pointed at may have been "
+"deleted."
+msgstr "قد يكون العنوان مكتوبًا خطأً، أو ربما تم حذف السجل الذي يشير إليه."
+
+#: templates/vantage/account.html:33
+msgid "Signed in as"
+msgstr ""
+
+#: templates/vantage/account.html:44
+#, python-format
+msgid "Username: %(username)s"
+msgstr ""
+
+#: templates/vantage/account.html:58
+#: templates/vantage/partials/usermenu.html:89
+msgid "Customise the top bar"
+msgstr "تخصيص الشريط العلوي"
+
+#: templates/vantage/account.html:65
+#: templates/vantage/partials/usermenu.html:127
+msgid "Sign out"
+msgstr "تسجيل الخروج"
+
+#: templates/vantage/account.html:75
+#: templates/vantage/partials/usermenu.html:94
+msgid "Theme"
+msgstr "المظهر"
+
+#: templates/vantage/account.html:78
+msgid ""
+"Your choice, stored on this device and in a cookie. It changes nothing for "
+"anyone else."
+msgstr ""
+
+#: templates/vantage/account.html:92
+#: templates/vantage/partials/usermenu.html:107
+msgctxt "theme"
+msgid "Light"
+msgstr "فاتح"
+
+#: templates/vantage/account.html:97
+#: templates/vantage/partials/usermenu.html:113
+msgctxt "theme"
+msgid "Dark"
+msgstr "داكن"
+
+#: templates/vantage/audit.html:20
+msgid "Filter the audit log"
+msgstr ""
+
+#: templates/vantage/audit.html:22 templates/vantage/audit.html:75
+#: templates/vantage/jobs.html:35
+msgid "Who"
+msgstr ""
+
+#: templates/vantage/audit.html:24
+msgid "Anyone"
+msgstr ""
+
+#: templates/vantage/audit.html:32 templates/vantage/audit.html:76
+msgid "What"
+msgstr ""
+
+#: templates/vantage/audit.html:34
+msgid "Anything"
+msgstr ""
+
+#: templates/vantage/audit.html:42 templates/vantage/audit.html:74
+msgid "When"
+msgstr ""
+
+#: templates/vantage/audit.html:44
+msgid "Any time"
+msgstr ""
+
+#: templates/vantage/audit.html:52
+msgctxt "start of a date range"
+msgid "From"
+msgstr ""
+
+#: templates/vantage/audit.html:57
+msgctxt "end of a date range"
+msgid "To"
+msgstr ""
+
+#: templates/vantage/audit.html:62
+msgid "Apply"
+msgstr ""
+
+#: templates/vantage/audit.html:64
+#: templates/vantage/partials/list_toolbar.html:40
+#: templates/vantage/search.html:34
+msgid "Clear"
+msgstr "مسح"
+
+#: templates/vantage/audit.html:78
+msgid "Changes"
+msgstr ""
+
+#: templates/vantage/audit.html:82
+msgctxt "network origin of an audit entry"
+msgid "From"
+msgstr ""
+
+#: templates/vantage/audit.html:121
+#, python-format
+msgid "%(counter)s field"
+msgid_plural "%(counter)s fields"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/audit.html:133 templates/vantage/partials/history.html:46
+msgid "changed — value not recorded"
+msgstr ""
+
+#: templates/vantage/audit.html:153
+msgid "Nothing matches those filters."
+msgstr ""
+
+#: templates/vantage/audit.html:154
+msgid "Widen the date range, or clear the filters to see everything."
+msgstr ""
+
+#: templates/vantage/audit.html:155
+msgid "Clear filters"
+msgstr ""
+
+#: templates/vantage/audit.html:161
+msgid "Nothing has been recorded yet."
+msgstr ""
+
+#: templates/vantage/audit.html:163
+msgid ""
+"Entries appear here as soon as someone creates, changes or deletes a record "
+"through this panel."
+msgstr ""
+
+#: templates/vantage/audit.html:175 templates/vantage/jobs.html:95
+#: templates/vantage/list.html:401
+#, python-format
+msgid "%(start)s–%(end)s of %(total)s"
+msgstr "%(start)s–%(end)s من %(total)s"
+
+#: templates/vantage/audit.html:180 templates/vantage/audit.html:182
+#: templates/vantage/jobs.html:100 templates/vantage/jobs.html:102
+#: templates/vantage/list.html:406 templates/vantage/list.html:408
+msgid "Previous"
+msgstr "السابق"
+
+#: templates/vantage/audit.html:186 templates/vantage/audit.html:188
+#: templates/vantage/jobs.html:106 templates/vantage/jobs.html:108
+#: templates/vantage/list.html:412 templates/vantage/list.html:414
+msgid "Next"
+msgstr "التالي"
+
+#: templates/vantage/base.html:27
+msgid "Skip to main content"
+msgstr "تخطي إلى المحتوى الرئيسي"
+
+#: templates/vantage/base.html:44
+#, python-format
+msgid ""
+"Acting as <strong>%(username)s</strong> — signed in as %(real_username)s"
+msgstr "تعمل باسم <strong>%(username)s</strong> — مسجّل الدخول باسم %(real_username)s"
+
+#: templates/vantage/base.html:52
+msgid "Stop impersonating"
+msgstr "إيقاف انتحال الهوية"
+
+#: templates/vantage/base.html:78
+msgid "Sections"
+msgstr "الأقسام"
+
+#: templates/vantage/base.html:97 templates/vantage/partials/thumb.html:33
+#: templates/vantage/partials/topbar.html:47
+#: templates/vantage/settings_nav.html:154
+msgid "(opens in a new tab)"
+msgstr "(يفتح في علامة تبويب جديدة)"
+
+#: templates/vantage/base.html:114
+msgid "Toggle navigation"
+msgstr "تبديل شريط التنقل"
+
+#: templates/vantage/base.html:119
+msgid "Breadcrumb"
+msgstr "مسار التنقل"
+
+#: templates/vantage/base.html:156
+msgctxt "message severity"
+msgid "Error"
+msgstr "خطأ"
+
+#: templates/vantage/base.html:157
+msgctxt "message severity"
+msgid "Warning"
+msgstr "تحذير"
+
+#: templates/vantage/base.html:158
+msgctxt "message severity"
+msgid "Success"
+msgstr "نجاح"
+
+#: templates/vantage/base.html:159
+msgctxt "message severity"
+msgid "Debug"
+msgstr "تصحيح"
+
+#: templates/vantage/base.html:160
+msgctxt "message severity"
+msgid "Info"
+msgstr "معلومات"
+
+#: templates/vantage/base.html:163
+msgid "Dismiss this message"
+msgstr "إغلاق هذه الرسالة"
+
+#: templates/vantage/bulk_edit.html:11
+#, python-format
+msgid "Bulk edit %(label)s"
+msgstr ""
+
+#: templates/vantage/bulk_edit.html:15 templates/vantage/bulk_edit.html:116
+#: templates/vantage/confirm_delete.html:78 templates/vantage/form.html:25
+#: templates/vantage/form.html:73 templates/vantage/import_map.html:132
+#: templates/vantage/import_upload.html:19
+#: templates/vantage/import_upload.html:55 templates/vantage/list.html:106
+#: templates/vantage/partials/conflict.html:38
+msgid "Cancel"
+msgstr "إلغاء"
+
+#: templates/vantage/bulk_edit.html:64
+#, python-format
+msgid "This will change %(counter)s record."
+msgid_plural "This will change %(counter)s records."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/bulk_edit.html:66
+#, python-format
+msgid ""
+"Applies to %(scope)s. Only the fields you tick below are written — "
+"everything else on every record is left exactly as it is."
+msgstr ""
+
+#: templates/vantage/bulk_edit.html:77
+msgid "Fields to change"
+msgstr ""
+
+#: templates/vantage/bulk_edit.html:115
+msgid "Nothing is written until you apply."
+msgstr ""
+
+#: templates/vantage/bulk_edit.html:118
+#, python-format
+msgid "Apply to %(counter)s record"
+msgid_plural "Apply to %(counter)s records"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/confirm_delete.html:11
+#, python-format
+msgid "Delete %(label)s?"
+msgstr "حذف %(label)s؟"
+
+#: templates/vantage/confirm_delete.html:37
+#, python-format
+msgid ""
+"This moves <strong>%(object)s</strong> to the trash. You can restore it "
+"later."
+msgstr "سينقل هذا <strong>%(object)s</strong> إلى سلة المهملات. يمكنك استعادته لاحقًا."
+
+#: templates/vantage/confirm_delete.html:39
+msgid "Related records are not affected."
+msgstr "لا تتأثر السجلات المرتبطة."
+
+#: templates/vantage/confirm_delete.html:42
+#, python-format
+msgid ""
+"This permanently deletes <strong>%(object)s</strong>. It cannot be undone."
+msgstr "سيؤدي هذا إلى حذف <strong>%(object)s</strong> نهائيًا. لا يمكن التراجع عن هذا."
+
+#: templates/vantage/confirm_delete.html:50
+msgid "These will be destroyed too"
+msgstr "سيتم حذف هذه أيضًا"
+
+#: templates/vantage/confirm_delete.html:60
+msgid "Nothing else references this record."
+msgstr "لا يوجد شيء آخر يشير إلى هذا السجل."
+
+#: templates/vantage/confirm_delete.html:64
+msgid "These survive, but lose a reference"
+msgstr "ستبقى هذه، لكنها تفقد إحدى الإشارات"
+
+#: templates/vantage/dashboard.html:31
+msgid "Done"
+msgstr ""
+
+#: templates/vantage/dashboard.html:35
+msgid "Arrange"
+msgstr ""
+
+#: templates/vantage/dashboard.html:37
+msgctxt "badge: this dashboard differs from the code defaults"
+msgid "Arranged"
+msgstr ""
+
+#: templates/vantage/dashboard.html:68
+msgid "This dashboard has no cards. Add one below."
+msgstr ""
+
+#: templates/vantage/dashboard.html:84
+msgid "Nothing to show yet."
+msgstr ""
+
+#: templates/vantage/dashboard.html:86
+msgid ""
+"Register a model, or point <code class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</"
+"code> at a <code class=\"v-mono\">Dashboard</code> subclass to declare your "
+"own cards."
+msgstr ""
+
+#: templates/vantage/dashboard.html:93
+#: templates/vantage/partials/card_editor.html:50
+msgid "Add a card"
+msgstr ""
+
+#: templates/vantage/detail.html:11
+msgid "Back to list"
+msgstr ""
+
+#: templates/vantage/detail.html:26 widgets.py:719
+msgid "Details"
+msgstr ""
+
+#: templates/vantage/detail.html:50
+msgid "records"
+msgstr ""
+
+#: templates/vantage/detail.html:57 templates/vantage/partials/widget.html:73
+msgid "View all"
+msgstr ""
+
+#: templates/vantage/detail.html:72
+#, python-format
+msgid "%(label)s — first %(shown)s of %(total)s"
+msgstr ""
+
+#: templates/vantage/detail.html:94
+#, python-format
+msgid "%(more)s more"
+msgstr ""
+
+#: templates/vantage/detail.html:99
+msgid "Not shown here."
+msgstr ""
+
+#: templates/vantage/detail.html:99
+msgid "None yet."
+msgstr ""
+
+#: templates/vantage/form.html:41
+#, python-format
+msgid "This %(label)s was not saved."
+msgstr "لم يتم حفظ %(label)s هذا."
+
+#: templates/vantage/form.html:45 templates/vantage/settings.html:39
+msgid "Check the highlighted fields below."
+msgstr "تحقّق من الحقول المميزة أدناه."
+
+#: templates/vantage/form.html:72
+msgid "Unsaved changes"
+msgstr "تغييرات غير محفوظة"
+
+#: templates/vantage/import_map.html:12 templates/vantage/import_map.html:29
+#: templates/vantage/import_preview.html:38
+#: templates/vantage/import_upload.html:30
+msgid "Map columns"
+msgstr ""
+
+#: templates/vantage/import_map.html:14
+#, python-format
+msgid "%(counter)s row"
+msgid_plural "%(counter)s rows"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_map.html:15
+#, python-format
+msgid "delimiter <span class=\"v-mono\">%(delimiter)s</span>"
+msgstr ""
+
+#: templates/vantage/import_map.html:22
+msgid "Start over"
+msgstr ""
+
+#: templates/vantage/import_map.html:27
+#: templates/vantage/import_preview.html:36
+#: templates/vantage/import_upload.html:28
+msgid "Import steps"
+msgstr ""
+
+#: templates/vantage/import_map.html:28
+#: templates/vantage/import_preview.html:37
+#: templates/vantage/import_upload.html:29
+msgid "Upload"
+msgstr ""
+
+#: templates/vantage/import_map.html:30
+#: templates/vantage/import_preview.html:12
+#: templates/vantage/import_preview.html:39
+#: templates/vantage/import_upload.html:31 templates/vantage/list.html:378
+msgid "Preview"
+msgstr ""
+
+#: templates/vantage/import_map.html:35
+msgid "This mapping cannot be used."
+msgstr ""
+
+#: templates/vantage/import_map.html:45
+msgid "Your columns"
+msgstr ""
+
+#: templates/vantage/import_map.html:47
+msgid ""
+"Each column feeds one field, or nothing. The first values from your file are "
+"shown so you can check the guess without opening the spreadsheet again."
+msgstr ""
+
+#: templates/vantage/import_map.html:55
+msgid "Column in your file"
+msgstr ""
+
+#: templates/vantage/import_map.html:56
+msgid "First values"
+msgstr ""
+
+#: templates/vantage/import_map.html:57
+msgid "Field it writes"
+msgstr ""
+
+#: templates/vantage/import_map.html:71
+#, python-format
+msgid "Field for column %(header)s"
+msgstr ""
+
+#: templates/vantage/import_map.html:74
+msgid "Skip this column"
+msgstr ""
+
+#: templates/vantage/import_map.html:77
+msgid "(identifier only)"
+msgstr ""
+
+#: templates/vantage/import_map.html:91
+msgid "What to do with each row"
+msgstr ""
+
+#: templates/vantage/import_map.html:95
+msgid "Match existing records on"
+msgstr ""
+
+#: templates/vantage/import_map.html:98
+msgid "Nothing — every row is new"
+msgstr ""
+
+#: templates/vantage/import_map.html:111
+msgid ""
+"Only the primary key and unique columns can identify a record, and only if "
+"you mapped one above."
+msgstr ""
+
+#: templates/vantage/import_map.html:117
+msgid "Then"
+msgstr ""
+
+#: templates/vantage/import_map.html:126
+msgid ""
+"Only the modes your permissions allow are listed. Updating needs the change "
+"permission; an upsert needs both."
+msgstr ""
+
+#: templates/vantage/import_map.html:133
+msgid "Preview changes"
+msgstr ""
+
+#: templates/vantage/import_preview.html:12
+msgid "Import finished"
+msgstr ""
+
+#: templates/vantage/import_preview.html:22
+msgid ""
+"Nothing has been written yet. Every row below was validated and saved inside "
+"a transaction that was then rolled back."
+msgstr ""
+
+#: templates/vantage/import_preview.html:29
+#, python-format
+msgid "Back to %(plural_label)s"
+msgstr ""
+
+#: templates/vantage/import_preview.html:31
+msgid "Change the mapping"
+msgstr ""
+
+#: templates/vantage/import_preview.html:45
+msgid "would be created"
+msgstr ""
+
+#: templates/vantage/import_preview.html:49
+msgid "would be updated"
+msgstr ""
+
+#: templates/vantage/import_preview.html:53
+msgid "unchanged"
+msgstr ""
+
+#: templates/vantage/import_preview.html:57
+msgid "failed"
+msgstr ""
+
+#: templates/vantage/import_preview.html:57
+msgid "would fail"
+msgstr ""
+
+#: templates/vantage/import_preview.html:63
+msgid "Some required fields have no column."
+msgstr ""
+
+#: templates/vantage/import_preview.html:66
+msgid ""
+"must have a value, and nothing in this file supplies one. Rows that create a "
+"new record will fail; rows that update an existing one are unaffected."
+msgstr ""
+
+#: templates/vantage/import_preview.html:74
+msgid "Columns not being written"
+msgstr ""
+
+#: templates/vantage/import_preview.html:90
+#, python-format
+msgid "%(counter)s problem"
+msgid_plural "%(counter)s problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_preview.html:92
+#, python-format
+msgid "%(counter)s problem to fix first"
+msgid_plural "%(counter)s problems to fix first"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_preview.html:95
+msgid "Download as CSV"
+msgstr ""
+
+#: templates/vantage/import_preview.html:103
+msgid "Problem"
+msgstr ""
+
+#: templates/vantage/import_preview.html:120
+#, python-format
+msgid ""
+"%(errors_hidden)s more not shown. The CSV above has every one, with its row "
+"number and column."
+msgstr ""
+
+#: templates/vantage/import_preview.html:132
+msgid "What changed"
+msgstr ""
+
+#: templates/vantage/import_preview.html:132
+msgid "What would change"
+msgstr ""
+
+#: templates/vantage/import_preview.html:134
+#, python-format
+msgid "The first %(counter)s updated record."
+msgid_plural "The first %(counter)s updated records."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_preview.html:141
+#, python-format
+msgid "#%(pk)s · row %(row)s"
+msgstr ""
+
+#: templates/vantage/import_preview.html:178
+#, python-format
+msgid "%(counter)s row will be skipped"
+msgid_plural "%(counter)s rows will be skipped"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_preview.html:181
+msgid "Back"
+msgstr ""
+
+#: templates/vantage/import_preview.html:189
+#, python-format
+msgid "Create %(created)s and update %(updated)s"
+msgstr ""
+
+#: templates/vantage/import_preview.html:191
+#, python-format
+msgid "Update %(counter)s record"
+msgid_plural "Update %(counter)s records"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_preview.html:193
+#, python-format
+msgid "Create %(counter)s record"
+msgid_plural "Create %(counter)s records"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/import_preview.html:195
+msgid "Nothing to import"
+msgstr ""
+
+#: templates/vantage/import_upload.html:14
+msgid ""
+"Upload a CSV. You will map its columns and see exactly what would change "
+"before anything is written."
+msgstr ""
+
+#: templates/vantage/import_upload.html:36
+msgid "That file cannot be imported."
+msgstr ""
+
+#: templates/vantage/import_upload.html:43
+msgid "Choose a file"
+msgstr ""
+
+#: templates/vantage/import_upload.html:45
+msgid "CSV file"
+msgstr ""
+
+#: templates/vantage/import_upload.html:50
+#, python-format
+msgid ""
+"Up to %(max_mb)s MB and %(max_rows)s rows. The first row must be the column "
+"names. Anything larger belongs in a management command — this runs in one "
+"request."
+msgstr ""
+
+#: templates/vantage/import_upload.html:56
+msgid "Continue"
+msgstr ""
+
+#: templates/vantage/import_upload.html:62
+msgid "Columns this import understands"
+msgstr ""
+
+#: templates/vantage/import_upload.html:66
+#, python-format
+msgid ""
+"A file exported from the %(plural_label)s list will already match. Column "
+"names are matched loosely — case, spaces and underscores are ignored, and a "
+"field's label works as well as its name. Anything unrecognised can be mapped "
+"by hand on the next screen."
+msgstr ""
+
+#: templates/vantage/import_upload.html:76
+msgid "identifier only"
+msgstr ""
+
+#: templates/vantage/import_upload.html:77
+msgid "unique"
+msgstr ""
+
+#: templates/vantage/import_upload.html:87
+msgid ""
+"Read-only fields, file and image uploads, and many-to-many relations are not "
+"importable. A column named after one of them is ignored, never written."
+msgstr ""
+
+#: templates/vantage/jobs.html:23
+#, python-format
+msgid "Queued through <strong>%(label)s</strong>."
+msgstr ""
+
+#: templates/vantage/jobs.html:34
+msgid "Started"
+msgstr ""
+
+#: templates/vantage/jobs.html:36
+msgid "Action"
+msgstr ""
+
+#: templates/vantage/jobs.html:37
+msgid "Records"
+msgstr ""
+
+#: templates/vantage/jobs.html:38
+msgid "Progress"
+msgstr ""
+
+#: templates/vantage/jobs.html:39
+msgid "Status"
+msgstr ""
+
+#: templates/vantage/jobs.html:80
+msgid "No background jobs yet."
+msgstr ""
+
+#: templates/vantage/jobs.html:82
+msgid ""
+"A bulk action appears here when the selection is large enough to be worth "
+"moving off the request. Smaller ones run immediately and are recorded in the "
+"audit log instead."
+msgstr ""
+
+#: templates/vantage/list.html:26
+msgid "Export"
+msgstr "تصدير"
+
+#: templates/vantage/list.html:29
+msgid "TSV (spreadsheet)"
+msgstr ""
+
+#: templates/vantage/list.html:30
+msgid "JSON (one per line)"
+msgstr ""
+
+#: templates/vantage/list.html:36
+msgid "Import CSV"
+msgstr "استيراد CSV"
+
+#: templates/vantage/list.html:40
+#: templates/vantage/partials/inline_group.html:91
+#, python-format
+msgid "Add %(label)s"
+msgstr "إضافة %(label)s"
+
+#: templates/vantage/list.html:94
+#, python-format
+msgid "This will apply to %(confirm_scope)s."
+msgstr ""
+
+#: templates/vantage/list.html:108
+#, python-format
+msgid "%(label)s %(counter)s record"
+msgid_plural "%(label)s %(counter)s records"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/list.html:135
+msgid "Select all matching"
+msgstr "تحديد كل المطابق"
+
+#: templates/vantage/list.html:187
+msgid "Select all rows on this page"
+msgstr "تحديد كل الصفوف في هذه الصفحة"
+
+#: templates/vantage/list.html:221
+#, python-format
+msgid "Select %(obj)s"
+msgstr ""
+
+#: templates/vantage/list.html:284
+#, python-format
+msgid "No %(label)s match “%(query)s”."
+msgstr "لا توجد %(label)s مطابقة لـ “%(query)s”."
+
+#: templates/vantage/list.html:285
+msgid "Try a different search, or clear it to see everything."
+msgstr "جرّب بحثًا مختلفًا، أو امسحه لرؤية كل شيء."
+
+#: templates/vantage/list.html:286
+msgid "Clear search"
+msgstr "مسح البحث"
+
+#: templates/vantage/list.html:288
+#, python-format
+msgid "No %(label)s match these filters."
+msgstr "لا توجد %(label)s مطابقة لهذه التصفيات."
+
+#: templates/vantage/list.html:289
+msgid "Remove the one responsible above, or clear them all."
+msgstr "أزل التصفية المسؤولة أعلاه، أو امسحها كلها."
+
+#: templates/vantage/list.html:290
+#: templates/vantage/partials/filter_chips.html:33
+#: templates/vantage/partials/filters.html:31
+msgid "Clear all filters"
+msgstr "مسح كل التصفيات"
+
+#: templates/vantage/list.html:297
+#: templates/vantage/partials/inline_group.html:71
+#: templates/vantage/partials/inline_group.html:81
+#, python-format
+msgid "No %(label)s yet."
+msgstr "لا توجد %(label)s بعد."
+
+#: templates/vantage/list.html:298
+msgid "They will appear here once the first one is created."
+msgstr "ستظهر هنا بمجرد إنشاء أول سجل."
+
+#: templates/vantage/list.html:338
+msgid "Discard"
+msgstr "تجاهل"
+
+#: templates/vantage/list.html:376
+msgid "Record preview"
+msgstr "معاينة السجل"
+
+#: templates/vantage/list.html:381
+#: templates/vantage/partials/grid_controls.html:147
+msgid "Peek the previous record"
+msgstr "إلقاء نظرة على السجل السابق"
+
+#: templates/vantage/list.html:383
+#: templates/vantage/partials/grid_controls.html:146
+msgid "Peek the next record"
+msgstr "إلقاء نظرة على السجل التالي"
+
+#: templates/vantage/list.html:384
+msgid "Open"
+msgstr "فتح"
+
+#: templates/vantage/list.html:386
+msgid "Close preview"
+msgstr "إغلاق المعاينة"
+
+#: templates/vantage/logged_out.html:12
+#, python-format
+msgid "Signed out · %(site_title)s"
+msgstr ""
+
+#: templates/vantage/logged_out.html:37
+msgid "Signed out"
+msgstr "تم تسجيل الخروج"
+
+#: templates/vantage/logged_out.html:40
+msgid "Your session has ended. Nothing else on this device is signed in."
+msgstr "انتهت جلستك. لا يوجد تسجيل دخول آخر على هذا الجهاز."
+
+#: templates/vantage/logged_out.html:44
+msgid "Sign in again"
+msgstr "تسجيل الدخول مرة أخرى"
+
+#: templates/vantage/login.html:16
+#, python-format
+msgid "Sign in · %(site_title)s"
+msgstr ""
+
+#: templates/vantage/login.html:42 templates/vantage/login.html:76
+msgid "Sign in"
+msgstr "تسجيل الدخول"
+
+#: templates/vantage/login.html:53
+msgid "Sign-in failed."
+msgstr "فشل تسجيل الدخول."
+
+#: templates/vantage/page.html:51
+msgid "This page returned no data."
+msgstr ""
+
+#: templates/vantage/page.html:53
+#, python-format
+msgid ""
+"Return a dict from <code class=\"v-mono\">get_context()</code>, or add a "
+"template at <code class=\"v-mono\">vantage/pages/%(slug)s.html</code>."
+msgstr ""
+
+#: templates/vantage/pages/health.html:9
+msgid "Something needs attention."
+msgstr ""
+
+#: templates/vantage/pages/health.html:10
+msgid "Everything works, with caveats."
+msgstr ""
+
+#: templates/vantage/pages/health.html:11
+msgid "Everything looks healthy."
+msgstr ""
+
+#: templates/vantage/pages/health.html:27
+#, python-format
+msgid "Status: %(status)s"
+msgstr ""
+
+#: templates/vantage/pages/schema.html:9
+#, python-format
+msgid "%(counter)s model"
+msgid_plural "%(counter)s models"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/pages/schema.html:10
+#, python-format
+msgid "%(counter)s relation"
+msgid_plural "%(counter)s relations"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/pages/schema.html:11
+#, python-format
+msgid ""
+"%(models)s, %(relations)s. Derived from the registry, so it is never out of "
+"date."
+msgstr ""
+
+#: templates/vantage/pages/schema.html:21
+msgid "Nothing to map."
+msgstr ""
+
+#: templates/vantage/pages/schema.html:22
+msgid "No models are registered, or none are visible to you."
+msgstr ""
+
+#: templates/vantage/pages/schema.html:29
+msgid "foreign key"
+msgstr ""
+
+#: templates/vantage/pages/schema.html:30
+msgid "one to one"
+msgstr ""
+
+#: templates/vantage/pages/schema.html:31
+msgid "many to many"
+msgstr ""
+
+#: templates/vantage/pages/schema.html:44
+#, python-format
+msgid "Schema diagram of %(models)s models and %(relations)s relations"
+msgstr ""
+
+#: templates/vantage/pages/schema.html:45
+msgid "Schema diagram"
+msgstr ""
+
+#: templates/vantage/pages/schema.html:61
+#, python-format
+msgid "%(fields)s fields"
+msgstr ""
+
+#: templates/vantage/partials/analytics.html:20
+msgid "Statistics are not computed for this view."
+msgstr ""
+
+#: templates/vantage/partials/analytics.html:26
+msgid "Compute"
+msgstr ""
+
+#: templates/vantage/partials/analytics.html:44
+#: templates/vantage/partials/widget.html:42
+#, python-format
+msgid "by %(bucket)s"
+msgstr ""
+
+#: templates/vantage/partials/analytics.html:51
+msgid "No data in range."
+msgstr ""
+
+#: templates/vantage/partials/analytics.html:68
+msgid ""
+"Showing part of the data; the rest is grouped or beyond the point limit."
+msgstr ""
+
+#: templates/vantage/partials/card_controls.html:22
+#: templates/vantage/partials/list_prefs.html:70
+#: templates/vantage/partials/list_prefs.html:171
+#, python-format
+msgid "Position of %(label)s"
+msgstr ""
+
+#: templates/vantage/partials/card_controls.html:25
+#, python-format
+msgid "Width of %(label)s"
+msgstr ""
+
+#: templates/vantage/partials/card_controls.html:28
+#: templates/vantage/partials/card_editor.html:148
+#, python-format
+msgid "%(n)s col"
+msgstr ""
+
+#: templates/vantage/partials/card_controls.html:35
+msgctxt "keep this dashboard card on the page"
+msgid "Show"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:20
+msgid "Switched off"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:22
+msgid ""
+"These cards are part of the arrangement but are not being drawn. Tick one to "
+"bring it back."
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:58
+msgid "Choose a model…"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:66
+msgid "Shape"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:68
+msgid "Stat card"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:69
+#: templatetags/vantage_list.py:236
+msgid "Chart"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:74
+msgid "Aggregate"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:83
+#: templates/vantage/partials/list_prefs.html:252
+#: templates/vantage/partials/list_prefs.html:343
+msgctxt "aggregate over whole rows rather than one column"
+msgid "rows"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:97
+msgid "Grouped by"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:99
+#: templates/vantage/partials/list_prefs.html:318
+msgid "Over time"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:100
+#: templates/vantage/partials/list_prefs.html:319
+msgid "Broken down by"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:105
+msgid "Date field"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:121
+msgid "Group field"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:137
+msgid "Drawn as"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:144
+msgid "Width"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:146
+msgid "Automatic"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:154
+msgid "Label"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:156
+msgid "Optional"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:160
+msgid "Filter"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:164
+msgid ""
+"The list page's own filters, as they appear in its address bar. Filter the "
+"list, copy everything after the ?, paste it here."
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:174
+msgid "There are no models you can build a card from."
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:186
+#: templates/vantage/partials/list_prefs.html:88
+#: templates/vantage/partials/list_prefs.html:130
+#: templates/vantage/partials/list_prefs.html:192
+#: templates/vantage/partials/list_prefs.html:262
+#: templates/vantage/partials/list_prefs.html:352
+#: templates/vantage/partials/list_prefs.html:400
+#: templates/vantage/partials/saved_views.html:98
+#: templates/vantage/topbar.html:35
+msgid "Save"
+msgstr "حفظ"
+
+#: templates/vantage/partials/card_editor.html:188
+#: templates/vantage/partials/list_prefs.html:90
+#: templates/vantage/partials/list_prefs.html:132
+#: templates/vantage/partials/list_prefs.html:194
+#: templates/vantage/partials/list_prefs.html:264
+#: templates/vantage/partials/list_prefs.html:354
+#: templates/vantage/partials/list_prefs.html:402
+msgid "Save for everyone"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:190
+#: templates/vantage/partials/grid_controls.html:69
+#: templates/vantage/partials/list_prefs.html:92
+#: templates/vantage/partials/list_prefs.html:134
+#: templates/vantage/partials/list_prefs.html:196
+#: templates/vantage/partials/list_prefs.html:266
+#: templates/vantage/partials/list_prefs.html:356
+#: templates/vantage/partials/list_prefs.html:404
+#: templates/vantage/partials/saved_views.html:87
+msgid "Reset"
+msgstr "إعادة تعيين"
+
+#: templates/vantage/partials/card_editor.html:192
+#: templates/vantage/partials/list_prefs.html:94
+#: templates/vantage/partials/list_prefs.html:136
+#: templates/vantage/partials/list_prefs.html:198
+#: templates/vantage/partials/list_prefs.html:268
+#: templates/vantage/partials/list_prefs.html:358
+#: templates/vantage/partials/list_prefs.html:406
+msgid "Reset for everyone"
+msgstr ""
+
+#: templates/vantage/partials/card_editor.html:197
+msgid ""
+"Changes here are yours alone unless you save them for everyone. Reset puts "
+"the dashboard back to what the code declares."
+msgstr ""
+
+#: templates/vantage/partials/conflict.html:30
+msgid "Someone else changed this"
+msgstr ""
+
+#: templates/vantage/partials/conflict.html:46
+msgid "Use theirs"
+msgstr ""
+
+#: templates/vantage/partials/conflict.html:49
+msgid "Keep mine"
+msgstr ""
+
+#: templates/vantage/partials/conflict.html:52
+msgid "Merge selected"
+msgstr ""
+
+#: templates/vantage/partials/field.html:42
+#: templates/vantage/partials/inline_group.html:57
+#: templates/vantage/partials/inline_row.html:102
+msgid "Required"
+msgstr ""
+
+#: templates/vantage/partials/field.html:42
+#: templates/vantage/partials/inline_group.html:57
+#: templates/vantage/partials/inline_row.html:102
+msgid "required"
+msgstr ""
+
+#: templates/vantage/partials/filter_chips.html:7
+msgid "any"
+msgstr ""
+
+#: templates/vantage/partials/filter_chips.html:10
+msgid "Filtered by"
+msgstr ""
+
+#: templates/vantage/partials/filter_chips.html:18
+#: templates/vantage/partials/filter_chips.html:26
+msgid "Remove this filter"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:21
+msgid "On"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:26
+msgid "Hide counts"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:28
+msgid "Show counts"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:50
+#, python-format
+msgid "%(label)s minimum"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:57
+#, python-format
+msgid "%(label)s maximum"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:72
+msgid "Any"
+msgstr ""
+
+#: templates/vantage/partials/filters.html:87
+msgid "Too many values to list here."
+msgstr ""
+
+#: templates/vantage/partials/filters.html:95
+msgid "Apply filters"
+msgstr "تطبيق التصفية"
+
+#: templates/vantage/partials/grid_controls.html:18
+msgid "Row density"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:25
+msgid "Comfortable"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:27
+msgid "Compact"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:40
+#, python-format
+msgid "%(shown)s of %(total)s"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:44
+msgid "Show, hide and reorder columns"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:49
+msgid "Find a column…"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:49
+msgid "Find a column"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:68
+msgid "Use the ↑ ↓ buttons to reorder."
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:88
+msgid "Shortcuts"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:93
+#: templates/vantage/partials/grid_controls.html:108
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:97
+msgid "Cheat sheet <kbd>?</kbd>"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:113
+msgid ""
+"Every key below works while the table has focus — press <kbd>Tab</kbd> until "
+"a row is outlined. They are deliberately inert everywhere else on the page."
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:121
+msgid "Moving"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:123
+msgid "Next row"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:124
+msgid "Previous row"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:125
+msgid "First row on this page"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:126
+msgid "Last row on this page"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:127
+msgid "Previous page"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:128
+msgid "Next page"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:129
+msgid "Into the focused row's links and checkbox"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:130
+msgid "Leave the table entirely"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:135
+msgid "Doing"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:137
+msgid "Open the focused record"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:138
+msgid "Quick peek in the side drawer"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:139
+msgid "Select or deselect the focused row"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:140
+msgid "This list"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:141
+msgid "Back one level — always"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:144
+msgid "In the peek drawer"
+msgstr ""
+
+#: templates/vantage/partials/grid_controls.html:148
+msgid "Close, and put focus back on the row"
+msgstr ""
+
+#: templates/vantage/partials/history.html:15
+msgid "History"
+msgstr ""
+
+#: templates/vantage/partials/history.html:32
+#, python-format
+msgid "Ran <code>%(name)s</code>."
+msgstr ""
+
+#: templates/vantage/partials/history.html:61
+#, python-format
+msgid ""
+"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit log</"
+"a>."
+msgid_plural ""
+"Showing the most recent %(counter)s entries. <a href=\"%(url)s\">Open the "
+"full audit log</a>."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/partials/history.html:66
+msgid "Nothing has been done to this record through the panel."
+msgstr ""
+
+#: templates/vantage/partials/history.html:72
+msgid "Row history"
+msgstr ""
+
+#: templates/vantage/partials/history.html:76
+msgid "From django-simple-history."
+msgstr ""
+
+#: templates/vantage/partials/inline_group.html:36
+msgid "View only"
+msgstr ""
+
+#: templates/vantage/partials/inline_group.html:94
+#, python-format
+msgid "Limit of %(count)s reached."
+msgstr ""
+
+#: templates/vantage/partials/inline_row.html:51
+#: templates/vantage/partials/inline_row.html:79
+msgid "Remove"
+msgstr ""
+
+#: templates/vantage/partials/inline_row.html:55
+#: templates/vantage/partials/inline_row.html:84
+#, python-format
+msgid "Remove this %(label)s"
+msgstr ""
+
+#: templates/vantage/partials/inline_row.html:64
+#: templates/vantage/partials/inline_row.html:123
+#, python-format
+msgid "“%(label)s” will be removed when you save."
+msgstr ""
+
+#: templates/vantage/partials/inline_row.html:65
+#: templates/vantage/partials/inline_row.html:124
+#: templates/vantage/widgets/file.html:53
+msgid "Undo"
+msgstr ""
+
+#: templates/vantage/partials/inline_row.html:75
+#, python-format
+msgid "New %(label)s"
+msgstr ""
+
+#: templates/vantage/partials/job_progress.html:28
+#, python-format
+msgid "%(action)s progress"
+msgstr ""
+
+#: templates/vantage/partials/job_progress.html:36
+#, python-format
+msgid "%(processed)s of %(total)s, %(failed)s failed"
+msgstr ""
+
+#: templates/vantage/partials/job_progress.html:38
+#, python-format
+msgid "%(processed)s of %(total)s"
+msgstr ""
+
+#: templates/vantage/partials/job_progress.html:50
+msgid "Download the failures"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:24
+msgid "Customise"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:26
+msgctxt "badge: these list preferences differ from the code defaults"
+msgid "Tuned"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:32
+msgid ""
+"Changes here affect this list only, and only for you — unless you save them "
+"for everyone. Reset puts a section back to what the code declares."
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:57
+#: templates/vantage/partials/list_prefs.html:110
+#: templates/vantage/partials/list_prefs.html:153
+#: templates/vantage/partials/list_prefs.html:214
+#: templates/vantage/partials/list_prefs.html:283
+#: templates/vantage/partials/list_prefs.html:373
+msgctxt "badge: this section differs from the code defaults"
+msgid "tuned"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:116
+msgid "Show the search box"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:159
+msgid "Show the filter rail"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:177
+msgid "Counts beside each option"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:185
+msgid "Only when asked for (?_facets)"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:186
+msgid "Always"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:187
+msgid "Never"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:220
+msgid "Show the stat strip"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:235
+#: templates/vantage/partials/list_prefs.html:304
+msgctxt "tag: added by the person viewing the page"
+msgid "yours"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:239
+msgid "No statistics are declared for this list yet."
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:244
+#: templates/vantage/partials/list_prefs.html:314
+msgid "Add one"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:246
+msgid "Aggregate for the new statistic"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:251
+msgid "Column for the new statistic"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:258
+msgid "Label (optional)"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:258
+msgid "Label for the new statistic"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:289
+msgid "Show charts"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:308
+msgid "No charts are declared for this list yet."
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:316
+msgid "Kind of chart to add"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:323
+msgid "Date field to chart over"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:331
+msgid "Field to break down by"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:338
+msgid "Aggregate for the new chart"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:342
+msgid "Column for the new chart"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:379
+msgid "Show the footer totals"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:387
+msgid "Use the code default"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:391
+msgid "No total"
+msgstr ""
+
+#: templates/vantage/partials/list_prefs.html:395
+msgid "No numeric columns to total on this list."
+msgstr ""
+
+#: templates/vantage/partials/list_toolbar.html:28
+#: templates/vantage/partials/list_toolbar.html:32
+#: templates/vantage/partials/list_toolbar.html:33
+#, python-format
+msgid "Search %(label)s"
+msgstr "بحث %(label)s"
+
+#: templates/vantage/partials/list_toolbar.html:51
+msgid "Records or trash"
+msgstr "السجلات أو سلة المهملات"
+
+#: templates/vantage/partials/list_toolbar.html:59
+msgid "Trash"
+msgstr "سلة المهملات"
+
+#: templates/vantage/partials/list_toolbar.html:78
+#, python-format
+msgid "Grouped by %(label)s"
+msgstr "مجمّع حسب %(label)s"
+
+#: templates/vantage/partials/list_toolbar.html:81
+msgid "Group"
+msgstr "تجميع"
+
+#: templates/vantage/partials/list_toolbar.html:84
+msgid "Group by"
+msgstr "تجميع حسب"
+
+#: templates/vantage/partials/list_toolbar.html:86
+msgid "None"
+msgstr "بلا"
+
+#: templates/vantage/partials/palette.html:16 templates/vantage/topbar.html:218
+msgid "Search…"
+msgstr "بحث…"
+
+#: templates/vantage/partials/palette.html:16
+msgid "Search records and commands"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:20 templates/vantage/search.html:32
+msgctxt "button, the verb"
+msgid "Search"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:25
+msgid "Search and commands"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:36
+msgid "Search records, or jump to a page…"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:37
+msgid "Search records, or jump to a page"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:47
+msgid "Search results and commands"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:49
+msgid "Nothing matched."
+msgstr ""
+
+#: templates/vantage/partials/palette.html:52
+msgid "<kbd>↑</kbd><kbd>↓</kbd> move"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:53
+msgid "<kbd>↵</kbd> open"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:54
+msgid "<kbd>Esc</kbd> close"
+msgstr ""
+
+#: templates/vantage/partials/palette.html:55
+msgid "Searching…"
+msgstr ""
+
+#: templates/vantage/partials/row_actions.html:33
+#: templates/vantage/partials/row_actions.html:41
+#, python-format
+msgid "%(label)s %(obj)s"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:29
+msgid ""
+"Part of this view no longer applies, so the results may be broader than "
+"intended."
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:32
+msgid "Part of this view no longer applies."
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:61
+#: templates/vantage/partials/saved_views.html:67
+msgid "All"
+msgstr "الكل"
+
+#: templates/vantage/partials/saved_views.html:63
+#: templates/vantage/partials/saved_views.html:81
+msgctxt "saved view has unsaved changes"
+msgid "Modified"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:65
+msgid "Saved views"
+msgstr "العروض المحفوظة"
+
+#: templates/vantage/partials/saved_views.html:72
+msgid "Locked"
+msgstr "مقفل"
+
+#: templates/vantage/partials/saved_views.html:73
+msgid "Shared"
+msgstr "مشترك"
+
+#: templates/vantage/partials/saved_views.html:104
+msgid "Save as"
+msgstr "حفظ باسم"
+
+#: templates/vantage/partials/saved_views.html:104
+#: templates/vantage/partials/saved_views.html:142
+msgid "Save view"
+msgstr "حفظ العرض"
+
+#: templates/vantage/partials/saved_views.html:112
+#: templates/vantage/settings_nav.html:260 templates/vantage/topbar.html:79
+#: templates/vantage/topbar.html:174
+msgid "Name"
+msgstr "الاسم"
+
+#: templates/vantage/partials/saved_views.html:114
+msgid "Unpaid this month"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:122
+msgid "Who can see it"
+msgstr "من يمكنه رؤيته"
+
+#: templates/vantage/partials/saved_views.html:128
+msgid "Who can change it"
+msgstr "من يمكنه تغييره"
+
+#: templates/vantage/partials/saved_views.html:131
+msgid "Me and named editors"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:136
+msgid ""
+"A shared view is never saved automatically — someone else's screen should "
+"never change because you narrowed a filter."
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:148
+msgid "More actions for this view"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:157
+msgid "Open this by default"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:165
+msgid "Delete this view"
+msgstr ""
+
+#: templates/vantage/partials/saved_views.html:170
+msgid ""
+"This view is locked. Locking freezes the configuration, not the data, and it "
+"binds the person who made it too."
+msgstr ""
+
+#: templates/vantage/partials/stat_card.html:14
+msgid "Could not be computed."
+msgstr ""
+
+#: templates/vantage/partials/stat_card.html:25
+msgid "versus the preceding period"
+msgstr ""
+
+#: templates/vantage/partials/thumb.html:21
+msgid "(opens the full image in a new tab)"
+msgstr ""
+
+#: templates/vantage/partials/topbar.html:17
+msgid "Switch between light and dark theme"
+msgstr ""
+
+#: templates/vantage/partials/usermenu.html:34
+#, python-format
+msgid "Account: %(name)s"
+msgstr "الحساب: %(name)s"
+
+#: templates/vantage/partials/usermenu.html:70
+#, python-format
+msgid "Signed in as %(name)s"
+msgstr "تم تسجيل الدخول باسم %(name)s"
+
+#: templates/vantage/partials/usermenu.html:74 topbarviews.py:57
+#: topbarviews.py:61
+msgid "Your account"
+msgstr "حسابك"
+
+#: templates/vantage/partials/widget.html:19
+msgid "This card could not be computed."
+msgstr ""
+
+#: templates/vantage/partials/widget.html:48
+msgid "No data yet."
+msgstr ""
+
+#: templates/vantage/partials/widget.html:99
+#: templates/vantage/partials/widget.html:121
+msgid "Nothing here yet."
+msgstr ""
+
+#: templates/vantage/password_change.html:16
+msgid ""
+"Changing your own password. Everyone stays signed in on this device; other "
+"sessions are unaffected."
+msgstr ""
+
+#: templates/vantage/password_change.html:28
+msgid "That did not work."
+msgstr ""
+
+#: templates/vantage/search.html:21
+msgctxt "page title, the noun"
+msgid "Search"
+msgstr ""
+
+#: templates/vantage/search.html:22
+msgid "Across every section you can open."
+msgstr ""
+
+#: templates/vantage/search.html:30
+msgid "Search everything…"
+msgstr ""
+
+#: templates/vantage/search.html:40
+#, python-format
+msgid "%(counter)s result for “%(query)s”"
+msgid_plural "%(counter)s results for “%(query)s”"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/vantage/search.html:49
+msgid "See all"
+msgstr ""
+
+#: templates/vantage/search.html:49
+msgid "Open list"
+msgstr ""
+
+#: templates/vantage/search.html:71
+#, python-format
+msgid ""
+"Type at least %(min_length)s characters to look across every section you "
+"have access to."
+msgstr ""
+
+#: templates/vantage/search.html:77
+msgid "Keep typing"
+msgstr ""
+
+#: templates/vantage/search.html:78
+#, python-format
+msgid "A search needs at least %(min_length)s characters."
+msgstr ""
+
+#: templates/vantage/search.html:80
+#, python-format
+msgid "No matches for “%(query)s”"
+msgstr ""
+
+#: templates/vantage/search.html:81
+msgid "Nothing you can open matches that. Try fewer words."
+msgstr ""
+
+#: templates/vantage/settings.html:27
+#, python-format
+msgid "Last changed %(when)s by %(who)s"
+msgstr ""
+
+#: templates/vantage/settings.html:29
+#, python-format
+msgid "Last changed %(when)s"
+msgstr ""
+
+#: templates/vantage/settings.html:38
+msgid "Nothing was saved."
+msgstr ""
+
+#: templates/vantage/settings.html:45
+msgid "Uploads have nowhere to go."
+msgstr ""
+
+#: templates/vantage/settings.html:47
+msgid ""
+"This project has no <code class=\"v-mono\">MEDIA_ROOT</code> and <code "
+"class=\"v-mono\">MEDIA_URL</code>, so an uploaded logo cannot be stored or "
+"served. Everything else on this page works."
+msgstr ""
+
+#: templates/vantage/settings.html:65 templates/vantage/settings_nav.html:345
+msgid "Reset to code defaults"
+msgstr ""
+
+#: templates/vantage/settings.html:76
+msgid "Set here, overriding settings.py"
+msgstr ""
+
+#: templates/vantage/settings.html:77
+msgid "overridden"
+msgstr ""
+
+#: templates/vantage/settings.html:87
+msgid "Pick the brand colour"
+msgstr ""
+
+#: templates/vantage/settings.html:115
+msgid "nothing"
+msgstr ""
+
+#: templates/vantage/settings.html:116
+#, python-format
+msgid ""
+"Empty means <code class=\"v-mono\">%(inherited)s</code>, from <code "
+"class=\"v-mono\">settings.py</code>."
+msgstr ""
+
+#: templates/vantage/settings.html:129
+msgid "Derived palette"
+msgstr ""
+
+#: templates/vantage/settings.html:131
+#, python-format
+msgid "%(ratio)s:1 on button text"
+msgstr ""
+
+#: templates/vantage/settings.html:160
+msgid "A link, a focus ring, a selected row"
+msgstr ""
+
+#: templates/vantage/settings.html:179
+#, python-format
+msgid ""
+"These settings live in code and are not editable here, because they decide "
+"what exists and who may reach it rather than how it looks: <code class=\"v-"
+"mono\">%(names)s</code>."
+msgstr ""
+
+#: templates/vantage/settings.html:182
+#, python-format
+msgid ""
+"Logos and favicons may be SVG, PNG, JPEG or WebP, up to %(kilobytes)s KB. An "
+"SVG containing script or event handlers is refused: it would run on every "
+"page of this panel."
+msgstr ""
+
+#: templates/vantage/settings.html:188
+msgid "Save settings"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:17
+msgid "No heading"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:28
+msgid ""
+"Arrange the groups and links in the sidebar. Drag a row, or use the group "
+"box and the position box beside it — they do the same thing."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:35
+msgid "Arranged here, overriding the code"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:36
+msgid "arranged here"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:44
+msgid ""
+"This arrangement is what the panel shows. It sits on top of <code class=\"v-"
+"mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being ignored until "
+"you reset."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:63
+msgid "Group heading"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:67
+msgid "Icon for this group"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:68
+#: templates/vantage/settings_nav.html:295 templates/vantage/topbar.html:84
+#: templates/vantage/topbar.html:185
+msgid "No icon"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:77
+#, python-format
+msgid "Position of the group %(name)s"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:81
+msgid "Delete group"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:103 templates/vantage/topbar.html:75
+#, python-format
+msgid "Name for %(name)s"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:107 templates/vantage/topbar.html:81
+#, python-format
+msgid "Icon for %(name)s"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:108
+#, python-format
+msgid "Default (%(name)s)"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:122
+#, python-format
+msgid "Group for %(name)s"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:133
+#, python-format
+msgid "Position of %(name)s"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:138
+msgid "Hidden"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:143
+msgid "More"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:158
+msgid "Not available to you — kept, and left alone when you save."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:164
+msgid "Badge"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:170
+msgid "Only with permission"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:179
+msgid "Only for these groups"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:191
+msgid "Remove from the sidebar entirely"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:198
+msgid "Nothing in this group yet."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:203
+msgid "The sidebar is empty. Add a group below."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:212
+msgid "Add a link"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:215
+msgid "What kind"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:217
+msgid "Nothing"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:218
+msgid "A registered model"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:219 topbar.py:88
+msgid "A custom page"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:220
+msgid "A link or an external website"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:247
+msgid "Address"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:252
+msgid ""
+"An external address, or a path on this site starting with “/”. Only http, "
+"https and mailto links are accepted."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:265
+#: templates/vantage/settings_nav.html:293 templates/vantage/topbar.html:183
+msgid "Icon"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:267
+msgid "Default"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:273
+msgid "In group"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:278
+msgid "The new group below"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:284
+msgid "Add a group"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:287
+msgid "Heading"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:289
+msgid "Operations"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:301
+msgid ""
+"The group is added at the end. Move items into it with the group box on each "
+"row, or by dragging."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:311
+msgid ""
+"A model nobody has placed still appears, grouped by app at the end, so "
+"registering one never makes it unreachable. Set <code class=\"v-"
+"mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar that shows "
+"only what is arranged here."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:319
+#, python-format
+msgid "Appearing that way right now: %(names)s."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:324
+msgid ""
+"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code class=\"v-"
+"mono\">\"hide\"</code>, so a model that is not arranged here does not appear "
+"in the sidebar at all — including one registered tomorrow."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:333
+msgid ""
+"<strong>Hidden</strong> keeps an item's place and stops showing it. "
+"<strong>Remove</strong> takes it out of the arrangement altogether. Neither "
+"grants anything: a link to a model somebody cannot open never appears for "
+"them, whatever is arranged here."
+msgstr ""
+
+#: templates/vantage/settings_nav.html:343
+msgid "Save sidebar"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:350
+#, python-format
+msgid "Arranged %(when)s by %(who)s"
+msgstr ""
+
+#: templates/vantage/settings_nav.html:352
+#, python-format
+msgid "Arranged %(when)s"
+msgstr ""
+
+#: templates/vantage/topbar.html:32
+msgid "Reset to the code defaults"
+msgstr ""
+
+#: templates/vantage/topbar.html:41
+msgid "Nothing is stored yet."
+msgstr ""
+
+#: templates/vantage/topbar.html:42
+msgid ""
+"This is the arrangement the package ships with. Saving anything here starts "
+"overriding it, and Reset hands it back."
+msgstr ""
+
+#: templates/vantage/topbar.html:49
+msgid "The bar"
+msgstr ""
+
+#: templates/vantage/topbar.html:50
+msgid "In order, from the end of the breadcrumb to the far edge."
+msgstr ""
+
+#: templates/vantage/topbar.html:67
+msgid "This no longer resolves, so it is not being shown. Remove it."
+msgstr ""
+
+#: templates/vantage/topbar.html:97
+msgid "Show"
+msgstr ""
+
+#: templates/vantage/topbar.html:106
+msgid "Always shown"
+msgstr ""
+
+#: templates/vantage/topbar.html:111
+#, python-format
+msgid "Move %(name)s earlier"
+msgstr ""
+
+#: templates/vantage/topbar.html:114
+#, python-format
+msgid "Move %(name)s later"
+msgstr ""
+
+#: templates/vantage/topbar.html:119
+#, python-format
+msgid "Remove %(name)s"
+msgstr ""
+
+#: templates/vantage/topbar.html:129
+msgid "Show the environment as a full-width banner"
+msgstr ""
+
+#: templates/vantage/topbar.html:131
+msgid "Unticked, it becomes a small chip at its position in the bar above."
+msgstr ""
+
+#: templates/vantage/topbar.html:140
+msgid "Add an item"
+msgstr ""
+
+#: templates/vantage/topbar.html:141
+msgid ""
+"A page in this panel, one of your custom pages, or a link anywhere else."
+msgstr ""
+
+#: templates/vantage/topbar.html:147
+msgid "Points at"
+msgstr ""
+
+#: templates/vantage/topbar.html:160
+msgid "Route name, page slug, or URL"
+msgstr ""
+
+#: templates/vantage/topbar.html:168
+msgid ""
+"A route is a name like vantage:jobs. An external link needs its https:// — a "
+"bare hostname is not a link."
+msgstr ""
+
+#: templates/vantage/topbar.html:194
+msgid "Add to the bar"
+msgstr ""
+
+#: templates/vantage/topbar.html:202
+msgid "What it will look like"
+msgstr ""
+
+#: templates/vantage/widgets/file.html:30
+msgid "Remove this file when I save"
+msgstr ""
+
+#: templates/vantage/widgets/file.html:39
+msgid "or drop a file here"
+msgstr ""
+
+#: templatetags/vantage_list.py:65
+msgid "bar chart"
+msgstr ""
+
+#: templatetags/vantage_list.py:66
+msgid "donut chart"
+msgstr ""
+
+#: templatetags/vantage_list.py:67
+msgid "line chart"
+msgstr ""
+
+#: templatetags/vantage_list.py:214
+#, python-format
+msgid "%(count)s week"
+msgid_plural "%(count)s weeks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templatetags/vantage_list.py:216
+#, python-format
+msgid "%(count)s month"
+msgid_plural "%(count)s months"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templatetags/vantage_list.py:218
+#, python-format
+msgid "%(count)s day"
+msgid_plural "%(count)s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templatetags/vantage_list.py:221
+#, python-format
+msgid "%(count)s point"
+msgid_plural "%(count)s points"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templatetags/vantage_list.py:238
+#, python-format
+msgid "%(label)s: no data."
+msgstr ""
+
+#: templatetags/vantage_list.py:252
+#, python-format
+msgid ""
+"%(label)s: %(shape)s of %(period)s, %(first)s to %(last)s, from %(low)s to "
+"%(high)s."
+msgstr ""
+
+#: templatetags/vantage_list.py:255
+#, python-format
+msgid "%(label)s: %(shape)s of %(period)s, from %(low)s to %(high)s."
+msgstr ""
+
+#: templatetags/vantage_list.py:261
+#, python-format
+msgid "item %(number)s"
+msgstr ""
+
+#: templatetags/vantage_list.py:271
+#, python-format
+msgid "%(label)s: %(shape)s, %(segments)s, and %(count)s more."
+msgid_plural "%(label)s: %(shape)s, %(segments)s, and %(count)s more."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templatetags/vantage_list.py:275
+#, python-format
+msgid "%(label)s: %(shape)s, %(segments)s."
+msgstr ""
+
+#: topbar.py:87
+msgid "A page in this panel"
+msgstr ""
+
+#: topbar.py:89
+msgid "An external link"
+msgstr ""
+
+#: topbar.py:659
+msgid "The search box, and the ⌘K command palette behind it."
+msgstr ""
+
+#: topbar.py:660
+msgid "Switches one person between light and dark."
+msgstr ""
+
+#: topbar.py:663
+msgid "Only shows when an environment name is set in the settings."
+msgstr ""
+
+#: topbar.py:666
+msgid "Account menu"
+msgstr ""
+
+#: topbar.py:667
+msgid "Who you are signed in as, your password, the theme, and sign out."
+msgstr ""
+
+#: topbarviews.py:58
+msgid "Your details, and everything the account menu offers."
+msgstr ""
+
+#: topbarviews.py:73 topbarviews.py:84
+msgid "Top bar"
+msgstr ""
+
+#: topbarviews.py:75
+msgid ""
+"Arrange the controls along the top of every page, and add links of your own."
+msgstr ""
+
+#: topbarviews.py:81
+msgid "You do not have permission to change the top bar."
+msgstr ""
+
+#: topbarviews.py:114
+msgid "The top bar was reset to what the code says."
+msgstr ""
+
+#: topbarviews.py:140
+msgid "The top bar was saved."
+msgstr ""
+
+#: topbarviews.py:185
+msgid "Choose what this item points at."
+msgstr ""
+
+#: topbarviews.py:187
+msgid "This cannot be empty."
+msgstr ""
+
+#: topbarviews.py:193
+#, python-format
+msgid "No route is named %(name)s in this project."
+msgstr ""
+
+#: topbarviews.py:199
+#, python-format
+msgid "No custom page has the slug %(slug)s."
+msgstr ""
+
+#: topbarviews.py:203
+msgid "Use a full https:// address, or a path beginning with a slash."
+msgstr ""
+
+#: topbarviews.py:207
+msgid "Give the item a name; it is what the bar shows."
+msgstr ""
+
+#: views.py:124
+#, python-format
+msgid "You do not have permission to view %(records)s."
+msgstr ""
+
+#: views.py:125
+#, python-format
+msgid "You do not have permission to add %(records)s."
+msgstr ""
+
+#: views.py:126
+#, python-format
+msgid "You do not have permission to change %(records)s."
+msgstr ""
+
+#: views.py:127
+#, python-format
+msgid "You do not have permission to delete %(records)s."
+msgstr ""
+
+#: views.py:136
+#, python-format
+msgid "You do not have permission to %(action)s %(records)s."
+msgstr ""
+
+#: views.py:198
+#, python-format
+msgid ""
+"%(action)s is limited to %(limit)s record at a time; %(count)s were selected."
+msgid_plural ""
+"%(action)s is limited to %(limit)s records at a time; %(count)s were "
+"selected."
+msgstr[0] ""
+msgstr[1] ""
+
+#: views.py:233
+#, python-format
+msgid "%(action)s: %(summary)s (%(scope)s)"
+msgstr ""
+
+#: views.py:243
+#, python-format
+msgid "%(action)s is running over %(scope)s."
+msgstr ""
+
+#: views.py:254
+#, python-format
+msgid "%(message)s (%(scope)s)"
+msgstr ""
+
+#: views.py:310
+msgid "Day"
+msgstr ""
+
+#: views.py:311
+msgid "Week"
+msgstr ""
+
+#: views.py:312
+msgid "Month"
+msgstr ""
+
+#: views.py:313
+msgid "Year"
+msgstr ""
+
+#: views.py:478
+msgid "No date"
+msgstr ""
+
+#: views.py:484
+#, python-format
+msgid "Week %(week)s, %(year)s"
+msgstr ""
+
+#: views.py:739
+#, python-format
+msgid "You do not have permission to view %(page)s."
+msgstr ""
+
+#: views.py:805
+#, python-format
+msgid "You are now acting as %(user)s."
+msgstr ""
+
+#: views.py:809
+#, python-format
+msgid "Returned to %(user)s."
+msgstr ""
+
+#: widgets.py:205
+msgid "Days, hours, minutes and seconds, e.g. '3 12:30:00' or '01:30:00'."
+msgstr ""
+
+#: widgets.py:449
+#, python-format
+msgid ""
+"Showing the first %(count)s of many. Turn on JavaScript to search the rest."
+msgstr ""
+
+#: widgets.py:469
+msgid "Type to search…"
+msgstr ""
+
+#: widgets.py:470
+#, python-format
+msgid "Search %(name)s…"
+msgstr ""
+
+#: widgets.py:720
+msgid "Relationships"
+msgstr ""
+
+#: widgets.py:721
+msgid "Options"
+msgstr ""
+
+#: widgets.py:722
+msgid "Metadata"
+msgstr ""
