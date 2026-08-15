@@ -10,6 +10,21 @@
 
 /* ── base ─────────────────────────────────────────────────────────────────── */
 
+/* The user agent hides `[hidden]` with `display: none`, and any class that sets a
+ * display value beats it — plain specificity, no cascade subtlety. That is not a
+ * hypothetical: the bulk-action bar sat on every list page reading "0 records
+ * selected", correctly carrying the attribute the whole time, because `.v-action-bar`
+ * said `display: flex`. An audit found thirteen classes in this stylesheet with the
+ * same shape, all one JS toggle away from the same bug.
+ *
+ * One rule rather than thirteen, and `!important` rather than repeating the guard per
+ * class, because the alternative is remembering it every time somebody adds a
+ * component that starts life hidden. This is the same rule every CSS reset ships, for
+ * the same reason. */
+[hidden] {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {
