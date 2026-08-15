@@ -330,6 +330,28 @@ def _read_head(value: Any) -> bytes:
     return head
 
 
+def _read_all(value: Any) -> bytes:
+    """The whole uploaded file, leaving it rewound.
+
+    Only used for SVG, and only after the size ceiling has already refused anything
+    large — an SVG has to be read end to end because a script element at the bottom of
+    one runs exactly as well as a script element at the top.
+    """
+    try:
+        value.seek(0)
+        body = value.read()
+    except Exception:  # pragma: no cover - an exotic file-like object
+        return b""
+    finally:
+        try:
+            value.seek(0)
+        except Exception:  # pragma: no cover
+            pass
+    if isinstance(body, str):  # pragma: no cover - only a text-mode file object
+        body = body.encode("utf-8", "replace")
+    return body
+
+
 # ── upload validation ───────────────────────────────────────────────────────
 
 
@@ -388,6 +410,48 @@ def validate_file_upload(value: Any) -> None:
             % {"name": _basename(name)},
             code="upload_not_an_image",
         )
+
+    if suffix == ".svg" or detected == "image/svg+xml":
+        _refuse_executable_svg(value, name)
+
+
+def _refuse_executable_svg(value: Any, name: str) -> None:
+    """An honestly-named SVG still has to be inert.
+
+    Every other check above is about a file lying about what it is. This one is about a
+    file telling the truth: ``attachment.svg`` really is an SVG, and an SVG is a
+    document that can carry script. Stored on a plain ``FileField`` and linked from the
+    detail page — which is what ``partials/thumb.html`` does — the next person to open
+    it runs that script from the panel's own origin with their own session. On a panel,
+    the next person is quite often a superuser.
+
+    ``ImageField`` never reaches here; :func:`validate_image_upload` refuses SVG
+    outright, because the only safe way to render an untrusted one is not to. The
+    branding fields had this check from the start. A plain ``FileField`` — attachments,
+    contracts, exports, whatever a project happens to register — did not, which is the
+    gap this closes.
+
+    The patterns come from :mod:`vantage.security` rather than being restated here. A
+    third copy of the same rejection list is a third thing to update when somebody finds
+    a new way to smuggle script into an SVG, and only two of them would get updated.
+    """
+    from vantage.security import SVG_HAZARDS
+
+    # The whole file, not the sniffed head: a script element at the end of an SVG runs
+    # exactly as well as one at the start. Bounded by the size ceiling already enforced
+    # by _check_size above, so this cannot be turned into a memory attack.
+    payload = _read_all(value)
+    for pattern, description in SVG_HAZARDS:
+        if pattern.search(payload):
+            raise ValidationError(
+                _(
+                    "%(name)s contains %(hazard)s, which would run as script for anyone "
+                    "who opens it from the panel. Export it without the script, or "
+                    "convert it to a PNG."
+                )
+                % {"name": _basename(name), "hazard": description},
+                code="upload_executable_svg",
+            )
 
 
 def validate_image_upload(value: Any) -> None:
