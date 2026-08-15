@@ -144,6 +144,22 @@ type against sniffed bytes, and an SVG containing a script, an event handler, a
 [Media and uploads](forms.md#media-and-uploads) for the field-level half of this that
 runs whether or not the middleware is installed.
 
+> **Known gap, as of this writing.** The SVG hazard scan quoted above —
+> `<script>`, an event handler, `javascript:`, an embedded document — is real for
+> this middleware and real for `vantage.models.validate_branding_upload` (the four
+> branding fields). It is **not** currently performed by
+> `vantage.media.validate_file_upload`, the field-level validator every plain
+> `FileField` on a registered model gets (`ImageField` is unaffected: it refuses
+> SVG outright). That validator only checks the sniffed content type against the
+> extension, so a file honestly named `.svg` that honestly *is* an SVG — script
+> included — passes it. A project running without `PanelSecurityMiddleware`
+> therefore has no SVG-content screening at all on an ordinary attachment field,
+> only on the branding fields. Until `vantage.media.validate_file_upload` is
+> brought in line with the other two layers, treat `PanelSecurityMiddleware` and a
+> separate `MEDIA_URL` origin (below) as required, not optional, on any project
+> whose registered models accept file uploads from less-than-fully-trusted users.
+> See `tests/test_security.py::TestFileFieldSvgScreening` for the failing case.
+
 | `VANTAGE` key | Default | Effect |
 |---|---|---|
 | `RATE_LIMIT` | `True` | The kill switch, once the middleware is installed — headers stay on, counting stops |

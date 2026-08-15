@@ -1041,6 +1041,77 @@ class TestInspectUpload:
         assert security.inspect_upload(io.BytesIO(b"")) == []
 
 
+class TestFileFieldSvgScreening:
+    """``vantage.media.validate_file_upload`` is the *field-level* validator Django
+    attaches to every ``FileField`` on every registered model (see
+    ``vantage.widgets``, which wires ``upload_validator(db_field)`` onto the form
+    field). Unlike ``PanelSecurityMiddleware``'s ``inspect_upload`` — which is only
+    consulted when that opt-in middleware is installed — this validator runs on
+    *every* save regardless of the middleware stack, exactly like
+    ``vantage.models.validate_branding_upload`` does for the four branding fields.
+
+    ``vantage.checks`` (``vantage.W059``'s hint text) and ``vantage.media``'s own
+    module docstring both claim uploads are "screened" and that an SVG containing
+    script is refused. That is true for ``ImageField`` (which refuses SVG outright)
+    and true for the branding fields, but ``validate_file_upload`` — the validator
+    a plain ``FileField`` gets — only checks that the sniffed content type agrees
+    with the extension. A file that is honestly named ``.svg`` and honestly *is*
+    an SVG sails through with no inspection of what is inside it.
+
+    That gap is bigger than the branding fields it was modelled on: any user with
+    ``add``/``change`` permission on *any* registered model carrying a plain
+    ``FileField`` (an attachment, a document, an export — anything that is not an
+    ``ImageField``) can store a ``<script>``-bearing SVG. ``vantage/partials/
+    thumb.html`` links straight to the stored file (``target="_blank"``), so the
+    next person who opens that attachment — reviewer, approver, superuser — runs
+    the attacker's script from the panel's own origin with their session.
+    """
+
+    def _hostile(self, name="attachment.svg"):
+        body = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.cookie)</script></svg>'
+        return upload(name, body)
+
+    def test_a_hostile_svg_correctly_named_is_refused(self):
+        from django.core.exceptions import ValidationError
+
+        from vantage.media import validate_file_upload
+
+        with pytest.raises(ValidationError):
+            validate_file_upload(self._hostile())
+
+    def test_an_svg_event_handler_is_also_refused(self):
+        from django.core.exceptions import ValidationError
+
+        from vantage.media import validate_file_upload
+
+        body = b'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>'
+        with pytest.raises(ValidationError):
+            validate_file_upload(upload("attachment.svg", body))
+
+    def test_a_clean_svg_is_still_accepted(self):
+        """The fix must not turn every SVG into a rejection, only a hostile one."""
+        from vantage.media import validate_file_upload
+
+        body = b'<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'
+        validate_file_upload(upload("attachment.svg", body))  # must not raise
+
+    def test_the_branding_validator_already_refuses_the_same_payload(self):
+        """Proves this is a real inconsistency, not a hypothetical one: the exact
+        same bytes are already refused for the four branding fields."""
+        from django.core.exceptions import ValidationError
+
+        from vantage.models import validate_branding_upload
+
+        with pytest.raises(ValidationError):
+            validate_branding_upload(self._hostile("logo.svg"))
+
+    def test_the_middleware_layer_already_refuses_the_same_payload(self):
+        """And ``inspect_upload`` — reachable only when the opt-in middleware is
+        installed — already refuses it too. ``validate_file_upload`` is the odd one
+        out among the three layers that all claim to screen the same threat."""
+        assert security.inspect_upload(self._hostile()) != []
+
+
 @pytest.mark.usefixtures("hardened")
 class TestUploadScreeningThroughTheStack:
     def test_a_hostile_upload_is_refused_before_the_view(self, boss):
