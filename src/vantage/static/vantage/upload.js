@@ -119,7 +119,11 @@
        * the person from watching a 40 MB upload finish and then be refused. */
       showError(
         root,
-        'That file is ' + humanBytes(file.size) + '. The limit is ' + humanBytes(limit) + '.'
+        interpolate(
+          gettext('That file is %(size)s. The limit is %(limit)s.'),
+          { size: humanBytes(file.size), limit: humanBytes(limit) },
+          true
+        )
       );
       return false;
     }
@@ -186,7 +190,7 @@
     try {
       field.files = files;
     } catch (error) {
-      showError(root, 'This browser cannot accept a dropped file. Use the button instead.');
+      showError(root, gettext('This browser cannot accept a dropped file. Use the button instead.'));
       return;
     }
     selected(root);
@@ -236,7 +240,9 @@
       if (!field || !field.files || !field.files.length) return;
       var row = part(root, 'progress');
       var text = part(root, 'progress-text');
-      if (text) text.textContent = 'Uploading ' + humanBytes(field.files[0].size) + '…';
+      if (text) {
+        text.textContent = interpolate(gettext('Uploading %s…'), [humanBytes(field.files[0].size)]);
+      }
       if (row) row.hidden = false;
     });
   });

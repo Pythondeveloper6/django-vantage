@@ -259,10 +259,10 @@
 
     if (query.length >= minLength && resultsUrl) {
       groups.push({
-        label: "Search",
+        label: gettext("Search"),
         options: [
           {
-            label: "See all results for “" + query + "”",
+            label: interpolate(gettext("See all results for “%s”"), [query]),
             sublabel: "",
             hint: "",
             icon: "search",
@@ -374,8 +374,16 @@
   function announce(count, query) {
     if (!status) return;
     var message = !query
-      ? count + (count === 1 ? " command" : " commands")
-      : count + (count === 1 ? " result" : " results") + " for " + query;
+      ? interpolate(
+          ngettext("%(count)s command", "%(count)s commands", count),
+          { count: count },
+          true
+        )
+      : interpolate(
+          ngettext("%(count)s result for %(query)s", "%(count)s results for %(query)s", count),
+          { count: count, query: query },
+          true
+        );
     // Re-setting identical text says nothing in most screen readers and says it
     // twice in the rest.
     if (message === announced) return;

@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
+from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import User
@@ -33,6 +34,12 @@ from vantage.theme import build_tokens
 #: Contrast required of a non-text UI boundary — a focus ring, a control edge.
 #: WCAG 1.4.11, and lower than the 4.5:1 text bar on purpose.
 WCAG_AA_NON_TEXT = 3.0
+
+#: The two live-demo findings below are client-side behaviour a Django test client has
+#: no JavaScript to reproduce (see TestLiveDemoFindings' own docstring), so — like
+#: TestTheControlIsShipped in test_widgets.py — they are asserted against the shipped
+#: source rather than against rendered HTML.
+STATIC = Path(__file__).resolve().parent.parent / "src/vantage/static/vantage"
 
 
 # ── a tiny accessibility-oriented DOM ───────────────────────────────────────
@@ -476,6 +483,95 @@ class TestLiveDemoFindings:
         tag = html[start : html.index(">", start) + 1]
         assert "aria-live" in tag, f"the contrast readout is not a live region: {tag}"
         assert "role=" in tag, f"the contrast readout has no status role: {tag}"
+
+    def test_column_resize_announces_the_new_width(self):
+        """WCAG 4.1.3 Status Messages.
+
+        Confirmed live: focusing a resize handle and pressing Left/Right genuinely
+        changes the column's width in real time (`vantage-grid.js`'s own
+        `setWidth`), but nothing told a screen reader user what it had become — the
+        control was operable and its effect invisible. Fixed by routing every width
+        change through a debounced announcement on the grid's existing live region.
+
+        A Django test client has no JavaScript, so this cannot be driven through
+        rendered HTML the way the rest of this file works; it is pinned against the
+        shipped source instead, the same way TestTheControlIsShipped in
+        test_widgets.py pins combobox.js's shape.
+        """
+        js = (STATIC / "vantage-grid.js").read_text(encoding="utf-8")
+
+        # Debounced, not fired from every keypress or pointermove frame: a held
+        # arrow key repeats several times a second and a drag is dozens of frames.
+        assert "RESIZE_ANNOUNCE_DEBOUNCE_MS" in js
+        assert "window.clearTimeout(resizeAnnounceTimer)" in js, (
+            "the previous pending announcement is not being cancelled -- "
+            "this is what makes it a debounce rather than a flood"
+        )
+
+        # setWidth is the single path both the drag handler and the keyboard
+        # handler go through (see the pointermove and keydown listeners on
+        # [data-col-resize] below it in the file), so hooking the announcement
+        # there is what makes it fire for both interaction styles.
+        set_width = js[js.index("function setWidth(") : js.index("function setPinned(")]
+        assert "scheduleResizeAnnounce(name)" in set_width
+
+        # A pixel count alone does not say which column changed. The column's own
+        # label has to be in the message, not just the number.
+        schedule = js[
+            js.index("function scheduleResizeAnnounce(") : js.index("function setWidth(")
+        ]
+        assert "columnByName[name].label" in schedule
+        assert "widths[name]" in schedule
+
+    def test_the_relation_pickers_hidden_select_does_not_surface_as_a_phantom_combobox(
+        self,
+    ):
+        """WCAG 4.1.2 Name, Role, Value.
+
+        Confirmed live (an Order's Customer field, `/admin/shop/order/<pk>/edit/`)
+        with Chromium's own accessibility tree (CDP ``Accessibility.getFullAXTree``,
+        not Playwright's ``ariaSnapshot()`` -- that helper does not consult `inert`
+        and reports this element regardless of the fix): ``combobox.js`` used to hide
+        the real ``<select>`` behind the type-to-search box with
+        ``tabindex="-1"`` plus ``aria-hidden="true"``, kept focusable so the browser
+        could report a constraint violation against it. ``aria-hidden`` on a
+        focusable element is a spec conflict; Chromium resolves it in the element's
+        favour, so the select stayed in the tree as a second, nameless combobox.
+
+        The constraint-validation concern does not hold for this widget as it
+        stands: `required` is the only HTML5 constraint a ``<select>`` can carry,
+        and it is already moved onto the visible ``input`` a few lines above this
+        (`input.required = true; select.required = false;`) before the select is
+        ever hidden. `inert` is the fix that actually removes the element from the
+        accessibility tree, at the honestly-documented cost that it also makes the
+        element unfocusable -- see docs/accessibility.md's "hidden `<select>`"
+        section for the trade-off this depends on.
+        """
+        js = (STATIC / "combobox.js").read_text(encoding="utf-8")
+
+        # The invariant the whole fix depends on: required has to be off the select
+        # by the time it is hidden, or `inert` would be swallowing a real
+        # constraint rather than a moot one. Order matters here, not just presence.
+        required_moved = js.index("select.required = false;")
+        hidden = js.index('select.setAttribute("tabindex", "-1");')
+        assert required_moved < hidden, (
+            "select.required is no longer being cleared before the select is hidden -- "
+            "the `inert` fix stops being honest the day this changes"
+        )
+
+        # `inert` is the primary path; the old shape survives only as the fallback
+        # for a browser too old to support it, not as the normal behaviour.
+        assert '"inert" in select' in js
+        assert "select.inert = true;" in js
+
+        # Never aria-hidden on a still-focusable select: whichever branch runs, the
+        # two must not both apply to the same element at once.
+        fallback = js[js.index('"inert" in select') :]
+        assert 'select.setAttribute("aria-hidden", "true")' in fallback
+        # And it is genuinely a fallback -- gated behind the feature check above,
+        # not a second, unconditional application of the old attributes.
+        unconditional = js[: js.index('"inert" in select')]
+        assert 'select.setAttribute("aria-hidden", "true")' not in unconditional
 
 
 class TestTheErrorPages:

@@ -13,6 +13,8 @@ msgstr so it falls back to the English source instead of shipping a guess. See
 
 from __future__ import annotations
 
+import json
+import re
 import shutil
 import subprocess
 import zipfile
@@ -20,11 +22,46 @@ from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import User
-from django.urls import reverse
+from django.urls import resolve, reverse
 from django.utils import translation
 from django.utils.translation import gettext, ngettext
+from django.views.i18n import JavaScriptCatalog
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(autouse=True)
+def _clear_view_cache():
+    """The jsi18n route is wrapped in cache_page() (see TestTheJavaScriptCatalogueRoute
+    below) and this test settings module has no LocaleMiddleware to stamp a
+    ``Vary: Accept-Language`` header onto its response — so nothing here makes the
+    per-view cache key language-aware, and a test in English would otherwise poison
+    the cache for the very next test that overrides to Arabic against the same URL.
+    In production this is not a gap: a project using LocaleMiddleware gets that Vary
+    header for free (see docs/internationalization.md), which is what makes
+    cache_page()'s own built-in Vary-aware keying correct there. This fixture only
+    stands in for the header a real per-request language negotiation would send.
+    """
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
+def _catalog_of(body: str) -> dict:
+    """The ``newcatalog`` object JavaScriptCatalog's response embeds, as real data.
+
+    Django writes it out with ``json.dumps(..., ensure_ascii=True)`` (see
+    ``django/views/i18n.py``), so an Arabic value in the raw response body is a run
+    of ``\\uXXXX`` escapes, never the literal characters — matching against those
+    literal characters directly would silently never find anything. Extracting the
+    object and parsing it as the JSON it actually is sidesteps that entirely, and
+    reads what a project's own JavaScript would actually receive at ``django.catalog``.
+    """
+    match = re.search(r"const newcatalog = (\{.*?\n\s*\});", body, re.DOTALL)
+    assert match, "no `const newcatalog = {...};` block in the catalogue response"
+    return json.loads(match.group(1))
 
 
 @pytest.fixture
@@ -135,6 +172,136 @@ class TestNgettextPluralisesThroughArabicsSixForms:
         assert (many % {"count": 5}) == "5 selected records"
 
 
+# ── the JavaScript catalogue ────────────────────────────────────────────────
+#
+# combobox.js, vantage-inline.js and friends call gettext()/ngettext() now, but
+# calling them is only half the feature: something has to serve the catalogue those
+# functions read at runtime, scoped to this package, and cached. These tests exercise
+# the mounted route and the compiled djangojs.mo behind it — not the Python-side
+# gettext() used above, which is a different domain ("django") and would report a
+# translated string here even if the JS catalogue itself were completely broken.
+
+
+class TestTheJavaScriptCatalogueRoute:
+    def test_it_is_scoped_to_the_vantage_package_only(self):
+        """Not the whole project's — a project's own strings are not this package's
+        to serve. ``packages=["vantage"]`` is what makes JavaScriptCatalog read only
+        vantage/locale/**, never LOCALE_PATHS or another installed app's locale/."""
+        match = resolve(reverse("vantage:jsi18n"))
+        assert match.func.view_class is JavaScriptCatalog
+        assert match.func.view_initkwargs == {"packages": ["vantage"]}
+
+    def test_it_is_reachable_and_returns_javascript(self, client, db):
+        # No login required, deliberately: a project's own login page may one day
+        # want a translated client-side validation message before anyone is
+        # authenticated, the same way Django's own jsi18n is conventionally public.
+        response = client.get(reverse("vantage:jsi18n"))
+        assert response.status_code == 200
+        assert "javascript" in response["Content-Type"]
+
+    def test_it_is_cached(self, client, db):
+        """cache_page() is what makes this affordable — the catalogue is identical
+        for every request in one language, and building it means walking every
+        compiled .mo file's plural forms on every hit if it is not cached."""
+        response = client.get(reverse("vantage:jsi18n"))
+        # cache_page() calls patch_response_headers(), which is what actually stamps
+        # Cache-Control/Expires — asserting on those, not merely "it responded",
+        # is the difference between "cached" and "happens to work".
+        assert "max-age" in response.get("Cache-Control", "")
+        assert "Expires" in response
+
+
+class TestTheJavaScriptCatalogueTranslatesArabic:
+    """The catalogue's own content, not the "django" domain gettext() above — this
+    is what proves djangojs.mo actually compiled and actually ships translations,
+    not just that Python-side i18n (already covered above) works.
+    """
+
+    def test_a_known_js_string_comes_back_in_arabic(self, client, db):
+        with translation.override("ar"):
+            body = client.get(reverse("vantage:jsi18n")).content.decode()
+        # "Selection cleared" (combobox.js)
+        assert _catalog_of(body)["Selection cleared"] == "تم مسح التحديد"
+
+    def test_default_english_carries_the_english_source_not_arabic(self, client, db):
+        body = client.get(reverse("vantage:jsi18n")).content.decode()
+        assert _catalog_of(body)["Selection cleared"] == "Selection cleared"
+
+    def test_an_untranslated_js_string_falls_back_to_english_not_a_blank(self, client, db):
+        """The djangojs catalogue is deliberately partial too, exactly like the
+        django domain (see TestKnownStringsComeBackInArabic above): an empty msgstr
+        is omitted from the compiled .mo entirely, and DjangoTranslation's own
+        fallback-to-LANGUAGE_CODE chain is what fills the gap with the English
+        source — never a blank string a JS caller would render as nothing."""
+        with translation.override("ar"):
+            body = client.get(reverse("vantage:jsi18n")).content.decode()
+        # "this row" (vantage-listprefs.js) is deliberately left untranslated.
+        assert _catalog_of(body)["this row"] == "this row"
+
+    def test_the_flagship_plural_carries_all_six_arabic_forms(self, client, db):
+        """``%(count)s change`` / ``%(count)s changes`` — the "1 changes" bug this
+        whole exercise is about — round-tripped through the compiled catalogue that
+        ships to the browser, in every one of Arabic's six plural categories."""
+        with translation.override("ar"):
+            body = client.get(reverse("vantage:jsi18n")).content.decode()
+        forms = _catalog_of(body)["%(count)s change"]
+        assert forms == [
+            "لا تغييرات",  # zero
+            "تغيير واحد",  # one
+            "تغييران",  # two
+            "%(count)s تغييرات",  # few (3-10)
+            "%(count)s تغييراً",  # many (11-99)
+            "%(count)s تغيير",  # other (100+)
+        ]
+        # A regression this specific fails by collapsing every count onto one form.
+        assert len(set(forms)) == 6
+
+
+# ── graceful degradation ─────────────────────────────────────────────────────
+
+
+class TestTheShellDegradesWithoutThrowing:
+    """A project that has not mounted the catalogue route at all, or whose request
+    for it 404s or drops on the way, must not get a page where every deferred
+    script after it throws "gettext is not defined" on load. See
+    vantage-i18n-fallback.js and the comment above it in base.html.
+    """
+
+    @pytest.fixture
+    def staff(self, db):
+        return User.objects.create_superuser("i18n2", "i18n2@example.com", "x")
+
+    def test_base_html_loads_the_catalogue_before_the_fallback_before_vantage_js(
+        self, client, staff
+    ):
+        client.force_login(staff)
+        body = client.get(reverse("vantage:dashboard")).content.decode()
+
+        catalogue_url = reverse("vantage:jsi18n")
+        catalogue_at = body.find(catalogue_url)
+        fallback_at = body.find("vantage-i18n-fallback.js")
+        vantage_js_at = body.find("vantage/vantage.js")
+
+        assert -1 not in (catalogue_at, fallback_at, vantage_js_at)
+        assert catalogue_at < fallback_at < vantage_js_at
+
+    def test_the_catalogue_script_and_the_fallback_are_not_deferred(self, client, staff):
+        """Deferred scripts run after parsing, in document order — but only after
+        every non-deferred script the parser already ran. These two have to be in
+        that first group, or a deferred script earlier in the document than expected
+        (a template override, a plugin) could still run before gettext() exists."""
+        client.force_login(staff)
+        body = client.get(reverse("vantage:dashboard")).content.decode()
+        catalogue_line = next(
+            line for line in body.splitlines() if "vantage:jsi18n" in line or "/_/jsi18n/" in line
+        )
+        fallback_line = next(
+            line for line in body.splitlines() if "vantage-i18n-fallback.js" in line
+        )
+        assert "defer" not in catalogue_line
+        assert "defer" not in fallback_line
+
+
 # ── the compiled catalogue actually ships ───────────────────────────────────
 
 
@@ -165,8 +332,14 @@ class TestCompiledCataloguesShipInTheWheel:
         with zipfile.ZipFile(wheels[0]) as z:
             names = z.namelist()
 
+        # Both domains: "django" (Python + templates) and "djangojs" (the JS
+        # catalogue JavaScriptCatalog serves — see TestTheJavaScriptCatalogueRoute
+        # above). A wheel that shipped one and silently dropped the other would
+        # still pass every test above, which runs against the source tree, not
+        # a built and reinstalled package.
         for locale in ("en", "ar"):
-            po = f"vantage/locale/{locale}/LC_MESSAGES/django.po"
-            mo = f"vantage/locale/{locale}/LC_MESSAGES/django.mo"
-            assert po in names, f"{po} missing from the built wheel"
-            assert mo in names, f"{mo} missing from the built wheel — .mo is not shipping"
+            for domain in ("django", "djangojs"):
+                po = f"vantage/locale/{locale}/LC_MESSAGES/{domain}.po"
+                mo = f"vantage/locale/{locale}/LC_MESSAGES/{domain}.mo"
+                assert po in names, f"{po} missing from the built wheel"
+                assert mo in names, f"{mo} missing from the built wheel — .mo is not shipping"
