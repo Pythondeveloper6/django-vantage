@@ -88,23 +88,48 @@ all ~890 entries before a locale is useful. Leave the rest with an empty `msgstr
 that falls back to English rather than shipping a guess. Re-run `compilemessages`
 after every edit; the `.po` is not read at runtime, only the compiled `.mo` is.
 
-## Known gap: JavaScript strings are not wired into i18n yet
+## JavaScript strings
 
-The runtime under `src/vantage/static/vantage/*.js` (the combobox, the inline grid
-editor, the upload widget, …) has user-facing strings — the combobox's "N results
-shown", "No matches for…"; the inline editor's "N changes", "Discard N unsaved
-changes?" — that are plain string literals today, not run through
-[Django's JavaScript i18n](https://docs.djangoproject.com/en/stable/topics/i18n/translation/#internationalization-in-javascript-code)
-(`django.jsi18n`, `gettext()`/`ngettext()` in JS) or any other translation
-mechanism. Confirmed by running
-`django-admin makemessages -d djangojs` against every file in that directory: it
-extracts nothing, because there is nothing marked as translatable to extract.
+The runtime under `src/vantage/static/vantage/*.js` — the combobox, the inline grid
+editor, the upload widget, the palette — has plenty of user-facing text: the
+combobox's "N results shown" and "No matches for…", the inline editor's "N changes"
+and "Discard N unsaved changes?". All of it goes through
+[Django's JavaScript catalogue](https://docs.djangoproject.com/en/stable/topics/i18n/translation/#internationalization-in-javascript-code),
+so the panel does not fall back to English the moment it starts speaking to you
+interactively.
 
-Wiring that up means both a source change (marking those strings for extraction —
-typically the `{% get_current_language %}` + `JavaScriptCatalog` view pattern, or
-pre-rendering the strings server-side into `data-*` attributes the script reads) and
-a template change to serve the catalogue, both outside what this page's scope
-covers. Tracked here so it is not mistaken for done.
+The catalogue is mounted at `_/jsi18n/` with `packages=["vantage"]`, which scopes it
+to this package's own strings — a project's translations are its own view to add, and
+serving them from here would make one catalogue responsible for two things. It is
+cached for a day: the response is identical for everyone in a given language, and
+generating it walks every `.mo` file's plural forms. Django keys that cache by the
+active language automatically when `USE_I18N` is on, so there is no Vary header to
+get wrong.
+
+`base.html` loads the catalogue and then `vantage-i18n-fallback.js`, in that order and
+neither deferred. The fallback defines `gettext`, `ngettext`, `interpolate`,
+`pgettext`, `npgettext` and `gettext_noop` as pass-throughs **only if the catalogue
+did not already define them** — so a project that has not run `collectstatic`, or
+whose proxy has eaten the route, gets English rather than a `gettext is not defined`
+that stops every script on the page.
+
+Plurals go through `ngettext`, and interpolation through `interpolate` with whole
+sentences: `gettext("Showing %s of %s")`, never a translated fragment concatenated to
+a number, because word order is not universal. Arabic is the useful test here — it has
+six plural forms, and the inline editor's change counter is translated across all of
+them.
+
+Deliberately left untranslated: single-glyph button labels (B, I, •, ↑, ↓), keyboard
+key names ("Ctrl+B"), and byte-unit abbreviations (B/KB/MB), matching how the Python
+side treats the same cases.
+
+To extract them after a change:
+
+```bash
+cd src/vantage
+django-admin makemessages -d djangojs -l ar
+django-admin compilemessages
+```
 
 ## Testing
 

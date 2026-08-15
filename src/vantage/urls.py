@@ -37,8 +37,15 @@ def build(site) -> list:
             "_/jsi18n/",
             # `packages` scopes this to vantage's own catalogue — never the whole
             # project's, which is a project's own view to add if it wants one.
+            #
             # Cached: the response is identical for every request in one language, and
             # generating it means walking every .mo file's plural forms on every hit.
+            # Safe across languages without any Vary header of our own — Django's
+            # _i18n_cache_key_suffix appends the active language to the cache key
+            # whenever USE_I18N is on, reading request.LANGUAGE_CODE if a middleware
+            # set one and falling back to get_language() otherwise. So a project that
+            # negotiates language without LocaleMiddleware still gets its own entry
+            # rather than whichever language happened to warm the cache first.
             cache_page(86400)(JavaScriptCatalog.as_view(packages=["vantage"])),
             name="jsi18n",
         ),
