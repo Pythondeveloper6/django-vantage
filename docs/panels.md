@@ -274,7 +274,9 @@ class ReviewPanel(ModelPanel):
 a list of names, and each name resolves to one of two things:
 
 - **A built-in**: `"view"`/`"detail"`, `"edit"`/`"change"`, `"duplicate"`/`"copy"`, or
-  `"delete"`. Each renders as an ordinary link to the page that already does the job.
+  `"delete"`. Each renders as an ordinary link to the page that already does the job —
+  see [Duplicating a record](forms.md#duplicating-a-record) for exactly what the
+  duplicate page does with unique fields, files and related children.
 - **The name of an `@action`-decorated method** — the exact same decorator [bulk
   actions](lists.md#bulk-actions) use, read for its label, icon, permission and
   `confirm` text rather than restated. It renders as a `POST` button, never a link, so
@@ -283,7 +285,10 @@ a list of names, and each name resolves to one of two things:
 Leaving `row_actions` unset offers nothing beyond what the row already links to. A
 soft-deleted row gets a Restore button automatically wherever the [`soft_delete`
 pattern](#detected-conventions) applies — that one is not declarable in `row_actions`
-at all, because it only makes sense on a trashed row and never on a live one.
+at all, because it only makes sense on a trashed row and never on a live one. See
+[Deleting, and undoing it](lists.md#deleting-and-undoing-it) for what Delete and
+Restore actually do to the row, and why a second Delete on an already-trashed row
+destroys it for good.
 
 For content that is not an action at all — a badge, a status dot, a link to somewhere
 outside the panel — use the `row_actions` [slot](extending.md#slots) instead, which is

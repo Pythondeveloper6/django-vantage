@@ -241,9 +241,12 @@ to hand back twenty. There is no page-number mode here to fall back to:
 Pass `next` back as `?cursor=` for the following page. There is no total count, and no
 way to jump to "page 40" — a page is defined relative to the row before it, and a
 cursor anchored to a row cannot skip or duplicate under concurrent writes the way an
-`OFFSET` page can. `?page_size=` defaults to the panel's own page size and is capped at
-200. See [`vantage.pagination.KeysetPaginator`](../src/vantage/pagination.py) for the
-mechanism.
+`OFFSET` page can. `?page_size=` defaults to the panel's own page size and is clamped
+to between 1 and 200 rather than rejected outright — a value below 1, above 200, or not
+a number at all silently becomes the nearest valid size instead of a `400`, which is the
+right trade for a parameter that only ever *shrinks or grows a response*, never changes
+what it means. See [`vantage.pagination.KeysetPaginator`](../src/vantage/pagination.py)
+for the mechanism.
 
 ### Retrieve
 
@@ -265,7 +268,10 @@ mechanism.
 A row you may not see does not exist: an out-of-scope or nonexistent primary key both
 answer `404`, never `403` — the same rule
 [`vantage.formviews.get_record`](../src/vantage/formviews.py) applies to the HTML
-detail page, so this cannot leak that a record exists and is merely off-limits.
+detail page, so this cannot leak that a record exists and is merely off-limits. A
+primary key of the wrong *shape* — a letter where the model expects an integer, say —
+answers `404` too rather than a `500`; the lookup is refused before it ever reaches the
+database.
 
 ### Create, update, partial update
 

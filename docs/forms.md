@@ -174,7 +174,9 @@ counting is a query and the widget module never touches the database. When the c
 does not supply one, the module assumes "use search" — a search box over five rows is
 a mild inconvenience, while a `<select>` over fifty thousand is not.
 
-The endpoint is a single URL, deliberately. A per-model endpoint would multiply the
+#### The endpoint is a single URL
+
+It is a single URL, deliberately. A per-model endpoint would multiply the
 places that have to get the permission check right, and the permission check is the
 entire risk here — an autocomplete is a read API over arbitrary models, and the naive
 version happily enumerates a table the caller cannot open. So:
@@ -217,11 +219,23 @@ automatically — nothing has to be told to invalidate the old one. Resolved URL
 cached for five minutes, negative results included, so a broken source is not
 re-attempted on every page view.
 
+The image is rendered at **twice the CSS box size** (`PIXEL_RATIO = 2`) so it looks
+sharp on a high-density screen, while the `<img>` tag still declares the CSS-box
+`width`/`height` — the browser does the downscaling, the same trade every retina-aware
+image pipeline makes. **EXIF orientation is corrected before resizing**, because a
+phone camera stores a portrait photo's pixels sideways and trusts the orientation tag
+to straighten it; skipping that step turns every portrait upload into a landscape
+thumbnail lying on its side. Output prefers **WebP** when the installed Pillow build
+supports encoding it, falling back to PNG for an image with real transparency or
+progressive JPEG for one without — never a format decided by the source file's own
+extension.
+
 `thumbnail()` returns `None` — which renders as a plain chip, not a broken image — for
 any of: an empty field, Pillow not installed, an `.svg` source (never thumbnailed,
-deliberately: see below), a file over the size ceiling, a declared pixel count over the
-decompression-bomb guard, or content that does not sniff as one of the supported raster
-types. Nothing here raises; a thumbnail that cannot be made degrades to a name.
+deliberately: see below), a source file over 25 MiB, a declared pixel count over
+50,000,000 (the decompression-bomb guard — refused before the file is even decoded, from
+its declared dimensions alone), or content that does not sniff as one of the supported
+raster types. Nothing here raises; a thumbnail that cannot be made degrades to a name.
 
 **There is no lightbox.** Clicking a thumbnail opens the original file in a new tab
 (`target="_blank"`), and that is the whole interaction. The template's own comment
@@ -508,6 +522,98 @@ before any object-level check runs, so an out-of-scope record answers **404**. A
 403 would confirm that record 12 exists and is merely off-limits, which is the leak the
 scoping was for.
 
+## Duplicating a record
+
+`row_actions = [..., "duplicate", ...]` (or the built-in row actions Vantage offers by
+default) puts a form in front of the person, pre-filled from the source record, rather
+than writing a copy straight to the database. Nothing is saved until they press the
+button a second time, on a page that already shows every collision the copy would have
+hit.
+
+**Every unique field gets a value nothing else holds, chosen at form-build time.** A
+slug becomes `my-post-copy`, then `my-post-copy-2` and onward if that is taken too; a
+plain unique `CharField` becomes `"Copy of My Post"`, then `"Copy of My Post (2)"`. An
+email, URL, UUID or IP address has no honest "copy of" — those are cleared instead, so
+the form asks for one rather than pre-filling something that would fail its own field
+validator. Trying the candidates against the database now, rather than waiting for the
+save, is what turns "your duplicate failed" into "the form already shows the value it
+picked" — the database is asked again on submit regardless, so a row that appears in
+the gap is still caught as a field error, not an `IntegrityError`.
+
+```pycon
+>>> duplicate_plan(panel, category).initial["slug"]
+'baking-copy'
+>>> duplicate_plan(panel, category).notes
+('Slug was changed to “baking-copy” to keep it unique.',)
+```
+
+A `unique_together` (or `UniqueConstraint`) collision is not resolved automatically —
+which of several columns to vary is a judgement about the data, and guessing would
+change what the copy means without saying so. It is named in a note instead, so the
+person makes that call once rather than discovering it as a failed save.
+
+**A file or image is not duplicated — the copy points at the original file.** Storage
+duplication is not attempted, and a note says so plainly, because the alternative
+failure mode is silent: someone deletes what they think is their own copy's image and
+the original record loses its picture too. Replacing the file on the copy affects only
+the copy.
+
+**Many-to-many relations copy only through an auto-created through table.** A custom
+`through` model is skipped outright — Vantage cannot know what a row on that table is
+supposed to mean for a different parent, and guessing would write data nobody asked
+for.
+
+**A soft-deleted record's tombstone is never carried over.** The pattern's field is
+reset to live (`None` or `False`) on the copy, because a duplicate that lands directly
+in the trash is not what "Duplicate" has ever meant to anyone who pressed it.
+
+**Related children (reverse foreign keys) are opt-in, every time.** The duplicate form
+lists each reverse relation with a live count — *"3 order items"* — and copies none of
+them unless ticked. Each ticked child is cloned with the same unique-field resolution
+described above, and each clone is audited as its own `create`, not folded into the
+parent's.
+
+Duplicating requires the **`add`** permission, not `change` and not a `duplicate`
+permission of its own — someone trusted to edit an order but not to create one must not
+be able to create one by copying, so the check is the same one that gates the ordinary
+"Add" button.
+
+## Bulk edit
+
+Distinct from [bulk actions](lists.md#bulk-actions): a bulk action is a named piece of
+behaviour a developer wrote (`@action`); bulk edit is a generic "change one field on
+many rows at once" screen that needs no `panel.py` code at all, reached from the list
+page's selection bar.
+
+The picker offers a field only if setting it in bulk is actually safe to do without
+looking at each row individually: not `readonly_fields` or `exclude`d, not unique or
+the primary key (a unique value cannot be the same across many rows by definition),
+and never a file or image field (there is no one file to set many rows to). Tick a
+field to change it — the tick is itself checked against that same allowlist on submit,
+so a hand-crafted POST cannot switch on a field the picker never offered.
+
+Every row is written through the same `ModelForm` the single-record edit page uses, so
+validation, `save_model` and audit logging behave identically to editing one record by
+hand — bulk edit is not a second, faster, laxer write path. Vantage picks the
+implementation automatically: a straight `UPDATE ... WHERE` when nothing about the
+model needs a row loaded into memory, or one `save()` per row — capped, refusing
+outright above 1,000 rows rather than partially applying — when the panel defines
+`save_model`, the model overrides `save()`, a ticked field is many-to-many, or a
+`pre_save`/`post_save` signal is connected. Either way the count of rows actually
+changed is what comes back, the same "the count is the count that happened" rule
+[bulk actions](lists.md#bulk-actions) follow.
+
+**Rows edited by someone else since you selected them are skipped, not overwritten.**
+The moment the selection was made is captured and compared against every row's own
+version on write, so a colleague's edit in between wins and is reported as skipped
+rather than silently clobbered by whatever the bulk form said.
+
+Bulk edit is gated on the model-level `change` permission only — there is no
+per-row object-level check, because checking every one of a few hundred rows one at a
+time is the N+1 this feature exists to avoid in the first place; scope what a bulk edit
+can reach with `filter_queryset`, the same layer every other bulk operation already
+goes through.
+
 ## Cascade-delete preview
 
 Pressing Delete shows the real tree of what the delete takes with it, counted.
@@ -551,11 +657,22 @@ A blocked delete re-renders the page with the reason and a `409` status — re-r
 rather than raise, because the reason is the useful part and a bare 409 would lose it;
 409 rather than 200 so a scripted caller can still tell.
 
+**None of this runs for a soft delete.** A model with a detected
+[`soft_delete` pattern](panels.md#detected-conventions) archives the row instead of
+destroying it, so nothing downstream can be orphaned or protected and the cascade
+check is skipped outright — computing it would report the page "blocked" by a
+`PROTECT` reference that archiving does not actually violate, hiding the only button
+on the page. See [Deleting, and undoing it](lists.md#deleting-and-undoing-it) for the
+full trash/restore mechanics, including what a *second* delete on an already-trashed
+row does.
+
 ## See also
 
 - [Panels](panels.md) — `fields`, `exclude`, `layout`, `readonly_fields`, `inlines`, `save_model`
 - [Permissions](permissions.md) — why a hidden row answers 404
 - [Lists](lists.md#inline-cell-editing) — editing without opening the form, and why it
   is a different feature from [editable inlines](#editable-inlines) above despite the name
+- [Lists](lists.md#bulk-actions) — bulk *actions*, a developer-written `@action`; a
+  different feature from [bulk edit](#bulk-edit) above despite the neighbouring name
 - [Security](security.md) — upload screening at the request level, and media on a
   separate origin

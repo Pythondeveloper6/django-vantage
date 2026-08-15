@@ -215,10 +215,12 @@ confirm the row exists.
   `request.user.tenant` correctly.** Resolution trusts whatever is on the user object;
   getting a user attached to the right tenant in the first place is your project's own
   concern.
-- **It has no dedicated test module of its own** as of this writing — its coverage
-  lives in `tests/test_api.py`'s `TestTenancyComposesAutomatically`, which proves the
-  API composes with it end to end, rather than in a `test_tenancy.py` exercising the
-  module's own surface directly.
+- **Its own surface is covered by `tests/test_tenancy.py`** — scope inference, every
+  resolver, the write-path exceptions, and all six checks, exercised adversarially
+  (wrong FK on a POST, a resolver that lies or raises, a `PanelPermissions` subclass
+  that forgets `super()`). `tests/test_api.py`'s `TestTenancyComposesAutomatically`
+  additionally proves the composition end to end over HTTP, rather than standing in
+  for the module's own tests as it once had to.
 
 ## See also
 
