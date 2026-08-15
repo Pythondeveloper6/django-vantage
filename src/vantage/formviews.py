@@ -20,13 +20,14 @@ record 12 exists and is merely off-limits, which is the leak the scoping was for
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, PermissionDenied
-from django.db import router, transaction
+from django.db import DatabaseError, router, transaction
 from django.db.models.deletion import Collector, ProtectedError, RestrictedError
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -52,6 +53,8 @@ __all__ = [
     "object_denied_message",
     "save_form",
 ]
+
+logger = logging.getLogger("vantage.formviews")
 
 #: Kinds whose control wants the full width of the grid rather than one column.
 WIDE_KINDS = frozenset(
@@ -493,6 +496,11 @@ class CascadeSummary:
     total: int = 0
     #: Set when a ``PROTECT``/``RESTRICT`` relation makes the delete impossible.
     blocked_by: str | None = None
+    #: Set when the preview could not be computed at all. Distinct from an empty
+    #: summary, and the distinction is the whole point: "nothing else references this
+    #: record" and "I could not find out" look identical on the page and lead to
+    #: opposite decisions. An empty summary must never stand in for a failed one.
+    unavailable: str | None = None
 
     @property
     def is_blocked(self) -> bool:
@@ -520,12 +528,17 @@ def collect_cascade(obj) -> CascadeSummary:
         collector.collect([obj])
     except (ProtectedError, RestrictedError) as exc:
         return CascadeSummary(blocked_by=_blocked_message(model, exc))
+    except DatabaseError as exc:
+        return CascadeSummary(unavailable=_unavailable_message(exc))
 
     counts: dict[Any, int] = {}
-    for related_model, instances in collector.data.items():
-        counts[related_model] = counts.get(related_model, 0) + len(instances)
-    for queryset in collector.fast_deletes:
-        counts[queryset.model] = counts.get(queryset.model, 0) + queryset.count()
+    try:
+        for related_model, instances in collector.data.items():
+            counts[related_model] = counts.get(related_model, 0) + len(instances)
+        for queryset in collector.fast_deletes:
+            counts[queryset.model] = counts.get(queryset.model, 0) + queryset.count()
+    except DatabaseError as exc:
+        return CascadeSummary(unavailable=_unavailable_message(exc))
 
     # The record itself is not collateral. Its model can still appear with a positive
     # count through a self-referential cascade, so subtract rather than drop.
@@ -574,6 +587,29 @@ def _length(instances) -> int:
 
 def _plural(model) -> str:
     return str(model._meta.verbose_name_plural).capitalize()
+
+
+def _unavailable_message(exc: Exception) -> str:
+    """Why the blast radius could not be worked out.
+
+    Django's ``Collector`` walks every model in the process that has a foreign key
+    into this one — not only the ones this panel registers, and not only the ones that
+    have been migrated. So a table that does not exist anywhere in that graph takes
+    down a page that was merely trying to count rows: an app installed but not yet
+    migrated, a model behind a feature flag, or one routed to a database this
+    connection cannot see.
+
+    Reported rather than swallowed. The count is advisory, so failing to produce it
+    must not block the delete — but it must not quietly read as "nothing to worry
+    about" either, which is what returning an empty summary here would have done.
+    """
+    logger.warning("Could not compute the delete cascade: %s", exc)
+    return str(
+        _(
+            "The list of what else this would affect could not be worked out, so it is "
+            "not shown. The delete itself is unaffected — but check before confirming."
+        )
+    )
 
 
 def _blocked_message(model, exc: Exception) -> str:
