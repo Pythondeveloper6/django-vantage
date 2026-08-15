@@ -74,7 +74,7 @@
     input.type = "text";
     input.id = base + "-input";
     input.className = "v-combo-input";
-    input.placeholder = root.getAttribute("data-placeholder") || "Type to search…";
+    input.placeholder = root.getAttribute("data-placeholder") || gettext("Type to search…");
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-expanded", "false");
     input.setAttribute("aria-controls", base + "-listbox");
@@ -127,11 +127,48 @@
     var note = root.querySelector("[data-combo-note]");
     if (note) note.hidden = true; // it was addressed to a browser without this file
 
-    // Out of sight, still in the form. Not `hidden` and not display:none: those make
-    // the element unfocusable, and an unfocusable control is one the browser cannot
-    // report a constraint violation against.
-    select.setAttribute("tabindex", "-1");
-    select.setAttribute("aria-hidden", "true");
+    // Out of sight, still in the form — but not still focusable, and that is a
+    // change from how this used to read. tabindex="-1" plus aria-hidden="true" is
+    // exactly what the WAI-ARIA spec tells authors not to do ("aria-hidden must not
+    // be used on a focusable element"); Chromium resolves that conflict in the
+    // element's favour, not the attribute's, so a select kept focusable this way
+    // still shows up in the accessibility tree — a second, nameless combobox next to
+    // the one this file draws. Confirmed live against the demo (an Order's Customer
+    // field) with Playwright's accessibility snapshot before this comment was
+    // rewritten.
+    //
+    // The reason it was ever kept focusable — "an unfocusable control is one the
+    // browser cannot report a constraint violation against" — does not hold for this
+    // element as this file stands. `required` is the only HTML5 constraint a
+    // `<select>` can carry, and it is moved onto `input` a few lines up
+    // (`input.required = true; select.required = false;`) on every enhancement,
+    // before this code ever runs; nothing here calls `select.setCustomValidity`
+    // either. So by the time the select is hidden it has no constraint left for a
+    // browser to need focus in order to report. The concern was real in the
+    // abstract; it is not live for this widget today.
+    //
+    // `inert` is the honest fix rather than a compromise between the two: it drops
+    // the element from the accessibility tree without the aria-hidden conflict,
+    // because it also makes the element genuinely unfocusable — which costs nothing
+    // here, precisely because nothing above still needs it focusable. Script access
+    // is untouched (`.selected`, `.value`, `optionFor`'s `select.add`): `inert`
+    // blocks user interaction and focus, not code. Support lines up with the rest of
+    // this file's assumptions (fetch, AbortController, DOMParser): Chrome 102+,
+    // Firefox 112+, Safari 15.5+. A browser old enough to lack it falls back to the
+    // previous, imperfect shape rather than leaving an interactive select in the tab
+    // order.
+    //
+    // The trade-off this depends on, spelled out rather than left implicit: if
+    // `required` were ever left on the select, or a future change relied on the
+    // browser being able to focus it — a custom validity message, say — `inert`
+    // would silently swallow that too. Nothing in this file does either today. This
+    // comment is the tripwire for the day something wants to.
+    if ("inert" in select) {
+      select.inert = true;
+    } else {
+      select.setAttribute("tabindex", "-1");
+      select.setAttribute("aria-hidden", "true");
+    }
 
     // The field's own <label> has to follow the control the user now types into,
     // or clicking it focuses something invisible and the combobox has no name at
@@ -195,14 +232,14 @@
         var remove = document.createElement("button");
         remove.type = "button";
         remove.className = "v-combo-chip-x";
-        remove.setAttribute("aria-label", "Remove " + item.text);
+        remove.setAttribute("aria-label", interpolate(gettext("Remove %s"), [item.text]));
         remove.textContent = "×";
         remove.addEventListener("click", function () {
           deselect(item.id);
           // Said out loud, because the only other feedback is a chip disappearing —
           // which is nothing at all to a screen reader. Adding already announces; the
           // two halves of the same action should not differ in whether they are heard.
-          announce(item.text + " removed");
+          announce(interpolate(gettext("%s removed"), [item.text]));
           input.focus();
         });
 
@@ -221,7 +258,7 @@
         option.selected = true;
         input.value = "";
         paintChips();
-        announce(text + " added");
+        announce(interpolate(gettext("%s added"), [text]));
         changed();
         // Stay open: adding several tags in a row is the whole point of a multiple.
         request("");
@@ -229,7 +266,7 @@
       }
       select.value = id;
       input.value = option.text;
-      announce(option.text + " selected");
+      announce(interpolate(gettext("%s selected"), [option.text]));
       changed();
       close(false);
     }
@@ -238,7 +275,7 @@
       for (var i = 0; i < select.options.length; i++) {
         if (select.options[i].value === id) {
           select.options[i].selected = false;
-          announce("Removed " + select.options[i].text);
+          announce(interpolate(gettext("Removed %s"), [select.options[i].text]));
         }
       }
       paintChips();
@@ -250,7 +287,7 @@
       var empty = optionFor("", "");
       empty.selected = true;
       select.value = "";
-      announce("Selection cleared");
+      announce(gettext("Selection cleared"));
       changed();
     }
 
@@ -331,7 +368,9 @@
       var term = data.term || "";
       if (!data.results.length) {
         footer.hidden = false;
-        footer.textContent = term ? "No matches for “" + term + "”." : "Nothing to show.";
+        footer.textContent = term
+          ? interpolate(gettext("No matches for “%s”."), [term])
+          : gettext("Nothing to show.");
         footer.setAttribute("data-tone", "empty");
         announce(footer.textContent);
       } else if (data.more) {
@@ -339,16 +378,28 @@
         footer.removeAttribute("data-tone");
         // The endpoint says there are others. Say so, rather than letting a
         // truncated list look like the whole answer.
-        footer.textContent =
-          "More matches than fit here — keep typing to narrow the list.";
+        footer.textContent = gettext(
+          "More matches than fit here — keep typing to narrow the list."
+        );
         announce(
-          data.results.length +
-            " results shown, and there are more. Keep typing to narrow the list."
+          interpolate(
+            ngettext(
+              "%(count)s result shown, and there are more. Keep typing to narrow the list.",
+              "%(count)s results shown, and there are more. Keep typing to narrow the list.",
+              data.results.length
+            ),
+            { count: data.results.length },
+            true
+          )
         );
       } else {
         footer.hidden = true;
         announce(
-          data.results.length === 1 ? "1 result" : data.results.length + " results"
+          interpolate(
+            ngettext("%(count)s result", "%(count)s results", data.results.length),
+            { count: data.results.length },
+            true
+          )
         );
       }
 
@@ -363,7 +414,7 @@
       active = -1;
       footer.hidden = false;
       footer.setAttribute("data-tone", "empty");
-      footer.textContent = "Could not load matches. Check your connection.";
+      footer.textContent = gettext("Could not load matches. Check your connection.");
       announce(footer.textContent);
       open();
     }

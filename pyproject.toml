@@ -75,6 +75,13 @@ dev = [
 ]
 # Release plumbing, kept out of `dev` so a contributor's `uv sync` stays small.
 release = ["build>=1.2", "twine>=6.0"]
+# The browser layer (tests/test_browser.py). Kept out of `dev` on purpose: it drags
+# in Chromium, which `dev` never has and which nothing else in the suite needs — a
+# contributor running the whole thing with `uv sync --group dev` still gets a
+# complete, green suite with these tests cleanly skipped (see the module docstring).
+# `uv sync --group dev --group browser` plus `uv run playwright install chromium`
+# opts in.
+browser = ["playwright>=1.40"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vantage"]
@@ -122,6 +129,9 @@ pythonpath = ["."]
 python_files = ["test_*.py"]
 testpaths = ["tests"]
 addopts = "--strict-markers -q"
+markers = [
+    "browser: drives a real Chromium via Playwright against a pytest-django live_server. Needs the `browser` dependency group (`uv sync --group dev --group browser`) and `uv run playwright install chromium`; skips cleanly when either is missing.",
+]
 
 [tool.ruff]
 line-length = 100
