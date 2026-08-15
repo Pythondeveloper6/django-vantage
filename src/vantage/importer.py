@@ -687,10 +687,33 @@ def _missing_required(model, options, mapped: set[str]) -> tuple[tuple[str, str]
     absent, so calling it missing would be a false alarm on most imports. A foreign key
     with no default is the real case: without it the insert raises a ``NOT NULL``
     constraint error, which is a terrible thing to learn one row at a time.
+
+    One more source counts as supplying a value, and it is asked of tenancy rather than
+    guessed at here: the field :func:`~vantage.tenancy.scope_for` names as the model's
+    single, direct path to the tenant is exactly the field ``vantage.tenancy.enforce``
+    stamps on every create, on this path (``_Runner._save``) the same as on the HTML
+    form and the JSON API. A column left unmapped for *that* field is not an omission,
+    it is the normal, correct shape of a tenant-owned import — the tenant is not the
+    uploader's to fill in. Tenancy being a second opinion here is deliberate: this is
+    the one place the two must agree on what "the tenant column" is, and ``scope_for``
+    is the only thing allowed to answer that. A multi-hop path (``"parent__tenant"``)
+    does *not* qualify: ``enforce`` only verifies a parent's ownership on that shape, it
+    never stamps a value, so a missing parent there is still a genuine gap.
     """
+    from vantage.tenancy import ScopeKind, scope_for
+
+    scope = scope_for(model)
+    stamped_by_tenancy = (
+        scope.path
+        if scope.kind is ScopeKind.SCOPED and scope.path and "__" not in scope.path
+        else None
+    )
+
     missing: list[tuple[str, str]] = []
     for option in options:
         if not option.writable or option.name in mapped:
+            continue
+        if option.name == stamped_by_tenancy:
             continue
         field = _model_field(model, option.name)
         if field is None:  # pragma: no cover - options came from the model
