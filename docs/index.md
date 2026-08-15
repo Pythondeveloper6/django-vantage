@@ -110,6 +110,7 @@ django-simple-history are all used when present and never required.
 | [Pages and dashboards](pages-and-dashboards.md) | Screens that are not models, dashboard widgets, and arranging cards from the UI |
 | [Settings](settings.md) | Every `VANTAGE` key, its default and its effect |
 | [Deployment](deployment.md) | What to check before pointing this at production |
+| [Security](security.md) | The threat model, the deployment checks, upload screening, rate limiting, CSP |
 | [Accessibility](accessibility.md) | What is guaranteed, what you must supply, what is still broken |
 | [Browser tests](browser-tests.md) | The Playwright layer over what a test client cannot see: focus, console errors, keyboard behaviour |
 | [Extending](extending.md) | Slots, plugins, and adopting an existing `admin.py` |
