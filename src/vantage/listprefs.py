@@ -254,11 +254,7 @@ def options(panel, request=None) -> Options:
         search_fields = tuple(dict.fromkeys(panel.get_list_search(request)))
         per_page = panel.get_per_page(request)
 
-    measures = tuple(
-        name
-        for name in columns
-        if isinstance(_local_field(model, name), NUMERIC)
-    )
+    measures = tuple(name for name in columns if isinstance(_local_field(model, name), NUMERIC))
     # Dates and groups are drawn from the filters as well as the columns: a panel that
     # offers a date filter has declared that date as something worth slicing by, and a
     # chart of it is the same declaration read the other way round.
@@ -268,9 +264,7 @@ def options(panel, request=None) -> Options:
         if isinstance(_local_field(model, name), DateField)
     )
     groups = tuple(
-        name
-        for name in dict.fromkeys(filter_fields + columns)
-        if _has_labels(model, name)
+        name for name in dict.fromkeys(filter_fields + columns) if _has_labels(model, name)
     )
     return Options(
         columns=columns,
@@ -732,9 +726,7 @@ def _build(panel, request, key: str) -> ListSpec:
 
 
 #: Every column this layer reads, in the order the sections declare them.
-SETTING_NAMES: tuple[str, ...] = tuple(
-    name for names in SECTION_COLUMNS.values() for name in names
-)
+SETTING_NAMES: tuple[str, ...] = tuple(name for names in SECTION_COLUMNS.values() for name in names)
 
 
 def _assemble(panel, opts: Options, key: str, stored: dict, sources: dict) -> ListSpec:
@@ -783,9 +775,7 @@ def _assemble(panel, opts: Options, key: str, stored: dict, sources: dict) -> Li
             if chosen
             else list(declared_charts.values())
         )
-        charts = tuple(
-            kept_charts + [_chart(entry) for entry in stored.get("extra_charts") or []]
-        )
+        charts = tuple(kept_charts + [_chart(entry) for entry in stored.get("extra_charts") or []])
 
     summary_aggregates: dict[str, str] = {}
     if summary_enabled:

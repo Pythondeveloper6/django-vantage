@@ -93,8 +93,7 @@ class ModelPanelChecks:
             return []
         return [
             Error(
-                f"{attr!r} refers to {entry!r}, which is not a field path on "
-                f"{panel.opts.label}.",
+                f"{attr!r} refers to {entry!r}, which is not a field path on {panel.opts.label}.",
                 hint="Only real model fields can be used here; they are resolved in SQL.",
                 obj=type(panel),
                 id=ident,

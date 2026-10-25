@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vantage', '0008_dashboardlayout_known_keys'),
+        ("vantage", "0008_dashboardlayout_known_keys"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='navconfiguration',
-            name='topbar',
+            model_name="navconfiguration",
+            name="topbar",
             field=models.JSONField(blank=True, null=True),
         ),
     ]

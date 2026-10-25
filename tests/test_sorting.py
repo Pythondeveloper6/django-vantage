@@ -19,9 +19,7 @@ def client_in(client, db):
 def posts(db):
     author = Author.objects.create(name="Ada", email="ada@example.com")
     for title, status in [("Beta", "draft"), ("Alpha", "published"), ("Gamma", "draft")]:
-        Post.objects.create(
-            title=title, slug=title.lower(), body="b", author=author, status=status
-        )
+        Post.objects.create(title=title, slug=title.lower(), body="b", author=author, status=status)
     return Post.objects.all()
 
 
@@ -36,12 +34,16 @@ def titles(response):
 class TestSorting:
     def test_ascending(self, client_in, posts):
         assert titles(client_in.get(reverse(LIST), {"sort": "title"})) == [
-            "Alpha", "Beta", "Gamma",
+            "Alpha",
+            "Beta",
+            "Gamma",
         ]
 
     def test_descending(self, client_in, posts):
         assert titles(client_in.get(reverse(LIST), {"sort": "-title"})) == [
-            "Gamma", "Beta", "Alpha",
+            "Gamma",
+            "Beta",
+            "Alpha",
         ]
 
     def test_the_header_advertises_the_sort_to_assistive_tech(self, client_in, posts):

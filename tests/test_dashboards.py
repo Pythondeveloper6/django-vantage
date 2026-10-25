@@ -211,26 +211,30 @@ class TestWidgetTypes:
 
     def test_a_stat_card_takes_any_aggregate_and_format(self, request_from, boss, content):
         card = render_one(
-            StatCard("Revenue", Order.objects.all(), aggregate=Sum("total"),
-                     format="currency", tone="success"),
+            StatCard(
+                "Revenue",
+                Order.objects.all(),
+                aggregate=Sum("total"),
+                format="currency",
+                tone="success",
+            ),
             request_from(boss),
         )
         assert card.stat["display"] == "$40.00"
         assert card.stat["tone"] == "success"
 
-    def test_a_stat_card_costs_one_query(self, request_from, boss, content,
-                                         django_assert_num_queries):
+    def test_a_stat_card_costs_one_query(
+        self, request_from, boss, content, django_assert_num_queries
+    ):
         with django_assert_num_queries(1):
             render_one(
-                StatCard("Average", Order.objects.all(), aggregate=Avg("total"),
-                         format="currency"),
+                StatCard("Average", Order.objects.all(), aggregate=Avg("total"), format="currency"),
                 request_from(boss),
             )
 
     def test_a_stat_card_accepts_a_callable_source(self, request_from, boss, content):
         card = render_one(
-            StatCard("Drafts", lambda request: Post.objects.filter(status="draft"),
-                     model=Post),
+            StatCard("Drafts", lambda request: Post.objects.filter(status="draft"), model=Post),
             request_from(boss),
         )
         assert card.stat["display"] == "1"
@@ -257,16 +261,16 @@ class TestWidgetTypes:
             ChartCard(
                 "By status",
                 Post.objects.all(),
-                chart=Chart.breakdown("Posts", group_by="status", value=Count("pk"),
-                                      kind="donut"),
+                chart=Chart.breakdown("Posts", group_by="status", value=Count("pk"), kind="donut"),
             ),
             request_from(boss),
         )
         assert sorted(card.chart["labels"]) == ["Draft", "Published"]
 
     def test_a_table_card_lists_the_most_recent_records(self, request_from, boss, content):
-        card = render_one(TableCard("Recent posts", Post.objects.all(), limit=2),
-                          request_from(boss))
+        card = render_one(
+            TableCard("Recent posts", Post.objects.all(), limit=2), request_from(boss)
+        )
         assert card.kind == "table"
         assert len(card.rows) == 2
         assert card.columns  # inferred from the model when not declared
@@ -444,8 +448,9 @@ class TestFailureIsolation:
         assert cards[1].stat["display"] == "3"
 
     def test_a_bad_source_is_an_error_card_not_a_crash(self, request_from, boss, db):
-        card = render_one(StatCard("Nonsense", lambda request: "not a queryset"),
-                          request_from(boss))
+        card = render_one(
+            StatCard("Nonsense", lambda request: "not a queryset"), request_from(boss)
+        )
         assert "needs a queryset" in card.error
 
     def test_the_page_still_renders_with_a_broken_widget(self, client_in, content, settings):
@@ -479,14 +484,11 @@ class TestLaziness:
         """A queryset caches its rows once iterated. Serving that cache to the next
         request is the classic module-level-queryset bug, and a dashboard is exactly
         where it is written."""
-        first = render_one(TableCard("Recent", MODULE_LEVEL_POSTS, limit=10),
-                           request_from(boss))
+        first = render_one(TableCard("Recent", MODULE_LEVEL_POSTS, limit=10), request_from(boss))
         assert len(first.rows) == 3
 
-        Post.objects.create(title="Fourth", slug="fourth", body="b",
-                            author=content[0].author)
-        second = render_one(TableCard("Recent", MODULE_LEVEL_POSTS, limit=10),
-                            request_from(boss))
+        Post.objects.create(title="Fourth", slug="fourth", body="b", author=content[0].author)
+        second = render_one(TableCard("Recent", MODULE_LEVEL_POSTS, limit=10), request_from(boss))
         assert len(second.rows) == 4
 
     def test_get_widgets_is_not_called_until_render(self, db, request_from, boss):
@@ -674,20 +676,19 @@ class TestValidation:
         assert entry["show"] is True
 
     def test_a_model_that_is_not_registered_is_dropped(self, db, request_from, boss):
-        assert dashboards.clean_card(stat_card(model="auth.permission"), site,
-                                     request_from(boss)) is None
-        assert dashboards.clean_card(stat_card(model="nope.nope"), site,
-                                     request_from(boss)) is None
+        assert (
+            dashboards.clean_card(stat_card(model="auth.permission"), site, request_from(boss))
+            is None
+        )
+        assert dashboards.clean_card(stat_card(model="nope.nope"), site, request_from(boss)) is None
 
     def test_a_column_the_panel_does_not_expose_is_dropped(self, db, request_from, boss):
         """The panel is the ceiling, and it is checked on the way out as well as in."""
         assert dashboards.clean_card(stat_card(field="id"), site, request_from(boss)) is None
-        assert dashboards.clean_card(stat_card(field="number"), site,
-                                     request_from(boss)) is None
+        assert dashboards.clean_card(stat_card(field="number"), site, request_from(boss)) is None
 
     def test_an_invented_aggregate_is_dropped(self, db, request_from, boss):
-        assert dashboards.clean_card(stat_card(aggregate="drop"), site,
-                                     request_from(boss)) is None
+        assert dashboards.clean_card(stat_card(aggregate="drop"), site, request_from(boss)) is None
 
     def test_counting_rows_needs_no_column(self, db, request_from, boss):
         entry = dashboards.clean_card(
@@ -705,9 +706,10 @@ class TestValidation:
         broken_down = chart_card(mode="breakdown", target="status", kind="donut")
         assert dashboards.clean_card(broken_down, site, request)["kind"] == "donut"
         # `number` is unique free text: one segment per row is not a chart.
-        assert dashboards.clean_card(
-            chart_card(mode="breakdown", target="number"), site, request
-        ) is None
+        assert (
+            dashboards.clean_card(chart_card(mode="breakdown", target="number"), site, request)
+            is None
+        )
 
     def test_an_impossible_width_falls_back_rather_than_raising(self, db, request_from, boss):
         request = request_from(boss)
@@ -722,11 +724,12 @@ class TestValidation:
         entry = dashboards.clean_card(stat_card(filter="status=paid"), site, request)
         assert entry["filter"] == "status=paid"
         # A parameter the panel does not offer as a filter is not a filter.
-        assert dashboards.clean_card(stat_card(filter="body=secret"), site,
-                                     request)["filter"] == ""
+        assert dashboards.clean_card(stat_card(filter="body=secret"), site, request)["filter"] == ""
         # And neither is a value the filter itself refuses.
-        assert dashboards.clean_card(stat_card(filter="status=nonsense"), site,
-                                     request)["filter"] == ""
+        assert (
+            dashboards.clean_card(stat_card(filter="status=nonsense"), site, request)["filter"]
+            == ""
+        )
 
     def test_a_filter_across_a_fan_out_join_is_refused(self, db, request_from, boss):
         """Django #10060, one layer up.
@@ -777,8 +780,7 @@ class TestResolutionOrder:
         assert isinstance(get_dashboard(site, request_from(boss)), DeclaredDashboard)
 
     @declared_settings
-    def test_a_stored_arrangement_sits_above_the_declaration(self, db, request_from, boss,
-                                                             orders):
+    def test_a_stored_arrangement_sits_above_the_declaration(self, db, request_from, boss, orders):
         request = request_from(boss)
         save(site, request, [stat_card()], user=boss)
 
@@ -810,8 +812,7 @@ class TestResolutionOrder:
     def test_reset_hands_the_page_back_to_the_code(self, db, request_from, boss, orders):
         request = request_from(boss)
         save(site, request, [stat_card()], user=boss)
-        assert isinstance(get_dashboard(site, request_from(boss)),
-                          dashboards.ArrangedDashboard)
+        assert isinstance(get_dashboard(site, request_from(boss)), dashboards.ArrangedDashboard)
 
         dashboards.reset_layout(site, request_from(boss), user=boss)
         assert isinstance(get_dashboard(site, request_from(boss)), DeclaredDashboard)
@@ -830,8 +831,9 @@ class TestResolutionOrder:
         labels = [c.label for c in get_dashboard(site, request_from(boss)).render(request)]
         assert labels == ["Posts", "Authors", "Orders"]
 
-    def test_the_layout_is_read_once_per_request(self, db, request_from, boss,
-                                                 django_assert_num_queries):
+    def test_the_layout_is_read_once_per_request(
+        self, db, request_from, boss, django_assert_num_queries
+    ):
         request = request_from(boss)
         save(site, request, [stat_card()], user=boss)
 
@@ -849,27 +851,35 @@ class TestArranging:
     @declared_settings
     def test_a_declared_card_can_be_reordered(self, db, request_from, boss, content):
         request = request_from(boss)
-        save(site, request, [{"card": "declared", "key": key}
-                             for key in ("orders", "authors", "posts")], user=boss)
+        save(
+            site,
+            request,
+            [{"card": "declared", "key": key} for key in ("orders", "authors", "posts")],
+            user=boss,
+        )
         labels = [c.label for c in get_dashboard(site, request_from(boss)).render(request)]
         assert labels == ["Orders", "Authors", "Posts"]
 
     @declared_settings
-    def test_a_declared_card_can_be_switched_off_and_back_on(self, db, request_from, boss,
-                                                             content):
+    def test_a_declared_card_can_be_switched_off_and_back_on(self, db, request_from, boss, content):
         request = request_from(boss)
-        save(site, request, [
-            {"card": "declared", "key": "posts", "show": False},
-            {"card": "declared", "key": "authors"},
-            {"card": "declared", "key": "orders"},
-        ], user=boss)
+        save(
+            site,
+            request,
+            [
+                {"card": "declared", "key": "posts", "show": False},
+                {"card": "declared", "key": "authors"},
+                {"card": "declared", "key": "orders"},
+            ],
+            user=boss,
+        )
         assert [c.label for c in get_dashboard(site, request_from(boss)).render(request)] == [
-            "Authors", "Orders"
+            "Authors",
+            "Orders",
         ]
 
         save(site, request_from(boss), [{"card": "declared", "key": "posts"}], user=boss)
-        assert "Posts" in {c.label for c in
-                           get_dashboard(site, request_from(boss)).render(request)}
+        assert "Posts" in {c.label for c in get_dashboard(site, request_from(boss)).render(request)}
 
     @declared_settings
     def test_a_declared_card_can_be_resized(self, db, request_from, boss, content):
@@ -916,18 +926,25 @@ class TestArranging:
         separate, narrower rule now that an unmentioned card can just as easily mean
         it was deliberately removed."""
         request = request_from(boss)
-        save(site, request, [
-            {"card": "declared", "key": "revenue-2019"},
-            {"card": "declared", "key": "posts"},
-            {"card": "declared", "key": "authors"},
-            {"card": "declared", "key": "orders"},
-        ], user=boss)
+        save(
+            site,
+            request,
+            [
+                {"card": "declared", "key": "revenue-2019"},
+                {"card": "declared", "key": "posts"},
+                {"card": "declared", "key": "authors"},
+                {"card": "declared", "key": "orders"},
+            ],
+            user=boss,
+        )
         labels = {c.label for c in get_dashboard(site, request_from(boss)).render(request)}
         assert labels == {"Posts", "Authors", "Orders"}
 
     def test_two_cards_with_one_label_get_distinct_keys(self):
-        widgets = [StatCard("Revenue", Order.objects.all()),
-                   StatCard("Revenue", Post.objects.all())]
+        widgets = [
+            StatCard("Revenue", Order.objects.all()),
+            StatCard("Revenue", Post.objects.all()),
+        ]
         assert list(dashboards.keyed_widgets(widgets)) == ["revenue", "revenue-2"]
 
     def test_a_declared_key_survives_a_reworded_label(self):
@@ -935,16 +952,14 @@ class TestArranging:
 
 
 class TestBuiltCards:
-    def test_a_stat_card_built_in_the_ui_computes_the_aggregate(self, request_from, boss,
-                                                                orders):
+    def test_a_stat_card_built_in_the_ui_computes_the_aggregate(self, request_from, boss, orders):
         request = request_from(boss)
         save(site, request, [stat_card()], user=boss)
         card = get_dashboard(site, request_from(boss)).render(request)[0]
         assert card.kind == "stat"
         assert card.stat["display"] == "40"
 
-    def test_a_filter_narrows_the_card_and_is_described_on_it(self, request_from, boss,
-                                                             orders):
+    def test_a_filter_narrows_the_card_and_is_described_on_it(self, request_from, boss, orders):
         request = request_from(boss)
         save(site, request, [stat_card(filter="status=paid")], user=boss)
         card = get_dashboard(site, request_from(boss)).render(request)[0]
@@ -962,28 +977,25 @@ class TestBuiltCards:
 
     def test_a_breakdown_card_groups_by_the_chosen_column(self, request_from, boss, orders):
         request = request_from(boss)
-        save(site, request, [chart_card(mode="breakdown", target="status", kind="donut")],
-             user=boss)
+        save(
+            site, request, [chart_card(mode="breakdown", target="status", kind="donut")], user=boss
+        )
         card = get_dashboard(site, request_from(boss)).render(request)[0]
         assert sorted(card.chart["labels"]) == ["Paid", "Pending"]
 
-    def test_every_aggregate_the_picker_offers_actually_computes(self, request_from, boss,
-                                                                 orders):
+    def test_every_aggregate_the_picker_offers_actually_computes(self, request_from, boss, orders):
         request = request_from(boss)
         displays = {}
         for aggregate in ("count", "sum", "avg", "min", "max"):
             field = "" if aggregate == "count" else "total"
-            save(site, request_from(boss),
-                 [stat_card(aggregate=aggregate, field=field)], user=boss)
+            save(site, request_from(boss), [stat_card(aggregate=aggregate, field=field)], user=boss)
             card = get_dashboard(site, request_from(boss)).render(request)[0]
             displays[aggregate] = card.stat["display"]
         assert displays == {"count": "2", "sum": "40", "avg": "20", "min": "10", "max": "30"}
 
 
 class TestArrangedPermissions:
-    def test_a_card_over_a_forbidden_model_neither_renders_nor_queries(
-        self, db, request_from
-    ):
+    def test_a_card_over_a_forbidden_model_neither_renders_nor_queries(self, db, request_from):
         """The gate is before the query, exactly as it is for a declared card.
 
         A card that computes a number and then declines to show it has already paid for
@@ -1009,8 +1021,7 @@ class TestArrangedPermissions:
         assert not any("testapp_order" in q["sql"] for q in queries.captured_queries)
         assert len(queries) <= 2, [q["sql"] for q in queries.captured_queries]
 
-    def test_the_same_card_renders_once_the_permission_is_granted(self, db, request_from,
-                                                                  orders):
+    def test_the_same_card_renders_once_the_permission_is_granted(self, db, request_from, orders):
         user = User.objects.create_user("plain", password="x", is_staff=True)
         save(site, request_from(user), [stat_card()], user=user)
         user.user_permissions.add(Permission.objects.get(codename="view_order"))
@@ -1032,8 +1043,9 @@ class TestArrangedPermissions:
         user.user_permissions.add(Permission.objects.get(codename="view_order"))
         user = User.objects.get(pk=user.pk)
 
-        save(site, request_from(boss), [stat_card(), {"card": "declared", "key": "posts"}],
-             user=None)
+        save(
+            site, request_from(boss), [stat_card(), {"card": "declared", "key": "posts"}], user=None
+        )
 
         request = request_from(user)
         arrangement = get_dashboard(site, request).arrange(request)
@@ -1067,9 +1079,7 @@ class TestArrangedPermissions:
 class TestQueryCost:
     """One aggregate per card. Twelve cards is twelve queries, not twelve times N."""
 
-    def test_a_dashboard_of_built_cards_does_not_scale_with_the_rows(
-        self, db, request_from, boss
-    ):
+    def test_a_dashboard_of_built_cards_does_not_scale_with_the_rows(self, db, request_from, boss):
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
 
@@ -1077,12 +1087,19 @@ class TestQueryCost:
 
         def make(count):
             for i in range(count):
-                Order.objects.create(number=f"N-{Order.objects.count()}-{i}",
-                                     customer=author, total="5.00")
+                Order.objects.create(
+                    number=f"N-{Order.objects.count()}-{i}", customer=author, total="5.00"
+                )
 
-        cards = [stat_card(aggregate=aggregate, field="" if aggregate == "count" else "total",
-                           label=f"{aggregate} {n}")
-                 for n in range(3) for aggregate in ("count", "sum", "avg", "min")]
+        cards = [
+            stat_card(
+                aggregate=aggregate,
+                field="" if aggregate == "count" else "total",
+                label=f"{aggregate} {n}",
+            )
+            for n in range(3)
+            for aggregate in ("count", "sum", "avg", "min")
+        ]
         assert len(cards) == 12
         save(site, request_from(boss), cards, user=boss)
 
@@ -1114,8 +1131,9 @@ class TestQueryCost:
         # The layout row, the span probe that chooses the bucket, and the grouped query.
         assert len(queries) <= 3
 
-    def test_a_card_that_is_switched_off_costs_nothing(self, request_from, boss, orders,
-                                                       django_assert_num_queries):
+    def test_a_card_that_is_switched_off_costs_nothing(
+        self, request_from, boss, orders, django_assert_num_queries
+    ):
         request = request_from(boss)
         save(site, request, [stat_card(show=False)], user=boss)
         fresh = request_from(boss)
@@ -1128,17 +1146,22 @@ class TestTheForm:
 
     @declared_settings
     def test_adding_a_card_through_the_form(self, client_in, boss, orders):
-        response = client_in.post(reverse("vantage:dashboard-arrange"), {
-            "do": "save:user",
-            "keep": ["0", "1", "2"],
-            "order__0": "1", "order__1": "2", "order__2": "3",
-            "add_model": "testapp.order",
-            "add_shape": "stat",
-            "add_aggregate": "sum",
-            "add_field": "testapp.order:total",
-            "add_width": "2",
-            "add_label": "Takings",
-        })
+        response = client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {
+                "do": "save:user",
+                "keep": ["0", "1", "2"],
+                "order__0": "1",
+                "order__1": "2",
+                "order__2": "3",
+                "add_model": "testapp.order",
+                "add_shape": "stat",
+                "add_aggregate": "sum",
+                "add_field": "testapp.order:total",
+                "add_width": "2",
+                "add_label": "Takings",
+            },
+        )
         assert response.status_code == 302
 
         body = client_in.get(reverse("vantage:dashboard")).content.decode()
@@ -1148,11 +1171,16 @@ class TestTheForm:
 
     @declared_settings
     def test_the_form_reorders_by_the_number_boxes(self, client_in, boss, content):
-        client_in.post(reverse("vantage:dashboard-arrange"), {
-            "do": "save:user",
-            "keep": ["0", "1", "2"],
-            "order__0": "3", "order__1": "1", "order__2": "2",
-        })
+        client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {
+                "do": "save:user",
+                "keep": ["0", "1", "2"],
+                "order__0": "3",
+                "order__1": "1",
+                "order__2": "2",
+            },
+        )
         request = _request_for(boss)
         labels = [c.label for c in get_dashboard(site, request).render(request)]
         assert labels == ["Authors", "Orders", "Posts"]
@@ -1161,9 +1189,13 @@ class TestTheForm:
     def test_unticking_a_declared_card_switches_it_off_rather_than_deleting_it(
         self, client_in, boss, content
     ):
-        client_in.post(reverse("vantage:dashboard-arrange"), {
-            "do": "save:user", "keep": ["1", "2"],
-        })
+        client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {
+                "do": "save:user",
+                "keep": ["1", "2"],
+            },
+        )
         stored = dashboards.row_for(site, boss).cards
         posts = next(entry for entry in stored if entry.get("key") == "posts")
         assert posts["show"] is False
@@ -1177,32 +1209,42 @@ class TestTheForm:
         save(site, request, [stat_card()], user=boss)
 
         # Slot 0 is the built card; the declared three follow it.
-        client_in.post(reverse("vantage:dashboard-arrange"), {
-            "do": "save:user", "keep": ["1", "2", "3"],
-        })
+        client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {
+                "do": "save:user",
+                "keep": ["1", "2", "3"],
+            },
+        )
         stored = dashboards.row_for(site, boss).cards
         assert all(entry["card"] == "declared" for entry in stored)
 
     @declared_settings
     def test_the_width_select_resizes_a_card(self, client_in, boss, content):
-        client_in.post(reverse("vantage:dashboard-arrange"), {
-            "do": "save:user", "keep": ["0", "1", "2"], "width__0": "4",
-        })
+        client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {
+                "do": "save:user",
+                "keep": ["0", "1", "2"],
+                "width__0": "4",
+            },
+        )
         request = _request_for(boss)
-        card = next(c for c in get_dashboard(site, request).render(request)
-                    if c.label == "Posts")
+        card = next(c for c in get_dashboard(site, request).render(request) if c.label == "Posts")
         assert card.width == 4
 
-    def test_a_field_belonging_to_another_model_produces_no_card(self, client_in, boss,
-                                                                 orders):
-        client_in.post(reverse("vantage:dashboard-arrange"), {
-            "do": "save:user",
-            "add_model": "testapp.order",
-            "add_shape": "stat",
-            "add_aggregate": "sum",
-            # Picked from the Posts optgroup while Orders was the chosen model.
-            "add_field": "testapp.post:view_count",
-        })
+    def test_a_field_belonging_to_another_model_produces_no_card(self, client_in, boss, orders):
+        client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {
+                "do": "save:user",
+                "add_model": "testapp.order",
+                "add_shape": "stat",
+                "add_aggregate": "sum",
+                # Picked from the Posts optgroup while Orders was the chosen model.
+                "add_field": "testapp.post:view_count",
+            },
+        )
         stored = dashboards.row_for(site, boss).cards
         assert not [entry for entry in stored if entry["card"] != "declared"]
 
@@ -1226,13 +1268,16 @@ class TestTheForm:
         assert response["Location"] == reverse("vantage:dashboard")
 
     def test_an_off_site_next_is_not_followed(self, client_in):
-        response = client_in.post(reverse("vantage:dashboard-arrange"),
-                                  {"do": "save:user", "next": "https://evil.example/"})
+        response = client_in.post(
+            reverse("vantage:dashboard-arrange"),
+            {"do": "save:user", "next": "https://evil.example/"},
+        )
         assert response["Location"] == reverse("vantage:dashboard")
 
     def test_the_editor_returns_you_to_where_you_were(self, client_in):
-        response = client_in.post(reverse("vantage:dashboard-arrange"),
-                                  {"do": "save:user", "next": "/admin/?arrange=1"})
+        response = client_in.post(
+            reverse("vantage:dashboard-arrange"), {"do": "save:user", "next": "/admin/?arrange=1"}
+        )
         assert response["Location"] == "/admin/?arrange=1"
 
 
@@ -1267,8 +1312,9 @@ class TestTheEditorPage:
         assert 'value="testapp.order:total"' in body
         assert 'value="testapp.order:created_at"' in body
 
-    def test_a_switched_off_card_can_be_brought_back_from_the_editor(self, client_in, boss,
-                                                                     content):
+    def test_a_switched_off_card_can_be_brought_back_from_the_editor(
+        self, client_in, boss, content
+    ):
         request = _request_for(boss)
         save(site, request, [{"card": "declared", "key": "posts", "show": False}], user=boss)
         body = client_in.get(reverse("vantage:dashboard") + "?arrange=1").content.decode()
