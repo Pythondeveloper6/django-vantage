@@ -542,7 +542,7 @@ class ListView(PanelView):
     def _row(panel, obj, columns: list[str], link: str) -> dict:
         from django.urls import NoReverseMatch, reverse
 
-        from vantage.render import render_cell
+        from vantage.render import render_cell, table_cell
 
         try:
             url = reverse(f"vantage:{panel.slug}-detail", args=[obj.pk])
@@ -553,13 +553,7 @@ class ListView(PanelView):
             "obj": obj,
             "pk": obj.pk,
             "url": url,
-            "cells": [
-                {
-                    "value": render_cell(panel, obj, name),
-                    "is_link": name == link,
-                }
-                for name in columns
-            ],
+            "cells": [table_cell(render_cell(panel, obj, name), name == link) for name in columns],
         }
 
 
@@ -691,7 +685,7 @@ class DetailView(PanelView):
     def _related_row(self, child_panel, item, columns) -> dict:
         from django.urls import NoReverseMatch, reverse
 
-        from vantage.render import render_cell
+        from vantage.render import render_cell, table_cell
 
         try:
             url = reverse(f"vantage:{child_panel.slug}-detail", args=[item.pk])
@@ -699,9 +693,10 @@ class DetailView(PanelView):
             url = None
         link = child_panel.get_list_link(self.request)
         return {
+            "obj": item,
             "url": url,
             "cells": [
-                {"value": render_cell(child_panel, item, name), "is_link": name == link}
+                table_cell(render_cell(child_panel, item, name), name == link)
                 for name in columns
             ],
         }

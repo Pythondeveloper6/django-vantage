@@ -84,7 +84,7 @@
                 {% for cell in row.cells %}
                   <td>
                     {% if cell.is_link and row.url %}
-                      <a class="v-cell-link" href="{{ row.url }}">{{ cell.value }}</a>
+                      {% include "vantage/partials/cell_link.html" with url=row.url record=row.obj %}
                     {% else %}{{ cell.value }}{% endif %}
                   </td>
                 {% endfor %}

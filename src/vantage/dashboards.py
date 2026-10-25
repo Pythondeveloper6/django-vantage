@@ -425,7 +425,7 @@ class TableCard(QuerysetWidget):
     def render(self, request) -> WidgetResult:
         from vantage.inference import infer_list_display, infer_ordering
         from vantage.optimizer import plan_related
-        from vantage.render import render_cell
+        from vantage.render import render_cell, table_cell
 
         queryset = self.get_queryset(request)
         model = queryset.model
@@ -452,11 +452,11 @@ class TableCard(QuerysetWidget):
 
         rows = tuple(
             {
+                "obj": obj,
                 "pk": obj.pk,
                 "url": _detail_url(panel, obj),
                 "cells": [
-                    {"value": render_cell(panel, obj, name), "is_link": name == link}
-                    for name in columns
+                    table_cell(render_cell(panel, obj, name), name == link) for name in columns
                 ],
             }
             for obj in queryset[: self.limit]
