@@ -265,8 +265,7 @@ def choices_payload(choices: Any) -> list[dict[str, Any]] | None:
                 {
                     "group": str(value),
                     "choices": [
-                        {"value": json_value(inner), "label": str(text)}
-                        for inner, text in label
+                        {"value": json_value(inner), "label": str(text)} for inner, text in label
                     ],
                 }
             )

@@ -32,6 +32,11 @@ Values with a fixed set of choices are checked too (`vantage.E003`):
 ImproperlyConfigured: VANTAGE['THEME'] must be one of light, dark, system; got 'sepia'.
 ```
 
+So are the two values rendered into every page's inline stylesheet, where a typo would
+otherwise fail every render, the sign-in page included: `BRAND_COLOR` must be a hex
+colour (`vantage.E004`) and `BRAND_RADIUS` a CSS length (`vantage.E005`), by the same
+validators the settings screen applies to what it stores.
+
 ## Where a value comes from
 
 ```

@@ -21,41 +21,73 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vantage', '0003_list_preferences'),
+        ("vantage", "0003_list_preferences"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='VantageJob',
+            name="VantageJob",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('actor_repr', models.CharField(blank=True, max_length=150)),
-                ('resource_key', models.CharField(max_length=100)),
-                ('action_name', models.CharField(max_length=100)),
-                ('action_label', models.CharField(blank=True, max_length=150)),
-                ('selection', models.JSONField(blank=True, default=dict)),
-                ('status', models.CharField(choices=[('pending', 'Queued'), ('running', 'Running'), ('succeeded', 'Finished'), ('failed', 'Failed'), ('denied', 'Stopped — permission withdrawn')], default='pending', max_length=12)),
-                ('total', models.PositiveIntegerField(default=0)),
-                ('processed', models.PositiveIntegerField(default=0)),
-                ('failed', models.PositiveIntegerField(default=0)),
-                ('summary', models.CharField(blank=True, max_length=300)),
-                ('errors', models.JSONField(blank=True, default=list)),
-                ('error', models.TextField(blank=True)),
-                ('backend', models.CharField(blank=True, max_length=20)),
-                ('task_id', models.CharField(blank=True, max_length=255)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('started_at', models.DateTimeField(blank=True, null=True)),
-                ('finished_at', models.DateTimeField(blank=True, null=True)),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vantage_jobs', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("actor_repr", models.CharField(blank=True, max_length=150)),
+                ("resource_key", models.CharField(max_length=100)),
+                ("action_name", models.CharField(max_length=100)),
+                ("action_label", models.CharField(blank=True, max_length=150)),
+                ("selection", models.JSONField(blank=True, default=dict)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Queued"),
+                            ("running", "Running"),
+                            ("succeeded", "Finished"),
+                            ("failed", "Failed"),
+                            ("denied", "Stopped — permission withdrawn"),
+                        ],
+                        default="pending",
+                        max_length=12,
+                    ),
+                ),
+                ("total", models.PositiveIntegerField(default=0)),
+                ("processed", models.PositiveIntegerField(default=0)),
+                ("failed", models.PositiveIntegerField(default=0)),
+                ("summary", models.CharField(blank=True, max_length=300)),
+                ("errors", models.JSONField(blank=True, default=list)),
+                ("error", models.TextField(blank=True)),
+                ("backend", models.CharField(blank=True, max_length=20)),
+                ("task_id", models.CharField(blank=True, max_length=255)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("started_at", models.DateTimeField(blank=True, null=True)),
+                ("finished_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="vantage_jobs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'background job',
-                'verbose_name_plural': 'background jobs',
-                'ordering': ['-created_at', '-pk'],
-                'indexes': [models.Index(fields=['actor', '-created_at'], name='vantage_job_actor_idx'), models.Index(fields=['status', '-created_at'], name='vantage_job_status_idx'), models.Index(fields=['resource_key', '-created_at'], name='vantage_job_model_idx')],
+                "verbose_name": "background job",
+                "verbose_name_plural": "background jobs",
+                "ordering": ["-created_at", "-pk"],
+                "indexes": [
+                    models.Index(fields=["actor", "-created_at"], name="vantage_job_actor_idx"),
+                    models.Index(fields=["status", "-created_at"], name="vantage_job_status_idx"),
+                    models.Index(
+                        fields=["resource_key", "-created_at"], name="vantage_job_model_idx"
+                    ),
+                ],
             },
         ),
     ]

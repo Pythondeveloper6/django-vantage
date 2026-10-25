@@ -87,14 +87,22 @@ class NavItem:
         """Whether this item covers the given path.
 
         Prefix matching so a detail page keeps its list highlighted, but the panel
-        root is compared exactly or it would match everything. External links never
+        root is compared exactly or it would match everything. The panel root is
+        wherever the dashboard is mounted, not the site root. External links never
         match — they are not part of this site.
         """
         if not self.url or self.external:
             return False
-        if self.url.rstrip("/") == "":
-            return path.rstrip("/") == ""
+        if self.url.rstrip("/") in ("", _panel_root().rstrip("/")):
+            return path.rstrip("/") == self.url.rstrip("/")
         return path == self.url or path.startswith(self.url)
+
+
+def _panel_root() -> str:
+    try:
+        return reverse("vantage:dashboard")
+    except NoReverseMatch:
+        return "/"
 
 
 @dataclass
@@ -217,9 +225,7 @@ def _resolve_item(spec: Any, panels_by_label: dict, pages_by_slug: dict) -> NavI
     if isinstance(spec, str):
         spec = {"model": spec}
     if not isinstance(spec, dict):
-        raise TypeError(
-            f"Each VANTAGE['NAV'] item must be a dict or a model label, got {spec!r}."
-        )
+        raise TypeError(f"Each VANTAGE['NAV'] item must be a dict or a model label, got {spec!r}.")
 
     label = spec.get("label")
     icon = spec.get("icon")
@@ -1022,9 +1028,7 @@ def editor_context(site, request) -> dict:
         for index, entry in enumerate(declaration)
     ]
 
-    listed = {
-        item.target for group in groups for item in group.items if item.kind == "model"
-    }
+    listed = {item.target for group in groups for item in group.items if item.kind == "model"}
     # A key claimed by some earlier save and not claimed now was removed on purpose —
     # see ``save_declaration`` and ``_stored_nav`` — so it belongs in neither this list
     # nor the leftovers the sidebar itself renders. Only asked when there is a stored
@@ -1257,8 +1261,7 @@ def check_nav(app_configs, **kwargs) -> list:
             if not isinstance(normalised, dict):
                 messages.append(
                     Error(
-                        f"VANTAGE['NAV'] contains {spec!r}, which is not a dict or a "
-                        "model label.",
+                        f"VANTAGE['NAV'] contains {spec!r}, which is not a dict or a model label.",
                         id="vantage.E020",
                     )
                 )
@@ -1279,8 +1282,7 @@ def check_nav(app_configs, **kwargs) -> list:
                 except (LookupError, ValueError):
                     messages.append(
                         Warning(
-                            f"VANTAGE['NAV'] refers to the model {label!r}, which does "
-                            "not exist.",
+                            f"VANTAGE['NAV'] refers to the model {label!r}, which does not exist.",
                             hint="Use 'app_label.ModelName'.",
                             id="vantage.W020",
                         )
