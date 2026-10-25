@@ -41,8 +41,7 @@ def boss(client, db):
 def posts(db):
     author = Author.objects.create(name="Ada", email="ada@example.com")
     return [
-        Post.objects.create(title=f"P{i}", slug=f"p{i}", body="b", author=author)
-        for i in range(5)
+        Post.objects.create(title=f"P{i}", slug=f"p{i}", body="b", author=author) for i in range(5)
     ]
 
 
@@ -56,9 +55,7 @@ def archives(db):
     """
     from django.utils import timezone
 
-    return [
-        Archive.objects.create(title=f"A{i}", deleted_at=timezone.now()) for i in range(5)
-    ]
+    return [Archive.objects.create(title=f"A{i}", deleted_at=timezone.now()) for i in range(5)]
 
 
 def trash_url():
@@ -107,9 +104,7 @@ class TestPermissionFiltering:
         request = rf.get("/")
         staff = User.objects.create_user("plain", password="x", is_staff=True)
         ct = ContentType.objects.get_for_model(Post)
-        staff.user_permissions.add(
-            Permission.objects.get(content_type=ct, codename="change_post")
-        )
+        staff.user_permissions.add(Permission.objects.get(content_type=ct, codename="change_post"))
         request.user = User.objects.get(pk=staff.pk)
 
         names = {a.name for a in resolve_actions(panel, request)}
@@ -181,9 +176,7 @@ class TestRunningThroughTheView:
 
     def test_the_resolved_scope_is_reported_back(self, boss, archives):
         """So a silently narrowed scope is impossible to miss."""
-        response = boss.post(
-            trash_url(), {"action": "restore", "select_all": "1"}, follow=True
-        )
+        response = boss.post(trash_url(), {"action": "restore", "select_all": "1"}, follow=True)
         assert "all 5 matching" in response.content.decode()
 
     def test_a_destructive_action_confirms_before_running(self, boss, archives):

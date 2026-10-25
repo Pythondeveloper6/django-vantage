@@ -50,9 +50,7 @@ class TunedOrderPanel(ModelPanel):
         Stat("Revenue", Sum("total"), format="currency"),
         Stat("Orders", Count("id")),
     ]
-    list_charts = [
-        Chart.breakdown("By status", group_by="status", value=Count("id"), kind="donut")
-    ]
+    list_charts = [Chart.breakdown("By status", group_by="status", value=Count("id"), kind="donut")]
 
 
 @pytest.fixture
@@ -317,7 +315,10 @@ class TestReset:
     def test_resetting_a_section_that_was_never_set_is_a_no_op(self, panel, rf, person):
         listprefs.reset_section(panel, post_request(rf, person, {}), "stats", user=person)
         assert listprefs.resolve(panel, get_request(rf, person)).columns == [
-            "number", "status", "total", "created_at"
+            "number",
+            "status",
+            "total",
+            "created_at",
         ]
 
     def test_an_unknown_section_is_refused_outright(self, panel, rf, person):
@@ -416,9 +417,7 @@ class TestAHostilePost:
         )
         assert values["extra_charts"] is None
 
-    def test_a_timeseries_over_something_that_is_not_a_date_is_rejected(
-        self, panel, rf, person
-    ):
+    def test_a_timeseries_over_something_that_is_not_a_date_is_rejected(self, panel, rf, person):
         values = listprefs.clean_section(
             panel,
             get_request(rf, person),
@@ -445,9 +444,9 @@ class TestAHostilePost:
         request = get_request(rf, person)
 
         def per_page(value):
-            return listprefs.clean_section(
-                panel, request, "columns", {"per_page": value}
-            )["per_page"]
+            return listprefs.clean_section(panel, request, "columns", {"per_page": value})[
+                "per_page"
+            ]
 
         assert per_page("0") is None
         assert per_page("999999") is None
@@ -469,21 +468,27 @@ class TestColumnResizeAndPin:
 
     def test_a_width_is_clamped_to_the_minimum(self, panel, rf, person):
         values = listprefs.clean_section(
-            panel, get_request(rf, person), "columns",
+            panel,
+            get_request(rf, person),
+            "columns",
             {"columns": ["number"], "width__number": "1"},
         )
         assert values["column_widths"] == {"number": listprefs.MIN_COLUMN_WIDTH}
 
     def test_a_width_is_clamped_to_the_maximum(self, panel, rf, person):
         values = listprefs.clean_section(
-            panel, get_request(rf, person), "columns",
+            panel,
+            get_request(rf, person),
+            "columns",
             {"columns": ["number"], "width__number": "99999"},
         )
         assert values["column_widths"] == {"number": listprefs.MAX_COLUMN_WIDTH}
 
     def test_an_ordinary_width_is_kept_exactly(self, panel, rf, person):
         values = listprefs.clean_section(
-            panel, get_request(rf, person), "columns",
+            panel,
+            get_request(rf, person),
+            "columns",
             {"columns": ["number"], "width__number": "180"},
         )
         assert values["column_widths"] == {"number": 180}
@@ -504,7 +509,9 @@ class TestColumnResizeAndPin:
         """A width set on a column that is not currently ticked "shown" must not be
         lost — the checkbox and the width are independent questions about a column."""
         values = listprefs.clean_section(
-            panel, get_request(rf, person), "columns",
+            panel,
+            get_request(rf, person),
+            "columns",
             {"columns": ["number"], "width__status": "150"},
         )
         assert values["column_widths"] == {"status": 150}
@@ -513,7 +520,9 @@ class TestColumnResizeAndPin:
         self, panel, rf, person
     ):
         values = listprefs.clean_section(
-            panel, get_request(rf, person), "columns",
+            panel,
+            get_request(rf, person),
+            "columns",
             {"columns": ["number", "total"], "pinned_columns": ["total", "customer"]},
         )
         assert values["pinned_columns"] == ["total"]
@@ -552,7 +561,8 @@ class TestColumnResizeAndPin:
     def test_more_than_one_column_can_be_pinned(self, panel, rf, person):
         write(panel, person, pinned_columns=["number", "status"])
         assert listprefs.resolve(panel, get_request(rf, person)).pinned_columns == [
-            "number", "status"
+            "number",
+            "status",
         ]
 
     def test_reset_clears_widths_and_pins_along_with_the_rest_of_the_section(
@@ -611,9 +621,7 @@ class TestAStoredRowIsValidatedOnTheWayOut:
         write(panel, person, columns=["customer", "total"])
         assert listprefs.resolve(panel, get_request(rf, person)).columns == ["total"]
 
-    def test_a_row_that_validates_down_to_nothing_falls_back_to_the_code(
-        self, panel, rf, person
-    ):
+    def test_a_row_that_validates_down_to_nothing_falls_back_to_the_code(self, panel, rf, person):
         write(panel, person, columns=["customer", "customer__email"])
         spec = listprefs.resolve(panel, get_request(rf, person))
         assert spec.columns == ["number", "status", "total", "created_at"]
@@ -729,7 +737,10 @@ class TestTheView:
         request = post_request(rf, boss, {"section": "columns", "do": "reset:user"})
         self.view(panel)(request)
         assert listprefs.resolve(panel, get_request(rf, boss)).columns == [
-            "number", "status", "total", "created_at"
+            "number",
+            "status",
+            "total",
+            "created_at",
         ]
 
     def test_it_returns_to_the_list_it_came_from(self, panel, rf, boss):
@@ -929,9 +940,7 @@ class TestDatabaseUnavailable:
 
 
 class TestCaching:
-    def test_both_rows_are_read_in_one_query(
-        self, panel, rf, person, django_assert_num_queries
-    ):
+    def test_both_rows_are_read_in_one_query(self, panel, rf, person, django_assert_num_queries):
         write(panel, None, columns=["status"])
         write(panel, person, per_page=5)
         with django_assert_num_queries(1):
@@ -949,7 +958,10 @@ class TestCaching:
     def test_two_requests_do_not_share_a_cache(self, panel, rf, person):
         first = get_request(rf, person)
         assert listprefs.resolve(panel, first).columns == [
-            "number", "status", "total", "created_at"
+            "number",
+            "status",
+            "total",
+            "created_at",
         ]
         write(panel, person, columns=["total"])
         assert listprefs.resolve(panel, get_request(rf, person)).columns == ["total"]
@@ -1017,9 +1029,7 @@ class TestTheRailRenders:
         assert 'name="section" value="columns"' in html
         assert 'value="save:site"' in html
 
-    def test_it_offers_no_way_to_save_for_everyone_to_someone_who_may_not(
-        self, panel, rf, person
-    ):
+    def test_it_offers_no_way_to_save_for_everyone_to_someone_who_may_not(self, panel, rf, person):
         from django.template.loader import render_to_string
 
         request = get_request(rf, person)

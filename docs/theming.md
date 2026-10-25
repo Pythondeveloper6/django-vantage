@@ -172,7 +172,9 @@ light, then flips.
 
 Server-side, a `vantage-theme` cookie set by the toggle wins over the project default.
 The localStorage read covers the very first paint, before any cookie exists. Set
-`THEME_TOGGLE = False` to remove the control and pin everyone to `THEME`.
+`THEME_TOGGLE = False` to remove the control and pin everyone to `THEME` — including a
+user who saved a choice before the toggle was turned off: with it off, neither the
+cookie nor the inline script is consulted.
 
 ## Right to left
 
@@ -190,9 +192,9 @@ package ships a compiled Arabic catalogue for exactly this — see
 | Setting | |
 |---|---|
 | `LOGO` | Shown in the sidebar |
-| `LOGO_DARK` | Used in the dark theme; falls back to `LOGO` when unset |
+| `LOGO_DARK` | Swapped in for the dark theme — when it is pinned, and when the device prefers dark and nothing is pinned. Falls back to `LOGO` when unset |
 | `FAVICON` | The browser tab icon |
-| `SITE_ACRONYM` | Two letters for the collapsed sidebar; derived from `SITE_TITLE` when unset |
+| `SITE_ACRONYM` | Two letters for the collapsed sidebar, shown there even when a `LOGO` is set (a wide logo has no room); derived from `SITE_TITLE` when unset |
 
 Each accepts a static path (`"img/acme.svg"`), resolved with `{% static %}`, or an
 already-resolved URL — `/…`, `//…`, `http://…`, `https://…` or a `data:` URI — which
@@ -219,8 +221,13 @@ redefinition rather than a component rule:
   --sidebar: oklch(0.98 0.01 250);
 }
 
-:root[data-theme="dark"],
-:root:not([data-theme="light"]) {
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sidebar: oklch(0.15 0.01 250);
+  }
+}
+
+:root[data-theme="dark"] {
   --sidebar: oklch(0.15 0.01 250);
 }
 ```
@@ -248,8 +255,11 @@ Three sections:
 | Appearance | brand colour, corner radius, default theme, theme toggle |
 | Behaviour | environment banner, rows per page, command palette, read-only mode |
 
-Each section saves and resets independently, and the reset acts on exactly the fields
-the card shows, so a button can never clear something it does not display.
+One **Save** stores the whole form. Each section has its own **Reset**, which acts on
+exactly the fields that card shows, so a button can never clear something it does not
+display. A fourth card, **Sidebar**, arranges the navigation: rename, re-icon, reorder
+and regroup items, hide them, add groups and links. Its Reset hands the sidebar back to
+whatever `panel.py` and `VANTAGE["NAV"]` declare.
 
 ### What it deliberately cannot change
 

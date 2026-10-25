@@ -490,9 +490,7 @@ class TestStatementTimeout:
             pass
         assert connection.last.calls == [(TIMEOUT_SQL, ["2500ms"])]
 
-    def test_it_opens_a_transaction_so_local_has_something_to_scope_to(
-        self, db, pretend_postgres
-    ):
+    def test_it_opens_a_transaction_so_local_has_something_to_scope_to(self, db, pretend_postgres):
         """``SET LOCAL`` outside a transaction is a warning and no timeout at all."""
         from django.db import transaction
 

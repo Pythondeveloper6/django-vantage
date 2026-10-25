@@ -136,3 +136,13 @@ NO_FLASH_SCRIPT = """
   } catch (e) {}
 })();
 """.strip()
+
+
+def no_flash_script() -> str:
+    """The inline script for ``<head>``, or nothing when users may not choose a theme.
+
+    With ``THEME_TOGGLE`` off the server ignores the theme cookie, but this script would
+    still apply whatever a user saved in localStorage back when the toggle was on, and
+    the documented promise — everyone gets ``THEME`` — would quietly not hold for them.
+    """
+    return NO_FLASH_SCRIPT if vantage_settings.THEME_TOGGLE else ""

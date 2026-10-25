@@ -4,17 +4,13 @@
 
 ## Install
 
-Vantage is not on PyPI yet. Until the first release, install from the repository:
-
 ```bash
-pip install "django-vantage @ git+https://github.com/Pythondeveloper6/django-vantage"
+pip install --pre django-vantage
 ```
 
-Once released, the usual will work:
-
-```bash
-pip install django-vantage
-```
+`--pre` is needed while Vantage is in alpha: pip skips pre-releases unless asked. Pin
+the exact version (`django-vantage==0.1.0a1`) if you depend on it, because the API may
+still move before 1.0.
 
 Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. Nothing else is.
 

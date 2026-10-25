@@ -209,9 +209,7 @@ def save_layout(layout: dict, user=None) -> None:
         raise LookupError("vantage.NavConfiguration is not installed.")
     row = model.load()
     if not hasattr(row, LAYOUT_FIELD):  # pragma: no cover - reconciliation guard
-        raise LookupError(
-            f"{LAYOUT_MODEL[1]} has no {LAYOUT_FIELD!r} column; run migrations."
-        )
+        raise LookupError(f"{LAYOUT_MODEL[1]} has no {LAYOUT_FIELD!r} column; run migrations.")
     setattr(row, LAYOUT_FIELD, clean_layout(layout))
     if user is not None and getattr(user, "is_authenticated", False):
         row.updated_by = user

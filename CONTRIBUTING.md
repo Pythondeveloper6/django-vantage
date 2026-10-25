@@ -44,14 +44,14 @@ the loop and no database file — the suite runs against in-memory SQLite.
 ## Lint
 
 ```bash
-uv run ruff check src tests       # this is what CI gates on
+uv run ruff check src tests       # CI gates on both of these
+uv run ruff format src tests
 uv run ruff check --fix src tests
 ```
 
-`ruff format` is **not** yet enforced. The tree has never been run through it, so
-enabling the gate today would fail every pull request for reasons unrelated to the
-change; CI runs `ruff format --check` in advisory mode so the drift stays visible. Don't
-reformat files you aren't otherwise touching.
+`ruff format --check` is enforced. The whole tree was formatted in one commit, which
+`.git-blame-ignore-revs` lists; run `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+once so a local `git blame` skips it.
 
 Optional, and worth installing once:
 
@@ -98,6 +98,26 @@ how you get back to a clean database.
 
 Render the page and look at it. More than one bug in this repository's history was a
 green suite over markup that had silently vanished, because no test asserted on it.
+
+## Documentation
+
+The pages in `docs/` are the documentation site, built with MkDocs Material:
+
+```bash
+uv run --group docs mkdocs serve       # live preview on http://127.0.0.1:8000/
+uv run --group docs mkdocs build --strict
+```
+
+CI builds with `--strict` on every pull request, so a broken link or a page missing
+from the `nav` in `mkdocs.yml` fails there. Link between pages with relative `.md`
+paths; they work both on github.com and on the site.
+
+The screenshots in `docs/assets/screenshots/` come from the demo. After a visible UI
+change, regenerate them rather than editing them by hand:
+
+```bash
+uv run python scripts/screenshots.py   # needs the browser group and Chromium
+```
 
 ---
 

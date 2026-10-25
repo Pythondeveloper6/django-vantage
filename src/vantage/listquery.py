@@ -74,13 +74,9 @@ def build(panel, request, permissions, *, allow_tree: bool = True) -> ListQuery:
     patterns = panel.get_patterns()
 
     if showing_trash(panel, request):
-        queryset = permissions.filter_queryset(
-            request, panel.get_trash_queryset(request), "view"
-        )
+        queryset = permissions.filter_queryset(request, panel.get_trash_queryset(request), "view")
     else:
-        queryset = permissions.filter_queryset(
-            request, panel.get_list_queryset(request), "view"
-        )
+        queryset = permissions.filter_queryset(request, panel.get_list_queryset(request), "view")
         if patterns.soft_delete and not patterns.soft_delete.manager_hides_trashed:
             # A model whose manager does not already exclude them: the list means
             # live records, and the trash is a place you go to deliberately.
@@ -170,13 +166,9 @@ def showing_tree(panel, request) -> bool:
         return False
     if request.GET.get("q") or request.GET.get("sort"):
         return False
-    return not any(
-        key not in TREE_NEUTRAL_PARAMS and value for key, value in request.GET.items()
-    )
+    return not any(key not in TREE_NEUTRAL_PARAMS and value for key, value in request.GET.items())
 
 
 def showing_trash(panel, request) -> bool:
     """Whether this request is asking for the trash rather than the live list."""
-    return (
-        request.GET.get("trash") == "1" and panel.get_patterns().soft_delete is not None
-    )
+    return request.GET.get("trash") == "1" and panel.get_patterns().soft_delete is not None

@@ -54,12 +54,9 @@ jobs:
       - name: ruff check
         run: uv run --no-sync ruff check src tests
 
-      # Advisory. `ruff format` has never been applied to this repository, so gating on
-      # it today would fail every pull request for reasons unrelated to the change. It
-      # runs so the drift is visible and shrinking; promote it to a blocking step in the
-      # same commit that formats the tree.
-      - name: ruff format (advisory)
-        continue-on-error: true
+      # Blocking since the tree was formatted in one commit (listed in
+      # .git-blame-ignore-revs, so blame skips it).
+      - name: ruff format
         run: uv run --no-sync ruff format --check --diff src tests
 
   test:
@@ -115,8 +112,18 @@ jobs:
       # release. `tests/` still resolves through pytest's `pythonpath = ["."]`.
       # Django is named last so this cell's version wins over whatever single version
       # the lockfile happens to hold.
+      #
+      # Django main is the next version, which the package's own upper bound excludes
+      # on purpose, so that cell overrides the bound rather than asking for something
+      # the resolver must refuse. Every other cell installs under the real bound.
       - name: Install
-        run: uv pip install . --group dev "$DJANGO_SPEC"
+        run: |
+          if [ "${{ matrix.django }}" = "main" ]; then
+            echo "django @ $DJANGO_SPEC" > "$RUNNER_TEMP/django-override.txt"
+            uv pip install . --group dev --override "$RUNNER_TEMP/django-override.txt"
+          else
+            uv pip install . --group dev "$DJANGO_SPEC"
+          fi
 
       - name: Report the resolved versions
         run: |

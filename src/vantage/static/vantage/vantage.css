@@ -174,6 +174,37 @@ textarea {
   inline-size: auto;
 }
 
+/* The dark-theme logo, when one is set (partials/brand.html). Same two conditions as
+   the dark tokens: pinned dark, or the device's preference when nothing is pinned. */
+[data-logo-dark] {
+  display: none;
+}
+
+:root[data-theme="dark"] [data-logo-light] {
+  display: none;
+}
+
+:root[data-theme="dark"] [data-logo-dark] {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-logo-light] {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) [data-logo-dark] {
+    display: block;
+  }
+}
+
+/* The acronym tile beside a logo exists only for the collapsed sidebar. Two classes
+   of specificity so it beats the tile's own `display: grid` wherever that is set. */
+.v-brand [data-brand-collapsed],
+.v-auth-brand [data-brand-collapsed] {
+  display: none;
+}
+
 .v-brand-mark {
   display: grid;
   place-items: center;
@@ -1817,6 +1848,14 @@ textarea {
   text-align: center;
 }
 
+/* The cell padding every other column gets would leave the checkbox less room than it
+   needs, and the cell's ellipsis then draws "…" beside it. */
+.v-table .v-select-cell {
+  padding-inline: 0;
+  text-overflow: clip;
+  text-align: center;
+}
+
 .v-select-cell input { cursor: pointer; }
 
 .v-confirm { margin-block-end: 1rem; border-color: var(--destructive); }
@@ -2194,6 +2233,10 @@ textarea {
 .v-shell[data-collapsed="true"] .v-brand > span:not(.v-brand-mark),
 .v-shell[data-collapsed="true"] .v-brand img {
   display: none;
+}
+
+.v-shell[data-collapsed="true"] .v-brand [data-brand-collapsed] {
+  display: grid;
 }
 
 .v-shell[data-collapsed="true"] .v-nav-group + .v-nav-group {

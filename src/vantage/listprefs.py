@@ -254,11 +254,7 @@ def options(panel, request=None) -> Options:
         search_fields = tuple(dict.fromkeys(panel.get_list_search(request)))
         per_page = panel.get_per_page(request)
 
-    measures = tuple(
-        name
-        for name in columns
-        if isinstance(_local_field(model, name), NUMERIC)
-    )
+    measures = tuple(name for name in columns if isinstance(_local_field(model, name), NUMERIC))
     # Dates and groups are drawn from the filters as well as the columns: a panel that
     # offers a date filter has declared that date as something worth slicing by, and a
     # chart of it is the same declaration read the other way round.
@@ -268,9 +264,7 @@ def options(panel, request=None) -> Options:
         if isinstance(_local_field(model, name), DateField)
     )
     groups = tuple(
-        name
-        for name in dict.fromkeys(filter_fields + columns)
-        if _has_labels(model, name)
+        name for name in dict.fromkeys(filter_fields + columns) if _has_labels(model, name)
     )
     return Options(
         columns=columns,
@@ -732,9 +726,7 @@ def _build(panel, request, key: str) -> ListSpec:
 
 
 #: Every column this layer reads, in the order the sections declare them.
-SETTING_NAMES: tuple[str, ...] = tuple(
-    name for names in SECTION_COLUMNS.values() for name in names
-)
+SETTING_NAMES: tuple[str, ...] = tuple(name for names in SECTION_COLUMNS.values() for name in names)
 
 
 def _assemble(panel, opts: Options, key: str, stored: dict, sources: dict) -> ListSpec:
@@ -783,9 +775,7 @@ def _assemble(panel, opts: Options, key: str, stored: dict, sources: dict) -> Li
             if chosen
             else list(declared_charts.values())
         )
-        charts = tuple(
-            kept_charts + [_chart(entry) for entry in stored.get("extra_charts") or []]
-        )
+        charts = tuple(kept_charts + [_chart(entry) for entry in stored.get("extra_charts") or []])
 
     summary_aggregates: dict[str, str] = {}
     if summary_enabled:
@@ -1174,16 +1164,35 @@ def _permission_rule():
 # ── what the list page computes with the resolved spec ──────────────────────
 
 
-def analytics(spec: ListSpec, queryset) -> dict:
+def analytics(spec: ListSpec, queryset, *, base=None, filters=()) -> dict:
     """Stat cards and charts for this list, or nothing at all — and nothing costs zero.
 
     Switching the stat strip off has to remove its *queries*, not merely its markup. A
     version that computed the panel and then hid it would leave the page exactly as
     slow as the thing the user turned off to make it faster.
+
+    ``base`` and ``filters`` are the rows before filtering and the filters applied to
+    them. With both, a trending stat compares against the same rows with its own date
+    filter lifted, so filtering to "last 30 days" compares with the 30 days before.
     """
     if not spec.stats and not spec.charts:
         return {"stats": [], "charts": [], "deferred": False, "reason": None}
-    return compute_panel(queryset, stats=spec.stats, charts=spec.charts)
+    return compute_panel(
+        queryset,
+        stats=spec.stats,
+        charts=spec.charts,
+        baseline=_trend_baseline(spec, base, filters),
+    )
+
+
+def _trend_baseline(spec: ListSpec, base, filters):
+    """The filtered rows minus any filter on a trending stat's date field, or None."""
+    from vantage.filters import apply_filters
+
+    trend_fields = {stat.trend for stat in spec.stats if stat.trend}
+    if base is None or not trend_fields:
+        return None
+    return apply_filters(base, [f for f in filters if f.path not in trend_fields])
 
 
 def summary(spec: ListSpec, queryset) -> dict:

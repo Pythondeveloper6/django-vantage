@@ -43,7 +43,7 @@ def inline_row_attrs(config, obj) -> str:
     if token is None:
         # No version column on this model. The attribute is omitted rather than
         # emitted empty, so "unlockable" and "not yet loaded" cannot be confused.
-        return mark_safe(' data-inline-row')
+        return mark_safe(" data-inline-row")
     return format_html(' data-inline-row data-version="{}"', token)
 
 

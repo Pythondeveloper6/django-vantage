@@ -35,12 +35,8 @@ repos:
       - id: ruff-check
         args: [--fix]
 
-      # `ruff format` has never been applied to this repository — running it today
-      # reports most of the tree — so it is off rather than pretending. Because
-      # pre-commit only touches staged files, enabling it would reformat whatever you
-      # happen to be editing and bury your change in a whitespace diff. Turn it on in
-      # the same commit that formats the tree and makes CI's advisory step blocking.
-      # - id: ruff-format
+      # The format gate, identical to CI's.
+      - id: ruff-format
 
   # Catches the class of mistake that only shows up in a GitHub Actions run, where the
   # feedback loop is minutes rather than seconds.

@@ -346,7 +346,7 @@ class TestSoftDelete:
 
 class TestTimeline:
     def test_a_domain_date_is_preferred_over_an_audit_one(self):
-        """"Posts per week" means the week they were published in."""
+        """ "Posts per week" means the week they were published in."""
         found = detect_timeline(Post)
         assert found.field == "published_at"
         assert found.is_audit is False

@@ -252,6 +252,7 @@ class TestBackendDetection:
         that only shows up in production. ``ImmediateBackend`` runs the task in-thread,
         so the job also completes, which is the second half of the proof.
         """
+        pytest.importorskip("django.tasks", reason="django.tasks arrived in Django 6.0")
         panel = use_panel(Promo, TouchPanel)
         promos(3)
         job = enqueue(panel, boss, name="touch")
@@ -312,9 +313,7 @@ class TestSelectionRoundTrip:
         assert payload["query"] == "q=promo"
         assert payload["count"] == 50
 
-    def test_the_stored_selection_resolves_to_exactly_the_same_rows(
-        self, db, boss, use_panel
-    ):
+    def test_the_stored_selection_resolves_to_exactly_the_same_rows(self, db, boss, use_panel):
         """The property the whole design rests on.
 
         The job stores a predicate and an exclusion set; running it must touch the same
@@ -324,17 +323,13 @@ class TestSelectionRoundTrip:
         made = promos(12)
         excluded = [made[0].pk, made[5].pk]
 
-        expected = set(
-            Promo.objects.exclude(pk__in=excluded).values_list("pk", flat=True)
-        )
+        expected = set(Promo.objects.exclude(pk__in=excluded).values_list("pk", flat=True))
 
         job = enqueue(panel, boss, name="touch", excluded=excluded)
 
         assert job.status == VantageJob.Status.SUCCEEDED
         assert job.total == len(expected)
-        touched = set(
-            Promo.objects.filter(headline="touched").values_list("pk", flat=True)
-        )
+        touched = set(Promo.objects.filter(headline="touched").values_list("pk", flat=True))
         assert touched == expected
 
     def test_a_filter_in_the_stored_query_string_narrows_the_job(self, db, boss, use_panel):
@@ -390,9 +385,7 @@ class TestInProcessFallback:
         jobs.run_job(job.pk)
         assert RevokingPanel.calls == 1
 
-    def test_an_empty_selection_finishes_honestly_rather_than_erroring(
-        self, db, boss, use_panel
-    ):
+    def test_an_empty_selection_finishes_honestly_rather_than_erroring(self, db, boss, use_panel):
         panel = use_panel(Promo, TouchPanel)
         job = enqueue(panel, boss, name="touch", count=0)
         assert job.status == VantageJob.Status.SUCCEEDED
@@ -436,17 +429,20 @@ class TestPartialFailure:
 
         enqueue(panel, boss, name="publish")
 
-        published = set(
-            Promo.objects.filter(is_published=True).values_list("headline", flat=True)
-        )
-        assert published == {"promo 0", "promo 2", "promo 3", "promo 5", "promo 6",
-                             "promo 7", "promo 8"}
+        published = set(Promo.objects.filter(is_published=True).values_list("headline", flat=True))
+        assert published == {
+            "promo 0",
+            "promo 2",
+            "promo 3",
+            "promo 5",
+            "promo 6",
+            "promo 7",
+            "promo 8",
+        }
         assert Promo.objects.filter(is_published=True, headline__contains="bad").count() == 0
 
-    def test_every_failure_is_recorded_with_its_row_and_its_reason(
-        self, db, boss, use_panel
-    ):
-        """"Some rows failed" is the sentence this makes impossible to produce."""
+    def test_every_failure_is_recorded_with_its_row_and_its_reason(self, db, boss, use_panel):
+        """ "Some rows failed" is the sentence this makes impossible to produce."""
         panel = use_panel(Promo, FlakyPanel)
         promos(6, bad={2})
 
@@ -661,8 +657,12 @@ class TestStatusEndpoint:
 
     def test_a_running_job_is_not_terminal(self, db, boss):
         job = VantageJob.objects.create(
-            actor=boss, resource_key="testapp.promo", action_name="touch",
-            status=VantageJob.Status.RUNNING, total=100, processed=25,
+            actor=boss,
+            resource_key="testapp.promo",
+            action_name="touch",
+            status=VantageJob.Status.RUNNING,
+            total=100,
+            processed=25,
         )
         assert job.is_terminal is False
         assert job.percent == 25
@@ -714,8 +714,13 @@ class TestJobsPage:
 
     def test_a_running_job_carries_its_poll_url(self, client, db, boss):
         job = VantageJob.objects.create(
-            actor=boss, resource_key="testapp.promo", action_name="touch",
-            action_label="Touch", status=VantageJob.Status.RUNNING, total=10, processed=4,
+            actor=boss,
+            resource_key="testapp.promo",
+            action_name="touch",
+            action_label="Touch",
+            status=VantageJob.Status.RUNNING,
+            total=10,
+            processed=4,
         )
         client.force_login(boss)
         html = client.get(reverse("vantage:jobs")).content.decode()
@@ -743,11 +748,15 @@ class TestSweep:
         from django.utils import timezone
 
         old = VantageJob.objects.create(
-            actor=boss, resource_key="testapp.promo", action_name="touch",
+            actor=boss,
+            resource_key="testapp.promo",
+            action_name="touch",
             status=VantageJob.Status.SUCCEEDED,
         )
         stuck = VantageJob.objects.create(
-            actor=boss, resource_key="testapp.promo", action_name="touch",
+            actor=boss,
+            resource_key="testapp.promo",
+            action_name="touch",
             status=VantageJob.Status.RUNNING,
         )
         long_ago = timezone.now() - dt.timedelta(days=90)

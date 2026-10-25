@@ -112,7 +112,7 @@ table below — including the dashboard — has one.
 | Dashboard cards: which show, their order and width, and cards built entirely in the UI over any model | [`?arrange=1`](pages-and-dashboards.md#arranging-the-dashboard-from-the-ui) on the dashboard itself | `VANTAGE["DASHBOARD"]`, a `Dashboard` subclass | [Pages and dashboards](pages-and-dashboards.md#dashboards) |
 | Branding: title, logo, favicon, brand colour, corner radius, theme | [The settings screen](theming.md#the-settings-screen) | `SITE_TITLE`, `LOGO`, `BRAND_COLOR`… in `VANTAGE` | [Theming](theming.md) |
 | Behaviour: environment banner, rows per page, command palette, read-only mode | [The settings screen](theming.md#the-settings-screen) | `ENVIRONMENT`, `DEFAULT_PER_PAGE`, `COMMAND_PALETTE`, `READ_ONLY` in `VANTAGE` | [Settings](settings.md#behaviour) |
-| Sidebar navigation | — Python only, for now: no UI has been built yet | `VANTAGE["NAV"]` | [Settings](settings.md#navigation) |
+| Sidebar navigation: groups, order, labels, icons, hidden items, extra links | [The settings screen's Sidebar card](theming.md#the-settings-screen) | `VANTAGE["NAV"]` | [Settings](settings.md#navigation) |
 | Permissions, tenancy | — Python only, deliberately: a permission boundary is not a preference | `VANTAGE["PERMISSIONS"]`, per-panel hooks, `VANTAGE["TENANT_MODEL"]` | [Permissions](permissions.md), [Multi-tenancy](tenancy.md) |
 
 The bottom row is not an oversight to apologise for: a permission boundary that a

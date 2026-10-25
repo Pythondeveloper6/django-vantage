@@ -568,9 +568,7 @@ class TestCustomResolver:
             assert current(request) is None
         assert "resolver raised" in caplog.text
 
-    def test_a_resolver_that_raises_denies_rows_rather_than_crashing_the_page(
-        self, settings, orgs
-    ):
+    def test_a_resolver_that_raises_denies_rows_rather_than_crashing_the_page(self, settings, orgs):
         org_a, _ = orgs
         TntWidget.objects.create(org=org_a, name="Widget A")
         settings.VANTAGE = {
@@ -887,9 +885,7 @@ class TestHttpWritePaths:
         assert tenants.widget_a.org_id == tenants.org_a.pk
 
     def test_editing_another_tenants_row_directly_is_a_404_and_it_survives(self, tenants):
-        response = client_as(tenants.alice).post(
-            change_url(tenants.widget_b), {"name": "hijacked"}
-        )
+        response = client_as(tenants.alice).post(change_url(tenants.widget_b), {"name": "hijacked"})
         assert response.status_code == 404
         tenants.widget_b.refresh_from_db()
         assert tenants.widget_b.name != "hijacked"
@@ -1075,9 +1071,7 @@ class TestJsonApiRespectsTenancy:
 
 
 class TestImportRespectsTenancy:
-    def test_a_create_import_stamps_the_tenant_when_the_column_is_omittable(
-        self, settings, orgs
-    ):
+    def test_a_create_import_stamps_the_tenant_when_the_column_is_omittable(self, settings, orgs):
         """TntSecret.org is editable=False, so it never becomes an importable column
         at all (importable_fields drops it, same as it drops it from every form) - the
         importer's "this column is required" guard therefore never fires on it, and
@@ -1191,9 +1185,7 @@ class TestImportRespectsTenancy:
         request = RequestFactory().post("/")
         request.user = SimpleNamespace(username="acme", is_authenticated=True)
 
-        parsed = importer.read_csv(
-            as_csv([["Name", "Org"], ["Widget C", str(org_b.pk)]])
-        )
+        parsed = importer.read_csv(as_csv([["Name", "Org"], ["Widget C", str(org_b.pk)]]))
         options = importer.importable_fields(panel)
         mapping = importer.resolve_mapping(
             panel,
@@ -1322,9 +1314,11 @@ class TestStatsAndDashboardAreScoped:
 class TestChecksNameEveryGap:
     def test_an_unresolved_registered_model_is_an_error_by_default(self, settings):
         settings.VANTAGE = {"TENANT_MODEL": "testapp.TntOrg"}
-        ids = {p.obj: p.id for p in check_tenancy(None) if getattr(p, "obj", None) in (
-            TntOrphan, TntAmbiguous
-        )}
+        ids = {
+            p.obj: p.id
+            for p in check_tenancy(None)
+            if getattr(p, "obj", None) in (TntOrphan, TntAmbiguous)
+        }
         assert ids[TntOrphan] == "vantage.E060"
         assert ids[TntAmbiguous] == "vantage.E060"
 

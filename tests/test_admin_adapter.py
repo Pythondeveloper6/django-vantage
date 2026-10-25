@@ -678,9 +678,7 @@ class TestThroughTheRealViews:
         posts[0].refresh_from_db()
         assert posts[0].featured is True
 
-    def test_has_delete_permission_is_honoured_for_a_superuser(
-        self, adopted, client_in, posts
-    ):
+    def test_has_delete_permission_is_honoured_for_a_superuser(self, adopted, client_in, posts):
         """``contrib.admin`` denies everyone, superusers included. So does this."""
         url = reverse("vantage:testapp-post-delete", args=[posts[0].pk])
         assert client_in.get(url).status_code == 403
@@ -711,9 +709,7 @@ class TestThroughTheRealViews:
 class TestPermissionHookIsolation:
     """The hook must not outlive the panel that declared it."""
 
-    def test_deletion_works_again_once_the_adopted_panel_is_gone(
-        self, client_in, posts
-    ):
+    def test_deletion_works_again_once_the_adopted_panel_is_gone(self, client_in, posts):
         url = reverse("vantage:testapp-post-delete", args=[posts[0].pk])
         assert client_in.get(url).status_code == 200
 

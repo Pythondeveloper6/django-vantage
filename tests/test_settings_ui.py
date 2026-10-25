@@ -123,7 +123,7 @@ class TestScreen:
             assert title in body
 
     def test_the_inherited_value_is_shown_next_to_each_field(self, client_in):
-        """"Clear this field" is only safe advice if the fallback is visible."""
+        """ "Clear this field" is only safe advice if the fallback is visible."""
         with override_settings(VANTAGE={"SITE_TITLE": "Northwind"}):
             body = client_in.get(url()).content.decode()
         assert "Northwind" in body

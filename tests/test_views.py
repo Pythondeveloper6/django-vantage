@@ -30,7 +30,10 @@ def posts(db):
     author = Author.objects.create(name="Ada Lovelace", email="ada@example.com")
     return [
         Post.objects.create(
-            title=f"Post {i}", slug=f"post-{i}", body="Body text", author=author,
+            title=f"Post {i}",
+            slug=f"post-{i}",
+            body="Body text",
+            author=author,
             status=Post.Status.PUBLISHED if i % 2 else Post.Status.DRAFT,
         )
         for i in range(1, 6)
@@ -137,8 +140,7 @@ class TestListPage:
 
         author = Author.objects.create(name="Grace Hopper", email="grace@example.com")
         Post.objects.bulk_create(
-            Post(title=f"Extra {i}", slug=f"extra-{i}", body="b", author=author)
-            for i in range(200)
+            Post(title=f"Extra {i}", slug=f"extra-{i}", body="b", author=author) for i in range(200)
         )
 
         with CaptureQueriesContext(connection) as large:

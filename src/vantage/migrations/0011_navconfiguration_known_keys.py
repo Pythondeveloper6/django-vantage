@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vantage', '0010_listpreference_column_widths_and_pinned'),
+        ("vantage", "0010_listpreference_column_widths_and_pinned"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='navconfiguration',
-            name='known_keys',
+            model_name="navconfiguration",
+            name="known_keys",
             field=models.JSONField(blank=True, default=list),
         ),
     ]

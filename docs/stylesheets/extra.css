@@ -1,0 +1,89 @@
+/* Brand: the indigo of the logo, which is also the package's default BRAND_COLOR. */
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #4f46e5;
+  --md-primary-fg-color--light: #818cf8;
+  --md-primary-fg-color--dark: #4338ca;
+  --md-accent-fg-color: #6366f1;
+  --md-typeset-a-color: #4f46e5;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #6366f1;
+  --md-primary-fg-color--light: #a5b4fc;
+  --md-primary-fg-color--dark: #4f46e5;
+  --md-accent-fg-color: #a5b4fc;
+  --md-typeset-a-color: #a5b4fc;
+  --md-default-bg-color: #0d0f17;
+}
+
+.md-header,
+.md-tabs {
+  background: linear-gradient(90deg, #4338ca, #6366f1);
+}
+
+.md-typeset h1 {
+  color: var(--md-default-fg-color);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h2 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* ── home page ──────────────────────────────────────────────────────────── */
+
+.dv-hero {
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.dv-hero h1 {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 0 0 0.75rem;
+}
+
+.dv-hero .dv-tagline {
+  font-size: 1.15rem;
+  color: var(--md-default-fg-color--light);
+  max-width: 38rem;
+  margin: 0 auto 1.5rem;
+}
+
+.dv-hero .md-button {
+  margin: 0.25rem;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .dv-hero h1 {
+    font-size: 1.9rem;
+  }
+
+  .dv-hero .dv-tagline {
+    font-size: 1rem;
+  }
+}
+
+.dv-shot {
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 50px -12px rgb(15 23 42 / 0.35), 0 0 0 1px rgb(15 23 42 / 0.08);
+  margin: 1.5rem 0;
+}
+
+[data-md-color-scheme="default"] .dv-only-dark,
+[data-md-color-scheme="slate"] .dv-only-light {
+  display: none;
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.6rem;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+}
