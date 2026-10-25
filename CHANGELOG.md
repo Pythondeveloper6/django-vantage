@@ -260,6 +260,9 @@ Read these before deploying an alpha anywhere it matters.
 - The sidebar's dashboard item is highlighted only on the dashboard, not on every page
   of a panel mounted below the site root.
 - The grid's row checkboxes no longer render as "☐…".
+- On Django 5.2, inlines no longer grow an extra column for the parent link. Before
+  Django 6.0 the inline formset appends that field to the list it is given, and the
+  list it was given was the one that also named the columns.
 - A self-referencing model on the schema map's top row keeps its loop on the canvas.
 
 #### Earlier
