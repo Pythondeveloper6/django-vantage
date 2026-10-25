@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 
 from tests.testapp.models import Post
-from vantage.erd import NODE_WIDTH, build_graph
+from vantage.erd import NODE_WIDTH, Edge, Node, _assemble, build_graph
 from vantage.sites import site
 
 
@@ -42,7 +42,8 @@ class TestGraph:
 
     def test_an_edge_carries_the_field_name(self):
         edge = next(
-            e for e in build_graph(site).edges
+            e
+            for e in build_graph(site).edges
             if e.source == "testapp.post" and e.target == "testapp.author"
         )
         assert edge.label == "author"
@@ -94,6 +95,19 @@ class TestLayout:
     def test_a_self_reference_draws_a_loop_not_a_zero_length_line(self):
         edge = next(e for e in build_graph(site).edges if e.self_referential)
         assert "C" in edge.path
+
+    def test_a_self_reference_loop_on_the_top_row_stays_on_the_canvas(self):
+        # A curve never leaves the hull of its control points, so keeping every point
+        # inside the canvas keeps the whole loop visible.
+        node = Node(key="shop.category", label="Categories", url=None, count_fields=3)
+        edge = Edge(
+            source=node.key, target=node.key, label="parent", kind="fk", self_referential=True
+        )
+        graph = _assemble({node.key: node}, [edge])
+        numbers = [float(n) for n in edge.path.replace(",", " ").split() if n not in "MC"]
+        ys = numbers[1::2]
+        assert min(ys) >= 0, edge.path
+        assert max(ys) <= graph.height, edge.path
 
 
 class TestPermissions:

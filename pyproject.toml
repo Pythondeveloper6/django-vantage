@@ -1,12 +1,11 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-fancy-pypi-readme>=24.1"]
 build-backend = "hatchling.build"
 
 [project]
 name = "django-vantage"
-version = "0.1.0.dev0"
+dynamic = ["version", "readme"]
 description = "A smart, beautiful admin panel for Django. Zero config to start, one line to override anything."
-readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 # PEP 639: naming the file explicitly keeps the licence in the wheel's
@@ -52,15 +51,17 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = ["Django>=5.2"]
+# Upper-bounded on purpose: the bound moves only in the commit that adds the next Django
+# to the CI matrix, so pip can never pair this release with a Django nobody tested.
+dependencies = ["Django>=5.2,<6.2"]
 
 [project.urls]
-Homepage = "https://github.com/mahmoudahmed/django-vantage"
-Documentation = "https://github.com/mahmoudahmed/django-vantage#readme"
-Source = "https://github.com/mahmoudahmed/django-vantage"
-Issues = "https://github.com/mahmoudahmed/django-vantage/issues"
-Changelog = "https://github.com/mahmoudahmed/django-vantage/blob/main/CHANGELOG.md"
-Contributing = "https://github.com/mahmoudahmed/django-vantage/blob/main/CONTRIBUTING.md"
+Homepage = "https://github.com/Pythondeveloper6/django-vantage"
+Documentation = "https://pythondeveloper6.github.io/django-vantage/"
+Source = "https://github.com/Pythondeveloper6/django-vantage"
+Issues = "https://github.com/Pythondeveloper6/django-vantage/issues"
+Changelog = "https://github.com/Pythondeveloper6/django-vantage/blob/main/CHANGELOG.md"
+Contributing = "https://github.com/Pythondeveloper6/django-vantage/blob/main/CONTRIBUTING.md"
 
 [dependency-groups]
 dev = [
@@ -82,13 +83,36 @@ release = ["build>=1.2", "twine>=6.0"]
 # `uv sync --group dev --group browser` plus `uv run playwright install chromium`
 # opts in.
 browser = ["playwright>=1.40"]
+docs = [
+    "mkdocs-material>=9.5",
+]
+
+# One source for the version: vantage.__version__, which the release workflow also
+# checks the tag against.
+# The README's images use repository-relative paths, so GitHub renders them on any
+# branch and while the repository is private. PyPI has no repository to resolve them
+# against, so the published description gets absolute URLs instead.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '(src(?:set)?=")(docs/assets/)'
+replacement = '\1https://raw.githubusercontent.com/Pythondeveloper6/django-vantage/main/\2'
+
+[tool.hatch.version]
+path = "src/vantage/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vantage"]
 # Belt and braces. Hatchling honours `.gitignore` when it can see one, but an sdist
 # rebuild or an export without VCS metadata cannot, and shipping another interpreter's
 # bytecode is both dead weight and a source of confusing import behaviour.
-exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]
+# docs/assets holds the screenshots and logos for the README and the docs site, which
+# load them from GitHub; they are a megabyte nobody installing from source needs.
+exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store", "/docs/assets"]
 # `locale/**/*.mo` is tracked in git (see .gitignore), so this is redundant today —
 # but hatchling's default file selection is "whatever VCS is not ignoring", and that
 # default silently drops compiled catalogues the moment someone gitignores *.mo
@@ -118,10 +142,11 @@ include = [
     "/CONTRIBUTING.md",
     "/CODE_OF_CONDUCT.md",
     "/SECURITY.md",
-    "/MANIFEST.in",
     "/tox.ini",
 ]
-exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]
+# docs/assets holds the screenshots and logos for the README and the docs site, which
+# load them from GitHub; they are a megabyte nobody installing from source needs.
+exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store", "/docs/assets"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"

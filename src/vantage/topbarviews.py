@@ -130,9 +130,7 @@ class TopbarSettingsView(SiteView):
                 # Re-rendered rather than redirected, so the half-filled form and the
                 # unsaved reordering above it both survive the mistake.
                 return self.render_to_response(
-                    self.get_context_data(
-                        layout=layout, errors=errors, add=request.POST.dict()
-                    )
+                    self.get_context_data(layout=layout, errors=errors, add=request.POST.dict())
                 )
             layout = _with(layout, item)
 

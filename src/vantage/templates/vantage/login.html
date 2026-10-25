@@ -29,12 +29,7 @@
   <main class="v-auth-main">
     <div class="v-auth-inner">
       <div class="v-auth-brand">
-        {% if settings.LOGO %}
-          <img src="{% asset settings.LOGO %}" alt="{{ settings.SITE_TITLE }}">
-        {% else %}
-          <span class="v-auth-mark" aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>
-          <span>{{ settings.SITE_TITLE }}</span>
-        {% endif %}
+        {% include "vantage/partials/brand.html" with mark_class="v-auth-mark" %}
       </div>
 
       <div class="v-card">

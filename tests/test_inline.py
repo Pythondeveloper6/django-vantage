@@ -275,9 +275,7 @@ class TestAllowlist:
 
             class Meta:
                 app_label = "testapp"
-                constraints = [
-                    models.UniqueConstraint(fields=["slot", "day"], name="c_slot_day")
-                ]
+                constraints = [models.UniqueConstraint(fields=["slot", "day"], name="c_slot_day")]
 
         resolved = ModelPanel(CPairedConstrained, site)
         resolved.list_editable = ["slot", "note"]
@@ -364,15 +362,13 @@ class TestCommit:
         assert (fresh.status, fresh.view_count) == ("review", 99)
 
     def test_several_rows_are_written_together(self, signed_in, post, other):
-        response = save(
-            signed_in, change(post, view_count=10), change(other, view_count=20)
-        )
+        response = save(signed_in, change(post, view_count=10), change(other, view_count=20))
         assert body_of(response)["saved"] == 2
         assert Post.objects.get(pk=post.pk).view_count == 10
         assert Post.objects.get(pk=other.pk).view_count == 20
 
     def test_the_response_reports_the_stored_value_not_the_typed_one(self, signed_in, post):
-        """"3" and "003" are the same number; the cell has to end up showing the first."""
+        """ "3" and "003" are the same number; the cell has to end up showing the first."""
         response = save(signed_in, change(post, view_count="007"))
         assert body_of(response)["rows"][0]["values"]["view_count"] == "7"
 
@@ -428,9 +424,7 @@ class TestAtomicity:
         assert errors[0]["fields"]["view_count"]  # a sentence, not a code
 
     def test_nothing_is_reported_as_saved(self, signed_in, post, other):
-        response = save(
-            signed_in, change(post, view_count=42), change(other, view_count="nope")
-        )
+        response = save(signed_in, change(post, view_count=42), change(other, view_count="nope"))
         assert body_of(response)["saved"] == 0
 
     def test_two_bad_cells_come_back_in_one_answer(self, signed_in, post):
@@ -528,9 +522,7 @@ class OnlyPublished(PanelPermissions):
 
 class TestMalformedRequests:
     def test_a_body_that_is_not_json_is_a_400(self, signed_in, post):
-        response = signed_in.patch(
-            reverse(SAVE_URL), data="{oops", content_type="application/json"
-        )
+        response = signed_in.patch(reverse(SAVE_URL), data="{oops", content_type="application/json")
         assert response.status_code == 400
 
     def test_a_missing_changes_list_is_a_400(self, signed_in, post):

@@ -105,7 +105,6 @@ def check_tasks() -> Check:
     return Check(_("Background tasks"), "info", _("None configured."), hint=backend.hint)
 
 
-
 def check_debug() -> Check:
     from django.conf import settings as django_settings
 
@@ -139,9 +138,7 @@ def check_versions() -> Check:
     from vantage import __version__
 
     python = ".".join(str(p) for p in sys.version_info[:3])
-    detail = (
-        f"Vantage {__version__} · Django {django.get_version()} · Python {python}"
-    )
+    detail = f"Vantage {__version__} · Django {django.get_version()} · Python {python}"
     return Check(_("Versions"), "info", detail)
 
 

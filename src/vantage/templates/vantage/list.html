@@ -283,7 +283,7 @@
                   <td data-col-index="{{ forloop.counter0 }}">
                     {% if editor %}{{ editor }}
                     {% elif cell.is_link and row.url %}
-                      <a class="v-cell-link" href="{{ row.url }}" tabindex="-1">{{ cell.value }}</a>
+                      {% include "vantage/partials/cell_link.html" with url=row.url record=row.obj tabindex="-1" %}
                     {% else %}
                       {{ cell.value }}
                     {% endif %}

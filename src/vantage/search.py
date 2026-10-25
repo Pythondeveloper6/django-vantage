@@ -298,9 +298,7 @@ def _search_q(paths: list[str], query: str) -> Q:
 
 
 def _spans_multivalued(model, paths: list[str]) -> bool:
-    return any(
-        hop.is_multivalued for path in paths for hop in resolve_path(model, path)
-    )
+    return any(hop.is_multivalued for path in paths for hop in resolve_path(model, path))
 
 
 def _score(label: str, query: str) -> float:
@@ -394,9 +392,7 @@ class SearchView(SiteView):
             groups=groups,
             total=sum(len(group.hits) for group in groups),
             min_length=search.min_length,
-            page_title=(
-                _("Search: %(query)s") % {"query": query} if query else _("Search")
-            ),
+            page_title=(_("Search: %(query)s") % {"query": query} if query else _("Search")),
         )
         return context
 
