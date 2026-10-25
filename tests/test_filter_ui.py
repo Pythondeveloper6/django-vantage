@@ -83,9 +83,7 @@ class TestFilterRail:
         body = body_of(client_in)
         assert '<input type="checkbox" name="status"' in body
 
-    def test_a_single_select_filter_renders_radios_including_a_way_out(
-        self, client_in, posts
-    ):
+    def test_a_single_select_filter_renders_radios_including_a_way_out(self, client_in, posts):
         """A radio group without an "Any" option is a one-way door."""
         body = body_of(client_in)
         assert '<input type="radio" name="featured"' in body
@@ -153,9 +151,7 @@ class TestFacetCounts:
         assert "Hide counts" in body_of(client_in, _facets="1")
 
     def test_the_toggle_survives_a_submission(self, client_in, posts):
-        assert '<input type="hidden" name="_facets" value="1">' in body_of(
-            client_in, _facets="1"
-        )
+        assert '<input type="hidden" name="_facets" value="1">' in body_of(client_in, _facets="1")
 
 
 # ── chips ───────────────────────────────────────────────────────────────────
@@ -229,9 +225,7 @@ class TestFilteringEndToEnd:
         assert 'value="Post"' in body  # the search box still holds the query
         assert 'aria-sort="ascending"' in body
 
-    def test_a_filter_that_matches_nothing_gets_the_second_empty_state(
-        self, client_in, posts
-    ):
+    def test_a_filter_that_matches_nothing_gets_the_second_empty_state(self, client_in, posts):
         """Decision 15 state 2: no create CTA, and the way out is removing a filter."""
         Post.objects.filter(status=Post.Status.PUBLISHED).delete()
         body = body_of(client_in, status="published")
@@ -277,21 +271,21 @@ class TestStatStrip:
             delta_display="+$200.00",
             percent_display="+20.0%",
         )
-        body = render_analytics(
-            {"stats": [stat(trend=trend)], "charts": [], "deferred": False}
-        )
+        body = render_analytics({"stats": [stat(trend=trend)], "charts": [], "deferred": False})
         assert 'class="v-stat-delta" data-direction="up"' in body
         assert "+$200.00" in body
         assert "+20.0%" in body
 
     def test_a_falling_trend_says_so_in_the_same_attribute(self):
         trend = Trend(
-            previous=1000, delta=-200, percent=-0.2, direction="down",
-            delta_display="-$200.00", percent_display="-20.0%",
+            previous=1000,
+            delta=-200,
+            percent=-0.2,
+            direction="down",
+            delta_display="-$200.00",
+            percent_display="-20.0%",
         )
-        body = render_analytics(
-            {"stats": [stat(trend=trend)], "charts": [], "deferred": False}
-        )
+        body = render_analytics({"stats": [stat(trend=trend)], "charts": [], "deferred": False})
         assert 'data-direction="down"' in body
 
     def test_tone_reaches_the_card_as_data_not_as_colour(self):
@@ -357,7 +351,7 @@ class TestCharts:
     def test_a_chart_is_readable_without_seeing_it(self):
         body = render_analytics({"stats": [], "charts": [chart()], "deferred": False})
         assert 'role="img"' in body
-        assert "aria-label=\"Revenue over time: line chart of 3 days" in body
+        assert 'aria-label="Revenue over time: line chart of 3 days' in body
         assert "<title>Revenue over time</title>" in body
 
     def test_a_chart_takes_its_colour_from_tokens_only(self):
@@ -372,8 +366,14 @@ class TestCharts:
         body = render_analytics(
             {
                 "stats": [],
-                "charts": [chart(kind="bar", bucket=None, labels=["Draft", "Review"],
-                                 series=[{"name": "Posts", "data": [7, 3]}])],
+                "charts": [
+                    chart(
+                        kind="bar",
+                        bucket=None,
+                        labels=["Draft", "Review"],
+                        series=[{"name": "Posts", "data": [7, 3]}],
+                    )
+                ],
                 "deferred": False,
             }
         )
@@ -384,8 +384,14 @@ class TestCharts:
         body = render_analytics(
             {
                 "stats": [],
-                "charts": [chart(kind="donut", bucket=None, labels=["Paid", "Refunded"],
-                                 series=[{"name": "Orders", "data": [75, 25]}])],
+                "charts": [
+                    chart(
+                        kind="donut",
+                        bucket=None,
+                        labels=["Paid", "Refunded"],
+                        series=[{"name": "Orders", "data": [75, 25]}],
+                    )
+                ],
                 "deferred": False,
             }
         )
@@ -401,9 +407,7 @@ class TestCharts:
         assert "<svg" not in body
 
     def test_a_truncated_chart_admits_it(self):
-        body = render_analytics(
-            {"stats": [], "charts": [chart(truncated=True)], "deferred": False}
-        )
+        body = render_analytics({"stats": [], "charts": [chart(truncated=True)], "deferred": False})
         assert "Showing part of the data" in body
 
     def test_a_failed_chart_renders_its_error_and_no_svg(self):

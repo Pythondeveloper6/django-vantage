@@ -1,5 +1,6 @@
 # Project working memory — intentionally untracked
 PLAN.md
+HANDOFF.md
 
 # Python
 __pycache__/
@@ -40,3 +41,9 @@ node_modules/
 # `*.mo` into the wheel via `artifacts`, independent of this file, so a later change
 # here can't silently break translations in a *built* package either way. See
 # docs/internationalization.md.
+
+# Screenshots from browser-automation sessions; never part of the project.
+.playwright-mcp/
+
+# mkdocs build output
+/site/

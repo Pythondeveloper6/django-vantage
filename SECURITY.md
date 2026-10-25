@@ -11,7 +11,7 @@ answered.
 
 Report privately by either route:
 
-- **Preferred —** [open a private advisory on GitHub](https://github.com/mahmoudahmed/django-vantage/security/advisories/new).
+- **Preferred —** [open a private advisory on GitHub](https://github.com/Pythondeveloper6/django-vantage/security/advisories/new).
   It creates a private thread with the maintainers and a place to draft the eventual
   disclosure and CVE.
 - **Email —** <pythondeveloper6@gmail.com>, with `django-vantage security` in the

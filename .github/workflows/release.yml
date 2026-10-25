@@ -14,7 +14,7 @@
 #   1. On PyPI, create the project's *pending* publisher
 #      (https://pypi.org/manage/account/publishing/) with exactly:
 #         PyPI project name : django-vantage
-#         Owner             : mahmoudahmed
+#         Owner             : Pythondeveloper6
 #         Repository        : django-vantage
 #         Workflow name     : release.yml
 #         Environment name  : pypi

@@ -246,9 +246,7 @@ class TestWidgetAttributes:
 
     def test_explicit_validators_set_the_bounds(self):
         class WRated(models.Model):
-            score = models.IntegerField(
-                validators=[MinValueValidator(1), MaxValueValidator(5)]
-            )
+            score = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
 
             class Meta:
                 app_label = "testapp"
@@ -338,9 +336,7 @@ class TestRelationWidgets:
         assert infer_widget(field_of(Post, "author"), related_count=3).needs_search is True
 
     def test_a_large_relation_needs_search(self):
-        spec = infer_widget(
-            field_of(Post, "author"), related_count=RELATION_SEARCH_THRESHOLD + 1
-        )
+        spec = infer_widget(field_of(Post, "author"), related_count=RELATION_SEARCH_THRESHOLD + 1)
         assert spec.needs_search is True
 
     def test_a_generic_foreign_key_does_not_crash_on_its_missing_target(self):

@@ -125,8 +125,9 @@ class TestWhoMayCall:
         client.force_login(User.objects.get(pk=staffer.pk))
 
         create = post_json(
-            client, list_url(), {"fields": {"title": "t", "slug": "t", "body": "b",
-                                             "author": author.pk}}
+            client,
+            list_url(),
+            {"fields": {"title": "t", "slug": "t", "body": "b", "author": author.pk}},
         )
         assert create.status_code == 403
         assert "add" in body(create)["detail"]
@@ -153,9 +154,7 @@ class TestRegistryGuard:
         assert response.status_code == 404
 
     def test_a_nonexistent_app_is_refused_not_crashed(self, boss):
-        response = boss.get(
-            reverse(LIST_URL, kwargs={"app_label": "nope", "model_name": "nope"})
-        )
+        response = boss.get(reverse(LIST_URL, kwargs={"app_label": "nope", "model_name": "nope"}))
         assert response.status_code == 404
         assert body(response) == {"detail": "No such model."}
 
@@ -245,9 +244,7 @@ class TestRequestedFieldsAreBounded:
         data = body(boss.get(list_url(), {"fields": shown}))
         assert list(data["results"][0]["cells"]) == [shown]
 
-    def test_a_plain_field_of_the_model_is_allowed_even_if_it_is_not_a_column(
-        self, boss, posts
-    ):
+    def test_a_plain_field_of_the_model_is_allowed_even_if_it_is_not_a_column(self, boss, posts):
         """The detail endpoint would return it, so asking for it here is not widening."""
         data = body(boss.get(list_url(), {"fields": "body"}))
         assert list(data["results"][0]["cells"]) == ["body"]
@@ -277,9 +274,7 @@ class TestList:
         assert data["query"] == "Zebra"
 
     def test_filters_reuse_the_same_filter_engine_the_list_page_uses(self, boss, author):
-        Post.objects.create(
-            title="Featured", slug="feat", body="x", author=author, featured=True
-        )
+        Post.objects.create(title="Featured", slug="feat", body="x", author=author, featured=True)
         Post.objects.create(title="Plain", slug="plain", body="x", author=author)
         data = body(boss.get(list_url(), {"featured": "1"}))
         assert [r["cells"]["title"]["value"] for r in data["results"]] == ["Featured"]
@@ -512,8 +507,15 @@ class TestCreate:
         response = post_json(
             boss,
             list_url(),
-            {"fields": {"title": "t", "slug": "t2", "body": "b", "author": author.pk,
-                        "is_superuser": True}},
+            {
+                "fields": {
+                    "title": "t",
+                    "slug": "t2",
+                    "body": "b",
+                    "author": author.pk,
+                    "is_superuser": True,
+                }
+            },
         )
         assert response.status_code == 400
 
@@ -522,8 +524,15 @@ class TestCreate:
         response = post_json(
             boss,
             list_url(),
-            {"fields": {"title": "t", "slug": "t3", "body": "b", "author": author.pk,
-                        "created_at": "2000-01-01T00:00:00Z"}},
+            {
+                "fields": {
+                    "title": "t",
+                    "slug": "t3",
+                    "body": "b",
+                    "author": author.pk,
+                    "created_at": "2000-01-01T00:00:00Z",
+                }
+            },
         )
         assert response.status_code == 400
 
@@ -541,7 +550,10 @@ class TestCreate:
             list_url(),
             {
                 "fields": {
-                    "title": "t", "slug": "meta1", "body": "b", "author": author.pk,
+                    "title": "t",
+                    "slug": "meta1",
+                    "body": "b",
+                    "author": author.pk,
                     "metadata": {"a": 1, "b": [1, 2, 3]},
                 }
             },
@@ -554,8 +566,15 @@ class TestCreate:
         response = post_json(
             boss,
             list_url(),
-            {"fields": {"title": "t", "slug": "meta2", "body": "b", "author": author.pk,
-                        "metadata": {}}},
+            {
+                "fields": {
+                    "title": "t",
+                    "slug": "meta2",
+                    "body": "b",
+                    "author": author.pk,
+                    "metadata": {},
+                }
+            },
         )
         assert response.status_code == 201
         assert body(response)["fields"]["metadata"]["value"] == {}
@@ -578,7 +597,10 @@ class TestCreate:
             list_url(),
             {
                 "fields": {
-                    "title": "t", "slug": "tagged", "body": "b", "author": author.pk,
+                    "title": "t",
+                    "slug": "tagged",
+                    "body": "b",
+                    "author": author.pk,
                     "tags": [tag_a.pk, tag_b.pk],
                 }
             },
@@ -599,9 +621,14 @@ class TestUpdate:
             detail_url(obj),
             {
                 "fields": {
-                    "title": "Replaced", "slug": obj.slug, "body": "new body",
-                    "author": obj.author_id, "status": "published", "view_count": 3,
-                    "featured": True, "metadata": {},
+                    "title": "Replaced",
+                    "slug": obj.slug,
+                    "body": "new body",
+                    "author": obj.author_id,
+                    "status": "published",
+                    "view_count": 3,
+                    "featured": True,
+                    "metadata": {},
                 }
             },
         )
