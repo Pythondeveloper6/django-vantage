@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vantage', '0009_navconfiguration_topbar'),
+        ("vantage", "0009_navconfiguration_topbar"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='listpreference',
-            name='column_widths',
+            model_name="listpreference",
+            name="column_widths",
             field=models.JSONField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='listpreference',
-            name='pinned_columns',
+            model_name="listpreference",
+            name="pinned_columns",
             field=models.JSONField(blank=True, null=True),
         ),
     ]

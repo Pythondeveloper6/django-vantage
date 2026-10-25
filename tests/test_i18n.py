@@ -148,9 +148,9 @@ class TestNgettextPluralisesThroughArabicsSixForms:
     )
     def test_each_arabic_plural_category(self, count, expected):
         with translation.override("ar"):
-            text = ngettext(
-                "%(count)s selected record", "%(count)s selected records", count
-            ) % {"count": count}
+            text = ngettext("%(count)s selected record", "%(count)s selected records", count) % {
+                "count": count
+            }
         assert text == expected
 
     def test_distinct_counts_are_not_all_squashed_to_one_form(self):

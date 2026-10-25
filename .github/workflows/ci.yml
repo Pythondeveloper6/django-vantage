@@ -54,12 +54,9 @@ jobs:
       - name: ruff check
         run: uv run --no-sync ruff check src tests
 
-      # Advisory. `ruff format` has never been applied to this repository, so gating on
-      # it today would fail every pull request for reasons unrelated to the change. It
-      # runs so the drift is visible and shrinking; promote it to a blocking step in the
-      # same commit that formats the tree.
-      - name: ruff format (advisory)
-        continue-on-error: true
+      # Blocking since the tree was formatted in one commit (listed in
+      # .git-blame-ignore-revs, so blame skips it).
+      - name: ruff format
         run: uv run --no-sync ruff format --check --diff src tests
 
   test:
@@ -67,15 +64,14 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     strategy:
-      # One red cell should not hide the other six.
+      # One red cell should not hide the other nine.
       fail-fast: false
       matrix:
-        # Both ends of the supported range on every interpreter the package claims.
-        # 5.2 is the LTS and is what most projects will actually be on; 6.1 is current.
-        # 6.0 is not a cell — it sits strictly between two that are tested and adding it
-        # buys a third of the runtime for close to nothing.
+        # Every Django the classifiers name, on every interpreter the package claims.
+        # A classifier is a promise; 6.0 used to be skipped as "between two tested
+        # versions", which is reasoning, not evidence.
         python-version: ["3.12", "3.13", "3.14"]
-        django: ["5.2", "6.1"]
+        django: ["5.2", "6.0", "6.1"]
         experimental: [false]
         include:
           # Django main is 6.2 development. It exists to give advance warning of a
@@ -100,6 +96,7 @@ jobs:
         run: |
           case "${{ matrix.django }}" in
             5.2)  spec="django>=5.2,<6.0" ;;
+            6.0)  spec="django>=6.0,<6.1" ;;
             6.1)  spec="django>=6.1,<6.2" ;;
             main) spec="https://github.com/django/django/archive/refs/heads/main.tar.gz" ;;
             *)    echo "::error::unknown Django cell '${{ matrix.django }}'"; exit 1 ;;
@@ -115,8 +112,18 @@ jobs:
       # release. `tests/` still resolves through pytest's `pythonpath = ["."]`.
       # Django is named last so this cell's version wins over whatever single version
       # the lockfile happens to hold.
+      #
+      # Django main is the next version, which the package's own upper bound excludes
+      # on purpose, so that cell overrides the bound rather than asking for something
+      # the resolver must refuse. Every other cell installs under the real bound.
       - name: Install
-        run: uv pip install . --group dev "$DJANGO_SPEC"
+        run: |
+          if [ "${{ matrix.django }}" = "main" ]; then
+            echo "django @ $DJANGO_SPEC" > "$RUNNER_TEMP/django-override.txt"
+            uv pip install . --group dev --override "$RUNNER_TEMP/django-override.txt"
+          else
+            uv pip install . --group dev "$DJANGO_SPEC"
+          fi
 
       - name: Report the resolved versions
         run: |

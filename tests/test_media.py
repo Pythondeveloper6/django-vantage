@@ -54,9 +54,7 @@ def in_memory_media(settings):
     """
     settings.STORAGES = {
         "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
-        },
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
     settings.MEDIA_URL = "/media/"
     cache.clear()
@@ -436,7 +434,9 @@ class TestRendering:
         assert "contract.pdf" in html
         assert "/media/docs/contract.pdf" in html
 
-    def test_an_svg_is_linked_but_never_inlined(self, ):
+    def test_an_svg_is_linked_but_never_inlined(
+        self,
+    ):
         """Inlining an uploaded SVG runs its script with the viewer's session."""
         pillow_or_skip()
         author = author_with(SVG, "avatars/logo.svg")

@@ -320,9 +320,7 @@ class ApiView(View):
             self.authenticate(request)
             self.resolve(request, *args, **kwargs)
             method = request.method.lower()
-            handler = (
-                getattr(self, method, None) if method in self.http_method_names else None
-            )
+            handler = getattr(self, method, None) if method in self.http_method_names else None
             if handler is None:
                 return self.http_method_not_allowed(request, *args, **kwargs)
             return handler(request, *args, **kwargs)
@@ -554,9 +552,7 @@ class RecordDetailView(ModelApiView):
     """``GET`` one record. ``PUT``/``PATCH`` it. ``DELETE`` it."""
 
     def get(self, request, *args, **kwargs):
-        obj = formviews.get_record(
-            request, self.panel, self.permissions, self.kwargs["pk"], "view"
-        )
+        obj = formviews.get_record(request, self.panel, self.permissions, self.kwargs["pk"], "view")
         return json_response(_record_payload(self.panel, obj))
 
     def put(self, request, *args, **kwargs):
