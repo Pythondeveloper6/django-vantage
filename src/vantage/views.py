@@ -37,7 +37,7 @@ from vantage.safety import (
     start_impersonation,
     stop_impersonation,
 )
-from vantage.theme import NO_FLASH_SCRIPT, render_theme_css
+from vantage.theme import no_flash_script, render_theme_css
 from vantage.topbar import topbar_context
 
 
@@ -81,7 +81,7 @@ class SiteView(TemplateView):
             language_code=get_language() or "en",
             is_rtl=get_language_bidi(),
             theme_css=render_theme_css(),
-            no_flash_script=NO_FLASH_SCRIPT,
+            no_flash_script=no_flash_script(),
             page_title=self.page_title,
             page_description=self.page_description,
             breadcrumbs=self.get_breadcrumbs(),
