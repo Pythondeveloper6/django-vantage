@@ -1,0 +1,128 @@
+site_name: django-vantage
+site_description: A smart, beautiful admin panel for Django. Zero config to start, one line to override anything.
+site_author: Mahmoud Ahmed
+site_url: https://pythondeveloper6.github.io/django-vantage/
+repo_url: https://github.com/Pythondeveloper6/django-vantage
+repo_name: Pythondeveloper6/django-vantage
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Mahmoud Ahmed &middot; MIT licence
+
+# Internal design records, not user documentation.
+exclude_docs: |
+  superpowers/
+
+strict: true
+validation:
+  links:
+    anchors: warn
+
+theme:
+  name: material
+  logo: assets/logo-mark.svg
+  favicon: assets/logo-mark.svg
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Follow the system
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Pythondeveloper6/django-vantage
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/django-vantage/
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      # GitHub's heading ids, so an anchor link works on github.com and here alike.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Getting started: getting-started.md
+      - How configuration resolves: configuration.md
+      - Panels: panels.md
+      - Inference: inference.md
+      - Lists: lists.md
+      - Analytics: analytics.md
+      - Forms: forms.md
+      - Pages and dashboards: pages-and-dashboards.md
+      - Theming: theming.md
+  - Platform:
+      - Permissions: permissions.md
+      - The JSON API: api.md
+      - Multi-tenancy: tenancy.md
+      - Internationalization: internationalization.md
+      - Extending: extending.md
+  - Operations:
+      - Settings reference: settings.md
+      - Deployment: deployment.md
+      - Security: security.md
+      - Accessibility: accessibility.md
+      - Browser tests: browser-tests.md
+  - FAQ: faq.md

@@ -150,7 +150,7 @@ class TestRestore:
 
 
 class TestTheAuditTrailTellsThemApart:
-    """"Deleted" for both cases would make the log unable to answer the only
+    """ "Deleted" for both cases would make the log unable to answer the only
     question anyone asks it: is it gone, or can I get it back?"""
 
     def test_trashing_records_its_own_action(self, boss):
@@ -183,9 +183,7 @@ class TestTheWriteItself:
         # Patched only after the row exists: create() goes through save() too, and
         # stubbing it first would leave the fixture unsaved and the test meaningless.
         called = []
-        monkeypatch.setattr(
-            Archive, "save", lambda self, *a, **k: called.append(1), raising=False
-        )
+        monkeypatch.setattr(Archive, "save", lambda self, *a, **k: called.append(1), raising=False)
 
         boss.post(url(row, "delete"))
 

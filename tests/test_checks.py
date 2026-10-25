@@ -77,6 +77,22 @@ class TestSettingsCheck:
         settings.VANTAGE = {"THEME": "sepia"}
         assert "light" in checks.check_vantage_settings(None)[0].msg
 
+    @pytest.mark.parametrize("value", ["indigo", "#12345", 6366, ""])
+    def test_an_unreadable_brand_colour_is_an_error(self, settings, value):
+        """It is rendered into every page's inline stylesheet, so it fails every
+        render, the sign-in page included, unless check catches it first."""
+        settings.VANTAGE = {"BRAND_COLOR": value}
+        assert ids(checks.check_vantage_settings(None)) == ["vantage.E004"]
+
+    @pytest.mark.parametrize("value", ["big", "8 px", "1rem; color: red", 4])
+    def test_a_radius_that_is_not_a_css_length_is_an_error(self, settings, value):
+        settings.VANTAGE = {"BRAND_RADIUS": value}
+        assert ids(checks.check_vantage_settings(None)) == ["vantage.E005"]
+
+    def test_valid_brand_values_pass(self, settings):
+        settings.VANTAGE = {"BRAND_COLOR": "#0d9488", "BRAND_RADIUS": "0.75rem"}
+        assert checks.check_vantage_settings(None) == []
+
 
 # ── the deployment family, as a family ──────────────────────────────────────
 

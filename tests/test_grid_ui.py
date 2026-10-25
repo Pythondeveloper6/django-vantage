@@ -207,9 +207,21 @@ class TestCheatSheet:
         assert 'id="v-grid-cheatsheet-title"' in body
 
     @pytest.mark.parametrize(
-        "key", ["<kbd>j</kbd>", "<kbd>k</kbd>", "<kbd>x</kbd>", "<kbd>Enter</kbd>",
-                "<kbd>Space</kbd>", "<kbd>Home</kbd>", "<kbd>End</kbd>", "<kbd>[</kbd>",
-                "<kbd>]</kbd>", "<kbd>?</kbd>", "<kbd>Esc</kbd>", "<kbd>Tab</kbd>"]
+        "key",
+        [
+            "<kbd>j</kbd>",
+            "<kbd>k</kbd>",
+            "<kbd>x</kbd>",
+            "<kbd>Enter</kbd>",
+            "<kbd>Space</kbd>",
+            "<kbd>Home</kbd>",
+            "<kbd>End</kbd>",
+            "<kbd>[</kbd>",
+            "<kbd>]</kbd>",
+            "<kbd>?</kbd>",
+            "<kbd>Esc</kbd>",
+            "<kbd>Tab</kbd>",
+        ],
     )
     def test_every_binding_is_listed(self, client_in, posts, key):
         # WCAG 2.1.4 wants the keymap discoverable; a shortcut missing from this list

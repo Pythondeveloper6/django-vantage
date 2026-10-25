@@ -283,9 +283,7 @@ class TestPartial:
     """The markup the palette needs, and the fallback that works without it."""
 
     def render(self):
-        return render_to_string(
-            "vantage/partials/palette.html", {"settings": vantage_settings}
-        )
+        return render_to_string("vantage/partials/palette.html", {"settings": vantage_settings})
 
     def test_the_header_form_submits_to_the_results_page(self):
         assert f'action="{reverse("vantage:search")}"' in self.render()

@@ -60,7 +60,7 @@ def _with_query(path: str, request) -> str:
 
 
 class DuplicateView(PanelFormView):
-    """"Save as new": the create form, pre-filled from an existing record.
+    """ "Save as new": the create form, pre-filled from an existing record.
 
     The permission required is ``add``, not ``change`` — the outcome of this page is a
     new row, and someone who may edit orders but not create them must not be able to
@@ -86,9 +86,7 @@ class DuplicateView(PanelFormView):
             self.request, self.panel.get_queryset(self.request), "view"
         )
         obj = get_object_or_404(queryset, pk=self.kwargs["pk"])
-        if not self.permissions.has_object_perm(
-            self.request, self.panel.model, "view", obj
-        ):
+        if not self.permissions.has_object_perm(self.request, self.panel.model, "view", obj):
             raise PermissionDenied(
                 _("You do not have permission to view this %(model)s.")
                 % {"model": self.panel.get_label().lower()}
@@ -132,9 +130,7 @@ class DuplicateView(PanelFormView):
 
     def save_form(self, form, *args, **kwargs):
         obj = super().save_form(form, *args, **kwargs)
-        self._copied = records.copy_children(
-            self.request, self.source, obj, self.chosen_children()
-        )
+        self._copied = records.copy_children(self.request, self.source, obj, self.chosen_children())
         return obj
 
     def get_success_message(self, obj) -> str:
@@ -297,9 +293,7 @@ class BulkEditView(PanelView):
         return _with_query(reverse(self.panel.list_url_name), self.request)
 
     def action_url(self) -> str:
-        return _with_query(
-            reverse(f"vantage:{self.panel.slug}-bulk-edit"), self.request
-        )
+        return _with_query(reverse(f"vantage:{self.panel.slug}-bulk-edit"), self.request)
 
     def post(self, request, *args, **kwargs):
         listprefs.resolve(self.panel, request)

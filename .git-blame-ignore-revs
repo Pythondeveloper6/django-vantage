@@ -1,0 +1,5 @@
+# Commits that only reformat. `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+# makes local blame skip them; GitHub reads this file automatically.
+
+# Apply ruff format to src and tests
+b52dfe90efa05ee8a1b4ed0e6320946228064a0c

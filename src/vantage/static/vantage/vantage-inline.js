@@ -408,6 +408,13 @@
     var tr = event.target.closest ? event.target.closest("[data-inline-row]") : null;
     // Only from the row itself. Inside a control, `e` is a letter.
     if (!tr || event.target !== tr) return;
+    // The cheat sheet's on/off switch covers every unmodified character shortcut
+    // (WCAG 2.1.4), this one included. Same key and same JSON encoding as the grid.
+    try {
+      if (localStorage.getItem("vantage-grid-shortcuts") === "false") return;
+    } catch (err) {
+      /* No storage, no preference: the default is on. */
+    }
     var controls = cellsInRow(tr);
     if (!controls.length) return;
     event.preventDefault();

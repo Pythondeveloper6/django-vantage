@@ -373,16 +373,13 @@ def check_plugins(app_configs, **kwargs) -> list:
         allowed = _setting("PLUGINS")
         known = {name.lower() for name in _discovered}
         known |= {
-            plugin.get_name().lower()
-            for plugins in _loaded.values()
-            for plugin in plugins.values()
+            plugin.get_name().lower() for plugins in _loaded.values() for plugin in plugins.values()
         }
         for entry in allowed or ():
             if str(entry).lower() not in known:
                 messages.append(
                     Warning(
-                        f"VANTAGE['PLUGINS'] lists {entry!r}, which no installed "
-                        f"package provides.",
+                        f"VANTAGE['PLUGINS'] lists {entry!r}, which no installed package provides.",
                         hint="Nothing was loaded for it. Check the spelling, or that "
                         "the distribution providing it is installed.",
                         id="vantage.W030",

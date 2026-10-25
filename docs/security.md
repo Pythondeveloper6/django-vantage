@@ -176,15 +176,18 @@ runs whether or not the middleware is installed.
 
 ### Two settings layers
 
-`LOGIN_THROTTLE*`, `RATE_LIMIT*` and `UPLOAD_MAX_BYTES` are not yet keys of
-`vantage.conf.DEFAULTS` — they live in `vantage.security.DEFAULTS` instead, and are
-read through an internal `_setting()` helper that checks the main settings layer first
-and falls back to its own table. In practice this changes nothing about how you write
-them — they still go in the `VANTAGE` dict exactly like every other key — but two
-things follow from where they currently live: they are **not** listed among the keys
-[Settings](settings.md#the-complete-list) enumerates today, and reading one through
-`vantage.conf.vantage_settings.RATE_LIMIT` raises `AttributeError` rather than
-resolving — go through `vantage.security` if you need one from your own code.
+`LOGIN_THROTTLE*`, `RATE_LIMIT*` and `UPLOAD_MAX_BYTES` are ordinary `VANTAGE` keys —
+registered in `vantage.conf.DEFAULTS` and listed in
+[Settings](settings.md#the-complete-list) like every other — but their defaults live in
+`vantage.security.DEFAULTS`, next to the reasoning for each number. In `vantage.conf`
+they are registered as `None`, meaning "no opinion here".
+
+Two things follow. Reading one through `vantage.conf.vantage_settings` returns what you
+set, or `None` when you set nothing — not the effective value. And the security layer
+reads them from the raw `VANTAGE` dict rather than through `vantage_settings`, so the
+login throttle never puts a database read (the settings screen's overrides) behind a
+request it is trying to answer cheaply. None of them is editable from the settings
+screen for the same reason.
 
 ## Content-Security-Policy
 

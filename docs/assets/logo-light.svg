@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" role="img" aria-label="django-vantage">
+  <defs>
+    <linearGradient id="dv-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(4 4)">
+    <rect width="64" height="64" rx="15" fill="url(#dv-bg)"/>
+    <path d="M17 21 L32 47" stroke="#fff" stroke-opacity=".6" stroke-width="7" stroke-linecap="round"/>
+    <path d="M47 21 L32 47" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="32" cy="15" r="4.5" fill="#fff"/>
+  </g>
+  <text x="86" y="49" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="-0.5" fill="#0f172a"><tspan fill="#64748b" font-weight="500">django-</tspan>vantage</text>
+</svg>

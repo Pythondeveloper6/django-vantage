@@ -83,9 +83,7 @@ def stream_export(fmt: str, queryset, columns, headers, filename):
 
 
 def _attach(response, filename: str, extension: str):
-    response["Content-Disposition"] = (
-        f'attachment; filename="{slugify(filename)}.{extension}"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="{slugify(filename)}.{extension}"'
     # Nothing downstream should cache a per-user, permission-scoped extract.
     response["Cache-Control"] = "no-store"
     return response

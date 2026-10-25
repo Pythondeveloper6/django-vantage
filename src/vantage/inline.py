@@ -354,12 +354,9 @@ class InlinePanelView(PanelView):
             obj = None
         if obj is None:
             raise Http404(f"No {self.panel.get_label().lower()} matches {pk!r}.")
-        if not self.permissions.has_object_perm(
-            self.request, self.panel.model, "change", obj
-        ):
+        if not self.permissions.has_object_perm(self.request, self.panel.model, "change", obj):
             raise PermissionDenied(
-                f"You do not have permission to change this "
-                f"{self.panel.get_label().lower()}."
+                f"You do not have permission to change this {self.panel.get_label().lower()}."
             )
         return obj
 
@@ -371,9 +368,7 @@ class InlinePanelView(PanelView):
         is not editable" would answer a question only an attacker asks.
         """
         config = get_config(self.panel, self.request)
-        return {
-            name: value for name, value in submitted.items() if config.field(name) is not None
-        }
+        return {name: value for name, value in submitted.items() if config.field(name) is not None}
 
 
 class BadRequest(Exception):

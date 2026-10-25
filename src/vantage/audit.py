@@ -94,15 +94,17 @@ def record(
     try:
         if not vantage_settings.AUDIT_LOG:
             return None
-        return VantageLogEntry.objects.create(**_entry_kwargs(
-            request,
-            action,
-            obj=obj,
-            model=model,
-            changes=changes,
-            action_name=action_name,
-            object_repr=object_repr,
-        ))
+        return VantageLogEntry.objects.create(
+            **_entry_kwargs(
+                request,
+                action,
+                obj=obj,
+                model=model,
+                changes=changes,
+                action_name=action_name,
+                object_repr=object_repr,
+            )
+        )
     except Exception:  # deliberately broad: see the docstring
         logger.exception("Could not write a Vantage audit entry for %r.", action)
         return None
@@ -183,9 +185,7 @@ def log_delete(request, obj, *, soft: bool = False) -> VantageLogEntry | None:
 
 def log_restore(request, obj) -> VantageLogEntry | None:
     """A row brought back out of the trash."""
-    return record(
-        request, VantageLogEntry.Action.RESTORE, obj=obj, changes=snapshot(obj)
-    )
+    return record(request, VantageLogEntry.Action.RESTORE, obj=obj, changes=snapshot(obj))
 
 
 def log_action(request, model, action, count: int) -> VantageLogEntry | None:
