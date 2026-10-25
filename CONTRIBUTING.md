@@ -44,14 +44,14 @@ the loop and no database file — the suite runs against in-memory SQLite.
 ## Lint
 
 ```bash
-uv run ruff check src tests       # this is what CI gates on
+uv run ruff check src tests       # CI gates on both of these
+uv run ruff format src tests
 uv run ruff check --fix src tests
 ```
 
-`ruff format` is **not** yet enforced. The tree has never been run through it, so
-enabling the gate today would fail every pull request for reasons unrelated to the
-change; CI runs `ruff format --check` in advisory mode so the drift stays visible. Don't
-reformat files you aren't otherwise touching.
+`ruff format --check` is enforced. The whole tree was formatted in one commit, which
+`.git-blame-ignore-revs` lists; run `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+once so a local `git blame` skips it.
 
 Optional, and worth installing once:
 
