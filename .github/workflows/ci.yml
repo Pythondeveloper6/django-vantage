@@ -112,8 +112,18 @@ jobs:
       # release. `tests/` still resolves through pytest's `pythonpath = ["."]`.
       # Django is named last so this cell's version wins over whatever single version
       # the lockfile happens to hold.
+      #
+      # Django main is the next version, which the package's own upper bound excludes
+      # on purpose, so that cell overrides the bound rather than asking for something
+      # the resolver must refuse. Every other cell installs under the real bound.
       - name: Install
-        run: uv pip install . --group dev "$DJANGO_SPEC"
+        run: |
+          if [ "${{ matrix.django }}" = "main" ]; then
+            echo "django @ $DJANGO_SPEC" > "$RUNNER_TEMP/django-override.txt"
+            uv pip install . --group dev --override "$RUNNER_TEMP/django-override.txt"
+          else
+            uv pip install . --group dev "$DJANGO_SPEC"
+          fi
 
       - name: Report the resolved versions
         run: |
