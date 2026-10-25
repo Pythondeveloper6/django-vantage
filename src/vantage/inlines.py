@@ -478,7 +478,9 @@ def _bind_one(inline: Inline, parent_model, request, instance, data, files):
     formset_class = _formset_class(
         inline,
         parent_model,
-        fields=names,
+        # A copy: before Django 6.0, BaseInlineFormSet appends the parent link to
+        # Meta.fields in place, which would put it back into `names` as a column.
+        fields=list(names),
         extra=0 if (readonly or not may_add) else max(int(inline.extra), 0),
         can_delete=may_delete,
         edit_only=not may_add,

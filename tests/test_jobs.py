@@ -252,6 +252,7 @@ class TestBackendDetection:
         that only shows up in production. ``ImmediateBackend`` runs the task in-thread,
         so the job also completes, which is the second half of the proof.
         """
+        pytest.importorskip("django.tasks", reason="django.tasks arrived in Django 6.0")
         panel = use_panel(Promo, TouchPanel)
         promos(3)
         job = enqueue(panel, boss, name="touch")
