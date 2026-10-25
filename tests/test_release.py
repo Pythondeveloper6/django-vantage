@@ -16,6 +16,8 @@ import vantage
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CANONICAL = "github.com/Pythondeveloper6/django-vantage"
+#: The documentation site, served by GitHub Pages from the same repository.
+DOCS_SITE = "pythondeveloper6.github.io/django-vantage"
 
 #: Everything a user or a packaging tool reads. Tests, the lockfile and the demo
 #: project are not here: they name GitHub only for third-party projects.
@@ -62,7 +64,7 @@ def test_project_urls_all_point_at_the_canonical_repository():
     urls = meta["project"]["urls"]
     assert urls, "pyproject.toml has no [project.urls]"
     for label, url in urls.items():
-        assert url.startswith(f"https://{CANONICAL}"), f"{label} = {url}"
+        assert url.startswith((f"https://{CANONICAL}", f"https://{DOCS_SITE}")), f"{label} = {url}"
 
 
 def test_the_changelog_has_an_entry_for_the_packaged_version():
