@@ -574,6 +574,57 @@ class TestLiveDemoFindings:
         assert 'select.setAttribute("aria-hidden", "true")' not in unconditional
 
 
+class TestEmptyCellLinks:
+    """A cell link whose value is empty must still say where it goes.
+
+    An empty value renders the em-dash placeholder, and a link made only of that
+    dash announced as "link, dash" (WCAG 2.4.4, 4.1.2). The dash stays for sighted
+    users; assistive technology is told which record the link opens.
+    """
+
+    @pytest.fixture
+    def summary_linked(self, monkeypatch):
+        from vantage.sites import site
+
+        panel = site.get_panel(Post)
+        monkeypatch.setattr(panel, "list_display", ["summary", "title"])
+        monkeypatch.setattr(panel, "list_link", "summary")
+        return panel
+
+    def _cell_links(self, html):
+        return [
+            el for el in Document.parse(html).of("a") if "v-cell-link" in el.attrs.get("class", "")
+        ]
+
+    def test_an_empty_linked_cell_names_its_record(self, client, staff, post, summary_linked):
+        assert post.summary == ""
+        client.force_login(staff)
+        html = client.get(reverse("vantage:testapp-post-list")).content.decode()
+        links = self._cell_links(html)
+        assert links, "the list rendered no cell links at all"
+        for link in links:
+            assert link.has_name, link
+            assert str(post) in link.name, link.name
+
+    def test_the_dash_is_hidden_from_assistive_technology(
+        self, client, staff, post, summary_linked
+    ):
+        client.force_login(staff)
+        html = client.get(reverse("vantage:testapp-post-list")).content.decode()
+        hidden_dashes = [
+            el for el in Document.parse(html).of("span")
+            if el.hidden and "—" in el.text and "a" in el.ancestors
+        ]
+        assert hidden_dashes, "the placeholder inside the link is not aria-hidden"
+
+    def test_a_cell_with_a_value_is_left_alone(self, client, staff, post):
+        client.force_login(staff)
+        html = client.get(reverse("vantage:testapp-post-list")).content.decode()
+        link = self._cell_links(html)[0]
+        assert link.name == post.title
+        assert "v-sr-only" not in html.split('class="v-cell-link"', 1)[1].split("</a>", 1)[0]
+
+
 class TestTheErrorPages:
     def test_the_500_page_needs_nothing_from_the_context(self):
         """Rendered with no request and no context at all — the property the rest of

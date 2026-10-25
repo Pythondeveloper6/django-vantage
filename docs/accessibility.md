@@ -199,12 +199,13 @@ Ordered by how much they matter. Nothing here is disputed; it is all simply not 
    with its own keyboard handling is invisible to it. `⌘K` requires a modifier and is
    exempt throughout.
 
-2. **Links with no accessible name in table cells.** `list.html:286` and
-   `partials/widget.html:87` wrap the rendered cell value in `<a class="v-cell-link">`.
-   When the value is empty, `render.py`'s `EMPTY` constant emits the em-dash
-   placeholder, so the link's entire accessible name is `—`. A screen reader announces
-   "link, dash". **Fix:** fall back to the record's `__str__`, or add visually hidden
-   text.
+2. **Links with no accessible name in table cells — fixed.** The list grid, dashboard
+   widgets and a detail page's related blocks link one cell per row to its record.
+   When that cell's value was empty, `render.py`'s `EMPTY` em-dash was the link's
+   entire content and a screen reader announced "link, dash". All three now render
+   through `partials/cell_link.html`: the dash stays visible but is `aria-hidden`, and
+   visually hidden text — "Open *record*" — names the destination. Pinned by
+   `test_accessibility.py::TestEmptyCellLinks`.
 
 3. **The dark theme's `--border` and `--input` cannot be measured.** They are
    `oklch(1 0 0 / 12%)` and `/ 16%` — translucent, so their real contrast depends on
