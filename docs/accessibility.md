@@ -186,20 +186,17 @@ Ordered by how much they matter. Nothing here is disputed; it is all simply not 
 ### Blocking AA
 
 1. **WCAG 2.1.4 Character Key Shortcuts — `/` is bound on `document`.**
-   `static/vantage/vantage.js:78` registers a `keydown` listener on `document`. Two of
-   the three permitted remedies now exist: it checks `activeElement.isContentEditable`
-   as well as `tagName` (`vantage.js:86`), and it honours the same `vantage-grid-shortcuts`
-   on/off preference the grid's cheat sheet exposes (`vantage.js:81`) — both were missing
-   in an earlier pass of this audit and are fixed as of this reading. What is still
-   missing is the third remedy, a **remappable keymap** — the key is always `/`, with no
-   way to choose another — and the tagName/`isContentEditable` check is still an
-   approximation of scoping rather than true scoping: a custom element or a shadow root
-   that owns its own keyboard handling is invisible to it. **Fix:** ship a remap option,
-   or scope the listener to a container. Related: the `e` shortcut in
-   `vantage-inline.js:405` is correctly table-scoped (it only fires when the row itself,
-   not a control inside it, has focus) but still does **not** check
-   `vantage-grid-shortcuts` — confirmed absent from that file — so switching shortcuts
-   off from the cheat sheet silences `/` but not `e`. `⌘K` requires a modifier and is
+   `static/vantage/vantage.js` registers a `keydown` listener on `document`. It skips
+   text inputs, textareas and `isContentEditable` targets, and the grid's "Keyboard
+   shortcuts" switch turns it off — which satisfies 2.1.4's first remedy ("turn off").
+   It did not always: the grid stores the switch as JSON `false` and this listener used
+   to compare against `"0"`, so switching shortcuts off silenced everything except `/`.
+   The `e` shortcut in `vantage-inline.js` (table-scoped: it fires only when the row
+   itself has focus) ignored the switch entirely. Both are fixed and pinned in a real
+   browser by `tests/test_browser.py::TestShortcutsPreference`. What remains is
+   hardening, not a failure: there is no **remappable keymap**, and the tag/
+   `isContentEditable` check approximates scoping — a custom element or shadow root
+   with its own keyboard handling is invisible to it. `⌘K` requires a modifier and is
    exempt throughout.
 
 2. **Links with no accessible name in table cells.** `list.html:286` and

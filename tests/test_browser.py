@@ -654,3 +654,77 @@ class TestColumnPinningUnderRTL:
         )
 
         context.close()
+
+
+# ── the shortcuts preference silences every character shortcut ──────────────────
+
+
+class TestShortcutsPreference:
+    """WCAG 2.1.4: an unmodified character shortcut must be switchable off. The
+    grid's "Keyboard shortcuts" checkbox is that switch, and it has to reach the
+    two shortcuts that live outside vantage-grid.js — ``/`` in vantage.js and ``e``
+    in vantage-inline.js. Both once ignored it: ``/`` compared the stored value
+    against ``"0"`` while the grid writes JSON ``false``, and ``e`` never looked.
+
+    The switch is flipped by clicking the real checkbox rather than seeding
+    localStorage, so the test cannot agree with itself about an encoding the grid
+    does not actually use.
+    """
+
+    @staticmethod
+    def _switch_off(pg):
+        pg.evaluate(
+            "() => { const box = document.querySelector('[data-shortcuts-toggle]');"
+            " if (box.checked) box.click(); }"
+        )
+        pg.reload()
+        pg.wait_for_load_state("networkidle")
+
+    @staticmethod
+    def _focus_first_row(pg):
+        pg.evaluate(
+            "() => document.querySelector('[data-grid-row]:not([data-grid-head])').focus()"
+        )
+
+    def test_slash_focuses_search_until_switched_off(
+        self, sample_data, staff_cookie, pw, live_server
+    ):
+        context = pw.new_context()
+        context.add_cookies([{**staff_cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("vantage:testapp-order-list"))
+        pg.wait_for_load_state("networkidle")
+        is_search = "() => document.activeElement.type === 'search'"
+
+        self._focus_first_row(pg)
+        pg.keyboard.press("/")
+        assert pg.evaluate(is_search), "the shortcut should work while switched on"
+
+        self._switch_off(pg)
+        self._focus_first_row(pg)
+        pg.keyboard.press("/")
+        assert not pg.evaluate(is_search), "'/' still fired with shortcuts switched off"
+        context.close()
+
+    def test_e_enters_cell_mode_until_switched_off(
+        self, sample_data, staff_cookie, pw, live_server, monkeypatch
+    ):
+        from tests.testapp.models import Post
+
+        monkeypatch.setattr(site.get_panel(Post), "list_editable", ["status"])
+        context = pw.new_context()
+        context.add_cookies([{**staff_cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("vantage:testapp-post-list"))
+        pg.wait_for_load_state("networkidle")
+        in_a_cell = "() => !!document.activeElement.closest('td')"
+
+        self._focus_first_row(pg)
+        pg.keyboard.press("e")
+        assert pg.evaluate(in_a_cell), "the shortcut should work while switched on"
+
+        self._switch_off(pg)
+        self._focus_first_row(pg)
+        pg.keyboard.press("e")
+        assert not pg.evaluate(in_a_cell), "'e' still fired with shortcuts switched off"
+        context.close()
