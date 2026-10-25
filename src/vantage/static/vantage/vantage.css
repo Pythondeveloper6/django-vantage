@@ -1848,6 +1848,14 @@ textarea {
   text-align: center;
 }
 
+/* The cell padding every other column gets would leave the checkbox less room than it
+   needs, and the cell's ellipsis then draws "…" beside it. */
+.v-table .v-select-cell {
+  padding-inline: 0;
+  text-overflow: clip;
+  text-align: center;
+}
+
 .v-select-cell input { cursor: pointer; }
 
 .v-confirm { margin-block-end: 1rem; border-color: var(--destructive); }
