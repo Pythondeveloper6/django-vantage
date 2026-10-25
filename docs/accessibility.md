@@ -181,9 +181,14 @@ what WCAG 2.1.4 asks for. See the gaps.
 
 ## 4. Known gaps
 
-Ordered by how much they matter. Nothing here is disputed; it is all simply not done.
+Ordered by how much they matter. Nothing here is disputed; what is not marked fixed is
+simply not done. **Vantage does not claim WCAG 2.2 AA conformance.** The three AA
+blockers the first audit named are fixed as of `0.1.0a1`, but the findings under
+[Found elsewhere in the package](#found-elsewhere-in-the-package-not-fixed-here) and
+the absence of any screen-reader pass both still stand between this package and that
+claim.
 
-### Blocking AA
+### The three AA blockers from the first audit
 
 1. **WCAG 2.1.4 Character Key Shortcuts — `/` is bound on `document`.**
    `static/vantage/vantage.js` registers a `keydown` listener on `document`. It skips
@@ -207,13 +212,15 @@ Ordered by how much they matter. Nothing here is disputed; it is all simply not 
    visually hidden text — "Open *record*" — names the destination. Pinned by
    `test_accessibility.py::TestEmptyCellLinks`.
 
-3. **The dark theme's `--border` and `--input` cannot be measured.** They are
-   `oklch(1 0 0 / 12%)` and `/ 16%` — translucent, so their real contrast depends on
-   what is behind them. Against `--background` in the light theme, `--input` computes
-   to **1.27:1**, far under the 3:1 that 1.4.11 requires of a control boundary. Form
-   fields are currently distinguished from the page mostly by their fill.
-   `test_accessibility.py::test_alpha_tokens_are_knowingly_excluded` pins this hole
-   open so it cannot be quietly forgotten.
+3. **Form field boundaries — fixed.** `--input`, the border of every text field,
+   select and drop zone, measured **1.27:1** against the light background and was
+   translucent (`oklch(1 0 0 / 16%)`, so unmeasurable) in the dark theme — far under
+   the 3:1 that 1.4.11 requires of a control boundary. Both themes now use an opaque
+   value that clears 3:1 against every surface a field sits on, `muted` and `secondary`
+   included, for every brand hue in the sweep:
+   `test_accessibility.py::TestTokenContrast::test_a_form_field_boundary_clears_three_to_one`.
+   The dark theme's `--border` is still translucent, but it is a decorative separator,
+   not a control boundary; `test_decorative_borders_are_knowingly_excluded` records it.
 
 Heading order on the list page was on this list in an earlier pass of this audit:
 `partials/list_prefs.html`'s `<h3>` section titles had no `<h2>` above them. They now
