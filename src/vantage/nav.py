@@ -87,14 +87,22 @@ class NavItem:
         """Whether this item covers the given path.
 
         Prefix matching so a detail page keeps its list highlighted, but the panel
-        root is compared exactly or it would match everything. External links never
+        root is compared exactly or it would match everything. The panel root is
+        wherever the dashboard is mounted, not the site root. External links never
         match — they are not part of this site.
         """
         if not self.url or self.external:
             return False
-        if self.url.rstrip("/") == "":
-            return path.rstrip("/") == ""
+        if self.url.rstrip("/") in ("", _panel_root().rstrip("/")):
+            return path.rstrip("/") == self.url.rstrip("/")
         return path == self.url or path.startswith(self.url)
+
+
+def _panel_root() -> str:
+    try:
+        return reverse("vantage:dashboard")
+    except NoReverseMatch:
+        return "/"
 
 
 @dataclass
