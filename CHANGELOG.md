@@ -11,10 +11,29 @@ word *breaking*, so the log is useful either way.
 
 ## [Unreleased]
 
-Everything below is unreleased: `django-vantage` has never been published to PyPI. The
-entries are reconstructed from the commit history, which is the design record for this
-package and worth reading directly — each commit explains why the shape is what it is
-and what was rejected.
+## [0.1.0a1] — 2026-10-25
+
+The first published pre-release. Everything below is new in it: the entries are
+reconstructed from the commit history, which is the design record for this package and
+worth reading directly — each commit explains why the shape is what it is and what was
+rejected.
+
+### Known limitations
+
+Read these before deploying an alpha anywhere it matters.
+
+- **The API is not frozen.** Attribute names, method signatures and settings keys may
+  change in any `0.x` release; breaking changes will be marked *breaking* below.
+- **No WCAG 2.2 AA claim.** The three blockers the first audit named are fixed (see
+  *Fixed*), but the remaining findings and the lack of any screen-reader pass are
+  listed in [Accessibility](docs/accessibility.md#4-known-gaps).
+- **The CSV importer stashes uploads on local disk.** Preview and commit must reach
+  the same filesystem: sticky sessions or a shared temp directory when running more
+  than one process. See [Deployment](docs/deployment.md#exports-stream-imports-are-capped).
+- **Exports have no row ceiling.** They stream, so memory is flat, but a very large
+  table is exported in full.
+- **Multiple sites share one settings dict.** Branding, `NAV` and the permission
+  resolver are global.
 
 ### Added
 
@@ -187,6 +206,10 @@ and what was rejected.
 
 ### Changed
 
+- The Django requirement is `>=5.2,<6.2`, and 6.0 joined the CI matrix. The bound
+  moves only when a new Django joins the matrix — see CONTRIBUTING's *Supported
+  versions*.
+
 - Python floor raised to 3.12 — the intersection of Django 5.2 LTS and 6.x.
 - *Breaking, pre-release:* `Section(title=...)` is keyword-only. The
   leading-string-is-the-title convenience was ambiguous: a section titled "Publishing"
@@ -208,6 +231,20 @@ and what was rejected.
   downstream packagers can run the suite.
 
 ### Fixed
+
+#### In the release preparation
+
+- The grid's "Keyboard shortcuts" switch now also silences `/` (it compared against a
+  value the grid never writes) and the inline editor's `e` (it never checked).
+- An empty linked cell names its record to assistive technology instead of announcing
+  "link, dash", on the list grid, dashboard widgets and related blocks.
+- `--input`, the form-field boundary, clears 3:1 against every surface in both themes;
+  it was 1.27:1 in light and translucent in dark.
+- The FAQ, security and settings pages describe the CSP nonce and the security
+  settings as the code implements them.
+- Every install, clone and advisory link names the real repository.
+
+#### Earlier
 
 - The dashboard card cap was acting as an access rule: `DefaultDashboard` capped at
   `MAX_DEFAULT_STATS` *before* filtering by permission, so a user who could see exactly
@@ -284,4 +321,5 @@ and what was rejected.
 - Sensitive field names are excluded from columns, filters, search, exports and audit
   diffs.
 
-[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/commits/main
+[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.1.0a1...HEAD
+[0.1.0a1]: https://github.com/Pythondeveloper6/django-vantage/releases/tag/v0.1.0a1
