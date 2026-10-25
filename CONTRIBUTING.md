@@ -99,6 +99,26 @@ how you get back to a clean database.
 Render the page and look at it. More than one bug in this repository's history was a
 green suite over markup that had silently vanished, because no test asserted on it.
 
+## Documentation
+
+The pages in `docs/` are the documentation site, built with MkDocs Material:
+
+```bash
+uv run --group docs mkdocs serve       # live preview on http://127.0.0.1:8000/
+uv run --group docs mkdocs build --strict
+```
+
+CI builds with `--strict` on every pull request, so a broken link or a page missing
+from the `nav` in `mkdocs.yml` fails there. Link between pages with relative `.md`
+paths; they work both on github.com and on the site.
+
+The screenshots in `docs/assets/screenshots/` come from the demo. After a visible UI
+change, regenerate them rather than editing them by hand:
+
+```bash
+uv run python scripts/screenshots.py   # needs the browser group and Chromium
+```
+
 ---
 
 ## Conventions
