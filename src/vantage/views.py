@@ -322,7 +322,7 @@ class ListView(PanelView):
             query=query,
             filters=filters,
             has_active_filters=any(f.is_active for f in filters),
-            analytics=self.get_analytics(spec, queryset),
+            analytics=self.get_analytics(spec, queryset, base=base, filters=filters),
             searchable=bool(panel.get_list_search(request)),
             patterns=panel.get_patterns(),
             showing_tree=self.showing_tree(request),
@@ -379,13 +379,14 @@ class ListView(PanelView):
         return listprefs.summary(spec, queryset)
 
     @staticmethod
-    def get_analytics(spec, queryset) -> dict:
+    def get_analytics(spec, queryset, *, base=None, filters=()) -> dict:
         """Stat cards and charts over the filtered rows.
 
         *Which* stats and charts is the resolved spec's answer, so switching the strip
-        off from the rail removes its queries and not merely its markup.
+        off from the rail removes its queries and not merely its markup. ``base`` and
+        ``filters`` give a trending stat its previous period.
         """
-        return listprefs.analytics(spec, queryset)
+        return listprefs.analytics(spec, queryset, base=base, filters=filters)
 
     #: Both of these now live in :mod:`vantage.listquery`, which is what the export,
     #: the job runner and the JSON API call. Kept here as delegations because they are
