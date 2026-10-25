@@ -159,7 +159,7 @@ jobs:
 
   typecheck:
     # Advisory, and honestly so. `ty` reports a few hundred diagnostics against src/
-    # today (296 at the time of writing), the bulk of them `unresolved-attribute` on
+    # today (387 with ty 0.0.91), the bulk of them `unresolved-attribute` on
     # Django model and queryset descriptors that no static checker resolves without
     # stubs. Publishing the number and letting it be driven down is worth more than a
     # green tick over a check nobody runs.
@@ -183,8 +183,10 @@ jobs:
 
       - run: uv sync --group dev --frozen
 
+      # Pinned, so the count moves when the code does and not when ty learns a new
+      # check. Bump it deliberately and note the new baseline above.
       - name: ty check
-        run: uv run --no-sync --with ty ty check src
+        run: uv run --no-sync --with "ty==0.0.91" ty check src
 
   build:
     name: build & wheel contents
