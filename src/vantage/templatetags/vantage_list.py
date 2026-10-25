@@ -126,8 +126,7 @@ def _line_geometry(values: list[float]) -> dict[str, Any]:
     polyline = " ".join(f"{_fmt(x)},{_fmt(y)}" for x, y in points)
     edge = " L ".join(f"{_fmt(x)} {_fmt(y)}" for x, y in points)
     area = (
-        f"M {_fmt(points[0][0])} {CHART_HEIGHT} L {edge} "
-        f"L {_fmt(points[-1][0])} {CHART_HEIGHT} Z"
+        f"M {_fmt(points[0][0])} {CHART_HEIGHT} L {edge} L {_fmt(points[-1][0])} {CHART_HEIGHT} Z"
     )
     return {
         "polyline": polyline,
@@ -258,9 +257,9 @@ def _aria_label(chart: Any, values: list[float], labels: list[str], kind: str) -
     for index, value in enumerate(values[:SPOKEN_SEGMENTS]):
         # A label and a number side by side: data, not prose, so nothing to translate
         # beyond the stand-in used when a series arrived without labels.
-        name = labels[index] if index < len(labels) else _("item %(number)s") % {
-            "number": index + 1
-        }
+        name = (
+            labels[index] if index < len(labels) else _("item %(number)s") % {"number": index + 1}
+        )
         named.append(f"{name} {_number(value)}")
 
     parts = {"label": label, "shape": shape, "segments": "; ".join(named)}

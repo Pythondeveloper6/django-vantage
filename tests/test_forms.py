@@ -219,9 +219,7 @@ class TestUpdate:
         assert Post.objects.count() == 1
 
     def test_reports_success(self, boss, post, author):
-        response = boss.post(
-            change_url(post), post_payload(author, slug=post.slug), follow=True
-        )
+        response = boss.post(change_url(post), post_payload(author, slug=post.slug), follow=True)
         assert "Saved changes" in str(next(iter(response.context["messages"])))
 
     def test_a_missing_record_is_a_404(self, boss):

@@ -54,8 +54,7 @@ def post(db, author):
 @pytest.fixture
 def posts(db, author):
     return [
-        Post.objects.create(title=f"P{i}", slug=f"p{i}", body="b", author=author)
-        for i in range(5)
+        Post.objects.create(title=f"P{i}", slug=f"p{i}", body="b", author=author) for i in range(5)
     ]
 
 
@@ -107,9 +106,7 @@ class TestDuplicatePlan:
         assert plan.initial["slug"] == "analytical-engine-copy"
 
     def test_a_taken_candidate_is_stepped_over(self, post):
-        Post.objects.create(
-            title="x", slug="analytical-engine-copy", body="b", author=post.author
-        )
+        Post.objects.create(title="x", slug="analytical-engine-copy", body="b", author=post.author)
         plan = records.duplicate_plan(panel_for(Post), post, ["slug"])
         assert plan.initial["slug"] == "analytical-engine-copy-2"
 
@@ -118,16 +115,14 @@ class TestDuplicatePlan:
         assert any("unique" in note for note in plan.notes)
 
     def test_a_unique_email_is_cleared_not_prefixed(self, author):
-        """"Copy of ada@example.com" is not an address, and would fail on save."""
+        """ "Copy of ada@example.com" is not an address, and would fail on save."""
         plan = records.duplicate_plan(panel_for(Author), author, ["email"])
         assert plan.initial["email"] is None
         assert any("unique" in note.lower() for note in plan.notes)
 
     def test_many_to_many_links_are_carried_and_counted(self, post):
         plan = records.duplicate_plan(panel_for(Post), post, ["tags"])
-        assert sorted(plan.initial["tags"]) == sorted(
-            post.tags.values_list("pk", flat=True)
-        )
+        assert sorted(plan.initial["tags"]) == sorted(post.tags.values_list("pk", flat=True))
         assert any("2 links copied" in note for note in plan.notes)
 
     def test_a_copy_of_an_archived_record_is_a_live_one(self, db):
@@ -313,15 +308,12 @@ class TestResolveRowActions:
     def test_what_the_user_may_not_do_is_not_offered(self, rf, client, db):
         user = User.objects.create_user("c", "c@example.com", "x", is_staff=True)
         user.user_permissions.add(
-            Permission.objects.get(
-                codename="view_archive", content_type__app_label="testapp"
-            )
+            Permission.objects.get(codename="view_archive", content_type__app_label="testapp")
         )
         request = rf.get("/")
         request.user = User.objects.get(pk=user.pk)  # a fresh permission cache
         names = [
-            spec.name
-            for spec, _ in records.resolve_row_actions(ArchivePanel(Archive), request)
+            spec.name for spec, _ in records.resolve_row_actions(ArchivePanel(Archive), request)
         ]
         assert names == ["view"]
         assert "purge" not in names and "delete" not in names
@@ -385,16 +377,13 @@ class TestRowActionUrls:
         request = rf.get("/")
         request.user = User.objects.create_superuser("su", "su@example.com", "x")
         buttons = {
-            b.name: b
-            for b in records.row_actions_for(ArchivePanel(Archive), request, archives[0])
+            b.name: b for b in records.row_actions_for(ArchivePanel(Archive), request, archives[0])
         }
         assert buttons["purge"].url is None
         assert buttons["purge"].post_url.endswith(f"/{archives[0].pk}/action/")
         assert buttons["purge"].is_link is False
 
-    def test_the_pages_filters_ride_along_so_the_action_comes_back_to_them(
-        self, rf, db, archives
-    ):
+    def test_the_pages_filters_ride_along_so_the_action_comes_back_to_them(self, rf, db, archives):
         request = rf.get("/?trash=1&page=2")
         request.user = User.objects.create_superuser("su", "su@example.com", "x")
         button = next(
@@ -507,9 +496,7 @@ class TestRowActionView:
         assert archives[0].deleted_at is not None
 
     def test_an_unknown_action_is_refused(self, boss, archives):
-        assert (
-            boss.post(self.url(archives[0].pk), {"action": "nonsense"}).status_code == 403
-        )
+        assert boss.post(self.url(archives[0].pk), {"action": "nonsense"}).status_code == 403
 
     def test_a_user_without_the_actions_permission_is_refused(self, client, db, archives):
         signed_in = clerk(client, db, "testapp.view_archive", "testapp.change_archive")
@@ -653,9 +640,7 @@ class TestBulkEditStrategy:
 
 def bulk_form(panel, names, values):
     data = {f"{records.BULK_EDIT_PREFIX}-{k}": v for k, v in values.items()}
-    form = records.bulk_edit_form_class(panel, names)(
-        data=data, prefix=records.BULK_EDIT_PREFIX
-    )
+    form = records.bulk_edit_form_class(panel, names)(data=data, prefix=records.BULK_EDIT_PREFIX)
     assert form.is_valid(), form.errors
     return form
 
@@ -678,9 +663,7 @@ class TestRunBulkEdit:
     def test_it_says_which_path_it_took(self, rf, posts):
         panel = panel_for(Post)
         form = bulk_form(panel, ["status"], {"status": "published"})
-        outcome = records.run_bulk_edit(
-            rf.post("/"), panel, Post.objects.all(), form, ["status"]
-        )
+        outcome = records.run_bulk_edit(rf.post("/"), panel, Post.objects.all(), form, ["status"])
         assert outcome.strategy == "sql"
         assert "in one query" in outcome.message
 
@@ -688,9 +671,7 @@ class TestRunBulkEdit:
         panel = panel_for(Post)
         tag = Tag.objects.create(name="ops")
         form = bulk_form(panel, ["tags"], {"tags": [str(tag.pk)]})
-        outcome = records.run_bulk_edit(
-            rf.post("/"), panel, Post.objects.all(), form, ["tags"]
-        )
+        outcome = records.run_bulk_edit(rf.post("/"), panel, Post.objects.all(), form, ["tags"])
         assert outcome.strategy == "instances"
         assert "many-to-many" in outcome.message
         assert Post.objects.first().tags.count() == 1
@@ -700,9 +681,7 @@ class TestRunBulkEdit:
         panel = panel_for(Post)
         tag = Tag.objects.create(name="ops")
         form = bulk_form(panel, ["tags"], {"tags": [str(tag.pk)]})
-        outcome = records.run_bulk_edit(
-            rf.post("/"), panel, Post.objects.all(), form, ["tags"]
-        )
+        outcome = records.run_bulk_edit(rf.post("/"), panel, Post.objects.all(), form, ["tags"])
         assert outcome.refused
         assert "too many" in outcome.refused
         assert Post.objects.first().tags.count() == 0
@@ -711,9 +690,7 @@ class TestRunBulkEdit:
         monkeypatch.setattr(records, "BULK_EDIT_INSTANCE_LIMIT", 2)
         panel = panel_for(Post)
         form = bulk_form(panel, ["status"], {"status": "published"})
-        outcome = records.run_bulk_edit(
-            rf.post("/"), panel, Post.objects.all(), form, ["status"]
-        )
+        outcome = records.run_bulk_edit(rf.post("/"), panel, Post.objects.all(), form, ["status"])
         assert outcome.refused is None
         assert outcome.updated == 5
 
@@ -735,9 +712,7 @@ class TestBulkEditAndConcurrency:
     def test_the_skip_is_reported_rather_than_hidden(self, rf, posts):
         panel = panel_for(Post)
         # Move one row into the future, leaving the other four selectable.
-        Post.objects.filter(pk=posts[0].pk).update(
-            updated_at=timezone.now() + timedelta(minutes=5)
-        )
+        Post.objects.filter(pk=posts[0].pk).update(updated_at=timezone.now() + timedelta(minutes=5))
         form = bulk_form(panel, ["status"], {"status": "published"})
         outcome = records.run_bulk_edit(
             rf.post("/"),
@@ -816,9 +791,7 @@ class TestBulkEditView:
         assert response.status_code == 302
         assert Post.objects.filter(status="published").count() == 3
 
-    def test_an_unticked_field_is_not_written_even_when_its_value_is_posted(
-        self, boss, posts
-    ):
+    def test_an_unticked_field_is_not_written_even_when_its_value_is_posted(self, boss, posts):
         """The security property: an unticked field is absent from the form the server
         builds, so a hand-written POST carrying its value writes nothing."""
         boss.post(
@@ -835,9 +808,7 @@ class TestBulkEditView:
         assert Post.objects.filter(body="OVERWRITTEN").count() == 0
         assert Post.objects.filter(status="published").count() == 5
 
-    def test_a_field_that_is_never_on_offer_cannot_be_ticked_into_the_form(
-        self, boss, posts
-    ):
+    def test_a_field_that_is_never_on_offer_cannot_be_ticked_into_the_form(self, boss, posts):
         boss.post(
             self.url(),
             {
@@ -849,9 +820,7 @@ class TestBulkEditView:
         )
         assert not Post.objects.filter(slug="hijacked").exists()
 
-    def test_select_all_with_exclusions_reaches_everything_but_the_exclusions(
-        self, boss, posts
-    ):
+    def test_select_all_with_exclusions_reaches_everything_but_the_exclusions(self, boss, posts):
         """The selection model: a predicate plus an exclusion set, never a list of ids."""
         response = boss.post(
             self.url(),
@@ -870,7 +839,7 @@ class TestBulkEditView:
             assert spared.status == Post.Status.DRAFT
 
     def test_select_all_stays_inside_the_pages_own_filters(self, boss, posts, author):
-        """"All matching" is the predicate the page was showing, not the whole table."""
+        """ "All matching" is the predicate the page was showing, not the whole table."""
         Post.objects.filter(pk=posts[0].pk).update(status=Post.Status.REVIEW)
         response = boss.post(
             self.url("?status=review"),
@@ -902,9 +871,7 @@ class TestBulkEditView:
         assert response["Location"].endswith("/admin/testapp/post/")
 
     def test_applying_with_nothing_ticked_asks_rather_than_writes(self, boss, posts):
-        response = boss.post(
-            self.url(), {"selected": [str(posts[0].pk)], "_bulk_apply": "1"}
-        )
+        response = boss.post(self.url(), {"selected": [str(posts[0].pk)], "_bulk_apply": "1"})
         assert response.status_code == 200
         assert Post.objects.filter(status="published").count() == 0
 
