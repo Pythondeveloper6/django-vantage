@@ -72,8 +72,8 @@ in bulk to quiet it.
 
 ## Run the matrix locally
 
-CI tests Python 3.12/3.13/3.14 against Django 5.2 (LTS) and 6.1, plus Django `main` as
-an allowed failure. You can run any cell of that yourself:
+CI tests Python 3.12/3.13/3.14 against Django 5.2 (LTS), 6.0 and 6.1, plus Django `main`
+as an allowed failure. You can run any cell of that yourself:
 
 ```bash
 uvx --with tox-uv tox                  # everything
@@ -258,10 +258,24 @@ the wheel left out.
 **If you add a new kind of file to `src/vantage/`** — a locale directory, a JSON data
 file, a `py.typed` marker — check it actually ships. The build backend is hatchling and
 the include rules are in `pyproject.toml` under `[tool.hatch.build.targets.*]`.
-`MANIFEST.in` is present for tooling that expects it but is **not** read by hatchling;
-pyproject is the authority.
+There is no `MANIFEST.in`; hatchling does not read one, and pyproject is the authority.
 
 ---
+
+## Supported versions
+
+The supported set is exactly what the CI `test` matrix runs, and three places must
+agree with it: the `Framework :: Django ::` classifiers, the `Django>=…,<…` bound in
+`dependencies`, and the Requirements line in the README.
+
+- **A new Django release** is supported in the commit that adds it to the matrix in
+  `ci.yml` and `tox.ini`, adds its classifier, and raises the upper bound. Not before:
+  the bound exists so pip cannot install this package next to a Django nobody tested.
+  Django `main` runs as an allowed failure precisely so that commit is small.
+- **A Django release is dropped** once it is past Django's own end of extended support,
+  in a minor version (pre-1.0) and noted under **Changed** in the changelog. The LTS
+  stays until its end of life.
+- **Python** follows the same rule: the classifiers name what the matrix runs.
 
 ## Pull requests
 

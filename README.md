@@ -234,7 +234,7 @@ ignored?" has a single, findable answer.
 
 ## Requirements
 
-Python 3.12+ · Django 5.2+ (including 6.x)
+Python 3.12, 3.13, 3.14 · Django 5.2 LTS, 6.0, 6.1
 
 Django is the only runtime dependency. No Node.js — assets ship prebuilt.
 django-guardian, django-rules and django-simple-history are used if present, never required.

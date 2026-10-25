@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-vantage"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "A smart, beautiful admin panel for Django. Zero config to start, one line to override anything."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,7 +52,9 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = ["Django>=5.2"]
+# Upper-bounded on purpose: the bound moves only in the commit that adds the next Django
+# to the CI matrix, so pip can never pair this release with a Django nobody tested.
+dependencies = ["Django>=5.2,<6.2"]
 
 [project.urls]
 Homepage = "https://github.com/Pythondeveloper6/django-vantage"
@@ -82,6 +84,11 @@ release = ["build>=1.2", "twine>=6.0"]
 # `uv sync --group dev --group browser` plus `uv run playwright install chromium`
 # opts in.
 browser = ["playwright>=1.40"]
+
+# One source for the version: vantage.__version__, which the release workflow also
+# checks the tag against.
+[tool.hatch.version]
+path = "src/vantage/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vantage"]
@@ -118,7 +125,6 @@ include = [
     "/CONTRIBUTING.md",
     "/CODE_OF_CONDUCT.md",
     "/SECURITY.md",
-    "/MANIFEST.in",
     "/tox.ini",
 ]
 exclude = ["**/__pycache__", "**/*.py[cod]", "**/.DS_Store"]

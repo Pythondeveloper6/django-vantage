@@ -16,7 +16,7 @@ Once released, the usual will work:
 pip install django-vantage
 ```
 
-Python 3.12+ and Django 5.2+ are required. Nothing else is.
+Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. Nothing else is.
 
 ## Mount it
 
