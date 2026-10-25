@@ -54,12 +54,9 @@ jobs:
       - name: ruff check
         run: uv run --no-sync ruff check src tests
 
-      # Advisory. `ruff format` has never been applied to this repository, so gating on
-      # it today would fail every pull request for reasons unrelated to the change. It
-      # runs so the drift is visible and shrinking; promote it to a blocking step in the
-      # same commit that formats the tree.
-      - name: ruff format (advisory)
-        continue-on-error: true
+      # Blocking since the tree was formatted in one commit (listed in
+      # .git-blame-ignore-revs, so blame skips it).
+      - name: ruff format
         run: uv run --no-sync ruff format --check --diff src tests
 
   test:
