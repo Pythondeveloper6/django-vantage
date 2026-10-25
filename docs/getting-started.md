@@ -7,7 +7,7 @@
 Vantage is not on PyPI yet. Until the first release, install from the repository:
 
 ```bash
-pip install "django-vantage @ git+https://github.com/your-org/django-vantage"
+pip install "django-vantage @ git+https://github.com/Pythondeveloper6/django-vantage"
 ```
 
 Once released, the usual will work:
