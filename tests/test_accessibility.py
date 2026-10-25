@@ -728,9 +728,24 @@ class TestTokenContrast:
         )
         assert ratio >= WCAG_AA, f"{brand}: {ratio:.2f}"
 
-    def test_alpha_tokens_are_knowingly_excluded(self):
-        """Documents the hole rather than hiding it: the dark theme's border tokens
-        are translucent, so no static pair can be measured for them."""
+    @pytest.mark.parametrize("brand", [None, *SWEEP])
+    @pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
+    @pytest.mark.parametrize(
+        "surface", ["background", "card", "popover", "sidebar", "secondary", "muted"]
+    )
+    def test_a_form_field_boundary_clears_three_to_one(self, surface, dark, brand):
+        """WCAG 1.4.11. ``--input`` is the border of every text field, select and drop
+        zone; it once measured 1.27:1 in the light theme and was translucent, and so
+        unmeasurable, in the dark one."""
+        tokens = build_tokens(brand, dark=dark)
+        boundary = _oklch(tokens["input"])
+        assert boundary, "--input must be an opaque oklch() colour to be measurable"
+        ratio = contrast_ratio(boundary, _oklch(tokens[surface]))
+        assert ratio >= WCAG_AA_NON_TEXT, f"input on {surface}: {ratio:.2f}"
+
+    def test_decorative_borders_are_knowingly_excluded(self):
+        """Documents the remaining hole rather than hiding it: the dark theme's
+        ``--border`` (a separator, not a control boundary) is translucent, so no static
+        pair can be measured for it."""
         dark = build_tokens(dark=True)
         assert _oklch(dark["border"]) is None
-        assert _oklch(dark["input"]) is None
