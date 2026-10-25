@@ -370,7 +370,6 @@ wheels = [
 
 [[package]]
 name = "django-vantage"
-version = "0.1.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "django" },
@@ -394,7 +393,7 @@ release = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "django", specifier = ">=5.2" }]
+requires-dist = [{ name = "django", specifier = ">=5.2,<6.2" }]
 
 [package.metadata.requires-dev]
 browser = [{ name = "playwright", specifier = ">=1.40" }]
