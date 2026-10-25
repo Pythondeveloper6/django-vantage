@@ -10,11 +10,11 @@
 **A smart, beautiful admin panel for Django.**<br>
 Zero config to start. One line to override anything.
 
-[![PyPI](https://img.shields.io/pypi/v/django-vantage?include_prereleases&color=4f46e5&label=pypi)](https://pypi.org/project/django-vantage/)
-[![Python](https://img.shields.io/pypi/pyversions/django-vantage?color=4f46e5)](https://pypi.org/project/django-vantage/)
-[![Django](https://img.shields.io/pypi/frameworkversions/django/django-vantage?color=0c4b33&label=django)](https://pypi.org/project/django-vantage/)
+[![PyPI](https://img.shields.io/pypi/v/django-vantage?include_prereleases&color=4f46e5&label=pypi&logo=pypi&logoColor=white)](https://pypi.org/project/django-vantage/)
+[![Python](https://img.shields.io/pypi/pyversions/django-vantage?color=4f46e5&logo=python&logoColor=white)](https://pypi.org/project/django-vantage/)
+[![Django](https://img.shields.io/pypi/frameworkversions/django/django-vantage?color=0c4b33&label=django&logo=django&logoColor=white)](https://pypi.org/project/django-vantage/)
 [![CI](https://github.com/Pythondeveloper6/django-vantage/actions/workflows/ci.yml/badge.svg)](https://github.com/Pythondeveloper6/django-vantage/actions/workflows/ci.yml)
-[![Licence: MIT](https://img.shields.io/badge/licence-MIT-4f46e5)](https://github.com/Pythondeveloper6/django-vantage/blob/main/LICENSE)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-4f46e5?logo=opensourceinitiative&logoColor=white)](https://github.com/Pythondeveloper6/django-vantage/blob/main/LICENSE)
 
 [**Documentation**](https://pythondeveloper6.github.io/django-vantage/) ·
 [Getting started](https://pythondeveloper6.github.io/django-vantage/getting-started/) ·
