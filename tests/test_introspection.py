@@ -78,9 +78,7 @@ class TestRelations:
 class TestGenericForeignKeys:
     def test_gfk_is_found_in_private_fields(self):
         class Tagged(models.Model):
-            content_type = models.ForeignKey(
-                "contenttypes.ContentType", on_delete=models.CASCADE
-            )
+            content_type = models.ForeignKey("contenttypes.ContentType", on_delete=models.CASCADE)
             object_id = models.PositiveIntegerField()
             item = GenericForeignKey("content_type", "object_id")
 
@@ -94,9 +92,7 @@ class TestGenericForeignKeys:
         """The assumption that breaks naive introspection."""
 
         class Tagged2(models.Model):
-            content_type = models.ForeignKey(
-                "contenttypes.ContentType", on_delete=models.CASCADE
-            )
+            content_type = models.ForeignKey("contenttypes.ContentType", on_delete=models.CASCADE)
             object_id = models.PositiveIntegerField()
             item = GenericForeignKey("content_type", "object_id")
 

@@ -210,9 +210,7 @@ class TestImportableFields:
 
     def test_drops_many_to_many_and_files(self, panel, author_panel):
         assert "tags" not in {option.name for option in importer.importable_fields(panel)}
-        assert "avatar" not in {
-            option.name for option in importer.importable_fields(author_panel)
-        }
+        assert "avatar" not in {option.name for option in importer.importable_fields(author_panel)}
 
     def test_drops_readonly_fields(self, panel, monkeypatch):
         monkeypatch.setattr(panel, "readonly_fields", ["status"])
@@ -873,9 +871,7 @@ class TestAccess:
 class TestStash:
     def test_a_traversal_token_reads_nothing(self, boss):
         with pytest.raises(importer.StashExpired):
-            importer.read_stash(
-                user=boss, model_label="testapp.post", token="../../etc/passwd"
-            )
+            importer.read_stash(user=boss, model_label="testapp.post", token="../../etc/passwd")
 
     def test_discarding_is_idempotent(self):
         importer.discard_stash("nonexistent-token-that-is-long-enough")

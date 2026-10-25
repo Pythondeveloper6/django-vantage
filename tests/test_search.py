@@ -171,9 +171,7 @@ class TestWeighting:
         monkeypatch.setattr(posts, "search_weight", 5.0, raising=False)
         assert keys(search_as(boss, "ada"))[0] == "testapp.post"
 
-    def test_weighing_a_model_zero_takes_it_out_of_global_search(
-        self, boss, content, monkeypatch
-    ):
+    def test_weighing_a_model_zero_takes_it_out_of_global_search(self, boss, content, monkeypatch):
         monkeypatch.setattr(site.get_panel(Author), "search_weight", 0, raising=False)
         assert "testapp.author" not in keys(search_as(boss, "ada"))
 

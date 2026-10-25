@@ -473,9 +473,9 @@ def run_job(job_id: int) -> VantageJob | None:
     what makes a duplicate delivery harmless: at-least-once is what every queue here
     actually promises, and a job that runs twice would double-apply the action.
     """
-    claimed = VantageJob.objects.filter(
-        pk=job_id, status=VantageJob.Status.PENDING
-    ).update(status=VantageJob.Status.RUNNING, started_at=timezone.now())
+    claimed = VantageJob.objects.filter(pk=job_id, status=VantageJob.Status.PENDING).update(
+        status=VantageJob.Status.RUNNING, started_at=timezone.now()
+    )
     if not claimed:
         return VantageJob.objects.filter(pk=job_id).first()
 
@@ -648,9 +648,7 @@ def _rehydrate(job: VantageJob):
         raise JobDenied(_("The account that started this job is gone or has been disabled."))
 
     payload = job.selection or {}
-    request = JobRequest(
-        user=actor, query=payload.get("query", ""), path=payload.get("path", "/")
-    )
+    request = JobRequest(user=actor, query=payload.get("query", ""), path=payload.get("path", "/"))
     # The tenant the selection was made under, put back before anything reads a row.
     # Without it a host- or header-based resolver finds nothing here and the job —
     # correctly, but uselessly — resolves to zero rows. No-op unless tenancy is on.

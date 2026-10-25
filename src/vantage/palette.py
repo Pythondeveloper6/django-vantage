@@ -79,9 +79,7 @@ class Command:
 
     def __post_init__(self) -> None:
         if bool(self.url) == bool(self.callback):
-            raise ValueError(
-                f"Command {self.id!r} needs exactly one of 'url' or 'callback'."
-            )
+            raise ValueError(f"Command {self.id!r} needs exactly one of 'url' or 'callback'.")
         if not isinstance(self.keywords, tuple):
             object.__setattr__(self, "keywords", tuple(self.keywords))
 

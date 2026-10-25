@@ -1,18 +1,38 @@
 <div align="center">
 
-# django-vantage
+<a href="https://pythondeveloper6.github.io/django-vantage/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <img alt="django-vantage" src="docs/assets/logo-light.svg" height="64">
+  </picture>
+</a>
 
-**A smart, beautiful admin panel for Django.**
+**A smart, beautiful admin panel for Django.**<br>
 Zero config to start. One line to override anything.
+
+[![PyPI](https://img.shields.io/pypi/v/django-vantage?include_prereleases&color=4f46e5&label=pypi)](https://pypi.org/project/django-vantage/)
+[![Python](https://img.shields.io/pypi/pyversions/django-vantage?color=4f46e5)](https://pypi.org/project/django-vantage/)
+[![Django](https://img.shields.io/pypi/frameworkversions/django/django-vantage?color=0c4b33&label=django)](https://pypi.org/project/django-vantage/)
+[![CI](https://github.com/Pythondeveloper6/django-vantage/actions/workflows/ci.yml/badge.svg)](https://github.com/Pythondeveloper6/django-vantage/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-4f46e5)](https://github.com/Pythondeveloper6/django-vantage/blob/main/LICENSE)
+
+[**Documentation**](https://pythondeveloper6.github.io/django-vantage/) ·
+[Getting started](https://pythondeveloper6.github.io/django-vantage/getting-started/) ·
+[Changelog](https://github.com/Pythondeveloper6/django-vantage/blob/main/CHANGELOG.md) ·
+[FAQ](https://pythondeveloper6.github.io/django-vantage/faq/)
 
 </div>
 
----
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/orders-dark.webp">
+  <img alt="The Orders list in django-vantage: stat cards with trends, a revenue chart, a status breakdown, filters and a data grid" src="docs/assets/screenshots/orders-light.webp">
+</picture>
 
-> **Status: alpha (`0.1.0.dev0`).** Working and heavily tested — close to 3,000 tests —
-> but not yet on PyPI, and the API may still move. See the
-> [FAQ](docs/faq.md#how-finished-is-this) for an honest account of what is and is not
-> done. Use it on an internal tool; do not build a product on it this month.
+> **Alpha (`0.1.0a1`).** Working and heavily tested — more than 3,600 tests — but the
+> API may still move. See the
+> [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/#how-finished-is-this)
+> for an honest account of what is and is not done. Use it on an internal tool, and
+> pin the exact version if you depend on it.
 
 ## Why
 
@@ -29,24 +49,20 @@ Two rules govern the whole package:
 
 ## Install
 
-Not on PyPI yet — install from the repository until the first release:
-
 ```bash
-pip install "django-vantage @ git+https://github.com/your-org/django-vantage"
+pip install --pre django-vantage
 ```
 
-Once released, the usual will work:
-
-```bash
-pip install django-vantage
-```
+`--pre` is needed while Vantage is in alpha, because pip skips pre-releases unless asked.
 
 ```python
 # settings.py
 INSTALLED_APPS = ["vantage", ...]
 
 # urls.py
+from django.urls import path
 from vantage import site
+
 urlpatterns = [path("admin/", site.urls)]
 ```
 
@@ -102,13 +118,48 @@ class OrderPanel(ModelPanel):
     ]
 ```
 
-Change a filter and every number follows. All four stats fold into one shared `aggregate()`
-call, plus one more for the trend window `Revenue` asks for — two queries total, however many
-non-trending stats you add to the group. The charts render as inline SVG that follows your
-brand colour and the current theme.
+Change a filter and every number follows. Filter to the last 90 days and `Revenue` compares
+itself with the 90 days before. All four stats fold into one shared `aggregate()` call, plus
+one more for the trend window — two queries total, however many non-trending stats you add.
+The charts render as inline SVG that follows your brand colour and the current theme.
 
 There is also a per-column summary bar at the foot of every table, which needs no configuration
 at all — a money column is summed, a rating column is averaged, and an identifier is left alone.
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/dashboard-dark.webp">
+        <img alt="Dashboard with stat cards, a revenue chart and the latest orders and reviews" src="docs/assets/screenshots/dashboard-light.webp">
+      </picture>
+      <p align="center"><b>Dashboard</b> — widgets declared in Python or arranged from the UI</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/palette-dark.webp">
+        <img alt="The command palette searching for orders" src="docs/assets/screenshots/palette-light.webp">
+      </picture>
+      <p align="center"><b>Command palette</b> — <kbd>⌘</kbd> <kbd>K</kbd> to go anywhere</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/order-form-dark.webp">
+        <img alt="An inferred edit form, grouped into sections" src="docs/assets/screenshots/order-form-light.webp">
+      </picture>
+      <p align="center"><b>Forms</b> — inferred widgets and sections, or your own layout</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/schema-dark.webp">
+        <img alt="The schema map showing models and their relations" src="docs/assets/screenshots/schema-light.webp">
+      </picture>
+      <p align="center"><b>Schema map</b> — derived from the registry, never out of date</p>
+    </td>
+  </tr>
+</table>
 
 ## Bulk actions
 
@@ -209,58 +260,66 @@ often reach the same knobs without a deploy: a list's columns, filters, stats an
 charts have a customisation rail, the dashboard has its own "Add a card" editor, and
 branding and behaviour have a settings screen. All of it composes in one fixed
 order — **UI override → `panel.py` / `VANTAGE` → inference** — stated once in
-[How configuration resolves](docs/configuration.md), so "why is my `panel.py` being
-ignored?" has a single, findable answer.
+[How configuration resolves](https://pythondeveloper6.github.io/django-vantage/configuration/),
+so "why is my `panel.py` being ignored?" has a single, findable answer.
 
 ## What else is in the box
 
-- **A JSON API** over every panel — the same permission and validation path as the UI, cursor
-  pagination, optimistic concurrency, errors as structured data — see [the docs](docs/api.md)
-- **Command palette** (⌘K) with global search across every model you can see
-- **Dashboard** of widgets declared in Python, or built and arranged from the UI — stat, chart,
-  table, list, or your own template
-- **Soft delete, with a real Trash tab and Restore** on any model that carries a `deleted_at`
-  or `is_deleted` column, detected automatically
-- **Duplicate and bulk edit**, both reusing the exact same form and validation a single record uses
-- **Multi-tenancy** — scope every registered model to a tenant with one setting, fail-closed
-- **Schema map** derived from the registry, so it is never out of date, with clickable models
-- **Cascade-delete preview** — the real tree of what a delete takes with it, counted
-- **Read-only mode** and **user impersonation**, both enforced in the permission layer
-- **System health page** — migrations, cache, database, task backend
-- **Streaming CSV export** that honours the filters and sort you are looking at
-- **Light / dark / system themes** and **RTL**, both from day one
-- **Query-count guarantees** — `select_related` and `prefetch_related` are derived from what
-  the page actually renders, and tests assert the cost does not grow with the row count
+| | |
+|---|---|
+| **JSON API** | Every panel, through the same permission and validation path as the UI — cursor pagination, optimistic concurrency, errors as structured data. [Docs →](https://pythondeveloper6.github.io/django-vantage/api/) |
+| **Command palette** | <kbd>⌘</kbd> <kbd>K</kbd> with global search across every model you can see |
+| **Dashboard** | Widgets declared in Python, or built and arranged from the UI — stat, chart, table, list, or your own template |
+| **Soft delete** | A real Trash tab and Restore on any model with a `deleted_at` or `is_deleted` column, detected automatically |
+| **Duplicate and bulk edit** | Both reuse the exact form and validation a single record uses |
+| **Multi-tenancy** | Scope every registered model to a tenant with one setting, fail-closed. [Docs →](https://pythondeveloper6.github.io/django-vantage/tenancy/) |
+| **Cascade-delete preview** | The real tree of what a delete takes with it, counted |
+| **Read-only mode, impersonation** | Both enforced in the permission layer |
+| **System health page** | Migrations, cache, database, task backend |
+| **Streaming CSV export, CSV import** | Export honours the filters and sort you are looking at; import maps, previews and validates first |
+| **Light, dark and system themes, RTL** | All from day one, with `en` and `ar` catalogues shipped |
+| **Query-count guarantees** | `select_related` and `prefetch_related` are derived from what the page renders, and tests assert the cost does not grow with the row count |
 
 ## Requirements
 
-Python 3.12+ · Django 5.2+ (including 6.x)
+Python 3.12, 3.13, 3.14 · Django 5.2 LTS, 6.0, 6.1
 
 Django is the only runtime dependency. No Node.js — assets ship prebuilt.
 django-guardian, django-rules and django-simple-history are used if present, never required.
 
-## Development
+## Try the demo
+
+A full demo shop lives in [`example/`](https://github.com/Pythondeveloper6/django-vantage/tree/main/example):
 
 ```bash
+git clone https://github.com/Pythondeveloper6/django-vantage
+cd django-vantage
 uv sync --all-groups
-uv run pytest
-uv run ruff check src tests
-```
-
-A full demo project lives in `example/`:
-
-```bash
 ./example/run.sh          # migrate, seed, and serve on :8765
 ```
 
 Sign in as `admin` / `admin12345`.
 
-## Documentation
+## Contributing
 
-The full docs live in [`docs/`](docs/index.md) — start there for the complete
-`ModelPanel` reference, the settings reference, and pages on lists, forms, permissions,
-the JSON API, multi-tenancy, theming, extending and more.
+Contributions are welcome — bug reports, docs fixes and pull requests alike. Start with
+[CONTRIBUTING.md](https://github.com/Pythondeveloper6/django-vantage/blob/main/CONTRIBUTING.md),
+and please report security issues privately as described in
+[SECURITY.md](https://github.com/Pythondeveloper6/django-vantage/blob/main/SECURITY.md).
+
+```bash
+uv sync --all-groups
+uv run pytest
+uv run ruff check src tests
+uv run mkdocs serve       # the documentation site, on :8000
+```
 
 ## Licence
 
-MIT
+django-vantage is open source under the
+[MIT licence](https://github.com/Pythondeveloper6/django-vantage/blob/main/LICENSE).
+Copyright © 2026 Mahmoud Ahmed.
+
+You may use, modify and redistribute it, commercially or not, as long as the copyright notice
+and the licence text are kept in every copy or substantial portion of the code. If
+django-vantage helps your project, a link back to this repository is always appreciated.
