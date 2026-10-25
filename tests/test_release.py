@@ -93,3 +93,51 @@ def test_the_faq_does_not_claim_the_shell_is_unnonced():
     faq = (REPO_ROOT / "docs/faq.md").read_text(encoding="utf-8")
     assert "no nonce is emitted" not in faq
     assert "csp_nonce_attr" in faq
+
+
+# ── the support matrix ──────────────────────────────────────────────────────────────
+
+
+def _pyproject() -> dict:
+    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def _classified_djangos() -> set[str]:
+    prefix = "Framework :: Django :: "
+    classifiers = _pyproject()["project"]["classifiers"]
+    return {c[len(prefix) :] for c in classifiers if c.startswith(prefix)}
+
+
+def test_every_classified_django_is_a_ci_cell():
+    """A classifier is a promise of support; CI is the evidence. Django main is an
+    allowed failure and is deliberately not classified."""
+    ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    cells = re.search(r'^\s*django: \[([^\]]*)\]', ci, re.MULTILINE)
+    assert cells, "could not find the django matrix in ci.yml"
+    tested = {v.strip().strip('"') for v in cells.group(1).split(",")}
+    assert _classified_djangos() == tested
+
+
+def test_every_classified_django_is_a_tox_env():
+    tox = (REPO_ROOT / "tox.ini").read_text(encoding="utf-8")
+    envs = re.search(r"py\{[\d,]+\}-dj\{([\d,]+)\}", tox)
+    assert envs
+    tested = {f"{v[0]}.{v[1:]}" for v in envs.group(1).split(",")}
+    assert _classified_djangos() == tested
+
+
+def test_the_django_requirement_has_an_upper_bound_just_past_the_newest_tested():
+    """Without the bound, pip pairs this release with the next Django on the day it
+    ships, which nobody has run the suite against."""
+    (dep,) = [d for d in _pyproject()["project"]["dependencies"] if d.lower().startswith("django")]
+    bound = re.search(r"<\s*(\d+)\.(\d+)", dep)
+    assert bound, f"{dep} has no upper bound"
+    newest = max(_classified_djangos(), key=lambda v: tuple(map(int, v.split("."))))
+    major, minor = map(int, newest.split("."))
+    assert (int(bound.group(1)), int(bound.group(2))) == (major, minor + 1), dep
+
+
+def test_the_version_has_one_source():
+    project = _pyproject()["project"]
+    assert "version" not in project
+    assert "version" in project.get("dynamic", [])
