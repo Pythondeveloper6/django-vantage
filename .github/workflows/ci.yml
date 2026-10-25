@@ -67,15 +67,14 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     strategy:
-      # One red cell should not hide the other six.
+      # One red cell should not hide the other nine.
       fail-fast: false
       matrix:
-        # Both ends of the supported range on every interpreter the package claims.
-        # 5.2 is the LTS and is what most projects will actually be on; 6.1 is current.
-        # 6.0 is not a cell — it sits strictly between two that are tested and adding it
-        # buys a third of the runtime for close to nothing.
+        # Every Django the classifiers name, on every interpreter the package claims.
+        # A classifier is a promise; 6.0 used to be skipped as "between two tested
+        # versions", which is reasoning, not evidence.
         python-version: ["3.12", "3.13", "3.14"]
-        django: ["5.2", "6.1"]
+        django: ["5.2", "6.0", "6.1"]
         experimental: [false]
         include:
           # Django main is 6.2 development. It exists to give advance warning of a
@@ -100,6 +99,7 @@ jobs:
         run: |
           case "${{ matrix.django }}" in
             5.2)  spec="django>=5.2,<6.0" ;;
+            6.0)  spec="django>=6.0,<6.1" ;;
             6.1)  spec="django>=6.1,<6.2" ;;
             main) spec="https://github.com/django/django/archive/refs/heads/main.tar.gz" ;;
             *)    echo "::error::unknown Django cell '${{ matrix.django }}'"; exit 1 ;;
