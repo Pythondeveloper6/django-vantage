@@ -144,8 +144,12 @@ carry binary data) and no bulk-action, saved-view or import/export endpoints yet
   [counting a large table](deployment.md#counting-a-large-table) — but it means the
   number at the foot of a large list is `10,000+` or `~2,300,000`, not an exact figure.
   Planner estimates are Postgres-only and are withheld from row-restricted users.
-- **A strict CSP will break the theme.** The token stylesheet and the no-flash script
-  are inline in `<head>` by necessity, and no nonce is emitted.
+- **A strict CSP needs one context processor.** The token stylesheet and the no-flash
+  script are inline in `<head>`; `base.html` nonces both through `csp_nonce_attr` once
+  `vantage.security.csp_context` is in your context processors, and `vantage.W056`
+  warns if a policy is configured without it. A handful of inline `style` attributes
+  remain, which no nonce can cover — see
+  [Content-Security-Policy](security.md#content-security-policy) for the exact policy.
 - **The import wizard stashes the uploaded file on local disk.** Running more than one
   process needs sticky sessions or a shared filesystem between the preview and the
   commit.

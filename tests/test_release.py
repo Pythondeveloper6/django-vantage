@@ -63,3 +63,33 @@ def test_the_changelog_has_an_entry_for_the_packaged_version():
     if ".dev" in vantage.__version__:
         pytest.skip("development versions are covered by [Unreleased]")
     assert f"## [{vantage.__version__}]" in changelog
+
+
+# ── documentation that states a fact about the code ─────────────────────────────────
+
+
+def _complete_list() -> set[str]:
+    text = (REPO_ROOT / "docs/settings.md").read_text(encoding="utf-8")
+    section = text.split("## The complete list", 1)[1]
+    block = section.split("```", 2)[1]
+    return set(block.split())
+
+
+def test_the_settings_page_lists_exactly_the_registered_keys():
+    """docs/settings.md enumerates every key; a key added to DEFAULTS without it is a
+    setting nobody can discover, and a key listed but not registered is one that takes
+    the site down when written (the registry rejects unknown keys)."""
+    from vantage.conf import DEFAULTS
+
+    listed = _complete_list()
+    assert listed == set(DEFAULTS), {
+        "registered, not listed": sorted(set(DEFAULTS) - listed),
+        "listed, not registered": sorted(listed - set(DEFAULTS)),
+    }
+
+
+def test_the_faq_does_not_claim_the_shell_is_unnonced():
+    """It once said 'no nonce is emitted' while base.html nonced both inline blocks."""
+    faq = (REPO_ROOT / "docs/faq.md").read_text(encoding="utf-8")
+    assert "no nonce is emitted" not in faq
+    assert "csp_nonce_attr" in faq
