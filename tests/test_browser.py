@@ -728,3 +728,63 @@ class TestShortcutsPreference:
         pg.keyboard.press("e")
         assert not pg.evaluate(in_a_cell), "'e' still fired with shortcuts switched off"
         context.close()
+
+
+# ── the dark-theme logo ─────────────────────────────────────────────────────────
+
+
+#: Two distinguishable 1×1 images, inline so the test needs no static files or network.
+_PX = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+_LIGHT, _DARK = _PX + "#light", _PX + "#dark"
+
+
+class TestDarkLogo:
+    """LOGO_DARK was resolved, editable from the settings screen, and rendered
+    nowhere. What matters is which image a person actually sees, so this asserts
+    computed visibility under each theme condition rather than the markup."""
+
+    _VISIBLE = """() => Object.fromEntries(
+        Array.from(document.querySelectorAll('.v-brand img, .v-brand [data-brand-collapsed]'))
+          .map((el) => [el.getAttribute('src') ? el.getAttribute('src').split('#')[1] : 'mark',
+                        getComputedStyle(el).display !== 'none']))"""
+
+    @pytest.fixture
+    def branded(self, settings):
+        settings.VANTAGE = {"LOGO": _LIGHT, "LOGO_DARK": _DARK, "SITE_TITLE": "Acme"}
+
+    def _open(self, pw, cookie, live_server, scheme):
+        context = pw.new_context(color_scheme=scheme)
+        context.add_cookies([{**cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("vantage:dashboard"))
+        pg.wait_for_load_state("networkidle")
+        return context, pg
+
+    @pytest.mark.parametrize(
+        ("scheme", "expected"),
+        [("light", {"light": True, "dark": False}), ("dark", {"light": False, "dark": True})],
+    )
+    def test_the_device_scheme_picks_the_logo(
+        self, branded, sample_data, staff_cookie, pw, live_server, scheme, expected
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, scheme)
+        assert pg.evaluate(self._VISIBLE) == {**expected, "mark": False}
+        context.close()
+
+    def test_a_pinned_light_theme_beats_a_dark_device(
+        self, branded, sample_data, staff_cookie, pw, live_server
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, "dark")
+        pg.evaluate("() => document.documentElement.setAttribute('data-theme', 'light')")
+        assert pg.evaluate(self._VISIBLE) == {"light": True, "dark": False, "mark": False}
+        context.close()
+
+    def test_collapsed_the_acronym_stands_in_for_the_logo(
+        self, branded, sample_data, staff_cookie, pw, live_server
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, "light")
+        pg.evaluate(
+            "() => document.querySelector('.v-shell').setAttribute('data-collapsed', 'true')"
+        )
+        assert pg.evaluate(self._VISIBLE) == {"light": False, "dark": False, "mark": True}
+        context.close()
