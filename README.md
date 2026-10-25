@@ -32,7 +32,7 @@ Two rules govern the whole package:
 Not on PyPI yet — install from the repository until the first release:
 
 ```bash
-pip install "django-vantage @ git+https://github.com/your-org/django-vantage"
+pip install "django-vantage @ git+https://github.com/Pythondeveloper6/django-vantage"
 ```
 
 Once released, the usual will work:

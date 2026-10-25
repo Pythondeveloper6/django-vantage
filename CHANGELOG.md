@@ -284,4 +284,4 @@ and what was rejected.
 - Sensitive field names are excluded from columns, filters, search, exports and audit
   diffs.
 
-[Unreleased]: https://github.com/mahmoudahmed/django-vantage/commits/main
+[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/commits/main
