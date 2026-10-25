@@ -44,3 +44,6 @@ node_modules/
 
 # Screenshots from browser-automation sessions; never part of the project.
 .playwright-mcp/
+
+# mkdocs build output
+/site/
