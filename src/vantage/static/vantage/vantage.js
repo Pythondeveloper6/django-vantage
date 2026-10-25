@@ -161,8 +161,11 @@
     // on/off preference the grid uses, which the cheat sheet exposes.
     document.addEventListener("keydown", function (event) {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      // The grid writes this key through JSON.stringify, so "off" is the string
+      // "false". An earlier version compared against "0", a value nothing ever
+      // writes, and the toggle silenced every shortcut except this one.
       try {
-        if (localStorage.getItem("vantage-grid-shortcuts") === "0") return;
+        if (localStorage.getItem("vantage-grid-shortcuts") === "false") return;
       } catch (e) {
         /* No storage, no preference: the default is on. */
       }

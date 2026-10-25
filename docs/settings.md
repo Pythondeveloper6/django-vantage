@@ -32,6 +32,11 @@ Values with a fixed set of choices are checked too (`vantage.E003`):
 ImproperlyConfigured: VANTAGE['THEME'] must be one of light, dark, system; got 'sepia'.
 ```
 
+So are the two values rendered into every page's inline stylesheet, where a typo would
+otherwise fail every render, the sign-in page included: `BRAND_COLOR` must be a hex
+colour (`vantage.E004`) and `BRAND_RADIUS` a CSS length (`vantage.E005`), by the same
+validators the settings screen applies to what it stores.
+
 ## Where a value comes from
 
 ```
@@ -176,6 +181,11 @@ strictness, so an item that cannot be shown is omitted.
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
 
+The login throttle, rate limits and upload ceiling are behaviour keys too, documented
+with their defaults in [Security](security.md#installing-the-middleware) — see
+[Two settings layers](security.md#two-settings-layers) for why their defaults live
+there.
+
 `SETTINGS_PERMISSION` and `LIST_PREFS_PERMISSION` each accept a permission string or a
 callable taking the request:
 
@@ -272,9 +282,8 @@ turning it off is that it is broken. See [Extending](extending.md).
 
 ## The complete list
 
-Forty-seven keys, matching `vantage.conf.DEFAULTS` exactly — run
-`python -c "from vantage.conf import DEFAULTS; print(len(DEFAULTS))"` against your own
-install if this drifts, since it is exactly the number of lines in that dict:
+Every key in `vantage.conf.DEFAULTS`, and nothing else — `tests/test_release.py` fails
+if the two drift apart:
 
 ```
 SITE_TITLE   SITE_ACRONYM   LOGO   LOGO_DARK   FAVICON
@@ -288,6 +297,9 @@ PLUGINS  PLUGINS_EXCLUDE
 PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION
 READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE
 DEFAULT_PER_PAGE  RELATION_PICKER
+LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
+LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
+RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES
 IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
 
 TENANT_MODEL  TENANT_RESOLVER  TENANT_FIELD

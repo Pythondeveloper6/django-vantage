@@ -158,9 +158,7 @@ class ImportView(PanelView):
         missing = [verb for verb in needed if verb not in allowed]
         if missing:
             sentence = PERMISSION_DENIED.get(missing[0], PERMISSION_DENIED_FALLBACK)
-            raise PermissionDenied(
-                sentence % {"objects": self.panel.get_label_plural().lower()}
-            )
+            raise PermissionDenied(sentence % {"objects": self.panel.get_label_plural().lower()})
 
     def allowed_modes(self) -> list[dict]:
         allowed = self.permissions.allowed_actions(self.request, self.panel.model)
@@ -178,9 +176,7 @@ class ImportView(PanelView):
         must not disagree about what the options are.
         """
         options = self.options()
-        inferred = (
-            chosen if chosen is not None else importer.infer_mapping(parsed.headers, options)
-        )
+        inferred = chosen if chosen is not None else importer.infer_mapping(parsed.headers, options)
         samples = parsed.sample(3)
         pk_name = self.panel.model._meta.pk.name
 

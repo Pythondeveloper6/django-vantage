@@ -275,7 +275,7 @@ class TestTemplateTag:
     def test_slot_filled_can_guard_the_wrapper(self):
         template = (
             '{% slot_filled "row_actions" as filled %}'
-            "{% if filled %}<td>{% slot \"row_actions\" %}</td>{% endif %}"
+            '{% if filled %}<td>{% slot "row_actions" %}</td>{% endif %}'
         )
         assert self.render(template) == ""
         slots.add("row_actions", render=lambda ctx: mark_safe("<button>Go</button>"))

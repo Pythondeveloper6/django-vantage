@@ -146,9 +146,7 @@ def add(
             f"you added it to a template of your own."
         )
     if (template is None) == (render is None):
-        raise ValueError(
-            "A slot contribution needs exactly one of 'template' or 'render'."
-        )
+        raise ValueError("A slot contribution needs exactly one of 'template' or 'render'.")
     if render is not None and not callable(render):
         raise TypeError("'render' must be callable; it receives the template context.")
 
@@ -223,18 +221,14 @@ def render_slot(name: str, context: Any = None, **extra: Any) -> SafeString:
     # front of you.
     hook = getattr(panel, "slot", None)
     if callable(hook):
-        rendered = _guard(
-            lambda: hook(name, data), f"{type(panel).__name__}.slot({name!r})"
-        )
+        rendered = _guard(lambda: hook(name, data), f"{type(panel).__name__}.slot({name!r})")
         if rendered:
             parts.append(conditional_escape(rendered))
 
     for contribution in contributions(name):
         if not _in_scope(contribution, panel):
             continue
-        rendered = _guard(
-            lambda c=contribution: _render_one(c, data, request), contribution.source
-        )
+        rendered = _guard(lambda c=contribution: _render_one(c, data, request), contribution.source)
         if rendered:
             parts.append(rendered)
 

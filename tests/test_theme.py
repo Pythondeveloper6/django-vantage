@@ -94,7 +94,7 @@ class TestRenderThemeCss:
 
     def test_system_dark_does_not_override_an_explicit_light_choice(self):
         css = render_theme_css()
-        assert '@media (prefers-color-scheme: dark)' in css
+        assert "@media (prefers-color-scheme: dark)" in css
         assert ':root:not([data-theme="light"])' in css
 
     def test_explicit_dark_wins_in_both_directions(self):

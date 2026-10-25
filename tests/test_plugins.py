@@ -174,9 +174,7 @@ class TestIdempotence:
         assert site.pages().count(QueuePage) == 1
         assert len(plugins.loaded_plugins(site)) == 1
 
-    def test_explicit_registration_after_discovery_is_not_a_duplicate(
-        self, site, entry_points
-    ):
+    def test_explicit_registration_after_discovery_is_not_a_duplicate(self, site, entry_points):
         site.register(Archive)
         entry_points(FakeEntryPoint("queue", QueuePlugin))
         plugins.load_plugins(site)
@@ -305,9 +303,7 @@ class TestSettingsAreOptional:
     def test_reading_an_unknown_setting_falls_back(self, site, entry_points):
         entry_points(FakeEntryPoint("queue", QueuePlugin))
         site.register(Archive)
-        assert plugins._setting("PLUGINS") is None or isinstance(
-            plugins._setting("PLUGINS"), list
-        )
+        assert plugins._setting("PLUGINS") is None or isinstance(plugins._setting("PLUGINS"), list)
         assert len(plugins.load_plugins(site)) == 1
 
 

@@ -262,9 +262,7 @@ def explain_sql(queryset: QuerySet) -> tuple[str, tuple]:
     return f"EXPLAIN (FORMAT JSON) {sql}", params
 
 
-def queryset_row_estimate(
-    queryset: QuerySet, *, cache_seconds: int | None = None
-) -> int | None:
+def queryset_row_estimate(queryset: QuerySet, *, cache_seconds: int | None = None) -> int | None:
     """The planner's ``Plan Rows`` for this filtered set, or ``None`` if unknowable.
 
     ``EXPLAIN`` without ``ANALYZE`` plans the query and does not execute it, so this

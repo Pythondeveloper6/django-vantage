@@ -614,8 +614,7 @@ def resolve_mapping(
             ignored.append(
                 (
                     header,
-                    _("“%(column)s” already feeds that field")
-                    % {"column": assigned[option.name]},
+                    _("“%(column)s” already feeds that field") % {"column": assigned[option.name]},
                 )
             )
             continue
@@ -630,17 +629,11 @@ def resolve_mapping(
         option = options.get(key_field)
         if option is None or not option.unique:
             raise ImportRejected(
-                _(
-                    "The column that identifies a record must be a unique field or the "
-                    "primary key."
-                )
+                _("The column that identifies a record must be a unique field or the primary key.")
             )
         if key_field not in assigned:
             raise ImportRejected(
-                _(
-                    "No column is mapped to “%(field)s”, so it cannot identify "
-                    "existing records."
-                )
+                _("No column is mapped to “%(field)s”, so it cannot identify existing records.")
                 % {"field": option.label}
             )
 
@@ -673,9 +666,7 @@ def resolve_mapping(
         key_field=key_field,
         mode=mode,
         ignored=tuple(ignored),
-        missing_required=_missing_required(
-            panel.model, options.values(), set(columns.values())
-        ),
+        missing_required=_missing_required(panel.model, options.values(), set(columns.values())),
     )
 
 
@@ -843,14 +834,10 @@ class _Runner:
             parsed.column(mapping.key_column) if mapping.key_column is not None else None
         )
         self.booleans = [
-            name
-            for name, field in self.fields.items()
-            if classify(field) is FieldKind.BOOLEAN
+            name for name, field in self.fields.items() if classify(field) is FieldKind.BOOLEAN
         ]
         self.relations = [
-            name
-            for name, field in self.fields.items()
-            if classify(field) is FieldKind.RELATION_ONE
+            name for name, field in self.fields.items() if classify(field) is FieldKind.RELATION_ONE
         ]
         self._related: dict[tuple[str, str], tuple[str | None, str | None]] = {}
         self._labels: dict[tuple[str, Any], str] = {}
@@ -946,9 +933,7 @@ class _Runner:
         if existing is None and self.guard_required:
             # Said once, in the file's own vocabulary. The alternative is a raw
             # "NOT NULL constraint failed: testapp_post.author_id" on every row.
-            listed = ", ".join(
-                f"“{label}”" for _name, label in self.mapping.missing_required
-            )
+            listed = ", ".join(f"“{label}”" for _name, label in self.mapping.missing_required)
             self._fail(
                 result,
                 RowError(
@@ -1103,10 +1088,7 @@ class _Runner:
             return str(matches[0]), None
         if len(matches) > 1:
             return None, (
-                _(
-                    "“%(value)s” matches more than one %(model)s. "
-                    "Use the numeric id instead."
-                )
+                _("“%(value)s” matches more than one %(model)s. Use the numeric id instead.")
                 % {"value": raw, "model": related._meta.verbose_name}
             )
         return None, _no_match(related, raw)
@@ -1116,9 +1098,7 @@ class _Runner:
     def _snapshot(self, instance) -> dict[str, Any]:
         """Values before the form touches them, read by ``attname`` so a foreign key
         compares as an id and costs no extra query."""
-        return {
-            name: getattr(instance, field.attname, None) for name, field in self.fields.items()
-        }
+        return {name: getattr(instance, field.attname, None) for name, field in self.fields.items()}
 
     def _changes(self, before: dict[str, Any], form) -> tuple[RowChange, ...]:
         """What this row would actually alter.

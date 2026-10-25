@@ -581,7 +581,12 @@ class TestBruteForce:
         """Username-only keying would hand anybody a denial of service against 'admin'."""
         for _ in range(4):
             attempt(client)
-        assert attempt(client, ).status_code == 429
+        assert (
+            attempt(
+                client,
+            ).status_code
+            == 429
+        )
         response = client.post(
             LOGIN, {"username": "ada", "password": "wrong"}, REMOTE_ADDR="9.9.9.9"
         )
@@ -641,9 +646,12 @@ class TestBruteForce:
         """The pair key is the design; collapsing it to username-only is the bug."""
         for _ in range(6):
             client.post(LOGIN, {"username": "ada", "password": "x"}, REMOTE_ADDR="garbage")
-        assert client.post(
-            LOGIN, {"username": "ada", "password": "x"}, REMOTE_ADDR="garbage"
-        ).status_code == 200
+        assert (
+            client.post(
+                LOGIN, {"username": "ada", "password": "x"}, REMOTE_ADDR="garbage"
+            ).status_code
+            == 200
+        )
 
     def test_a_get_is_never_throttled(self, client):
         for _ in range(6):
@@ -789,9 +797,7 @@ class TestActorIdentity:
 class TestSurfaceDetection:
     def make(self, url_name, **params):
         request = RequestFactory().get("/", params)
-        request.resolver_match = type(
-            "M", (), {"url_name": url_name, "app_names": ["vantage"]}
-        )()
+        request.resolver_match = type("M", (), {"url_name": url_name, "app_names": ["vantage"]})()
         return request
 
     def test_autocomplete(self):
@@ -1068,7 +1074,9 @@ class TestFileFieldSvgScreening:
     """
 
     def _hostile(self, name="attachment.svg"):
-        body = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.cookie)</script></svg>'
+        body = (
+            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.cookie)</script></svg>'
+        )
         return upload(name, body)
 
     def test_a_hostile_svg_correctly_named_is_refused(self):
@@ -1134,9 +1142,7 @@ class TestUploadScreeningThroughTheStack:
     def test_an_oversized_upload_is_refused(self, boss):
         security.DEFAULTS["UPLOAD_MAX_BYTES"] = 16
         try:
-            response = boss.post(
-                reverse("vantage:settings"), {"logo": upload("logo.png", PNG)}
-            )
+            response = boss.post(reverse("vantage:settings"), {"logo": upload("logo.png", PNG)})
             assert response.status_code == 400
         finally:
             security.DEFAULTS["UPLOAD_MAX_BYTES"] = 10 * 1024 * 1024

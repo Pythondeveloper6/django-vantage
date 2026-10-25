@@ -181,41 +181,46 @@ what WCAG 2.1.4 asks for. See the gaps.
 
 ## 4. Known gaps
 
-Ordered by how much they matter. Nothing here is disputed; it is all simply not done.
+Ordered by how much they matter. Nothing here is disputed; what is not marked fixed is
+simply not done. **Vantage does not claim WCAG 2.2 AA conformance.** The three AA
+blockers the first audit named are fixed as of `0.1.0a1`, but the findings under
+[Found elsewhere in the package](#found-elsewhere-in-the-package-not-fixed-here) and
+the absence of any screen-reader pass both still stand between this package and that
+claim.
 
-### Blocking AA
+### The three AA blockers from the first audit
 
 1. **WCAG 2.1.4 Character Key Shortcuts — `/` is bound on `document`.**
-   `static/vantage/vantage.js:78` registers a `keydown` listener on `document`. Two of
-   the three permitted remedies now exist: it checks `activeElement.isContentEditable`
-   as well as `tagName` (`vantage.js:86`), and it honours the same `vantage-grid-shortcuts`
-   on/off preference the grid's cheat sheet exposes (`vantage.js:81`) — both were missing
-   in an earlier pass of this audit and are fixed as of this reading. What is still
-   missing is the third remedy, a **remappable keymap** — the key is always `/`, with no
-   way to choose another — and the tagName/`isContentEditable` check is still an
-   approximation of scoping rather than true scoping: a custom element or a shadow root
-   that owns its own keyboard handling is invisible to it. **Fix:** ship a remap option,
-   or scope the listener to a container. Related: the `e` shortcut in
-   `vantage-inline.js:405` is correctly table-scoped (it only fires when the row itself,
-   not a control inside it, has focus) but still does **not** check
-   `vantage-grid-shortcuts` — confirmed absent from that file — so switching shortcuts
-   off from the cheat sheet silences `/` but not `e`. `⌘K` requires a modifier and is
+   `static/vantage/vantage.js` registers a `keydown` listener on `document`. It skips
+   text inputs, textareas and `isContentEditable` targets, and the grid's "Keyboard
+   shortcuts" switch turns it off — which satisfies 2.1.4's first remedy ("turn off").
+   It did not always: the grid stores the switch as JSON `false` and this listener used
+   to compare against `"0"`, so switching shortcuts off silenced everything except `/`.
+   The `e` shortcut in `vantage-inline.js` (table-scoped: it fires only when the row
+   itself has focus) ignored the switch entirely. Both are fixed and pinned in a real
+   browser by `tests/test_browser.py::TestShortcutsPreference`. What remains is
+   hardening, not a failure: there is no **remappable keymap**, and the tag/
+   `isContentEditable` check approximates scoping — a custom element or shadow root
+   with its own keyboard handling is invisible to it. `⌘K` requires a modifier and is
    exempt throughout.
 
-2. **Links with no accessible name in table cells.** `list.html:286` and
-   `partials/widget.html:87` wrap the rendered cell value in `<a class="v-cell-link">`.
-   When the value is empty, `render.py`'s `EMPTY` constant emits the em-dash
-   placeholder, so the link's entire accessible name is `—`. A screen reader announces
-   "link, dash". **Fix:** fall back to the record's `__str__`, or add visually hidden
-   text.
+2. **Links with no accessible name in table cells — fixed.** The list grid, dashboard
+   widgets and a detail page's related blocks link one cell per row to its record.
+   When that cell's value was empty, `render.py`'s `EMPTY` em-dash was the link's
+   entire content and a screen reader announced "link, dash". All three now render
+   through `partials/cell_link.html`: the dash stays visible but is `aria-hidden`, and
+   visually hidden text — "Open *record*" — names the destination. Pinned by
+   `test_accessibility.py::TestEmptyCellLinks`.
 
-3. **The dark theme's `--border` and `--input` cannot be measured.** They are
-   `oklch(1 0 0 / 12%)` and `/ 16%` — translucent, so their real contrast depends on
-   what is behind them. Against `--background` in the light theme, `--input` computes
-   to **1.27:1**, far under the 3:1 that 1.4.11 requires of a control boundary. Form
-   fields are currently distinguished from the page mostly by their fill.
-   `test_accessibility.py::test_alpha_tokens_are_knowingly_excluded` pins this hole
-   open so it cannot be quietly forgotten.
+3. **Form field boundaries — fixed.** `--input`, the border of every text field,
+   select and drop zone, measured **1.27:1** against the light background and was
+   translucent (`oklch(1 0 0 / 16%)`, so unmeasurable) in the dark theme — far under
+   the 3:1 that 1.4.11 requires of a control boundary. Both themes now use an opaque
+   value that clears 3:1 against every surface a field sits on, `muted` and `secondary`
+   included, for every brand hue in the sweep:
+   `test_accessibility.py::TestTokenContrast::test_a_form_field_boundary_clears_three_to_one`.
+   The dark theme's `--border` is still translucent, but it is a decorative separator,
+   not a control boundary; `test_decorative_borders_are_knowingly_excluded` records it.
 
 Heading order on the list page was on this list in an earlier pass of this audit:
 `partials/list_prefs.html`'s `<h3>` section titles had no `<h2>` above them. They now

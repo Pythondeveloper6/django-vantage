@@ -375,9 +375,7 @@ def _clone_child(child, field_name: str, parent):
 def _recent(child_model, parent, field_name: str, limit: int):
     if not limit:
         return []
-    return list(
-        child_model._base_manager.filter(**{field_name: parent.pk}).order_by("-pk")[:limit]
-    )
+    return list(child_model._base_manager.filter(**{field_name: parent.pk}).order_by("-pk")[:limit])
 
 
 # ── bulk edit ───────────────────────────────────────────────────────────────
@@ -534,11 +532,7 @@ class BulkEditOutcome:
     def message(self) -> str:
         if self.refused:
             return self.refused
-        how = (
-            "in one query"
-            if self.strategy == "sql"
-            else f"one at a time, because {self.reason}"
-        )
+        how = "in one query" if self.strategy == "sql" else f"one at a time, because {self.reason}"
         noun = "record" if self.updated == 1 else "records"
         parts = [f"Updated {self.updated} {noun} {how}."]
         if self.skipped:
@@ -1109,4 +1103,3 @@ def editable_field_names(panel) -> list[str]:
     readonly = set(panel.readonly_fields or ())
     excluded = set(panel.exclude or ())
     return [n for n in names if n not in readonly and n not in excluded]
-
