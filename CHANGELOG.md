@@ -243,6 +243,12 @@ Read these before deploying an alpha anywhere it matters.
 - The FAQ, security and settings pages describe the CSP nonce and the security
   settings as the code implements them.
 - Every install, clone and advisory link names the real repository.
+- `LOGO_DARK` is rendered: swapped in for the dark theme on the sidebar and both
+  sign-in screens. It was resolved and editable, and shown nowhere.
+- With a `LOGO` set, the collapsed sidebar shows the acronym tile instead of nothing.
+- `THEME_TOGGLE = False` now also ignores a theme a user saved before it was turned off.
+- An unreadable `BRAND_COLOR` or `BRAND_RADIUS` is a `manage.py check` error
+  (`vantage.E004`, `vantage.E005`) instead of a failure on every page render.
 
 #### Earlier
 
