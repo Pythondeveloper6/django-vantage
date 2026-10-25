@@ -14,7 +14,7 @@ The project uses [uv](https://docs.astral.sh/uv/). Install it first — everythi
 follows from one command.
 
 ```bash
-git clone https://github.com/mahmoudahmed/django-vantage
+git clone https://github.com/Pythondeveloper6/django-vantage
 cd django-vantage
 uv sync --all-groups
 ```

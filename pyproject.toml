@@ -55,12 +55,12 @@ classifiers = [
 dependencies = ["Django>=5.2"]
 
 [project.urls]
-Homepage = "https://github.com/mahmoudahmed/django-vantage"
-Documentation = "https://github.com/mahmoudahmed/django-vantage#readme"
-Source = "https://github.com/mahmoudahmed/django-vantage"
-Issues = "https://github.com/mahmoudahmed/django-vantage/issues"
-Changelog = "https://github.com/mahmoudahmed/django-vantage/blob/main/CHANGELOG.md"
-Contributing = "https://github.com/mahmoudahmed/django-vantage/blob/main/CONTRIBUTING.md"
+Homepage = "https://github.com/Pythondeveloper6/django-vantage"
+Documentation = "https://github.com/Pythondeveloper6/django-vantage#readme"
+Source = "https://github.com/Pythondeveloper6/django-vantage"
+Issues = "https://github.com/Pythondeveloper6/django-vantage/issues"
+Changelog = "https://github.com/Pythondeveloper6/django-vantage/blob/main/CHANGELOG.md"
+Contributing = "https://github.com/Pythondeveloper6/django-vantage/blob/main/CONTRIBUTING.md"
 
 [dependency-groups]
 dev = [
