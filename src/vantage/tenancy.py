@@ -377,9 +377,7 @@ def get_resolver():
             from django.utils.module_loading import import_string
 
             candidate = import_string(path)
-            _resolver_cache = (
-                candidate() if isinstance(candidate, type) else candidate
-            )
+            _resolver_cache = candidate() if isinstance(candidate, type) else candidate
     return _resolver_cache
 
 
@@ -472,8 +470,7 @@ def require(request=None):
     tenant = current(request)
     if tenant is None:
         raise TenantRequired(
-            "This record cannot be saved because no tenant could be determined for "
-            "the request."
+            "This record cannot be saved because no tenant could be determined for the request."
         )
     return tenant
 
@@ -594,9 +591,13 @@ def _tenant_links(model: type[Model], tenant: type[Model]) -> list[str]:
 def _validate_path(model: type[Model], path: str, tenant: type[Model]) -> str | None:
     """``None`` if ``path`` walks from ``model`` to the tenant, else why it does not."""
     if path == "pk":
-        return None if model is tenant or issubclass(model, tenant) else (
-            f"the path 'pk' only scopes the tenant model itself, and "
-            f"{model._meta.label} is not {tenant._meta.label}"
+        return (
+            None
+            if model is tenant or issubclass(model, tenant)
+            else (
+                f"the path 'pk' only scopes the tenant model itself, and "
+                f"{model._meta.label} is not {tenant._meta.label}"
+            )
         )
     current_model = model
     for segment in path.split("__"):
@@ -611,10 +612,7 @@ def _validate_path(model: type[Model], path: str, tenant: type[Model]) -> str | 
             return f"{current_model._meta.label}.{segment} is not a relation (in {path!r})"
         current_model = related
     if current_model is not tenant and not issubclass(current_model, tenant):
-        return (
-            f"the path {path!r} ends at {current_model._meta.label}, "
-            f"not at {tenant._meta.label}"
-        )
+        return f"the path {path!r} ends at {current_model._meta.label}, not at {tenant._meta.label}"
     return None
 
 
@@ -788,8 +786,7 @@ def enforce(request, obj):
         if _unscoped_mode() == "allow":
             return obj
         raise TenantRequired(
-            f"{model._meta.label} cannot be written: it is not tenant-scoped "
-            f"({scope.reason})."
+            f"{model._meta.label} cannot be written: it is not tenant-scoped ({scope.reason})."
         )
 
     tenant = current(request)
@@ -826,8 +823,7 @@ def enforce(request, obj):
             return obj
         if str(held) != str(tenant_pk):
             raise TenantMismatch(
-                f"This {model._meta.verbose_name} may not be attributed to another "
-                f"tenant."
+                f"This {model._meta.verbose_name} may not be attributed to another tenant."
             )
         return obj
 
@@ -840,9 +836,7 @@ def enforce(request, obj):
             f"This {model._meta.verbose_name} has no {field.name}, so it cannot be "
             f"attributed to a tenant."
         )
-    owned = field.related_model._default_manager.filter(
-        pk=parent_pk, **{rest: tenant}
-    ).exists()
+    owned = field.related_model._default_manager.filter(pk=parent_pk, **{rest: tenant}).exists()
     if not owned:
         raise TenantMismatch(
             f"The {field.name} chosen for this {model._meta.verbose_name} belongs to "
@@ -1127,8 +1121,7 @@ def _check_panels(app_configs, Error, Warning):
                 )
                 if deny
                 else Warning(
-                    message
-                    + " VANTAGE['TENANT_UNSCOPED'] = 'allow', so every tenant sees "
+                    message + " VANTAGE['TENANT_UNSCOPED'] = 'allow', so every tenant sees "
                     "all of its rows.",
                     hint=_suggestion_hint(model),
                     obj=model,

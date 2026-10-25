@@ -374,9 +374,7 @@ class StatCard(QuerysetWidget):
         )
 
     def render(self, request) -> WidgetResult:
-        panel = compute_panel(
-            self.get_queryset(request), stats=[self.stat], budget=UNBUDGETED
-        )
+        panel = compute_panel(self.get_queryset(request), stats=[self.stat], budget=UNBUDGETED)
         return self.card(stat=panel["stats"][0])
 
 
@@ -391,9 +389,7 @@ class ChartCard(QuerysetWidget):
         self.chart = chart
 
     def render(self, request) -> WidgetResult:
-        panel = compute_panel(
-            self.get_queryset(request), charts=[self.chart], budget=UNBUDGETED
-        )
+        panel = compute_panel(self.get_queryset(request), charts=[self.chart], budget=UNBUDGETED)
         return self.card(chart=panel["charts"][0])
 
 
@@ -662,9 +658,7 @@ class DefaultDashboard(Dashboard):
                     _("New %(model)s") % {"model": panel.get_label_plural().lower()},
                     panel.get_queryset(request),
                     model=panel.model,
-                    chart=Chart.timeseries(
-                        panel.get_label_plural(), date=field, value=Count("pk")
-                    ),
+                    chart=Chart.timeseries(panel.get_label_plural(), date=field, value=Count("pk")),
                 )
             )
 
@@ -714,9 +708,7 @@ def get_dashboard(site=None, request=None) -> Dashboard:
     bundle = _stored_bundle(site, request)
     if bundle is None:
         return code_dashboard(site)
-    return ArrangedDashboard(
-        code_dashboard(site), bundle.cards, site, known_keys=bundle.known_keys
-    )
+    return ArrangedDashboard(code_dashboard(site), bundle.cards, site, known_keys=bundle.known_keys)
 
 
 def dashboard_context(site, request, permissions=None) -> dict[str, Any]:
@@ -756,9 +748,7 @@ def dashboard_context(site, request, permissions=None) -> dict[str, Any]:
         "arranging": editing,
         "arranged": stored,
         "arrange_url": _arrange_url(request, on=not editing),
-        "editor": editor_context(site, request, arrangement, stored=stored)
-        if editing
-        else None,
+        "editor": editor_context(site, request, arrangement, stored=stored) if editing else None,
     }
 
 
@@ -788,7 +778,6 @@ def creation_field(model) -> str | None:
     if timeline and not timeline.nullable:
         return timeline.field
     return None
-
 
 
 def _call(func, request):
@@ -1273,8 +1262,9 @@ class ArrangedDashboard(Dashboard):
         for key, widget in declared.items():
             if key in used or key in self.known_keys:
                 continue
-            items.append(PlanItem(entry={"card": DECLARED, "key": key, "show": True},
-                                  widget=widget))
+            items.append(
+                PlanItem(entry={"card": DECLARED, "key": key, "show": True}, widget=widget)
+            )
         return items
 
     def arrange(self, request, permissions=None) -> Arrangement:
@@ -1306,9 +1296,7 @@ class ArrangedDashboard(Dashboard):
                 )
                 continue
             result = _render_safely(item.widget, request)
-            cards.append(
-                replace(result, index=index, width=entry.get("width") or result.width)
-            )
+            cards.append(replace(result, index=index, width=entry.get("width") or result.width))
         return Arrangement(cards=cards, hidden=hidden, unseen=unseen)
 
     def render(self, request, permissions=None) -> list[WidgetResult]:
@@ -1484,8 +1472,11 @@ def posted_layout(site, request, data) -> list[dict[str, Any]]:
     control it came from, and anything else is dropped without comment.
     """
     entries = plan_entries(site, request)
-    kept = {index for index in (_as_int(raw) for raw in _getlist(data, "keep"))
-            if index is not None and 0 <= index < len(entries)}
+    kept = {
+        index
+        for index in (_as_int(raw) for raw in _getlist(data, "keep"))
+        if index is not None and 0 <= index < len(entries)
+    }
 
     rows: list[tuple[int, int, dict[str, Any]]] = []
     for index, entry in enumerate(entries):
@@ -1709,8 +1700,7 @@ def _paths(panel, key: str, names: tuple[str, ...]) -> list[dict[str, str]]:
     from vantage import listprefs
 
     return [
-        {"value": f"{key}:{name}", "label": listprefs._label(panel.model, name)}
-        for name in names
+        {"value": f"{key}:{name}", "label": listprefs._label(panel.model, name)} for name in names
     ]
 
 

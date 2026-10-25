@@ -304,9 +304,7 @@ _BEFORE_ATTR = r"""(?:^|[\s}%"'])"""
 
 _TAG_RE = re.compile(r"<\s*(script|style)\b([^>]*)>", re.IGNORECASE)
 _STYLE_ATTR_RE = re.compile(rf"""{_BEFORE_ATTR}style\s*=\s*["']""", re.IGNORECASE)
-_EVENT_ATTR_RE = re.compile(
-    rf"""{_BEFORE_ATTR}on(?:{_EVENT_ATTRS})\s*=\s*["']""", re.IGNORECASE
-)
+_EVENT_ATTR_RE = re.compile(rf"""{_BEFORE_ATTR}on(?:{_EVENT_ATTRS})\s*=\s*["']""", re.IGNORECASE)
 _SRC_RE = re.compile(r"\bsrc\s*=")
 #: A literal ``nonce=`` or the context variable the templates use to emit one.
 _NONCE_RE = re.compile(r"\bnonce\s*=|csp_nonce_attr")
@@ -349,9 +347,7 @@ class InlineFinding:
 #: ``<script>`` here is external on purpose" would otherwise be reported as an inline
 #: script — a false positive in the one place where a false positive is fatal, because
 #: the reader learns the check is wrong and stops reading it.
-_COMMENT_RE = re.compile(
-    r"{%\s*comment\s*%}.*?{%\s*endcomment\s*%}|{#.*?#}|<!--.*?-->", re.DOTALL
-)
+_COMMENT_RE = re.compile(r"{%\s*comment\s*%}.*?{%\s*endcomment\s*%}|{#.*?#}|<!--.*?-->", re.DOTALL)
 
 
 def _blank_comments(source: str) -> str:
@@ -375,15 +371,11 @@ def scan_inline_html(source: str, template: str = "") -> list[InlineFinding]:
                 continue
             if kind == "script" and _SRC_RE.search(attrs):
                 continue
-            findings.append(
-                InlineFinding(template, number, kind, match.group(0).strip()[:120])
-            )
+            findings.append(InlineFinding(template, number, kind, match.group(0).strip()[:120]))
         for pattern, kind in ((_STYLE_ATTR_RE, "style-attr"), (_EVENT_ATTR_RE, "event-attr")):
             match = pattern.search(line)
             if match:
-                findings.append(
-                    InlineFinding(template, number, kind, line.strip()[:120])
-                )
+                findings.append(InlineFinding(template, number, kind, line.strip()[:120]))
     return findings
 
 
@@ -630,9 +622,7 @@ class LoginThrottle:
         separator in a raw key lets ``("a:b", "c")`` and ``("a", "b:c")`` collide,
         which here would mean one user's failures counting against another's.
         """
-        digest = hashlib.sha256(
-            f"{username}\x00{address}".encode(errors="replace")
-        ).hexdigest()
+        digest = hashlib.sha256(f"{username}\x00{address}".encode(errors="replace")).hexdigest()
         return f"vantage-login-throttle:{digest[:32]}"
 
     # ── reading ─────────────────────────────────────────────────────────────
@@ -657,9 +647,7 @@ class LoginThrottle:
             logger.exception("Vantage login throttle could not read the cache; allowing.")
             return ThrottleState(failures=0, limit=self.limit, retry_after=0)
 
-        return ThrottleState(
-            failures=int(failures), limit=self.limit, retry_after=self.window
-        )
+        return ThrottleState(failures=int(failures), limit=self.limit, retry_after=self.window)
 
     def is_blocked(self, username: str, address: str) -> bool:
         return self.state(username, address).blocked
@@ -678,9 +666,7 @@ class LoginThrottle:
             logger.exception("Vantage login throttle could not write to the cache.")
             return ThrottleState(failures=0, limit=self.limit, retry_after=0)
 
-        return ThrottleState(
-            failures=int(failures), limit=self.limit, retry_after=self.window
-        )
+        return ThrottleState(failures=int(failures), limit=self.limit, retry_after=self.window)
 
     def clear(self, username: str, address: str) -> None:
         """Forget this pair's failures. Called on a successful sign-in.
@@ -741,9 +727,7 @@ class RateLimit:
         """One key per (surface, actor). Hashed, for the reasons on
         :meth:`LoginThrottle.cache_key` — an actor string can be an email address, and
         an email address is neither memcached-safe nor something to write into a key."""
-        digest = hashlib.sha256(
-            f"{self.surface}\x00{actor}".encode(errors="replace")
-        ).hexdigest()
+        digest = hashlib.sha256(f"{self.surface}\x00{actor}".encode(errors="replace")).hexdigest()
         return f"vantage-rate:{self.surface}:{digest[:24]}"
 
     def spend(self, actor: str) -> ThrottleState:
@@ -765,9 +749,7 @@ class RateLimit:
             # outage. It is a budget, not an authorisation.
             logger.exception("Vantage rate limit could not reach the cache; allowing.")
             return ThrottleState(failures=0, limit=self.limit, retry_after=0)
-        return ThrottleState(
-            failures=max(0, count - 1), limit=self.limit, retry_after=self.window
-        )
+        return ThrottleState(failures=max(0, count - 1), limit=self.limit, retry_after=self.window)
 
     def peek(self, actor: str) -> ThrottleState:
         """The state without spending anything. For tests and for introspection."""
@@ -778,9 +760,7 @@ class RateLimit:
         except Exception:  # pragma: no cover - a cache that cannot read
             logger.exception("Vantage rate limit could not read the cache.")
             return ThrottleState(failures=0, limit=self.limit, retry_after=0)
-        return ThrottleState(
-            failures=int(count), limit=self.limit, retry_after=self.window
-        )
+        return ThrottleState(failures=int(count), limit=self.limit, retry_after=self.window)
 
 
 def rate_limit_for(surface: str) -> RateLimit | None:
@@ -896,9 +876,7 @@ SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str], ...] = (
     ),
     (re.compile(rb"javascript\s*:", re.IGNORECASE), "a javascript: URL"),
     (
-        re.compile(
-            rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE
-        ),
+        re.compile(rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE),
         "an embedded document",
     ),
 )

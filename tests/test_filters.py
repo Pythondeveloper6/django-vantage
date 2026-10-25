@@ -325,9 +325,7 @@ class TestApplying:
         assert titles(filt.queryset(Post.objects.all())) == ["Published one"]
 
     def test_numeric_range_filter(self, library):
-        filt = build_filter(
-            Post, "view_count", {"view_count__gte": "5", "view_count__lte": "50"}
-        )
+        filt = build_filter(Post, "view_count", {"view_count__gte": "5", "view_count__lte": "50"})
         assert titles(filt.queryset(Post.objects.all())) == ["Draft one", "Review one"]
 
     def test_a_multivalued_filter_does_not_duplicate_rows(self, library):
@@ -416,9 +414,9 @@ class TestFacetCounts:
         self, library, django_assert_num_queries
     ):
         panel = panel_for(Post, list_filter=["status", "category"])
-        built = build_filters(panel, request_for("status=draft&category=" + str(
-            library["category"].pk
-        )))
+        built = build_filters(
+            panel, request_for("status=draft&category=" + str(library["category"].pk))
+        )
         with django_assert_num_queries(1):  # the category option load, then nothing
             apply_facet_counts(built, Post.objects.all(), budget=1)
         assert all(choice.count is None for f in built for choice in f.choices())
@@ -447,9 +445,7 @@ class TestRelatedOptionCap:
                 title=f"P{index}",
                 slug=f"p{index}",
                 body="x",
-                author=Author.objects.create(
-                    name=f"A{index}", email=f"a{index}@example.com"
-                ),
+                author=Author.objects.create(name=f"A{index}", email=f"a{index}@example.com"),
             )
         filt = build_filter(Post, "author")
         assert filt.facet_pairs() is None

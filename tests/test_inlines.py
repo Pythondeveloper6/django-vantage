@@ -745,8 +745,12 @@ class TestMaxNumExtraCanDelete:
 
     def test_a_hand_crafted_post_over_max_num_is_refused(self, client, rf, order, part):
         staff = staff_client(
-            client, (ZInlineOrder, "view"), (ZInlineOrder, "change"),
-            (ZInlineItem, "view"), (ZInlineItem, "add"), (ZInlineItem, "change"),
+            client,
+            (ZInlineOrder, "view"),
+            (ZInlineOrder, "change"),
+            (ZInlineItem, "view"),
+            (ZInlineItem, "add"),
+            (ZInlineItem, "change"),
         )
         user = User.objects.get(username="staffer")
 

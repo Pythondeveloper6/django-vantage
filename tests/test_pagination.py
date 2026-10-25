@@ -366,9 +366,7 @@ class TestCursors:
 
     def test_the_token_is_url_safe(self, db):
         token = encode_cursor([timezone.now(), 42])
-        assert set(token) <= set(
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-        )
+        assert set(token) <= set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
 
     @pytest.mark.parametrize("token", ["", "!!!!", "eyJ2IjogW10sICJkIjogIm5leHQifQ"])
     def test_a_malformed_cursor_is_refused_not_crashed_on(self, db, token):
@@ -472,7 +470,7 @@ class TestKeysetPaginator:
         assert [row.pk for row in back] == [row.pk for row in first]
 
     def test_a_page_reads_one_row_beyond_itself_and_no_more(self, large):
-        """"Is there a next page?" costs one extra row, not a count."""
+        """ "Is there a next page?" costs one extra row, not a count."""
         keyset = KeysetPaginator(LedgerEntry.objects.order_by("pk"), 50)
         with CaptureQueriesContext(_connection()) as captured:
             keyset.page()

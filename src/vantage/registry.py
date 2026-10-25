@@ -68,9 +68,7 @@ class Registry:
         """Register ``model``, optionally with an explicit panel class."""
         _check_registerable(model)
         if model in self._panels:
-            raise AlreadyRegistered(
-                f"{model._meta.label} is already registered with Vantage."
-            )
+            raise AlreadyRegistered(f"{model._meta.label} is already registered with Vantage.")
         panel = (panel_class or ModelPanel)(model, self.site)
         self._panels[model] = panel
         return panel
@@ -98,9 +96,7 @@ class Registry:
         try:
             return self._panels[model]
         except KeyError:
-            raise NotRegistered(
-                f"{model._meta.label} is not registered with Vantage."
-            ) from None
+            raise NotRegistered(f"{model._meta.label} is not registered with Vantage.") from None
 
     def panels(self) -> Iterator[ModelPanel]:
         """Every panel, in a stable order (app label, then model name)."""
@@ -161,6 +157,4 @@ def _check_registerable(model) -> None:
     if not (isinstance(model, type) and issubclass(model, models.Model)):
         raise TypeError(f"{model!r} is not a Django model.")
     if model._meta.abstract:
-        raise TypeError(
-            f"{model._meta.label} is abstract and cannot be registered with Vantage."
-        )
+        raise TypeError(f"{model._meta.label} is abstract and cannot be registered with Vantage.")

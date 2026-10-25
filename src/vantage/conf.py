@@ -165,9 +165,7 @@ class VantageSettings:
 
         user = getattr(django_settings, "VANTAGE", None) or {}
         if not isinstance(user, dict):
-            raise ImproperlyConfigured(
-                f"VANTAGE must be a dict, got {type(user).__name__}."
-            )
+            raise ImproperlyConfigured(f"VANTAGE must be a dict, got {type(user).__name__}.")
 
         unknown = set(user) - set(DEFAULTS)
         if unknown:

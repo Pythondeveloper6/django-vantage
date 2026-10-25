@@ -684,18 +684,12 @@ def _bind_delegate(name: str):
 
 
 def _unmapped_attrs(admin_obj) -> list[str]:
-    return [
-        f"{attr} ({why})"
-        for attr, why in UNMAPPED_ATTRS.items()
-        if _declared(admin_obj, attr)
-    ]
+    return [f"{attr} ({why})" for attr, why in UNMAPPED_ATTRS.items() if _declared(admin_obj, attr)]
 
 
 def _unmapped_methods(admin_obj) -> list[str]:
     found = [
-        f"{name}() ({why})"
-        for name, why in UNMAPPED_METHODS.items()
-        if _overrides(admin_obj, name)
+        f"{name}() ({why})" for name, why in UNMAPPED_METHODS.items() if _overrides(admin_obj, name)
     ]
     if _has_media(admin_obj):
         found.append("Media (extra CSS/JS — add it with VANTAGE['CUSTOM_CSS'])")

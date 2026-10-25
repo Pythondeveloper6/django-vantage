@@ -86,9 +86,7 @@ class TestListEditable:
         assert ids(panel(list_editable=["nope"]).check()) == ["vantage.E015"]
 
     def test_a_column_cannot_be_both_editable_and_the_link(self):
-        errors = panel(
-            list_display=["title"], list_link="title", list_editable=["title"]
-        ).check()
+        errors = panel(list_display=["title"], list_link="title", list_editable=["title"]).check()
         assert ids(errors) == ["vantage.E016"]
 
 

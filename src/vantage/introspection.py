@@ -172,9 +172,10 @@ class PathHop:
         field = self.field
         if isinstance(field, GenericForeignKey):
             return False
-        return bool(
-            getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False)
-        ) and not self.is_multivalued
+        return (
+            bool(getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False))
+            and not self.is_multivalued
+        )
 
 
 def resolve_path(model: type[Model], path: str) -> list[PathHop]:

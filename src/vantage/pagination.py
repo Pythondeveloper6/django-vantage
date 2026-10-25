@@ -268,9 +268,7 @@ def is_totally_ordered(queryset: QuerySet) -> bool:
         return True
     if any(term.field.unique and not term.field.null for term in terms):
         return True
-    return any(
-        names.issuperset(constraint.fields) for constraint in opts.total_unique_constraints
-    )
+    return any(names.issuperset(constraint.fields) for constraint in opts.total_unique_constraints)
 
 
 def with_total_ordering(queryset: QuerySet) -> QuerySet:
@@ -292,9 +290,7 @@ def with_total_ordering(queryset: QuerySet) -> QuerySet:
     except KeysetUnsupported:
         terms = []
     descending = terms[-1].descending if terms else False
-    existing = tuple(queryset.query.order_by) or tuple(
-        queryset.query.get_meta().ordering or ()
-    )
+    existing = tuple(queryset.query.order_by) or tuple(queryset.query.get_meta().ordering or ())
     return queryset.order_by(*existing, "-pk" if descending else "pk")
 
 
@@ -491,9 +487,7 @@ class KeysetPaginator:
             has_previous=has_previous,
             next_cursor=self.cursor_for(rows[-1]) if rows and has_next else None,
             previous_cursor=(
-                encode_cursor(
-                    [getattr(rows[0], term.name) for term in self.terms], backwards=True
-                )
+                encode_cursor([getattr(rows[0], term.name) for term in self.terms], backwards=True)
                 if rows and has_previous
                 else None
             ),

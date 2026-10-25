@@ -73,8 +73,7 @@ def check_vantage_settings(app_configs, **kwargs) -> list[Error]:
         if key in user and user[key] not in allowed:
             errors.append(
                 Error(
-                    f"VANTAGE[{key!r}] must be one of {', '.join(allowed)}; "
-                    f"got {user[key]!r}.",
+                    f"VANTAGE[{key!r}] must be one of {', '.join(allowed)}; got {user[key]!r}.",
                     id="vantage.E003",
                 )
             )
@@ -286,9 +285,7 @@ def check_deploy_cache(app_configs, **kwargs) -> list[Warning]:
 
     if "locmem" in backend.lower() and (throttled or limited):
         counters = " and ".join(
-            name
-            for name, on in (("login throttle", throttled), ("rate limits", limited))
-            if on
+            name for name, on in (("login throttle", throttled), ("rate limits", limited)) if on
         )
         return [
             Warning(
@@ -411,8 +408,7 @@ def check_deploy_import_limit(app_configs, **kwargs) -> list[Warning]:
     if value in (0, None, False):
         return [
             Warning(
-                f"VANTAGE['IMPORT_MAX_BYTES'] is {value!r}, which does not disable "
-                "imports.",
+                f"VANTAGE['IMPORT_MAX_BYTES'] is {value!r}, which does not disable imports.",
                 hint=(
                     "A falsy value is read as 'unset' and falls back to the 5 MB "
                     "default, so imports are still enabled at that size. To refuse "
@@ -551,9 +547,7 @@ def check_deploy_csp_inline(app_configs, **kwargs) -> list[Warning]:
     # edit one policy line, and a list of seven template paths does not tell them which.
     needed: dict[str, list[str]] = {}
     for finding in findings:
-        needed.setdefault(finding.directive, []).append(
-            f"{finding.template}:{finding.line}"
-        )
+        needed.setdefault(finding.directive, []).append(f"{finding.template}:{finding.line}")
 
     unsatisfied = {
         directive: sites
@@ -575,7 +569,7 @@ def check_deploy_csp_inline(app_configs, **kwargs) -> list[Warning]:
             + ".",
             hint=(
                 "A nonce cannot authorise an attribute, only an element. Add "
-                "\"style-src-attr\": [\"'unsafe-inline'\"] (and script-src-attr if it "
+                '"style-src-attr": ["\'unsafe-inline\'"] (and script-src-attr if it '
                 "is listed above) to the policy for the panel's URLs, or accept that "
                 "tree indentation and progress bars will not render. See "
                 "docs/security.md for a policy that works."

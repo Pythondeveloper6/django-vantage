@@ -169,8 +169,15 @@ class Chart:
         The bucket is chosen from the span of the data unless pinned, so a chart of one
         week and a chart of five years are both readable without configuration.
         """
-        return cls(label=label, mode="timeseries", value=value, kind=kind, date=date,
-                   bucket=bucket, key=key)
+        return cls(
+            label=label,
+            mode="timeseries",
+            value=value,
+            kind=kind,
+            date=date,
+            bucket=bucket,
+            key=key,
+        )
 
     @classmethod
     def breakdown(
@@ -185,8 +192,16 @@ class Chart:
         key: str | None = None,
     ) -> Chart:
         """Aggregate grouped by a field, capped at ``segments`` plus an "Other" bucket."""
-        return cls(label=label, mode="breakdown", value=value, kind=kind, group_by=group_by,
-                   segments=segments, allow_high_cardinality=allow_high_cardinality, key=key)
+        return cls(
+            label=label,
+            mode="breakdown",
+            value=value,
+            kind=kind,
+            group_by=group_by,
+            segments=segments,
+            allow_high_cardinality=allow_high_cardinality,
+            key=key,
+        )
 
 
 @dataclass(frozen=True)
@@ -387,8 +402,9 @@ def _duration_display(seconds: float) -> str:
     return f"{sign}{secs}s"
 
 
-def format_value(value: Any, fmt: str = "number", *, currency: str = DEFAULT_CURRENCY,
-                 signed: bool = False) -> str:
+def format_value(
+    value: Any, fmt: str = "number", *, currency: str = DEFAULT_CURRENCY, signed: bool = False
+) -> str:
     """Render a raw aggregate as the string a card shows.
 
     ``signed`` is for deltas, where a leading ``+`` carries meaning.
@@ -659,9 +675,7 @@ def _compute_group(
             previous_aggregates[f"vantage_prev_{index}"] = _with_window(stat.value, window_q)
         if previous_aggregates:
             previous_row = source.order_by().aggregate(**previous_aggregates)
-            previous = {
-                int(key.rsplit("_", 1)[1]): value for key, value in previous_row.items()
-            }
+            previous = {int(key.rsplit("_", 1)[1]): value for key, value in previous_row.items()}
 
     results: dict[str, StatResult] = {}
     for index, stat in enumerate(group):
@@ -688,8 +702,14 @@ def _compute_callable(queryset: QuerySet, baseline: QuerySet | None, stat: Stat)
         value = _number(stat.value(queryset))
     except Exception as exc:  # a custom manager method is arbitrary user code
         return StatResult(
-            key=stat.key, label=stat.label, value=0, display="—", format=stat.format,
-            tone=stat.tone, description=stat.description, error=str(exc),
+            key=stat.key,
+            label=stat.label,
+            value=0,
+            display="—",
+            format=stat.format,
+            tone=stat.tone,
+            description=stat.description,
+            error=str(exc),
         )
 
     trend = None
@@ -840,7 +860,10 @@ def _compute_timeseries(
 
     if not points:
         return ChartResult(
-            key=chart.key, label=chart.label, kind=chart.kind, bucket=bucket,
+            key=chart.key,
+            label=chart.label,
+            kind=chart.kind,
+            bucket=bucket,
             series=[{"name": chart.label, "data": []}],
         )
 
@@ -871,7 +894,9 @@ def _compute_breakdown(queryset: QuerySet, chart: Chart) -> ChartResult:
     if terminal is not None and not chart.allow_high_cardinality:
         if getattr(terminal, "primary_key", False) or getattr(terminal, "unique", False):
             return ChartResult(
-                key=chart.key, label=chart.label, kind=chart.kind,
+                key=chart.key,
+                label=chart.label,
+                kind=chart.kind,
                 error=f"{chart.group_by!r} is unique: one segment per row is not a chart.",
             )
 
@@ -885,7 +910,9 @@ def _compute_breakdown(queryset: QuerySet, chart: Chart) -> ChartResult:
     )
     if len(rows) > MAX_GROUPS_SCANNED and not chart.allow_high_cardinality:
         return ChartResult(
-            key=chart.key, label=chart.label, kind=chart.kind,
+            key=chart.key,
+            label=chart.label,
+            kind=chart.kind,
             error=(
                 f"{chart.group_by!r} has more than {MAX_GROUPS_SCANNED} distinct values; "
                 f"a breakdown of it would be unreadable."

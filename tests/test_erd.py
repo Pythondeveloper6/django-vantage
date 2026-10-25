@@ -42,7 +42,8 @@ class TestGraph:
 
     def test_an_edge_carries_the_field_name(self):
         edge = next(
-            e for e in build_graph(site).edges
+            e
+            for e in build_graph(site).edges
             if e.source == "testapp.post" and e.target == "testapp.author"
         )
         assert edge.label == "author"
