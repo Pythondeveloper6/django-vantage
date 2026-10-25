@@ -733,7 +733,8 @@ class TestShortcutsPreference:
 # ── the dark-theme logo ─────────────────────────────────────────────────────────
 
 
-#: Two distinguishable 1×1 images, inline so the test needs no static files or network.
+#: One 1x1 image under two URL fragments, so the two logos are told apart by `src` alone
+#: and the test needs no static files or network.
 _PX = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
 _LIGHT, _DARK = _PX + "#light", _PX + "#dark"
 
