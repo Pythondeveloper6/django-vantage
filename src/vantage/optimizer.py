@@ -20,9 +20,7 @@ from vantage.introspection import resolve_path
 __all__ = ["plan_related"]
 
 
-def plan_related(
-    model: type[Model], paths: list[str] | set[str]
-) -> tuple[set[str], set[str]]:
+def plan_related(model: type[Model], paths: list[str] | set[str]) -> tuple[set[str], set[str]]:
     """Return ``(select_related, prefetch_related)`` covering ``paths``.
 
     Paths that name a plain local field contribute nothing — there is no relation to

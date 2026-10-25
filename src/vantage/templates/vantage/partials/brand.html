@@ -1,0 +1,17 @@
+{% load vantage %}{% comment %}
+The site's mark: the logo when there is one, otherwise the acronym tile and the title.
+Shared by the sidebar and the two sign-in screens so the three cannot drift.
+
+Context: ``settings`` and ``mark_class`` (the tile's class on this surface).
+
+``LOGO_DARK`` is a second image, swapped in by CSS (vantage.css, "brand") under the
+same two conditions the theme tokens use — an explicit ``data-theme="dark"``, or the
+device preference when no theme is pinned. CSS rather than ``<picture>``, because a
+``<source media="(prefers-color-scheme: dark)">`` follows the device and would show
+the dark logo on a page the user has switched to light. The hidden one is
+``display: none``, so assistive technology reads exactly one name.
+
+With a logo, the acronym tile is still rendered but shown only in the collapsed
+sidebar, where a wide logo has no room and the strip would otherwise be blank.
+{% endcomment %}{% if settings.LOGO %}{% with dark=settings.LOGO_DARK %}<img src="{% asset settings.LOGO %}" alt="{{ settings.SITE_TITLE }}"{% if dark and dark != settings.LOGO %} data-logo-light{% endif %}>{% if dark and dark != settings.LOGO %}<img src="{% asset dark %}" alt="{{ settings.SITE_TITLE }}" data-logo-dark>{% endif %}{% endwith %}<span class="{{ mark_class }}" data-brand-collapsed aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>{% else %}<span class="{{ mark_class }}" aria-hidden="true">{{ settings.SITE_ACRONYM }}</span>
+<span>{{ settings.SITE_TITLE }}</span>{% endif %}

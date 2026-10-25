@@ -128,8 +128,7 @@ def sample_data(db):
     # row-actions cells — enough for the roving-tabindex and column-pinning tests to
     # have something to page through and something to overflow.
     orders = [
-        Order.objects.create(number=f"ORD-{i:04d}", customer=author, total=10 + i)
-        for i in range(6)
+        Order.objects.create(number=f"ORD-{i:04d}", customer=author, total=10 + i) for i in range(6)
     ]
     return SimpleNamespace(
         staff=staff, author=author, category=category, tags=tags, post=post, orders=orders
@@ -294,9 +293,10 @@ class TestFocusAfterFailedSave:
         )
         assert active == {"id": "v-form-summary", "tag": "DIV"}, active
         # And the summary is the thing it claims to be, not a coincidentally-named div.
-        assert pg.evaluate(
-            "() => document.getElementById('v-form-summary').getAttribute('role')"
-        ) == "alert"
+        assert (
+            pg.evaluate("() => document.getElementById('v-form-summary').getAttribute('role')")
+            == "alert"
+        )
 
         context.close()
 
@@ -383,9 +383,9 @@ class TestRelationCombobox:
         )
 
         combo_input.press("ArrowDown")
-        assert combo_input.get_attribute(
-            "aria-activedescendant"
-        ), "arrow key did not highlight a row"
+        assert combo_input.get_attribute("aria-activedescendant"), (
+            "arrow key did not highlight a row"
+        )
         combo_input.press("Enter")
 
         chips = root.locator(".v-combo-chip").all_inner_texts()
@@ -519,9 +519,7 @@ class TestGridRovingTabindex:
         assert still_on_handle, "ArrowRight moved focus off the resize handle"
 
         pg.keyboard.press("Escape")
-        back_on_a_row = pg.evaluate(
-            "() => document.activeElement.hasAttribute('data-grid-row')"
-        )
+        back_on_a_row = pg.evaluate("() => document.activeElement.hasAttribute('data-grid-row')")
         assert back_on_a_row, "Escape did not return focus to the row"
         assert self._tabindexes(pg).count("0") == 1
 
@@ -653,4 +651,137 @@ class TestColumnPinningUnderRTL:
             "the last column never scrolled into view; nothing actually scrolled"
         )
 
+        context.close()
+
+
+# ── the shortcuts preference silences every character shortcut ──────────────────
+
+
+class TestShortcutsPreference:
+    """WCAG 2.1.4: an unmodified character shortcut must be switchable off. The
+    grid's "Keyboard shortcuts" checkbox is that switch, and it has to reach the
+    two shortcuts that live outside vantage-grid.js — ``/`` in vantage.js and ``e``
+    in vantage-inline.js. Both once ignored it: ``/`` compared the stored value
+    against ``"0"`` while the grid writes JSON ``false``, and ``e`` never looked.
+
+    The switch is flipped by clicking the real checkbox rather than seeding
+    localStorage, so the test cannot agree with itself about an encoding the grid
+    does not actually use.
+    """
+
+    @staticmethod
+    def _switch_off(pg):
+        pg.evaluate(
+            "() => { const box = document.querySelector('[data-shortcuts-toggle]');"
+            " if (box.checked) box.click(); }"
+        )
+        pg.reload()
+        pg.wait_for_load_state("networkidle")
+
+    @staticmethod
+    def _focus_first_row(pg):
+        pg.evaluate("() => document.querySelector('[data-grid-row]:not([data-grid-head])').focus()")
+
+    def test_slash_focuses_search_until_switched_off(
+        self, sample_data, staff_cookie, pw, live_server
+    ):
+        context = pw.new_context()
+        context.add_cookies([{**staff_cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("vantage:testapp-order-list"))
+        pg.wait_for_load_state("networkidle")
+        is_search = "() => document.activeElement.type === 'search'"
+
+        self._focus_first_row(pg)
+        pg.keyboard.press("/")
+        assert pg.evaluate(is_search), "the shortcut should work while switched on"
+
+        self._switch_off(pg)
+        self._focus_first_row(pg)
+        pg.keyboard.press("/")
+        assert not pg.evaluate(is_search), "'/' still fired with shortcuts switched off"
+        context.close()
+
+    def test_e_enters_cell_mode_until_switched_off(
+        self, sample_data, staff_cookie, pw, live_server, monkeypatch
+    ):
+        from tests.testapp.models import Post
+
+        monkeypatch.setattr(site.get_panel(Post), "list_editable", ["status"])
+        context = pw.new_context()
+        context.add_cookies([{**staff_cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("vantage:testapp-post-list"))
+        pg.wait_for_load_state("networkidle")
+        in_a_cell = "() => !!document.activeElement.closest('td')"
+
+        self._focus_first_row(pg)
+        pg.keyboard.press("e")
+        assert pg.evaluate(in_a_cell), "the shortcut should work while switched on"
+
+        self._switch_off(pg)
+        self._focus_first_row(pg)
+        pg.keyboard.press("e")
+        assert not pg.evaluate(in_a_cell), "'e' still fired with shortcuts switched off"
+        context.close()
+
+
+# ── the dark-theme logo ─────────────────────────────────────────────────────────
+
+
+#: One 1x1 image under two URL fragments, so the two logos are told apart by `src` alone
+#: and the test needs no static files or network.
+_PX = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+_LIGHT, _DARK = _PX + "#light", _PX + "#dark"
+
+
+class TestDarkLogo:
+    """LOGO_DARK was resolved, editable from the settings screen, and rendered
+    nowhere. What matters is which image a person actually sees, so this asserts
+    computed visibility under each theme condition rather than the markup."""
+
+    _VISIBLE = """() => Object.fromEntries(
+        Array.from(document.querySelectorAll('.v-brand img, .v-brand [data-brand-collapsed]'))
+          .map((el) => [el.getAttribute('src') ? el.getAttribute('src').split('#')[1] : 'mark',
+                        getComputedStyle(el).display !== 'none']))"""
+
+    @pytest.fixture
+    def branded(self, settings):
+        settings.VANTAGE = {"LOGO": _LIGHT, "LOGO_DARK": _DARK, "SITE_TITLE": "Acme"}
+
+    def _open(self, pw, cookie, live_server, scheme):
+        context = pw.new_context(color_scheme=scheme)
+        context.add_cookies([{**cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("vantage:dashboard"))
+        pg.wait_for_load_state("networkidle")
+        return context, pg
+
+    @pytest.mark.parametrize(
+        ("scheme", "expected"),
+        [("light", {"light": True, "dark": False}), ("dark", {"light": False, "dark": True})],
+    )
+    def test_the_device_scheme_picks_the_logo(
+        self, branded, sample_data, staff_cookie, pw, live_server, scheme, expected
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, scheme)
+        assert pg.evaluate(self._VISIBLE) == {**expected, "mark": False}
+        context.close()
+
+    def test_a_pinned_light_theme_beats_a_dark_device(
+        self, branded, sample_data, staff_cookie, pw, live_server
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, "dark")
+        pg.evaluate("() => document.documentElement.setAttribute('data-theme', 'light')")
+        assert pg.evaluate(self._VISIBLE) == {"light": True, "dark": False, "mark": False}
+        context.close()
+
+    def test_collapsed_the_acronym_stands_in_for_the_logo(
+        self, branded, sample_data, staff_cookie, pw, live_server
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, "light")
+        pg.evaluate(
+            "() => document.querySelector('.v-shell').setAttribute('data-collapsed', 'true')"
+        )
+        assert pg.evaluate(self._VISIBLE) == {"light": False, "dark": False, "mark": True}
         context.close()

@@ -73,12 +73,44 @@ def check_vantage_settings(app_configs, **kwargs) -> list[Error]:
         if key in user and user[key] not in allowed:
             errors.append(
                 Error(
-                    f"VANTAGE[{key!r}] must be one of {', '.join(allowed)}; "
-                    f"got {user[key]!r}.",
+                    f"VANTAGE[{key!r}] must be one of {', '.join(allowed)}; got {user[key]!r}.",
                     id="vantage.E003",
                 )
             )
 
+    errors.extend(_check_brand(user))
+    return errors
+
+
+def _check_brand(user: dict) -> list[Error]:
+    """The brand colour and radius are rendered into every page's inline stylesheet,
+    the sign-in page's included, so a typo in either is not a cosmetic problem: an
+    unreadable colour raises on every render. Caught here instead, with the same
+    validators the settings screen applies to the values it stores."""
+    from django.core.exceptions import ValidationError
+
+    from vantage.models import validate_brand_color, validate_css_length
+
+    errors: list[Error] = []
+    for key, validate, check_id, hint in (
+        ("BRAND_COLOR", validate_brand_color, "vantage.E004", "Use a hex colour like '#6366f1'."),
+        ("BRAND_RADIUS", validate_css_length, "vantage.E005", "Use a length like '0.5rem'."),
+    ):
+        value = user.get(key)
+        if value is None:
+            continue
+        try:
+            if not isinstance(value, str):
+                raise ValidationError(f"expected a string, got {type(value).__name__}")
+            validate(value)
+        except ValidationError as exc:
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] is invalid: {' '.join(exc.messages)}",
+                    hint=hint,
+                    id=check_id,
+                )
+            )
     return errors
 
 
@@ -253,9 +285,7 @@ def check_deploy_cache(app_configs, **kwargs) -> list[Warning]:
 
     if "locmem" in backend.lower() and (throttled or limited):
         counters = " and ".join(
-            name
-            for name, on in (("login throttle", throttled), ("rate limits", limited))
-            if on
+            name for name, on in (("login throttle", throttled), ("rate limits", limited)) if on
         )
         return [
             Warning(
@@ -378,8 +408,7 @@ def check_deploy_import_limit(app_configs, **kwargs) -> list[Warning]:
     if value in (0, None, False):
         return [
             Warning(
-                f"VANTAGE['IMPORT_MAX_BYTES'] is {value!r}, which does not disable "
-                "imports.",
+                f"VANTAGE['IMPORT_MAX_BYTES'] is {value!r}, which does not disable imports.",
                 hint=(
                     "A falsy value is read as 'unset' and falls back to the 5 MB "
                     "default, so imports are still enabled at that size. To refuse "
@@ -518,9 +547,7 @@ def check_deploy_csp_inline(app_configs, **kwargs) -> list[Warning]:
     # edit one policy line, and a list of seven template paths does not tell them which.
     needed: dict[str, list[str]] = {}
     for finding in findings:
-        needed.setdefault(finding.directive, []).append(
-            f"{finding.template}:{finding.line}"
-        )
+        needed.setdefault(finding.directive, []).append(f"{finding.template}:{finding.line}")
 
     unsatisfied = {
         directive: sites
@@ -542,7 +569,7 @@ def check_deploy_csp_inline(app_configs, **kwargs) -> list[Warning]:
             + ".",
             hint=(
                 "A nonce cannot authorise an attribute, only an element. Add "
-                "\"style-src-attr\": [\"'unsafe-inline'\"] (and script-src-attr if it "
+                '"style-src-attr": ["\'unsafe-inline\'"] (and script-src-attr if it '
                 "is listed above) to the policy for the panel's URLs, or accept that "
                 "tree indentation and progress bars will not render. See "
                 "docs/security.md for a policy that works."

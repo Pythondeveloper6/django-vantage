@@ -262,6 +262,24 @@ class TestRendering:
         assert 'href="https://example.com"' in body
         assert 'rel="noopener noreferrer"' in body
 
+    @override_settings(
+        VANTAGE={
+            "NAV": [
+                {"route": "vantage:dashboard", "label": "Overview"},
+                {"model": "testapp.Post", "label": "Articles"},
+            ],
+            "NAV_UNLISTED": "hide",
+        }
+    )
+    def test_the_dashboard_is_current_only_on_the_dashboard(self, client_in):
+        # The panel is mounted below the site root, so the dashboard's URL is a prefix
+        # of every other page in it. Prefix matching alone would mark it current
+        # everywhere, alongside whatever page is really open.
+        dashboard, articles = [i for g in build_nav(site) for i in g.items]
+        assert dashboard.is_current(dashboard.url)
+        assert not dashboard.is_current(articles.url)
+        assert articles.is_current(articles.url)
+
 
 class TestChecks:
     def test_no_declaration_means_no_messages(self):

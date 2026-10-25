@@ -639,9 +639,7 @@ def _cleared_groups(collector: Collector) -> tuple[CascadeGroup, ...]:
             "field": field.verbose_name,
         }
         counts[label] = counts.get(label, 0) + sum(_length(item) for item in instances)
-    return tuple(
-        CascadeGroup(label=label, count=count) for label, count in counts.items() if count
-    )
+    return tuple(CascadeGroup(label=label, count=count) for label, count in counts.items() if count)
 
 
 def _length(instances) -> int:
@@ -743,9 +741,7 @@ class DeleteView(RecordView):
         from django.utils import timezone
 
         value = True if pattern.kind == "boolean" else timezone.now()
-        self.panel.model._base_manager.filter(pk=self.object.pk).update(
-            **{pattern.field: value}
-        )
+        self.panel.model._base_manager.filter(pk=self.object.pk).update(**{pattern.field: value})
         setattr(self.object, pattern.field, value)
 
     def post(self, request, *args, **kwargs):
@@ -805,9 +801,7 @@ class DeleteView(RecordView):
         # reference does not stand in its way — and collect_cascade would report the
         # page "blocked", hiding the only button on it. The customer with orders would
         # have had no way to be archived at all.
-        kwargs.setdefault(
-            "cascade", CascadeSummary() if soft else collect_cascade(self.object)
-        )
+        kwargs.setdefault("cascade", CascadeSummary() if soft else collect_cascade(self.object))
         context = super().get_context_data(**kwargs)
         cascade = context["cascade"]
         context.update(

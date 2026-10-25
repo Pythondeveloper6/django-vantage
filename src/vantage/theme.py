@@ -44,7 +44,9 @@ LIGHT_NEUTRALS: dict[str, str] = {
     "warning": "oklch(0.68 0.16 70)",
     "warning-foreground": "oklch(0.21 0.02 70)",
     "border": "oklch(0.92 0.004 286)",
-    "input": "oklch(0.92 0.004 286)",
+    # A form field's boundary is how it is found (WCAG 1.4.11): 3:1 against every
+    # surface a field sits on, muted included. --border stays light; it only separates.
+    "input": "oklch(0.62 0.004 286)",
     "sidebar": "oklch(0.985 0.002 285)",
     "sidebar-foreground": "oklch(0.145 0.004 285)",
     "sidebar-border": "oklch(0.92 0.004 286)",
@@ -70,7 +72,9 @@ DARK_NEUTRALS: dict[str, str] = {
     "warning": "oklch(0.78 0.15 75)",
     "warning-foreground": "oklch(0.18 0.02 75)",
     "border": "oklch(1 0 0 / 12%)",
-    "input": "oklch(1 0 0 / 16%)",
+    # Opaque, unlike --border: a translucent boundary's contrast depends on whatever
+    # is behind it, so it cannot be guaranteed — and at 16% it measured far below 3:1.
+    "input": "oklch(0.56 0.006 286)",
     "sidebar": "oklch(0.17 0.004 285)",
     "sidebar-foreground": "oklch(0.985 0 0)",
     "sidebar-border": "oklch(1 0 0 / 10%)",
@@ -132,3 +136,13 @@ NO_FLASH_SCRIPT = """
   } catch (e) {}
 })();
 """.strip()
+
+
+def no_flash_script() -> str:
+    """The inline script for ``<head>``, or nothing when users may not choose a theme.
+
+    With ``THEME_TOGGLE`` off the server ignores the theme cookie, but this script would
+    still apply whatever a user saved in localStorage back when the toggle was on, and
+    the documented promise — everyone gets ``THEME`` — would quietly not hold for them.
+    """
+    return NO_FLASH_SCRIPT if vantage_settings.THEME_TOGGLE else ""

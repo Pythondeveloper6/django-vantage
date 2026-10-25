@@ -25,6 +25,8 @@ NODE_WIDTH = 168
 NODE_HEIGHT = 46
 COLUMN_GAP = 96
 ROW_GAP = 22
+#: How far a self-referential loop's control points rise above its node.
+LOOP_RISE = 40
 
 
 @dataclass
@@ -126,7 +128,16 @@ def build_graph(site, request=None) -> Graph:
                 )
             )
 
+    return _assemble(nodes, edges)
+
+
+def _assemble(nodes: dict[str, Node], edges: list[Edge]) -> Graph:
+    """Position the nodes, draw the edges, and size the canvas around both."""
     _lay_out(nodes, edges)
+    if any(edge.self_referential for edge in edges):
+        # A self-reference loops above its node; leave the top row room for it.
+        for node in nodes.values():
+            node.y += LOOP_RISE
     ordered = sorted(nodes.values(), key=lambda n: (n.layer, n.y))
     width = max((n.x + NODE_WIDTH for n in ordered), default=0) + 8
     height = max((n.y + NODE_HEIGHT for n in ordered), default=0) + 8
@@ -190,7 +201,8 @@ def _edge_path(source: Node, target: Node) -> str:
     if source.key == target.key:
         # A loop above the node, for a self-referential relation.
         x, y = source.cx, source.y
-        return f"M {x - 22} {y} C {x - 34} {y - 40}, {x + 34} {y - 40}, {x + 22} {y}"
+        top = y - LOOP_RISE
+        return f"M {x - 22} {y} C {x - 34} {top}, {x + 34} {top}, {x + 22} {y}"
 
     x1, y1 = source.x, source.cy
     x2, y2 = target.x + NODE_WIDTH, target.cy
