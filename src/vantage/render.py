@@ -15,9 +15,22 @@ from django.utils.translation import gettext_lazy as _
 
 from vantage.introspection import resolve_path
 
-__all__ = ["render_cell"]
+__all__ = ["is_empty", "render_cell", "table_cell"]
 
 EMPTY = mark_safe('<span class="v-cell-empty">—</span>')
+
+
+def is_empty(value) -> bool:
+    """Whether a rendered cell is the empty placeholder.
+
+    Identity, not equality: a value that merely *contains* a dash is content.
+    """
+    return value is EMPTY
+
+
+def table_cell(value, is_link: bool) -> dict:
+    """One table cell, as the list, related-block and widget templates read it."""
+    return {"value": value, "is_link": is_link, "is_empty": is_empty(value)}
 
 #: Choice values whose name suggests a state, mapped to a badge tone. Purely
 #: cosmetic, and deliberately conservative: a wrong colour is worse than no colour.

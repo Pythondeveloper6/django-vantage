@@ -1,0 +1,11 @@
+{% load i18n %}{% comment %}
+The link from a list-style table cell to its record.
+
+A cell whose value is empty renders the em-dash placeholder, and a link whose only
+content is that dash announces as "link, dash" — a link with no accessible name
+(WCAG 2.4.4 / 4.1.2). So for an empty value the dash stays visible but is hidden from
+assistive technology, and visually hidden text names the record instead.
+
+Context: ``cell`` (``value``, ``is_empty``), ``url``, ``record`` (the object, or
+anything whose string form names it), and optional ``tabindex``.
+{% endcomment %}<a class="v-cell-link" href="{{ url }}"{% if tabindex %} tabindex="{{ tabindex }}"{% endif %}>{% if cell.is_empty %}<span aria-hidden="true">{{ cell.value }}</span><span class="v-sr-only">{% blocktranslate with record=record %}Open {{ record }}{% endblocktranslate %}</span>{% else %}{{ cell.value }}{% endif %}</a>

@@ -4399,3 +4399,8 @@ msgstr "Options"
 #: widgets.py:722
 msgid "Metadata"
 msgstr "Metadata"
+
+#: templates/vantage/partials/cell_link.html:12
+#, python-format
+msgid "Open %(record)s"
+msgstr "Open %(record)s"
