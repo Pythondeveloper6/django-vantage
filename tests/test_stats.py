@@ -590,3 +590,41 @@ class TestDeclaration:
                 "deferred": False,
                 "reason": None,
             }
+
+
+# ── the list page's trend baseline ──────────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestListPageTrend:
+    """The list page owns the filters, so it is the caller that has to hand the stats
+    engine a baseline. Without one, filtering on the trend's own date field leaves the
+    previous period filtered away, and every trend reads as the whole total."""
+
+    def analytics(self, rf, admin_user, params):
+        from types import SimpleNamespace
+
+        from vantage import listprefs, listquery
+        from vantage.permissions import get_permissions
+        from vantage.sites import site
+
+        request = rf.get("/admin/testapp/order/", params)
+        request.user = admin_user
+        queryset, base, filters, _query, _sort = listquery.build(
+            site.get_panel(Order), request, get_permissions()
+        )
+        spec = SimpleNamespace(stats=[Stat("Revenue", Sum("total"), trend="created_at")], charts=[])
+        return listprefs.analytics(spec, queryset, base=base, filters=filters)
+
+    def test_a_date_filter_on_the_trend_field_compares_with_the_period_before(
+        self, orders, rf, admin_user
+    ):
+        recent = f"{(BASE - dt.timedelta(days=5)).date()}..{BASE.date()}"
+        trend = self.analytics(rf, admin_user, {"created_at": recent})["stats"][0]["trend"]
+        # Five days of 100; the equal span before it holds four orders of 50.
+        assert trend["previous"] == 200.0
+
+    def test_other_filters_still_apply_to_the_period_before(self, orders, rf, admin_user):
+        recent = f"{(BASE - dt.timedelta(days=5)).date()}..{BASE.date()}"
+        result = self.analytics(rf, admin_user, {"created_at": recent, "status": "paid"})
+        assert result["stats"][0]["trend"]["previous"] == 0

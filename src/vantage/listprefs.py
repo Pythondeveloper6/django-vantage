@@ -1164,16 +1164,35 @@ def _permission_rule():
 # ── what the list page computes with the resolved spec ──────────────────────
 
 
-def analytics(spec: ListSpec, queryset) -> dict:
+def analytics(spec: ListSpec, queryset, *, base=None, filters=()) -> dict:
     """Stat cards and charts for this list, or nothing at all — and nothing costs zero.
 
     Switching the stat strip off has to remove its *queries*, not merely its markup. A
     version that computed the panel and then hid it would leave the page exactly as
     slow as the thing the user turned off to make it faster.
+
+    ``base`` and ``filters`` are the rows before filtering and the filters applied to
+    them. With both, a trending stat compares against the same rows with its own date
+    filter lifted, so filtering to "last 30 days" compares with the 30 days before.
     """
     if not spec.stats and not spec.charts:
         return {"stats": [], "charts": [], "deferred": False, "reason": None}
-    return compute_panel(queryset, stats=spec.stats, charts=spec.charts)
+    return compute_panel(
+        queryset,
+        stats=spec.stats,
+        charts=spec.charts,
+        baseline=_trend_baseline(spec, base, filters),
+    )
+
+
+def _trend_baseline(spec: ListSpec, base, filters):
+    """The filtered rows minus any filter on a trending stat's date field, or None."""
+    from vantage.filters import apply_filters
+
+    trend_fields = {stat.trend for stat in spec.stats if stat.trend}
+    if base is None or not trend_fields:
+        return None
+    return apply_filters(base, [f for f in filters if f.path not in trend_fields])
 
 
 def summary(spec: ListSpec, queryset) -> dict:
