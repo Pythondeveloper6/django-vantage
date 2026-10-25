@@ -16,6 +16,8 @@ import vantage
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CANONICAL = "github.com/Pythondeveloper6/django-vantage"
+#: The documentation site, served by GitHub Pages from the same repository.
+DOCS_SITE = "pythondeveloper6.github.io/django-vantage"
 
 #: Everything a user or a packaging tool reads. Tests, the lockfile and the demo
 #: project are not here: they name GitHub only for third-party projects.
@@ -35,16 +37,25 @@ SURFACES = [
 OWN_REPO = re.compile(r"github\.com/([\w.-]+)/django-vantage", re.IGNORECASE)
 
 
+def _read(relpath: str) -> str:
+    """A repository file, or a skip when running from an unpacked sdist, which ships
+    tests/ for downstream packagers but not .github/."""
+    path = REPO_ROOT / relpath
+    if not path.exists() and not (REPO_ROOT / ".git").exists():
+        pytest.skip(f"{relpath} is not part of the sdist")
+    return path.read_text(encoding="utf-8")
+
+
 @pytest.mark.parametrize("relpath", SURFACES)
 def test_every_reference_to_this_repository_names_the_real_one(relpath):
-    text = (REPO_ROOT / relpath).read_text(encoding="utf-8")
+    text = _read(relpath)
     wrong = sorted({m.group(0) for m in OWN_REPO.finditer(text)} - {CANONICAL})
     assert not wrong, f"{relpath} points at {wrong}, not {CANONICAL}"
 
 
 @pytest.mark.parametrize("relpath", SURFACES)
 def test_no_placeholder_owner_survives(relpath):
-    text = (REPO_ROOT / relpath).read_text(encoding="utf-8")
+    text = _read(relpath)
     assert "your-org" not in text
 
 
@@ -53,7 +64,7 @@ def test_project_urls_all_point_at_the_canonical_repository():
     urls = meta["project"]["urls"]
     assert urls, "pyproject.toml has no [project.urls]"
     for label, url in urls.items():
-        assert url.startswith(f"https://{CANONICAL}"), f"{label} = {url}"
+        assert url.startswith((f"https://{CANONICAL}", f"https://{DOCS_SITE}")), f"{label} = {url}"
 
 
 def test_the_changelog_has_an_entry_for_the_packaged_version():
@@ -111,8 +122,8 @@ def _classified_djangos() -> set[str]:
 def test_every_classified_django_is_a_ci_cell():
     """A classifier is a promise of support; CI is the evidence. Django main is an
     allowed failure and is deliberately not classified."""
-    ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    cells = re.search(r'^\s*django: \[([^\]]*)\]', ci, re.MULTILINE)
+    ci = _read(".github/workflows/ci.yml")
+    cells = re.search(r"^\s*django: \[([^\]]*)\]", ci, re.MULTILINE)
     assert cells, "could not find the django matrix in ci.yml"
     tested = {v.strip().strip('"') for v in cells.group(1).split(",")}
     assert _classified_djangos() == tested

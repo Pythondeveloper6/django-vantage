@@ -32,6 +32,7 @@ def table_cell(value, is_link: bool) -> dict:
     """One table cell, as the list, related-block and widget templates read it."""
     return {"value": value, "is_link": is_link, "is_empty": is_empty(value)}
 
+
 #: Choice values whose name suggests a state, mapped to a badge tone. Purely
 #: cosmetic, and deliberately conservative: a wrong colour is worse than no colour.
 TONES = {
@@ -88,9 +89,7 @@ def render_cell(panel, obj, name: str, *, size: str = "sm") -> SafeString | str:
     # first. The symbol is deliberately not guessed - only the shape is fixed.
     if len(hops) == 1 and name in _money_fields(panel) and value is not None:
         places = _money_fields(panel)[name]
-        return format_html(
-            '<span class="v-money">{}</span>', f"{value:,.{places}f}"
-        )
+        return format_html('<span class="v-money">{}</span>', f"{value:,.{places}f}")
 
     # Before the generic path, because the generic path would print the storage key.
     # An empty file is handled here too: a FieldFile with no name is falsy, and letting

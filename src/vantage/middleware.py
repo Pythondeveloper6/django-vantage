@@ -151,8 +151,7 @@ class LoginThrottleMiddleware:
         state = throttle.state(username, address)
         if state.blocked:
             logger.warning(
-                "Vantage blocked a sign-in attempt: too many failures for this "
-                "username from %s.",
+                "Vantage blocked a sign-in attempt: too many failures for this username from %s.",
                 address,
             )
             return self.throttled_response(request, state)
@@ -415,13 +414,9 @@ class PanelSecurityMiddleware:
         retry = str(int(state.retry_after or 0))
         message = "Too many requests. Wait a moment and try again."
         if surface == "autocomplete":
-            response = JsonResponse(
-                {"results": [], "more": False, "error": message}, status=429
-            )
+            response = JsonResponse({"results": [], "more": False, "error": message}, status=429)
         else:
-            response = HttpResponse(
-                message, content_type="text/plain; charset=utf-8", status=429
-            )
+            response = HttpResponse(message, content_type="text/plain; charset=utf-8", status=429)
         if state.retry_after:
             response["Retry-After"] = retry
         response["Cache-Control"] = "no-store"
@@ -437,8 +432,6 @@ class PanelSecurityMiddleware:
         retried until it is switched off.
         """
         body = "Upload refused.\n\n" + "\n".join(f"- {problem}" for problem in problems)
-        response = HttpResponse(
-            body, content_type="text/plain; charset=utf-8", status=400
-        )
+        response = HttpResponse(body, content_type="text/plain; charset=utf-8", status=400)
         response["Cache-Control"] = "no-store"
         return response

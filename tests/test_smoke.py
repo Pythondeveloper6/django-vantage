@@ -269,9 +269,7 @@ class TestFullRouteWalk:
     def test_as_a_superuser(self, world, client):
         client.force_login(world["superuser"])
         requests = list(
-            _iter_requests(
-                world["panels"], world["instances"], world["job"], world["saved_view"]
-            )
+            _iter_requests(world["panels"], world["instances"], world["job"], world["saved_view"])
         )
         failures: list[str] = []
         _walk(client, requests, who="superuser", failures=failures)
@@ -286,9 +284,7 @@ class TestFullRouteWalk:
         """
         client.force_login(world["staff"])
         requests = list(
-            _iter_requests(
-                world["panels"], world["instances"], world["job"], world["saved_view"]
-            )
+            _iter_requests(world["panels"], world["instances"], world["job"], world["saved_view"])
         )
         failures: list[str] = []
         _walk(client, requests, who="restricted staff", failures=failures)

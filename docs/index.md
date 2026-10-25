@@ -1,16 +1,187 @@
-# django-vantage
+---
+title: django-vantage
+hide:
+  - navigation
+  - toc
+---
 
-A smart, beautiful admin panel for Django. Zero config to start; one line to override
-anything.
+<div class="dv-hero" markdown>
 
-> **Status: alpha (`0.1.0a1`).** Working and heavily tested — more than 3,600 tests —
-> but not yet on PyPI, and the API may still move. See the
-> [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is not done.
+# A smart, beautiful admin panel for Django
+
+<p class="dv-tagline">Zero config to start. One line to override anything.
+Install it, and every model you have is already administrable — with a data grid,
+charts, a command palette, light and dark themes and a schema map.</p>
+
+[Get started](getting-started.md){ .md-button .md-button--primary }
+[View on GitHub](https://github.com/Pythondeveloper6/django-vantage){ .md-button }
+
+</div>
+
+![The Orders list in django-vantage: stat cards, a revenue chart, a status breakdown and a filtered data grid](assets/screenshots/orders-light.webp){ .dv-shot .dv-only-light }
+![The Orders list in django-vantage, dark theme](assets/screenshots/orders-dark.webp){ .dv-shot .dv-only-dark }
+
+!!! warning "Alpha — `0.1.0a1`"
+
+    Working and heavily tested — more than 3,600 tests — but the API may still move.
+    See the [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is
+    not done. Use it on an internal tool; pin the exact version if you depend on it.
+
+## Sixty seconds
+
+```bash
+pip install --pre django-vantage
+```
+
+```python
+# settings.py
+INSTALLED_APPS = ["vantage", ...]
+```
+
+```python
+# urls.py
+from django.urls import path
+from vantage import site
+
+urlpatterns = [path("admin/", site.urls)]
+```
+
+That is the whole setup. Every model in the project is now administrable.
+
+To change one model, write a `panel.py` next to its `models.py`:
+
+```python
+from vantage import ModelPanel, register
+
+from blog.models import Post
+
+
+@register(Post)
+class PostPanel(ModelPanel):
+    list_display = ["title", "author", "status", "published_at"]  # (1)!
+```
+
+1.  Only the columns change. Filters, search fields and widgets stay inferred —
+    partial configuration never opts you out of the rest.
+
+Not sure what was inferred? Ask the package to write it down:
+
+```bash
+python manage.py vantage_scaffold blog
+```
+
+That prints a real `panel.py` containing exactly what Vantage decided. Own it, edit it,
+or delete an attribute to hand it back to inference.
+Full walkthrough: [Getting started](getting-started.md).
+
+## What you get
+
+<div class="grid cards" markdown>
+
+-   :material-auto-fix:{ .lg .middle } **Inferred, attribute by attribute**
+
+    ---
+
+    Columns, filters, search, sort order, widgets and query optimisation come from the
+    model itself. Override one and the rest stay inferred.
+
+    [:octicons-arrow-right-24: Inference](inference.md)
+
+-   :material-table-large:{ .lg .middle } **A real data grid**
+
+    ---
+
+    Saved views, grouping, density, column picker, inline editing, trash and restore,
+    bulk actions that scale to "select all 40,000 matching".
+
+    [:octicons-arrow-right-24: Lists](lists.md)
+
+-   :material-chart-areaspline:{ .lg .middle } **Stats and charts in Python**
+
+    ---
+
+    `Stat` and `Chart` declared on the panel, computed on the filtered rows, folded
+    into as few queries as possible. Inline SVG — no JavaScript.
+
+    [:octicons-arrow-right-24: Analytics](analytics.md)
+
+-   :material-form-select:{ .lg .middle } **Forms with a layout DSL**
+
+    ---
+
+    `Tabs`, `Section` and `Row`; editable inlines; a cascade-delete preview that
+    shows the real tree of what goes with a record.
+
+    [:octicons-arrow-right-24: Forms](forms.md)
+
+-   :material-shield-lock-outline:{ .lg .middle } **Permissions that hold**
+
+    ---
+
+    Three layers, enforced on every view, bulk action and API call. Read-only mode
+    and impersonation live in the permission layer; multi-tenancy is fail-closed.
+
+    [:octicons-arrow-right-24: Permissions](permissions.md)
+
+-   :material-api:{ .lg .middle } **A JSON API for free**
+
+    ---
+
+    Every panel, through the same permission and validation path as the UI, with
+    cursor pagination and optimistic concurrency.
+
+    [:octicons-arrow-right-24: The JSON API](api.md)
+
+-   :material-palette-outline:{ .lg .middle } **One colour, a whole theme**
+
+    ---
+
+    A brand colour becomes a complete light and dark palette with contrast checked.
+    RTL from day one.
+
+    [:octicons-arrow-right-24: Theming](theming.md)
+
+-   :material-tune-variant:{ .lg .middle } **Configurable from the UI too**
+
+    ---
+
+    Columns, filters, stats, the dashboard, the sidebar and the branding — without a
+    deploy, in one fixed order with `panel.py`.
+
+    [:octicons-arrow-right-24: How configuration resolves](configuration.md)
+
+</div>
+
+## A closer look
+
+=== "Dashboard"
+
+    ![Dashboard](assets/screenshots/dashboard-light.webp){ .dv-shot .dv-only-light }
+    ![Dashboard](assets/screenshots/dashboard-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Command palette"
+
+    ![Command palette](assets/screenshots/palette-light.webp){ .dv-shot .dv-only-light }
+    ![Command palette](assets/screenshots/palette-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Edit form"
+
+    ![Edit form](assets/screenshots/order-form-light.webp){ .dv-shot .dv-only-light }
+    ![Edit form](assets/screenshots/order-form-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Catalogue"
+
+    ![Catalogue list](assets/screenshots/products-light.webp){ .dv-shot .dv-only-light }
+    ![Catalogue list](assets/screenshots/products-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Schema map"
+
+    ![Schema map](assets/screenshots/schema-light.webp){ .dv-shot .dv-only-light }
+    ![Schema map](assets/screenshots/schema-dark.webp){ .dv-shot .dv-only-dark }
 
 ## The two rules
 
-Everything in this package follows from two rules. If you remember nothing else,
-remember these.
+Everything in this package follows from two rules.
 
 **1. Smart.** Install it, and every model in your project already has a usable admin.
 Columns, filters, search fields, sort order, widgets and query optimisation are all
@@ -33,56 +204,6 @@ set from the UI instead — a list's columns and filters, the branding, the beha
 without a deploy, and without your Python file becoming a fiction of what actually
 renders. The two ways compose in one fixed order, stated once: see
 [How configuration resolves](configuration.md).
-
-## Sixty seconds
-
-Not on PyPI yet — see [Install](getting-started.md#install) for the interim `pip
-install` line straight from the repository. Once released:
-
-```bash
-pip install django-vantage
-```
-
-```python
-# settings.py
-INSTALLED_APPS = ["vantage", ...]
-```
-
-```python
-# urls.py
-from django.urls import path
-from vantage import site
-
-urlpatterns = [path("admin/", site.urls)]
-```
-
-That is the whole setup. Every model in the project is now administrable, with a
-dashboard, a searchable data grid, create/edit/delete, a command palette, light and
-dark themes and a schema map.
-
-To change one model, write a `panel.py` next to its `models.py`:
-
-```python
-from vantage import ModelPanel, register
-
-from blog.models import Post
-
-
-@register(Post)
-class PostPanel(ModelPanel):
-    list_display = ["title", "author", "status", "published_at"]
-```
-
-Not sure what was inferred? Ask the package to write it down:
-
-```bash
-python manage.py vantage_scaffold blog
-```
-
-That prints a real `panel.py` containing exactly what Vantage decided. Own it, edit it,
-or delete an attribute to hand it back to inference.
-
-Full walkthrough: [Getting started](getting-started.md).
 
 ## Requirements
 
@@ -116,6 +237,10 @@ django-simple-history are all used when present and never required.
 | [Extending](extending.md) | Slots, plugins, and adopting an existing `admin.py` |
 | [FAQ](faq.md) | How it differs from `django.contrib.admin`, what it does not do |
 
-## Licence
+## Licence and attribution
 
-MIT.
+django-vantage is open source under the
+[MIT licence](https://github.com/Pythondeveloper6/django-vantage/blob/main/LICENSE),
+copyright © 2026 Mahmoud Ahmed. You may use, modify and redistribute it, commercially
+or not, provided the copyright notice and licence text are kept in every copy or
+substantial portion of the code. A link back to the project is always appreciated.
