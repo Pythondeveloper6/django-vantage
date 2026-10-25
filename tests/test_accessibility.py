@@ -83,8 +83,20 @@ class Collector(HTMLParser):
     """Parses just enough structure for the assertions in this file."""
 
     VOID = {
-        "area", "base", "br", "col", "embed", "hr", "img", "input",
-        "link", "meta", "param", "source", "track", "wbr",
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
     }
 
     def __init__(self) -> None:
@@ -126,9 +138,7 @@ class Collector(HTMLParser):
             tag=tag,
             attrs=resolved,
             ancestors=tuple(node.tag for node in self._open),
-            hidden=parent_hidden
-            or resolved.get("aria-hidden") == "true"
-            or "hidden" in resolved,
+            hidden=parent_hidden or resolved.get("aria-hidden") == "true" or "hidden" in resolved,
         )
         self.elements.append(element)
         return element
@@ -193,7 +203,10 @@ def staff(db):
 def post(db):
     author = Author.objects.create(name="Ada Lovelace", email="ada@example.com")
     return Post.objects.create(
-        title="A post", slug="a-post", body="Body text", author=author,
+        title="A post",
+        slug="a-post",
+        body="Body text",
+        author=author,
         status=Post.Status.PUBLISHED,
     )
 
@@ -243,8 +256,16 @@ def pages(client, staff, post) -> dict[str, str]:
 #: Everything rendered inside vantage/base.html. These get the landmark and skip-link
 #: guarantees; the standalone pages below deliberately do not.
 SHELL_PAGES = (
-    "password_change", "dashboard", "detail", "custom_page", "404", "403",
-    "list", "add", "delete", "settings",
+    "password_change",
+    "dashboard",
+    "detail",
+    "custom_page",
+    "404",
+    "403",
+    "list",
+    "add",
+    "delete",
+    "settings",
 )
 ALL_PAGES = (*SHELL_PAGES, "login", "logged_out", "500")
 
@@ -340,7 +361,8 @@ class TestTheShell:
         it consumes the first tab stop and does nothing."""
         document = docs[name]
         links = [
-            el for el in document.of("a")
+            el
+            for el in document.of("a")
             if el.attrs.get("href", "").startswith("#") and "skip" in el.name.lower()
         ]
         assert links, f"{name}: no skip link"
@@ -351,8 +373,10 @@ class TestTheShell:
         """After the banners it is decoration — the user has already tabbed past the
         content it claims to skip."""
         focusable = [
-            el for el in docs[name].of("a", "button", "input", "select", "textarea")
-            if not el.hidden and (el.tag != "a" or el.attrs.get("href"))
+            el
+            for el in docs[name].of("a", "button", "input", "select", "textarea")
+            if not el.hidden
+            and (el.tag != "a" or el.attrs.get("href"))
             and el.attrs.get("type") != "hidden"
         ]
         assert focusable and "skip" in focusable[0].name.lower()
@@ -517,9 +541,7 @@ class TestLiveDemoFindings:
 
         # A pixel count alone does not say which column changed. The column's own
         # label has to be in the message, not just the number.
-        schedule = js[
-            js.index("function scheduleResizeAnnounce(") : js.index("function setWidth(")
-        ]
+        schedule = js[js.index("function scheduleResizeAnnounce(") : js.index("function setWidth(")]
         assert "columnByName[name].label" in schedule
         assert "widths[name]" in schedule
 
@@ -612,7 +634,8 @@ class TestEmptyCellLinks:
         client.force_login(staff)
         html = client.get(reverse("vantage:testapp-post-list")).content.decode()
         hidden_dashes = [
-            el for el in Document.parse(html).of("span")
+            el
+            for el in Document.parse(html).of("span")
             if el.hidden and "—" in el.text and "a" in el.ancestors
         ]
         assert hidden_dashes, "the placeholder inside the link is not aria-hidden"
@@ -701,9 +724,7 @@ class TestTokenContrast:
     @pytest.mark.parametrize(("fg", "bg"), NON_TEXT_PAIRS)
     def test_non_text_pairs_clear_the_three_to_one_bar(self, fg, bg, dark):
         tokens = build_tokens(dark=dark)
-        assert (
-            contrast_ratio(_oklch(tokens[fg]), _oklch(tokens[bg])) >= WCAG_AA_NON_TEXT
-        )
+        assert contrast_ratio(_oklch(tokens[fg]), _oklch(tokens[bg])) >= WCAG_AA_NON_TEXT
 
     @pytest.mark.parametrize("brand", SWEEP)
     @pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])

@@ -215,21 +215,27 @@ def brand_report(color: str) -> BrandReport:
         # bare English participle dropped into a translated sentence is a word a
         # translator cannot agree with anything, and in several languages cannot inflect.
         if primary.l < requested.l:
-            warning = _(
-                "%(color)s cannot carry readable text at the lightness this panel uses "
-                "for buttons: it scores %(requested_ratio)s:1 against the text colour "
-                "that would sit on it, and WCAG AA needs %(required_ratio)s:1. The "
-                "derived button colour was darkened until it reached %(ratio)s:1. Your "
-                "colour is stored exactly as you entered it."
-            ) % numbers
+            warning = (
+                _(
+                    "%(color)s cannot carry readable text at the lightness this panel uses "
+                    "for buttons: it scores %(requested_ratio)s:1 against the text colour "
+                    "that would sit on it, and WCAG AA needs %(required_ratio)s:1. The "
+                    "derived button colour was darkened until it reached %(ratio)s:1. Your "
+                    "colour is stored exactly as you entered it."
+                )
+                % numbers
+            )
         else:
-            warning = _(
-                "%(color)s cannot carry readable text at the lightness this panel uses "
-                "for buttons: it scores %(requested_ratio)s:1 against the text colour "
-                "that would sit on it, and WCAG AA needs %(required_ratio)s:1. The "
-                "derived button colour was lightened until it reached %(ratio)s:1. Your "
-                "colour is stored exactly as you entered it."
-            ) % numbers
+            warning = (
+                _(
+                    "%(color)s cannot carry readable text at the lightness this panel uses "
+                    "for buttons: it scores %(requested_ratio)s:1 against the text colour "
+                    "that would sit on it, and WCAG AA needs %(required_ratio)s:1. The "
+                    "derived button colour was lightened until it reached %(ratio)s:1. Your "
+                    "colour is stored exactly as you entered it."
+                )
+                % numbers
+            )
 
     return BrandReport(
         color=color,

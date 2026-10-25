@@ -347,9 +347,7 @@ class TestFanoutSafety:
 
 @pytest.mark.django_db
 class TestTimeseries:
-    def test_one_grouped_query_plus_one_shared_span_probe(
-        self, orders, django_assert_num_queries
-    ):
+    def test_one_grouped_query_plus_one_shared_span_probe(self, orders, django_assert_num_queries):
         charts = [
             Chart.timeseries("Revenue", date="created_at", value=Sum("total")),
             Chart.timeseries("Volume", date="created_at", value=Count("id")),
@@ -362,8 +360,11 @@ class TestTimeseries:
         with django_assert_num_queries(1):
             compute_charts(
                 orders,
-                [Chart.timeseries("Revenue", date="created_at", value=Sum("total"),
-                                  bucket="month")],
+                [
+                    Chart.timeseries(
+                        "Revenue", date="created_at", value=Sum("total"), bucket="month"
+                    )
+                ],
             )
 
     def test_a_short_span_buckets_by_day(self, orders):
@@ -427,8 +428,7 @@ class TestBreakdown:
         with django_assert_num_queries(1):
             chart = compute_charts(
                 orders,
-                [Chart.breakdown("By status", group_by="status", value=Count("id"),
-                                 kind="donut")],
+                [Chart.breakdown("By status", group_by="status", value=Count("id"), kind="donut")],
             )[0]
         assert chart.kind == "donut"
         assert chart.labels == ["Paid", "Refunded"]
@@ -480,8 +480,11 @@ class TestBreakdown:
         monkeypatch.setattr(stats_module, "MAX_GROUPS_SCANNED", 1)
         chart = compute_charts(
             orders,
-            [Chart.breakdown("By status", group_by="status", value=Count("id"),
-                             allow_high_cardinality=True)],
+            [
+                Chart.breakdown(
+                    "By status", group_by="status", value=Count("id"), allow_high_cardinality=True
+                )
+            ],
         )[0]
         assert chart.error is None
 
@@ -507,9 +510,7 @@ class TestBreakdown:
 
 @pytest.mark.django_db
 class TestBudget:
-    def test_over_budget_defers_without_running_anything(
-        self, orders, django_assert_num_queries
-    ):
+    def test_over_budget_defers_without_running_anything(self, orders, django_assert_num_queries):
         declared = [Stat("Revenue", Sum("total"), trend="created_at")]
         with django_assert_num_queries(0):
             result = compute_stats(orders, declared, budget=Budget(max_queries=1))
@@ -538,9 +539,7 @@ class TestBudget:
         assert result.deferred is True
         assert "rows exceeds" in result.reason
 
-    def test_the_budget_covers_stats_and_charts_together(
-        self, orders, django_assert_num_queries
-    ):
+    def test_the_budget_covers_stats_and_charts_together(self, orders, django_assert_num_queries):
         """Splitting the cost across two declarations must not slip past the cap."""
         with django_assert_num_queries(0):
             panel = compute_panel(

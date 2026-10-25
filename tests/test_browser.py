@@ -128,8 +128,7 @@ def sample_data(db):
     # row-actions cells — enough for the roving-tabindex and column-pinning tests to
     # have something to page through and something to overflow.
     orders = [
-        Order.objects.create(number=f"ORD-{i:04d}", customer=author, total=10 + i)
-        for i in range(6)
+        Order.objects.create(number=f"ORD-{i:04d}", customer=author, total=10 + i) for i in range(6)
     ]
     return SimpleNamespace(
         staff=staff, author=author, category=category, tags=tags, post=post, orders=orders
@@ -294,9 +293,10 @@ class TestFocusAfterFailedSave:
         )
         assert active == {"id": "v-form-summary", "tag": "DIV"}, active
         # And the summary is the thing it claims to be, not a coincidentally-named div.
-        assert pg.evaluate(
-            "() => document.getElementById('v-form-summary').getAttribute('role')"
-        ) == "alert"
+        assert (
+            pg.evaluate("() => document.getElementById('v-form-summary').getAttribute('role')")
+            == "alert"
+        )
 
         context.close()
 
@@ -383,9 +383,9 @@ class TestRelationCombobox:
         )
 
         combo_input.press("ArrowDown")
-        assert combo_input.get_attribute(
-            "aria-activedescendant"
-        ), "arrow key did not highlight a row"
+        assert combo_input.get_attribute("aria-activedescendant"), (
+            "arrow key did not highlight a row"
+        )
         combo_input.press("Enter")
 
         chips = root.locator(".v-combo-chip").all_inner_texts()
@@ -519,9 +519,7 @@ class TestGridRovingTabindex:
         assert still_on_handle, "ArrowRight moved focus off the resize handle"
 
         pg.keyboard.press("Escape")
-        back_on_a_row = pg.evaluate(
-            "() => document.activeElement.hasAttribute('data-grid-row')"
-        )
+        back_on_a_row = pg.evaluate("() => document.activeElement.hasAttribute('data-grid-row')")
         assert back_on_a_row, "Escape did not return focus to the row"
         assert self._tabindexes(pg).count("0") == 1
 
@@ -682,9 +680,7 @@ class TestShortcutsPreference:
 
     @staticmethod
     def _focus_first_row(pg):
-        pg.evaluate(
-            "() => document.querySelector('[data-grid-row]:not([data-grid-head])').focus()"
-        )
+        pg.evaluate("() => document.querySelector('[data-grid-row]:not([data-grid-head])').focus()")
 
     def test_slash_focuses_search_until_switched_off(
         self, sample_data, staff_cookie, pw, live_server

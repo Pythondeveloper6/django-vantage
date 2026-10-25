@@ -112,7 +112,7 @@ def test_every_classified_django_is_a_ci_cell():
     """A classifier is a promise of support; CI is the evidence. Django main is an
     allowed failure and is deliberately not classified."""
     ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    cells = re.search(r'^\s*django: \[([^\]]*)\]', ci, re.MULTILINE)
+    cells = re.search(r"^\s*django: \[([^\]]*)\]", ci, re.MULTILINE)
     assert cells, "could not find the django matrix in ci.yml"
     tested = {v.strip().strip('"') for v in cells.group(1).split(",")}
     assert _classified_djangos() == tested

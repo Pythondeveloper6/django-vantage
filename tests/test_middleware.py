@@ -110,9 +110,7 @@ class TestPanelSecurityScopingThroughARealRequest:
         yield
         security.DEFAULTS["RATE_LIMITS"] = None
 
-    def test_rate_limiting_never_touches_a_plain_view(
-        self, client, hardened, tiny_export_budget
-    ):
+    def test_rate_limiting_never_touches_a_plain_view(self, client, hardened, tiny_export_budget):
         for _ in range(5):
             assert client.get("/outside/", {"export": "csv"}).status_code == 200
 
@@ -141,9 +139,7 @@ class TestLoginThrottleScopingIsDifferentOnPurpose:
         security.DEFAULTS["LOGIN_THROTTLE_LIMIT"] = 1
         try:
             for _ in range(5):
-                response = client.post(
-                    "/outside/", {"username": "ada", "password": "wrong"}
-                )
+                response = client.post("/outside/", {"username": "ada", "password": "wrong"})
                 assert response.status_code == 200
         finally:
             security.DEFAULTS["LOGIN_THROTTLE_LIMIT"] = 10
@@ -252,9 +248,7 @@ class TestDegradesWithoutAnAuthenticatedUser:
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         mw = PanelSecurityMiddleware(lambda r: HttpResponse())
-        request = RequestFactory().post(
-            "/", {"logo": SimpleUploadedFile("x.png", b"<html>")}
-        )
+        request = RequestFactory().post("/", {"logo": SimpleUploadedFile("x.png", b"<html>")})
         assert not hasattr(request, "user")
         response = mw.check_uploads(request)
         assert response is not None
@@ -265,9 +259,7 @@ class TestDegradesWithoutAnAuthenticatedUser:
 
 
 class TestSignalIdempotency:
-    def test_instantiating_the_middleware_twice_does_not_double_count_a_failure(
-        self, monkeypatch
-    ):
+    def test_instantiating_the_middleware_twice_does_not_double_count_a_failure(self, monkeypatch):
         from django.contrib.auth.signals import user_login_failed
 
         monkeypatch.setattr(middleware, "_connected", False)
@@ -314,9 +306,7 @@ class TestSecuritySettingsAreConfigurable:
             ("UPLOAD_MAX_BYTES", 100),
         ],
     )
-    def test_writing_it_the_documented_way_is_accepted_and_read_back(
-        self, settings, key, value
-    ):
+    def test_writing_it_the_documented_way_is_accepted_and_read_back(self, settings, key, value):
         from vantage import security
         from vantage.conf import vantage_settings
 
@@ -329,9 +319,9 @@ class TestSecuritySettingsAreConfigurable:
         from vantage import security
 
         settings.VANTAGE = {}
-        assert security._setting("LOGIN_THROTTLE_LIMIT") == security.DEFAULTS[
-            "LOGIN_THROTTLE_LIMIT"
-        ]
+        assert (
+            security._setting("LOGIN_THROTTLE_LIMIT") == security.DEFAULTS["LOGIN_THROTTLE_LIMIT"]
+        )
 
     def test_a_real_panel_page_renders_with_one_set(self, boss, settings):
         settings.VANTAGE = {"RATE_LIMIT": False}

@@ -379,9 +379,9 @@ class SearchSelect(forms.Select):
         groups = []
         has_selected = False
         for index, (option_value, option_label) in enumerate(pairs):
-            selected = (
-                not has_selected or self.allow_multiple_selected
-            ) and str(option_value) in value
+            selected = (not has_selected or self.allow_multiple_selected) and str(
+                option_value
+            ) in value
             has_selected |= selected
             option = self.create_option(
                 name, option_value, option_label, selected, index, attrs=attrs
@@ -848,9 +848,7 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
     return formfield
 
 
-def build_form_class(
-    panel_or_model: Any, fields: list[str] | None = None
-) -> type[forms.ModelForm]:
+def build_form_class(panel_or_model: Any, fields: list[str] | None = None) -> type[forms.ModelForm]:
     """Build a ``ModelForm`` for a model or a :class:`~vantage.panels.ModelPanel`.
 
     ``modelform_factory`` does the work. Vantage does not reimplement ``ModelForm``:

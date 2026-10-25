@@ -195,8 +195,7 @@ class ListView(PanelView):
                 # Plural on the cap, which is the number the sentence is about; the
                 # selected count is always reported as a bare figure.
                 ngettext(
-                    "%(action)s is limited to %(limit)s record at a time; "
-                    "%(count)s were selected.",
+                    "%(action)s is limited to %(limit)s record at a time; %(count)s were selected.",
                     "%(action)s is limited to %(limit)s records at a time; "
                     "%(count)s were selected.",
                     chosen.max_rows,
@@ -222,8 +221,11 @@ class ListView(PanelView):
         # request; over it, the work moves off and the user gets a progress row.
         if jobs.should_enqueue(chosen, count):
             job = jobs.enqueue(
-                request=request, panel=self.panel, action=chosen,
-                selection=selection, count=count,
+                request=request,
+                panel=self.panel,
+                action=chosen,
+                selection=selection,
+                count=count,
             )
             if job.is_terminal:
                 # No worker, so it ran here. Say what happened rather than promising
@@ -384,7 +386,6 @@ class ListView(PanelView):
         off from the rail removes its queries and not merely its markup.
         """
         return listprefs.analytics(spec, queryset)
-
 
     #: Both of these now live in :mod:`vantage.listquery`, which is what the export,
     #: the job runner and the JSON API call. Kept here as delegations because they are
@@ -618,7 +619,6 @@ class DetailView(PanelView):
         context.update(audit.history_context(self.request, obj))
         return context
 
-
     #: How many related rows to preview before the panel becomes a link only.
     #: contrib.admin's inlines load every child row, which is what makes a record
     #: with fifty thousand children impossible to open. A preview plus a link costs
@@ -652,9 +652,7 @@ class DetailView(PanelView):
             rows, columns = [], []
             if child_panel is not None:
                 columns = child_panel.get_list_display(self.request)[:4]
-                queryset = self.permissions.filter_queryset(
-                    self.request, manager.all(), "view"
-                )
+                queryset = self.permissions.filter_queryset(self.request, manager.all(), "view")
                 from vantage.optimizer import plan_related
 
                 # Only joins matter here: the preview is five rows, so a prefetch
@@ -672,8 +670,7 @@ class DetailView(PanelView):
                     "label": str(child._meta.verbose_name_plural).capitalize(),
                     "count": manager.count(),
                     "columns": [
-                        ListView._column_header(child_panel, name, None)
-                        for name in columns
+                        ListView._column_header(child_panel, name, None) for name in columns
                     ],
                     "rows": rows,
                     "more": max(0, manager.count() - self.related_preview),
@@ -696,8 +693,7 @@ class DetailView(PanelView):
             "obj": item,
             "url": url,
             "cells": [
-                table_cell(render_cell(child_panel, item, name), name == link)
-                for name in columns
+                table_cell(render_cell(child_panel, item, name), name == link) for name in columns
             ],
         }
 
@@ -826,9 +822,7 @@ class ThemeView(SiteView):
         theme = request.POST.get("theme")
         response = self._done(request)
         if theme in ("light", "dark"):
-            response.set_cookie(
-                "vantage-theme", theme, max_age=60 * 60 * 24 * 365, samesite="Lax"
-            )
+            response.set_cookie("vantage-theme", theme, max_age=60 * 60 * 24 * 365, samesite="Lax")
         else:
             response.delete_cookie("vantage-theme")
         return response
