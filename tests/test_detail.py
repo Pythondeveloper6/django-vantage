@@ -172,9 +172,7 @@ class TestRelatedTabs:
         assert "Posts" in body
         assert "Orders" in body
 
-    def test_related_tabs_true_asserts_a_strip_even_for_one_relation(
-        self, client_in, post
-    ):
+    def test_related_tabs_true_asserts_a_strip_even_for_one_relation(self, client_in, post):
         from vantage import site
 
         panel = site.get_panel(Post)

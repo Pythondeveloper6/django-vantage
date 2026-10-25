@@ -4,15 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vantage', '0004_background_jobs'),
+        ("vantage", "0004_background_jobs"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vantagelogentry',
-            name='action',
-            field=models.CharField(choices=[('create', 'Created'), ('update', 'Updated'), ('delete', 'Deleted'), ('trash', 'Moved to trash'), ('restore', 'Restored'), ('action', 'Ran an action')], max_length=10),
+            model_name="vantagelogentry",
+            name="action",
+            field=models.CharField(
+                choices=[
+                    ("create", "Created"),
+                    ("update", "Updated"),
+                    ("delete", "Deleted"),
+                    ("trash", "Moved to trash"),
+                    ("restore", "Restored"),
+                    ("action", "Ran an action"),
+                ],
+                max_length=10,
+            ),
         ),
     ]

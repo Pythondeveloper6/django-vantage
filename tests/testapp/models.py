@@ -121,7 +121,6 @@ class Archive(models.Model):
         return self.title
 
 
-
 # ── pattern detection ───────────────────────────────────────────────────────
 #
 # Each convention gets a model that must be detected and, where it has a convincing
@@ -286,7 +285,6 @@ class Upload(models.Model):
         return self.name
 
 
-
 # ── multi-tenancy ────────────────────────────────────────────────────────────
 #
 # One small constellation for tests/test_tenancy.py: a tenant, something scoped to it
@@ -329,9 +327,7 @@ class TntSecret(models.Model):
     there is no dropdown standing in front of it to do that job first.
     """
 
-    org = models.ForeignKey(
-        TntOrg, on_delete=models.CASCADE, editable=False, null=True, blank=True
-    )
+    org = models.ForeignKey(TntOrg, on_delete=models.CASCADE, editable=False, null=True, blank=True)
     label = models.CharField(max_length=80)
 
     def __str__(self):
@@ -464,9 +460,7 @@ class ZInlineWidget(models.Model):
     """Parent for the M2M-through inline tests."""
 
     name = models.CharField(max_length=80)
-    parts = models.ManyToManyField(
-        ZInlinePart, through="ZInlineWidgetPart", related_name="widgets"
-    )
+    parts = models.ManyToManyField(ZInlinePart, through="ZInlineWidgetPart", related_name="widgets")
 
     def __str__(self):
         return self.name

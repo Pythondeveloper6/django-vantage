@@ -313,9 +313,7 @@ class ChoiceFilter(Filter):
         return None
 
     def options(self) -> list[tuple[str, str]]:
-        options = [
-            (str(value), str(label)) for value, label in _flat_choices(self.field.choices)
-        ]
+        options = [(str(value), str(label)) for value, label in _flat_choices(self.field.choices)]
         if EMPTY not in self._by_key:
             options += self._empty_option()
         return options
@@ -645,9 +643,7 @@ def apply_facet_counts(
     if planned > budget:
         # Trimming to fit would give some filters counts and others none, which reads
         # as a bug to the user. Dropping the lot is at least legible.
-        logger.warning(
-            "Skipping facet counts: %d queries needed, budget is %d.", planned, budget
-        )
+        logger.warning("Skipping facet counts: %d queries needed, budget is %d.", planned, budget)
         return
 
     # Counting distinct primary keys is only necessary — and only correct — when an

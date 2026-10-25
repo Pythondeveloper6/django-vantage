@@ -83,8 +83,20 @@ class Collector(HTMLParser):
     """Parses just enough structure for the assertions in this file."""
 
     VOID = {
-        "area", "base", "br", "col", "embed", "hr", "img", "input",
-        "link", "meta", "param", "source", "track", "wbr",
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
     }
 
     def __init__(self) -> None:
@@ -126,9 +138,7 @@ class Collector(HTMLParser):
             tag=tag,
             attrs=resolved,
             ancestors=tuple(node.tag for node in self._open),
-            hidden=parent_hidden
-            or resolved.get("aria-hidden") == "true"
-            or "hidden" in resolved,
+            hidden=parent_hidden or resolved.get("aria-hidden") == "true" or "hidden" in resolved,
         )
         self.elements.append(element)
         return element
@@ -193,7 +203,10 @@ def staff(db):
 def post(db):
     author = Author.objects.create(name="Ada Lovelace", email="ada@example.com")
     return Post.objects.create(
-        title="A post", slug="a-post", body="Body text", author=author,
+        title="A post",
+        slug="a-post",
+        body="Body text",
+        author=author,
         status=Post.Status.PUBLISHED,
     )
 
@@ -243,8 +256,16 @@ def pages(client, staff, post) -> dict[str, str]:
 #: Everything rendered inside vantage/base.html. These get the landmark and skip-link
 #: guarantees; the standalone pages below deliberately do not.
 SHELL_PAGES = (
-    "password_change", "dashboard", "detail", "custom_page", "404", "403",
-    "list", "add", "delete", "settings",
+    "password_change",
+    "dashboard",
+    "detail",
+    "custom_page",
+    "404",
+    "403",
+    "list",
+    "add",
+    "delete",
+    "settings",
 )
 ALL_PAGES = (*SHELL_PAGES, "login", "logged_out", "500")
 
@@ -340,7 +361,8 @@ class TestTheShell:
         it consumes the first tab stop and does nothing."""
         document = docs[name]
         links = [
-            el for el in document.of("a")
+            el
+            for el in document.of("a")
             if el.attrs.get("href", "").startswith("#") and "skip" in el.name.lower()
         ]
         assert links, f"{name}: no skip link"
@@ -351,8 +373,10 @@ class TestTheShell:
         """After the banners it is decoration — the user has already tabbed past the
         content it claims to skip."""
         focusable = [
-            el for el in docs[name].of("a", "button", "input", "select", "textarea")
-            if not el.hidden and (el.tag != "a" or el.attrs.get("href"))
+            el
+            for el in docs[name].of("a", "button", "input", "select", "textarea")
+            if not el.hidden
+            and (el.tag != "a" or el.attrs.get("href"))
             and el.attrs.get("type") != "hidden"
         ]
         assert focusable and "skip" in focusable[0].name.lower()
@@ -517,9 +541,7 @@ class TestLiveDemoFindings:
 
         # A pixel count alone does not say which column changed. The column's own
         # label has to be in the message, not just the number.
-        schedule = js[
-            js.index("function scheduleResizeAnnounce(") : js.index("function setWidth(")
-        ]
+        schedule = js[js.index("function scheduleResizeAnnounce(") : js.index("function setWidth(")]
         assert "columnByName[name].label" in schedule
         assert "widths[name]" in schedule
 
@@ -572,6 +594,58 @@ class TestLiveDemoFindings:
         # not a second, unconditional application of the old attributes.
         unconditional = js[: js.index('"inert" in select')]
         assert 'select.setAttribute("aria-hidden", "true")' not in unconditional
+
+
+class TestEmptyCellLinks:
+    """A cell link whose value is empty must still say where it goes.
+
+    An empty value renders the em-dash placeholder, and a link made only of that
+    dash announced as "link, dash" (WCAG 2.4.4, 4.1.2). The dash stays for sighted
+    users; assistive technology is told which record the link opens.
+    """
+
+    @pytest.fixture
+    def summary_linked(self, monkeypatch):
+        from vantage.sites import site
+
+        panel = site.get_panel(Post)
+        monkeypatch.setattr(panel, "list_display", ["summary", "title"])
+        monkeypatch.setattr(panel, "list_link", "summary")
+        return panel
+
+    def _cell_links(self, html):
+        return [
+            el for el in Document.parse(html).of("a") if "v-cell-link" in el.attrs.get("class", "")
+        ]
+
+    def test_an_empty_linked_cell_names_its_record(self, client, staff, post, summary_linked):
+        assert post.summary == ""
+        client.force_login(staff)
+        html = client.get(reverse("vantage:testapp-post-list")).content.decode()
+        links = self._cell_links(html)
+        assert links, "the list rendered no cell links at all"
+        for link in links:
+            assert link.has_name, link
+            assert str(post) in link.name, link.name
+
+    def test_the_dash_is_hidden_from_assistive_technology(
+        self, client, staff, post, summary_linked
+    ):
+        client.force_login(staff)
+        html = client.get(reverse("vantage:testapp-post-list")).content.decode()
+        hidden_dashes = [
+            el
+            for el in Document.parse(html).of("span")
+            if el.hidden and "—" in el.text and "a" in el.ancestors
+        ]
+        assert hidden_dashes, "the placeholder inside the link is not aria-hidden"
+
+    def test_a_cell_with_a_value_is_left_alone(self, client, staff, post):
+        client.force_login(staff)
+        html = client.get(reverse("vantage:testapp-post-list")).content.decode()
+        link = self._cell_links(html)[0]
+        assert link.name == post.title
+        assert "v-sr-only" not in html.split('class="v-cell-link"', 1)[1].split("</a>", 1)[0]
 
 
 class TestTheErrorPages:
@@ -650,9 +724,7 @@ class TestTokenContrast:
     @pytest.mark.parametrize(("fg", "bg"), NON_TEXT_PAIRS)
     def test_non_text_pairs_clear_the_three_to_one_bar(self, fg, bg, dark):
         tokens = build_tokens(dark=dark)
-        assert (
-            contrast_ratio(_oklch(tokens[fg]), _oklch(tokens[bg])) >= WCAG_AA_NON_TEXT
-        )
+        assert contrast_ratio(_oklch(tokens[fg]), _oklch(tokens[bg])) >= WCAG_AA_NON_TEXT
 
     @pytest.mark.parametrize("brand", SWEEP)
     @pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
@@ -677,9 +749,24 @@ class TestTokenContrast:
         )
         assert ratio >= WCAG_AA, f"{brand}: {ratio:.2f}"
 
-    def test_alpha_tokens_are_knowingly_excluded(self):
-        """Documents the hole rather than hiding it: the dark theme's border tokens
-        are translucent, so no static pair can be measured for them."""
+    @pytest.mark.parametrize("brand", [None, *SWEEP])
+    @pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
+    @pytest.mark.parametrize(
+        "surface", ["background", "card", "popover", "sidebar", "secondary", "muted"]
+    )
+    def test_a_form_field_boundary_clears_three_to_one(self, surface, dark, brand):
+        """WCAG 1.4.11. ``--input`` is the border of every text field, select and drop
+        zone; it once measured 1.27:1 in the light theme and was translucent, and so
+        unmeasurable, in the dark one."""
+        tokens = build_tokens(brand, dark=dark)
+        boundary = _oklch(tokens["input"])
+        assert boundary, "--input must be an opaque oklch() colour to be measurable"
+        ratio = contrast_ratio(boundary, _oklch(tokens[surface]))
+        assert ratio >= WCAG_AA_NON_TEXT, f"input on {surface}: {ratio:.2f}"
+
+    def test_decorative_borders_are_knowingly_excluded(self):
+        """Documents the remaining hole rather than hiding it: the dark theme's
+        ``--border`` (a separator, not a control boundary) is translucent, so no static
+        pair can be measured for it."""
         dark = build_tokens(dark=True)
         assert _oklch(dark["border"]) is None
-        assert _oklch(dark["input"]) is None

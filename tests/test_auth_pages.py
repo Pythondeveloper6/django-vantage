@@ -31,6 +31,7 @@ handler403 = "vantage.authviews.permission_denied"
 handler404 = "vantage.authviews.page_not_found"
 handler500 = "vantage.authviews.server_error"
 
+
 @pytest.fixture(autouse=True)
 def _mounted(settings):
     """Every test in this module runs against the urlconf declared above."""
@@ -83,9 +84,7 @@ class TestLogin:
 
     def test_a_bad_password_is_announced_not_merely_coloured(self, client, db):
         User.objects.create_user("someone", password="correct-horse")
-        response = client.post(
-            "/accounts/login/", {"username": "someone", "password": "wrong"}
-        )
+        response = client.post("/accounts/login/", {"username": "someone", "password": "wrong"})
         body = response.content.decode()
         assert response.status_code == 200
         assert 'role="alert"' in body

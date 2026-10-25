@@ -130,9 +130,7 @@ class JobStatusView(JobsBase):
                 # later cannot leave a bar polling forever.
                 "terminal": job.is_terminal,
                 "poll_ms": POLL_MS,
-                "errors_url": (
-                    _errors_url(job) if job.failed and job.errors else ""
-                ),
+                "errors_url": (_errors_url(job) if job.failed and job.errors else ""),
             }
         )
         # A progress reading that a proxy is allowed to keep is a bar that stops

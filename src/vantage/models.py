@@ -597,9 +597,7 @@ class SavedView(models.Model):
     visibility = models.CharField(
         max_length=10, choices=Visibility.choices, default=Visibility.PRIVATE
     )
-    edit_scope = models.CharField(
-        max_length=10, choices=EditScope.choices, default=EditScope.OWNER
-    )
+    edit_scope = models.CharField(max_length=10, choices=EditScope.choices, default=EditScope.OWNER)
     #: Freezes the configuration, not the data — and binds the creator too. A lock
     #: only the owner can ignore is a lock that protects nobody from the one person
     #: most likely to change the view by accident.
@@ -762,9 +760,7 @@ class SavedViewUserState(models.Model):
         verbose_name = _("saved view state")
         verbose_name_plural = _("saved view states")
         constraints = [
-            models.UniqueConstraint(
-                fields=["view", "user"], name="vantage_view_state_unique"
-            )
+            models.UniqueConstraint(fields=["view", "user"], name="vantage_view_state_unique")
         ]
 
     def __str__(self) -> str:

@@ -208,9 +208,7 @@ def _object_url(entry: VantageLogEntry) -> str | None:
         return None
     opts = model._meta
     try:
-        return reverse(
-            f"vantage:{opts.app_label}-{opts.model_name}-detail", args=[entry.object_id]
-        )
+        return reverse(f"vantage:{opts.app_label}-{opts.model_name}-detail", args=[entry.object_id])
     except NoReverseMatch:
         return None
 

@@ -108,9 +108,7 @@ class TestCommand:
         monkeypatch.setattr(config, "path", str(tmp_path))
         (tmp_path / "panel.py").write_text("# mine\n")
 
-        call_command(
-            "vantage_scaffold", "testapp", write=True, force=True, stdout=StringIO()
-        )
+        call_command("vantage_scaffold", "testapp", write=True, force=True, stdout=StringIO())
         assert "PostPanel" in (tmp_path / "panel.py").read_text()
 
 
@@ -127,9 +125,7 @@ def test_generated_config_passes_its_own_checks(tmp_path):
     namespace: dict = {}
     body = render_panel_class(Post)
     # Strip the decorator; we only want the class, not a registration side effect.
-    class_source = "\n".join(
-        line for line in body.splitlines() if not line.startswith("@register")
-    )
+    class_source = "\n".join(line for line in body.splitlines() if not line.startswith("@register"))
     exec(textwrap.dedent(class_source), {"ModelPanel": ModelPanel}, namespace)
     panel = namespace["PostPanel"](Post)
     assert panel.check() == []

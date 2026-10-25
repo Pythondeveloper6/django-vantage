@@ -4,17 +4,17 @@
 
 ## How finished is this?
 
-**Alpha.** The version is `0.1.0.dev0`, the PyPI classifier is
-`Development Status :: 3 - Alpha`, and the package is not on PyPI yet.
+**Alpha.** The version is `0.1.0a1`, the first published pre-release, and the PyPI
+classifier is `Development Status :: 3 - Alpha`.
 
 What that means in practice:
 
-- **The behaviour is heavily tested.** Around 2,400 test functions across 58 modules
-  (close to 3,000 collected test cases once parametrisation is counted), including
+- **The behaviour is heavily tested.** Around 2,800 test functions across 66 modules
+  (more than 3,600 collected test cases once parametrisation is counted), including
   query-count assertions, a hue sweep proving the contrast guarantee, and a round-trip
   test asserting that what the exporter writes the importer can read.
 - **The API may still move.** Attribute names, method signatures and settings keys are
-  not frozen. Pin an exact commit if you depend on it.
+  not frozen. Pin an exact version (`django-vantage==0.1.0a1`) if you depend on it.
 - **Several features are declared but not wired up.** They are listed below rather than
   glossed over.
 - **There is no upgrade path guarantee** and no deprecation cycle yet.
@@ -107,10 +107,8 @@ An honest list. Some of these are decisions; some are gaps.
 |---|---|
 | **`panel.permissions`** | Removed outright, not merely ignored. Setting it fails `manage.py check` (`vantage.E020`). Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks — see [Panels](panels.md#removed-attributes) |
 | **A per-field widget override hook** | There is no `formfield_overrides` equivalent. Widgets are inferred per field kind; supply your own form if you need something specific |
-| **Sidebar arrangement from the UI** | The [per-list customisation rail](lists.md#the-customisation-rail), the [dashboard's own arrange mode](pages-and-dashboards.md#arranging-the-dashboard-from-the-ui) and the [settings screen](theming.md#the-settings-screen) all have UI layers now; the sidebar (`VANTAGE["NAV"]`) does not yet — it is Python-only today. See [How configuration resolves](configuration.md#what-is-configurable-from-the-ui-today-and-what-is-not) |
 | **A lightbox on image thumbnails** | Clicking a thumbnail opens the original in a new tab; there is no click-to-enlarge overlay. See [Media and uploads](forms.md#media-and-uploads) |
-| **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (high-traffic strings — nav, buttons, list and form pages, confirmations; the rest falls back to English) — see [Internationalization](internationalization.md). The JavaScript in `static/vantage/*.js` is not wired into i18n yet: its user-facing strings are plain literals, not `gettext()` calls |
-| **Column resize and pinning** | Reorder and hide are done; drag-resize and a pinned/sticky column are not |
+| **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (partial on purpose: the high-traffic strings — chrome, buttons, list and form pages, confirmations — with the rest falling back to English), for templates, Python and the JavaScript alike — see [Internationalization](internationalization.md) |
 
 `inlines`, `row_actions`, `list_select_related`, `related_tabs`, `layout` and background
 job offload for bulk actions used to belong on this table and no longer do — all six are
@@ -144,8 +142,12 @@ carry binary data) and no bulk-action, saved-view or import/export endpoints yet
   [counting a large table](deployment.md#counting-a-large-table) — but it means the
   number at the foot of a large list is `10,000+` or `~2,300,000`, not an exact figure.
   Planner estimates are Postgres-only and are withheld from row-restricted users.
-- **A strict CSP will break the theme.** The token stylesheet and the no-flash script
-  are inline in `<head>` by necessity, and no nonce is emitted.
+- **A strict CSP needs one context processor.** The token stylesheet and the no-flash
+  script are inline in `<head>`; `base.html` nonces both through `csp_nonce_attr` once
+  `vantage.security.csp_context` is in your context processors, and `vantage.W056`
+  warns if a policy is configured without it. A handful of inline `style` attributes
+  remain, which no nonce can cover — see
+  [Content-Security-Policy](security.md#content-security-policy) for the exact policy.
 - **The import wizard stashes the uploaded file on local disk.** Running more than one
   process needs sticky sessions or a shared filesystem between the preview and the
   commit.

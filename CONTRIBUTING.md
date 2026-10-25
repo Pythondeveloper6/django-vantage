@@ -14,7 +14,7 @@ The project uses [uv](https://docs.astral.sh/uv/). Install it first — everythi
 follows from one command.
 
 ```bash
-git clone https://github.com/mahmoudahmed/django-vantage
+git clone https://github.com/Pythondeveloper6/django-vantage
 cd django-vantage
 uv sync --all-groups
 ```
@@ -44,14 +44,14 @@ the loop and no database file — the suite runs against in-memory SQLite.
 ## Lint
 
 ```bash
-uv run ruff check src tests       # this is what CI gates on
+uv run ruff check src tests       # CI gates on both of these
+uv run ruff format src tests
 uv run ruff check --fix src tests
 ```
 
-`ruff format` is **not** yet enforced. The tree has never been run through it, so
-enabling the gate today would fail every pull request for reasons unrelated to the
-change; CI runs `ruff format --check` in advisory mode so the drift stays visible. Don't
-reformat files you aren't otherwise touching.
+`ruff format --check` is enforced. The whole tree was formatted in one commit, which
+`.git-blame-ignore-revs` lists; run `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+once so a local `git blame` skips it.
 
 Optional, and worth installing once:
 
@@ -72,8 +72,8 @@ in bulk to quiet it.
 
 ## Run the matrix locally
 
-CI tests Python 3.12/3.13/3.14 against Django 5.2 (LTS) and 6.1, plus Django `main` as
-an allowed failure. You can run any cell of that yourself:
+CI tests Python 3.12/3.13/3.14 against Django 5.2 (LTS), 6.0 and 6.1, plus Django `main`
+as an allowed failure. You can run any cell of that yourself:
 
 ```bash
 uvx --with tox-uv tox                  # everything
@@ -98,6 +98,26 @@ how you get back to a clean database.
 
 Render the page and look at it. More than one bug in this repository's history was a
 green suite over markup that had silently vanished, because no test asserted on it.
+
+## Documentation
+
+The pages in `docs/` are the documentation site, built with MkDocs Material:
+
+```bash
+uv run --group docs mkdocs serve       # live preview on http://127.0.0.1:8000/
+uv run --group docs mkdocs build --strict
+```
+
+CI builds with `--strict` on every pull request, so a broken link or a page missing
+from the `nav` in `mkdocs.yml` fails there. Link between pages with relative `.md`
+paths; they work both on github.com and on the site.
+
+The screenshots in `docs/assets/screenshots/` come from the demo. After a visible UI
+change, regenerate them rather than editing them by hand:
+
+```bash
+uv run python scripts/screenshots.py   # needs the browser group and Chromium
+```
 
 ---
 
@@ -258,10 +278,24 @@ the wheel left out.
 **If you add a new kind of file to `src/vantage/`** — a locale directory, a JSON data
 file, a `py.typed` marker — check it actually ships. The build backend is hatchling and
 the include rules are in `pyproject.toml` under `[tool.hatch.build.targets.*]`.
-`MANIFEST.in` is present for tooling that expects it but is **not** read by hatchling;
-pyproject is the authority.
+There is no `MANIFEST.in`; hatchling does not read one, and pyproject is the authority.
 
 ---
+
+## Supported versions
+
+The supported set is exactly what the CI `test` matrix runs, and three places must
+agree with it: the `Framework :: Django ::` classifiers, the `Django>=…,<…` bound in
+`dependencies`, and the Requirements line in the README.
+
+- **A new Django release** is supported in the commit that adds it to the matrix in
+  `ci.yml` and `tox.ini`, adds its classifier, and raises the upper bound. Not before:
+  the bound exists so pip cannot install this package next to a Django nobody tested.
+  Django `main` runs as an allowed failure precisely so that commit is small.
+- **A Django release is dropped** once it is past Django's own end of extended support,
+  in a minor version (pre-1.0) and noted under **Changed** in the changelog. The LTS
+  stays until its end of life.
+- **Python** follows the same rule: the classifiers name what the matrix runs.
 
 ## Pull requests
 

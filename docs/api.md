@@ -245,7 +245,7 @@ cursor anchored to a row cannot skip or duplicate under concurrent writes the wa
 to between 1 and 200 rather than rejected outright — a value below 1, above 200, or not
 a number at all silently becomes the nearest valid size instead of a `400`, which is the
 right trade for a parameter that only ever *shrinks or grows a response*, never changes
-what it means. See [`vantage.pagination.KeysetPaginator`](../src/vantage/pagination.py)
+what it means. See [`vantage.pagination.KeysetPaginator`](https://github.com/Pythondeveloper6/django-vantage/blob/main/src/vantage/pagination.py)
 for the mechanism.
 
 ### Retrieve
@@ -267,7 +267,7 @@ for the mechanism.
 
 A row you may not see does not exist: an out-of-scope or nonexistent primary key both
 answer `404`, never `403` — the same rule
-[`vantage.formviews.get_record`](../src/vantage/formviews.py) applies to the HTML
+[`vantage.formviews.get_record`](https://github.com/Pythondeveloper6/django-vantage/blob/main/src/vantage/formviews.py) applies to the HTML
 detail page, so this cannot leak that a record exists and is merely off-limits. A
 primary key of the wrong *shape* — a letter where the model expects an integer, say —
 answers `404` too rather than a `500`; the lookup is refused before it ever reaches the
@@ -304,7 +304,7 @@ A field that is **read-only** — an auto-generated primary key, an `auto_now`/
 the form at all, on any of the three verbs. Sending one back is a `400`, not a value
 that gets quietly dropped: hiding a control is a UI affordance, refusing the field
 entirely is the security boundary, and it is the same boundary
-[`vantage.formviews`](../src/vantage/formviews.py) documents for the change form.
+[`vantage.formviews`](https://github.com/Pythondeveloper6/django-vantage/blob/main/src/vantage/formviews.py) documents for the change form.
 
 ### Delete
 
@@ -320,7 +320,7 @@ page runs via `vantage.formviews.collect_cascade`.
 
 Every row carries `version` — an opaque token off the model's own `auto_now` timestamp
 or an explicit integer counter column, whichever it has; see
-[`vantage.concurrency`](../src/vantage/concurrency.py). Send it back on `PUT`/`PATCH`
+[`vantage.concurrency`](https://github.com/Pythondeveloper6/django-vantage/blob/main/src/vantage/concurrency.py). Send it back on `PUT`/`PATCH`
 to get a compare-and-set: the write only lands if nobody else's write landed first.
 
 ```json
@@ -329,13 +329,13 @@ to get a compare-and-set: the write only lands if nobody else's write landed fir
 
 Omit `version` and the write proceeds unguarded — last writer wins, exactly what the
 HTML change form does today. Passing it is how a script opts into the same protection
-[`vantage.inline`](../src/vantage/inline.py)'s row editor already gives the grid.
+[`vantage.inline`](https://github.com/Pythondeveloper6/django-vantage/blob/main/src/vantage/inline.py)'s row editor already gives the grid.
 
 ## Query cost does not grow with row count
 
 The list endpoint derives `select_related`/`prefetch_related` from the columns actually
 requested — the panel's own inferred joins, plus
-[`vantage.optimizer.plan_related`](../src/vantage/optimizer.py) over whatever
+[`vantage.optimizer.plan_related`](https://github.com/Pythondeveloper6/django-vantage/blob/main/src/vantage/optimizer.py) over whatever
 `?fields=` asked for beyond them. Asking for two more relation columns over a
 fifteen-row page costs the same number of queries as asking for none; it never costs
 fifteen more. Paging five cursors deep costs the same as paging one deep. Both are

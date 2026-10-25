@@ -387,9 +387,7 @@ class TestConflictResponse:
         """No version column is not a reason to refuse the write, only to admit it."""
         panel = site.get_panel(Author)
         monkeypatch.setattr(panel, "list_editable", ["is_active"])
-        monkeypatch.setattr(
-            panel, "list_display", ["name", "email", "is_active"]
-        )
+        monkeypatch.setattr(panel, "list_display", ["name", "email", "is_active"])
         response = patch(
             rf, panel, boss, {"changes": [{"pk": author.pk, "fields": {"is_active": False}}]}
         )
@@ -412,9 +410,7 @@ class TestConflictResponse:
             },
         )
         body = json.loads(response.content)
-        assert body["rows"][0]["version"] == concurrency.token_for(
-            Post.objects.get(pk=post.pk)
-        )
+        assert body["rows"][0]["version"] == concurrency.token_for(Post.objects.get(pk=post.pk))
 
     def test_the_new_token_is_immediately_usable(self, rf, boss, post, editable):
         """Two saves in a row must work without a page reload."""
