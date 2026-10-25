@@ -79,6 +79,39 @@ def check_vantage_settings(app_configs, **kwargs) -> list[Error]:
                 )
             )
 
+    errors.extend(_check_brand(user))
+    return errors
+
+
+def _check_brand(user: dict) -> list[Error]:
+    """The brand colour and radius are rendered into every page's inline stylesheet,
+    the sign-in page's included, so a typo in either is not a cosmetic problem: an
+    unreadable colour raises on every render. Caught here instead, with the same
+    validators the settings screen applies to the values it stores."""
+    from django.core.exceptions import ValidationError
+
+    from vantage.models import validate_brand_color, validate_css_length
+
+    errors: list[Error] = []
+    for key, validate, check_id, hint in (
+        ("BRAND_COLOR", validate_brand_color, "vantage.E004", "Use a hex colour like '#6366f1'."),
+        ("BRAND_RADIUS", validate_css_length, "vantage.E005", "Use a length like '0.5rem'."),
+    ):
+        value = user.get(key)
+        if value is None:
+            continue
+        try:
+            if not isinstance(value, str):
+                raise ValidationError(f"expected a string, got {type(value).__name__}")
+            validate(value)
+        except ValidationError as exc:
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] is invalid: {' '.join(exc.messages)}",
+                    hint=hint,
+                    id=check_id,
+                )
+            )
     return errors
 
 

@@ -107,10 +107,8 @@ An honest list. Some of these are decisions; some are gaps.
 |---|---|
 | **`panel.permissions`** | Removed outright, not merely ignored. Setting it fails `manage.py check` (`vantage.E020`). Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks — see [Panels](panels.md#removed-attributes) |
 | **A per-field widget override hook** | There is no `formfield_overrides` equivalent. Widgets are inferred per field kind; supply your own form if you need something specific |
-| **Sidebar arrangement from the UI** | The [per-list customisation rail](lists.md#the-customisation-rail), the [dashboard's own arrange mode](pages-and-dashboards.md#arranging-the-dashboard-from-the-ui) and the [settings screen](theming.md#the-settings-screen) all have UI layers now; the sidebar (`VANTAGE["NAV"]`) does not yet — it is Python-only today. See [How configuration resolves](configuration.md#what-is-configurable-from-the-ui-today-and-what-is-not) |
 | **A lightbox on image thumbnails** | Clicking a thumbnail opens the original in a new tab; there is no click-to-enlarge overlay. See [Media and uploads](forms.md#media-and-uploads) |
-| **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (high-traffic strings — nav, buttons, list and form pages, confirmations; the rest falls back to English) — see [Internationalization](internationalization.md). The JavaScript in `static/vantage/*.js` is not wired into i18n yet: its user-facing strings are plain literals, not `gettext()` calls |
-| **Column resize and pinning** | Reorder and hide are done; drag-resize and a pinned/sticky column are not |
+| **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (partial on purpose: the high-traffic strings — chrome, buttons, list and form pages, confirmations — with the rest falling back to English), for templates, Python and the JavaScript alike — see [Internationalization](internationalization.md) |
 
 `inlines`, `row_actions`, `list_select_related`, `related_tabs`, `layout` and background
 job offload for bulk actions used to belong on this table and no longer do — all six are
