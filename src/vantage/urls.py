@@ -19,7 +19,10 @@ from vantage import (
     inline,
     jobviews,
     listprefsview,
+    listviews,
     recordviews,
+    revealviews,
+    rolesviews,
     savedviews,
     settingsview,
     topbarviews,
@@ -33,6 +36,11 @@ def build(site) -> list:
     urlpatterns = [
         path("", views.DashboardView.as_view(site=site), name="dashboard"),
         path("_/theme/", views.ThemeView.as_view(site=site), name="theme"),
+        path(
+            "_/ui-theme/<slug:name>.css",
+            views.UIThemeCssView.as_view(site=site),
+            name="ui_theme_css",
+        ),
         path(
             "_/jsi18n/",
             # `packages` scopes this to vantage's own catalogue — never the whole
@@ -59,11 +67,15 @@ def build(site) -> list:
             views.ImpersonateView.as_view(site=site),
             name="impersonate",
         ),
+        path("_/undo/", views.UndoView.as_view(site=site), name="undo"),
     ]
 
     # The account page and the top-bar arrangement screen. Before the page loop for
     # the same reason as the block above: both live under the reserved "_/" prefix.
     urlpatterns += topbarviews.build_urls(site)
+
+    # The roles screens hang off the roles page's path, and only exist while it does.
+    urlpatterns += rolesviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.
@@ -84,6 +96,10 @@ def build(site) -> list:
     # And again: 'duplicate' and 'action' are suffixes on a record route, so they must
     # be declared before the bare '<path:pk>' that would otherwise swallow them.
     urlpatterns.extend(recordviews.build_urls(site))
+    # And '_kanban' — the board's move endpoint — for the same reason.
+    urlpatterns.extend(listviews.build_urls(site))
+    # Same again: 'reveal/<field>' and 'set-password' are record-route suffixes.
+    urlpatterns.extend(revealviews.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts

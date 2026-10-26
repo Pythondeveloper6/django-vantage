@@ -43,7 +43,7 @@
 
 .v-grid-density {
   display: inline-flex;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--card);
@@ -94,7 +94,7 @@
   flex-direction: column;
   background: var(--popover);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
@@ -515,7 +515,7 @@
 .v-grid-cheatsheet-panel {
   background: var(--popover);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   padding: 1.125rem 1.25rem 1.25rem;
@@ -579,7 +579,7 @@
   font-size: 0.75rem;
   line-height: 1.4;
   padding: 0.0625rem 0.3125rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-block-end-width: 2px;
   border-radius: var(--radius-sm);
   background: var(--muted);

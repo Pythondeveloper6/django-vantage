@@ -10,7 +10,8 @@
   <div class="v-form-field{% if field.wide %} v-form-field-wide{% endif %}"
        data-vantage-kind="{{ field.kind }}">
     <span class="v-form-label">{{ field.label }}</span>
-    <p class="v-form-static">{{ field.value }}</p>
+    <p class="v-form-static">{{ field.value }}{% if field.set_password_url %}
+      <a class="v-btn v-btn-sm v-btn-ghost v-set-password" href="{{ field.set_password_url }}">{% translate "Set password" %}</a>{% endif %}</p>
     {% if field.help_text %}<p class="v-form-help">{{ field.help_text }}</p>{% endif %}
   </div>
 

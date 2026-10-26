@@ -58,6 +58,7 @@ from django.http import Http404, JsonResponse
 from django.urls import NoReverseMatch, path, reverse
 
 from vantage import concurrency
+from vantage.sensitive import safe_str
 from vantage.views import PanelView
 from vantage.widgets import FieldKind, build_form_class, classify, infer_form_fields
 
@@ -220,6 +221,10 @@ def inline_fields(panel, request=None) -> tuple[InlineField, ...]:
             continue
         if field.is_relation or not getattr(field, "editable", False):
             continue
+        if name in panel.get_sensitive_fields():
+            # A cell editor round-trips the value it edits, through the control and
+            # back in the save response. A secret has no business in either.
+            continue
         kind = classify(field)
         if kind not in INLINE_KINDS or not _is_short(field, kind):
             continue
@@ -307,7 +312,7 @@ def control_attrs(field: InlineField, obj) -> dict[str, str]:
         "form": "v-inline-form",
         "data-inline-input": "",
         "data-inline-field": field.name,
-        "aria-label": f"{field.label}: {obj}",
+        "aria-label": f"{field.label}: {safe_str(obj)}",
         "aria-describedby": error_id(obj, field),
     }
 
@@ -397,6 +402,16 @@ class InlineWriteView(InlinePanelView):
         if not rows:
             return JsonResponse({"ok": True, "saved": 0, "rows": []})
 
+        from vantage import undo
+
+        undo.arm(request, self.panel)
+        self.capture = (
+            undo.FieldCapture(
+                self.panel.model, get_config(self.panel, request).names, strategy="instances"
+            )
+            if undo.enabled_for(self.panel)
+            else None
+        )
         try:
             saved = self.commit(rows)
         except Rejected as exc:
@@ -410,13 +425,17 @@ class InlineWriteView(InlinePanelView):
         for obj, form in saved:
             audit.log_form_save(request, obj, form, change=True)
 
-        return JsonResponse(
-            {
-                "ok": True,
-                "saved": len(saved),
-                "rows": [self.row_result(obj) for obj, _ in saved],
-            }
-        )
+        body: dict[str, Any] = {
+            "ok": True,
+            "saved": len(saved),
+            "rows": [self.row_result(obj) for obj, _ in saved],
+        }
+        if self.capture is not None:
+            plan = self.capture.plan(self.panel, verb="change", what="inline", origin="inline")
+            offered = undo.offer(request, self.panel, plan)
+            if offered is not None:
+                body["undo"] = offered.as_json(plan.summary if plan else "")
+        return JsonResponse(body)
 
     # ── reading the payload ─────────────────────────────────────────────────
 
@@ -468,8 +487,13 @@ class InlineWriteView(InlinePanelView):
         saved: list[tuple[Any, forms.ModelForm]] = []
 
         with transaction.atomic(using=router.db_for_write(self.panel.model)):
+            capture = getattr(self, "capture", None)
             for row in rows:
                 obj = self.get_row(row["pk"])
+                if capture is not None:
+                    # Before the form is bound: validating it writes the new values
+                    # onto ``obj``, and the "before" would already be the "after".
+                    capture.note(obj, [obj._meta.get_field(name).attname for name in row["fields"]])
                 form = self.build_form(obj, row["fields"])
                 if not form.is_valid():
                     errors.append({"pk": str(obj.pk), "fields": form_errors(form)})
@@ -480,6 +504,8 @@ class InlineWriteView(InlinePanelView):
                     conflicts.append(self.conflict(stale, row["fields"]))
                     continue
                 saved.append((self.save_row(obj, form), form))
+                if capture is not None:
+                    capture.read_row(obj)
 
             if conflicts or errors:
                 # Raised inside the block on purpose: this is what rolls back the rows
@@ -518,7 +544,7 @@ class InlineWriteView(InlinePanelView):
         return {
             "pk": str(stale.obj.pk),
             "version": stale.token,
-            "label": str(stale.obj),
+            "label": safe_str(stale.obj),
             "fields": concurrency.field_diff(stale.obj, values),
         }
 
@@ -535,7 +561,7 @@ class InlineWriteView(InlinePanelView):
         return {
             "pk": str(obj.pk),
             "version": concurrency.token_for(obj),
-            "label": str(obj),
+            "label": safe_str(obj),
             "values": {name: _widget_value(form, name) for name in config.names},
         }
 
@@ -648,9 +674,18 @@ def json_to_form_data(form_class, values: dict[str, Any]) -> dict[str, Any]:
     a boolean or a JSON value cannot behave differently depending on which endpoint set
     it.
     """
+    write_only = set(getattr(form_class, "vantage_write_only", ()))
     data: dict[str, Any] = {}
     for name, value in values.items():
         field = form_class.base_fields.get(name)
+        if name in write_only and value is None:
+            # JSON null on a write-only secret means "clear it"; an empty string or an
+            # omitted key means "keep it". See vantage.widgets.WriteOnlyModelForm.
+            from vantage.widgets import CLEAR_SUFFIX
+
+            data[name] = ""
+            data[f"{name}{CLEAR_SUFFIX}"] = "1"
+            continue
         if field is not None and isinstance(field.widget, forms.CheckboxInput):
             if _truthy(value):
                 data[name] = "on"
