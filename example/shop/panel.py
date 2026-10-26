@@ -58,7 +58,9 @@ class ProductPanel(ModelPanel):
 
 @register(Review)
 class ReviewPanel(ModelPanel):
-    """Shows the action API: three bulk operations declared as ordinary methods."""
+    """Shows the action API: two bulk operations declared as ordinary methods, plus the
+    built-in ``delete_selected``. All three offer Undo in their toast — the two methods
+    because they say which field they write, the built-in because it snapshots."""
 
     icon = "message-square"
     group = "People"
@@ -66,23 +68,13 @@ class ReviewPanel(ModelPanel):
 
     list_display = ["headline", "product", "customer", "rating", "is_published", "created_at"]
     list_filter = ["is_published", "rating", "created_at"]
+    list_editable = ["rating", "is_published"]
+    actions = ["publish", "unpublish", "delete_selected"]
 
-    @action("Publish", icon="check", permission="change")
+    @action("Publish", icon="check", permission="change", undo_fields=["is_published"])
     def publish(self, request, queryset):
         return f"Published {queryset.update(is_published=True)} reviews."
 
-    @action("Unpublish", icon="x", permission="change")
+    @action("Unpublish", icon="x", permission="change", undo_fields=["is_published"])
     def unpublish(self, request, queryset):
         return f"Unpublished {queryset.update(is_published=False)} reviews."
-
-    @action(
-        "Delete",
-        icon="trash",
-        permission="delete",
-        destructive=True,
-        max_rows=500,
-        confirm="Permanently delete {count} reviews? This cannot be undone.",
-    )
-    def delete_selected(self, request, queryset):
-        deleted, _ = queryset.delete()
-        return f"Deleted {deleted} records."
