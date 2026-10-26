@@ -144,12 +144,12 @@ select.v-inline-input {
   margin-block-start: 0.75rem;
   padding-block: 0.5rem;
   padding-inline: 0.75rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   /* Opaque: it floats over rows, and a translucent bar over a dense table is
    * unreadable in both themes. */
   background: var(--card);
-  box-shadow: 0 8px 24px -12px oklch(0 0 0 / 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .v-inline-bar[hidden] {
@@ -181,7 +181,7 @@ select.v-inline-input {
 /* ── the conflict dialog ──────────────────────────────────────────────────── */
 
 .v-inline-conflict {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   padding: 0;
   max-inline-size: min(44rem, 92vw);
@@ -254,7 +254,7 @@ select.v-inline-input {
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.5rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   cursor: pointer;
   font-size: 0.8125rem;
