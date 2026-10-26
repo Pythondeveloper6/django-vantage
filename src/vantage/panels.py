@@ -72,6 +72,13 @@ class ModelPanel:
     inlines: list[Any] | None = None
     related_tabs: bool | None = None
 
+    # ── sensitive values ────────────────────────────────────────────────────
+    #
+    # ``None`` infers them (see vantage.sensitive); a list names them outright and
+    # replaces inference; ``[]`` switches masking off for this model. A user model's
+    # password hash is masked whatever this says.
+    sensitive_fields: list[str] | None = None
+
     # ── behaviour ───────────────────────────────────────────────────────────
     #
     # There is deliberately no ``permissions`` attribute. Access is answered in one
@@ -205,7 +212,14 @@ class ModelPanel:
             return list(stored)
         if self.list_display is not None:
             return list(self.list_display)
-        return inference.infer_list_display(self.model)
+        inferred = inference.infer_list_display(self.model)
+        # Inference already skips names that *look* sensitive; this also drops a field
+        # the panel declared sensitive under an innocent name. An explicit list_display
+        # is left alone — the column renders masked.
+        if self.sensitive_fields:
+            hidden = self.get_sensitive_fields()
+            inferred = [name for name in inferred if name not in hidden] or [self.opts.pk.name]
+        return inferred
 
     def get_list_link(self, request=None) -> str:
         if self.list_link is not None:
@@ -214,12 +228,21 @@ class ModelPanel:
         # list_link should link its first column, not a column inference would have
         # chosen but the user then hid.
         inferred = inference.infer_list_link(self.model)
+        if self.sensitive_fields and inferred in self.get_sensitive_fields():
+            # A link whose text is a mask opens the record fine and reads as nothing.
+            return self.get_list_display(request)[0]
         if self.list_display or listprefs.override(self, request, "list_display"):
             columns = self.get_list_display(request)
             return inferred if inferred in columns else columns[0]
         return inferred
 
     def get_list_filter(self, request=None) -> list[str]:
+        # Never a sensitive path, whoever declared it: a filter is an oracle — ticking
+        # "pin = 1234" and watching the row count answers the question the mask exists
+        # to refuse. ``vantage.W090`` tells the author their declaration was dropped.
+        return self._without_sensitive(self._declared_list_filter(request))
+
+    def _declared_list_filter(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_filter")
         if stored is not None:
             return list(stored)
@@ -228,6 +251,10 @@ class ModelPanel:
         return inference.infer_list_filter(self.model)
 
     def get_list_search(self, request=None) -> list[str]:
+        # Same reason as get_list_filter: a substring search is a guessing oracle.
+        return self._without_sensitive(self._declared_list_search(request))
+
+    def _declared_list_search(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_search")
         if stored is not None:
             return list(stored)
@@ -235,9 +262,50 @@ class ModelPanel:
             return list(self.list_search)
         return inference.infer_list_search(self.model)
 
+    def _without_sensitive(self, paths: list[str]) -> list[str]:
+        from vantage.sensitive import strip_sensitive
+
+        return strip_sensitive(self, paths)
+
+    # ── sensitive values ────────────────────────────────────────────────────
+
+    def get_sensitive_fields(self) -> frozenset[str]:
+        """The field names masked on every surface. See :mod:`vantage.sensitive`.
+
+        Memoised per vocabulary: this is asked once per cell on a list page, and the
+        answer only changes when ``sensitive_fields`` or the settings do.
+        """
+        from vantage.sensitive import panel_sensitive_fields, patterns
+
+        declared = self.sensitive_fields
+        key = (patterns(), None if declared is None else tuple(declared))
+        cached = getattr(self, "_sensitive_memo", None)
+        if cached is None or cached[0] != key:
+            cached = (key, panel_sensitive_fields(self), {})
+            self._sensitive_memo = cached
+        return cached[1]
+
+    def can_reveal(self, request, obj, field_name: str) -> bool:
+        """Whether ``request`` may reveal ``field_name`` on ``obj``. Override to narrow or widen.
+
+        Superusers, and anyone holding ``vantage.reveal_sensitive``. Asked only after the
+        user has passed the view check for ``obj`` and only for a field that is not a
+        hash — a hashed field cannot be made revealable from here.
+        """
+        from vantage.sensitive import REVEAL_PERMISSION
+
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False
+        return bool(user.is_superuser) or user.has_perm(REVEAL_PERMISSION)
+
     def get_ordering(self, request=None) -> list[str]:
         if self.ordering is not None:
-            return list(self.ordering)
+            # A fixed order by a secret still ranks every row by it. Dropped, with
+            # vantage.W090 saying so; inference never chooses one.
+            kept = self._without_sensitive(list(self.ordering))
+            if kept or not self.ordering:
+                return kept
         return inference.infer_ordering(self.model)
 
     def get_related_tabs(self, related_count: int | None = None) -> bool:

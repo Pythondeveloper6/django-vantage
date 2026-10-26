@@ -38,6 +38,16 @@ class SimpleVantageConfig(AppConfig):
         # import reaches django.contrib.admin — the adapter is lazy about it.
         checks.register(check_plugins, "vantage")
         checks.register(check_admin_adapter, "vantage")
+
+        # vantage.reveal_sensitive, created after migrate rather than by a migration so
+        # the feature costs a project no schema change. See vantage.sensitive.
+        from django.db.models.signals import post_migrate
+
+        from vantage.sensitive import ensure_reveal_permission
+
+        post_migrate.connect(
+            ensure_reveal_permission, sender=self, dispatch_uid="vantage_reveal_permission"
+        )
         # deploy=True keeps these out of the everyday `manage.py check`. Every one of
         # them is correct on a laptop, and a check that is wrong in development is a
         # check everybody learns to scroll past.
