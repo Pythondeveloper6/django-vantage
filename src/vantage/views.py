@@ -751,10 +751,13 @@ class PageView(SiteView):
         )
         # The page's own keys go on top, so a page can override anything the shell
         # supplied. Its data is the reason the page exists.
-        context.update(page.get_context(self.request))
+        # Called once: ``setdefault`` evaluates its argument eagerly, so asking for the
+        # rows inline ran every page's queries twice whether it needed them or not.
+        data = page.get_context(self.request)
+        context.update(data)
         # The generic renderer needs an ordered view of the data; a page with its own
         # template ignores this entirely.
-        context.setdefault("page_data", _as_rows(page.get_context(self.request)))
+        context.setdefault("page_data", _as_rows(data))
         return context
 
 
