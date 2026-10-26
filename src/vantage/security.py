@@ -139,10 +139,16 @@ DEFAULTS: dict[str, object] = {
 #:   requests is a capacity incident rather than an inconvenience.
 #: * ``import`` — every attempt parses an attacker-supplied file. The wizard is four
 #:   requests per real import, so ten is roughly "two imports and a mistake".
+#: * ``reveal`` — one sensitive value per request; see :mod:`vantage.revealviews`.
 RATE_LIMITS: dict[str, tuple[int, int]] = {
     "autocomplete": (120, 60),
     "export": (12, 300),
     "import": (10, 300),
+    # Thirty sensitive values per five minutes. Someone checking a customer's key while
+    # on the phone with them never meets it; a script walking every row meets it on
+    # the thirty-first. Spent by vantage.revealviews itself, so it holds without the
+    # middleware installed.
+    "reveal": (30, 300),
 }
 
 

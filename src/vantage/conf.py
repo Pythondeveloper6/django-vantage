@@ -77,6 +77,11 @@ DEFAULTS: dict[str, Any] = {
     "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
+    # ── sensitive values ────────────────────────────────────────────────────
+    # The names that mark a field as a secret, matched as whole words. None means the
+    # built-in list (vantage.sensitive.DEFAULT_PATTERNS); a list replaces it; a list
+    # containing "..." extends it: ["...", "nhs_number"].
+    "SENSITIVE_PATTERNS": None,
     # ── security ────────────────────────────────────────────────────────────
     # Registered here, but described and defaulted in vantage.security.DEFAULTS,
     # which is where the reasoning for each number lives. They have to appear in
@@ -178,6 +183,8 @@ class VantageSettings:
                     f"VANTAGE['{key}'] must be one of {', '.join(allowed)}; got {value!r}."
                 )
 
+        _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
+
         resolved = {**DEFAULTS, **user}
 
         # The database layer goes *under* attribute access rather than beside it, so
@@ -208,6 +215,24 @@ class VantageSettings:
 
     def reset(self) -> None:
         self._cache = None
+
+
+def _validate_sensitive_patterns(value: Any) -> None:
+    """A list of words, optionally with ``"..."`` meaning "and the defaults".
+
+    Rejected loudly rather than coerced: a bare string would otherwise be iterated a
+    character at a time and mask every column with an ``a`` in its name, and a typo'd
+    type that silently disabled masking is worse.
+    """
+    if value is None:
+        return
+    if not isinstance(value, list | tuple) or any(
+        not (entry is Ellipsis or (isinstance(entry, str) and entry.strip())) for entry in value
+    ):
+        raise ImproperlyConfigured(
+            "VANTAGE['SENSITIVE_PATTERNS'] must be a list of field-name words, optionally "
+            f'including "..." to keep the built-in ones; got {value!r}.'
+        )
 
 
 def _unknown_key_message(unknown: list[str]) -> str:
