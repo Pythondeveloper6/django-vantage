@@ -75,10 +75,16 @@ def infer_summaries(panel, columns: list[str]) -> dict[str, str]:
     aggregate class itself, so ``{"total": Sum}`` reads naturally next to the
     ``list_stats`` declarations right above it.
     """
+    from vantage.sensitive import is_sensitive_path
+
     declared = panel.list_aggregates or {}
     chosen: dict[str, str] = {}
 
     for name in columns:
+        if is_sensitive_path(panel, name):
+            # A min, a max or an average of a masked column is a value from it, or a
+            # bound on one. Not even ``list_aggregates`` can ask for that.
+            continue
         if name in declared:
             wanted = declared[name]
             if wanted is None:

@@ -39,6 +39,7 @@ from vantage.safety import (
     start_impersonation,
     stop_impersonation,
 )
+from vantage.sensitive import REVEAL_SECONDS, may_reveal_anything
 from vantage.theme import no_flash_script, render_theme_css, resolve_preset
 from vantage.topbar import topbar_context
 
@@ -89,6 +90,8 @@ class SiteView(TemplateView):
             page_title=self.page_title,
             page_description=self.page_description,
             breadcrumbs=self.get_breadcrumbs(),
+            may_reveal=may_reveal_anything(self.request, self.site),
+            reveal_seconds=REVEAL_SECONDS,
         )
         # The end of the header: the arranged controls, plus who is signed in. One
         # call rather than three keys, so authviews.shell_context cannot drift.
@@ -285,8 +288,15 @@ class ListView(PanelView):
         queryset = self.build_queryset(request)[0]
         columns = panel.get_list_display(request)
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
+        from vantage.sensitive import is_sensitive_path
+
         return stream_export(
-            request.GET["export"], queryset, columns, headers, panel.get_label_plural()
+            request.GET["export"],
+            queryset,
+            columns,
+            headers,
+            panel.get_label_plural(),
+            masked={name for name in columns if is_sensitive_path(panel, name)},
         )
 
     def get_context_data(self, **kwargs):
@@ -432,7 +442,13 @@ class ListView(PanelView):
         else:
             label = name.replace("_", " ")
 
-        sortable = bool(hops) and not any(hop.is_multivalued for hop in hops)
+        from vantage.sensitive import is_sensitive_path
+
+        sortable = (
+            bool(hops)
+            and not any(hop.is_multivalued for hop in hops)
+            and not is_sensitive_path(panel, name)
+        )
         active = bool(sort and sort["path"] == name)
         return {
             "name": name,
@@ -603,9 +619,11 @@ class DetailView(PanelView):
     def get_breadcrumbs(self):
         from django.urls import reverse
 
+        from vantage.sensitive import safe_str
+
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.object), None),
+            (safe_str(self.object, self.panel.site), None),
         ]
 
     def get(self, request, *args, **kwargs):
@@ -620,15 +638,27 @@ class DetailView(PanelView):
         obj = self.object
         panel = self.panel
 
+        from vantage.sensitive import safe_str, set_password_url
+
+        def password_url(name):
+            url = set_password_url(panel, obj, name)
+            if url and self.permissions.has_object_perm(self.request, panel.model, "change", obj):
+                return url
+            return None
+
         fields = [
             {
                 "label": str(getattr(field, "verbose_name", field.name)).capitalize(),
                 # "lg" is the thumbnail box: this is the page someone opened to look
                 # at the record, so a picture on it is the point rather than a marker.
+                # A sensitive field is rendered masked rather than left out: knowing
+                # that a customer *has* an API token is the useful half.
                 "value": render_cell(panel, obj, field.name, size="lg"),
+                # A password hash can never be revealed; what someone looking at it
+                # actually wants is to set a new one.
+                "set_password_url": password_url(field.name),
             }
             for field in displayable_fields(panel.model)
-            if not _is_hidden(field)
         ]
 
         related = self._related(obj)
@@ -641,7 +671,8 @@ class DetailView(PanelView):
             # None decides by count (two or more blocks); True/False assert. See
             # ModelPanel.get_related_tabs.
             related_tabs=panel.get_related_tabs(len(related)),
-            page_title=str(obj),
+            page_title=safe_str(obj, panel.site),
+            object_label=safe_str(obj, panel.site),
         )
         from vantage import audit
 
@@ -725,12 +756,6 @@ class DetailView(PanelView):
                 table_cell(render_cell(child_panel, item, name), name == link) for name in columns
             ],
         }
-
-
-def _is_hidden(field) -> bool:
-    from vantage.inference import SENSITIVE
-
-    return bool(SENSITIVE.search(field.name))
 
 
 def _related_url(site, rel, obj) -> str | None:

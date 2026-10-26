@@ -137,8 +137,19 @@ def duplicate_plan(panel, source, field_names: list[str] | None = None) -> Dupli
 
     soft_delete = panel.get_patterns().soft_delete
     m2m_names = {f.name for f in m2m_fields(model)}
+    secret = panel.get_sensitive_fields()
 
     for name in names:
+        if name in secret:
+            # Never copied. Two records sharing an API key is a security incident
+            # waiting for whoever revokes one of them, and the duplicate form would
+            # have to carry the value in the page to copy it at all.
+            try:
+                label = _label(model._meta.get_field(name))
+            except Exception:
+                label = name
+            notes.append(f"{label}: not copied, because it is a sensitive value.")
+            continue
         try:
             field = model._meta.get_field(name)
         except Exception:  # a form-only field a panel added has nothing to copy
@@ -411,8 +422,10 @@ def bulk_edit_fields(panel) -> list[str]:
     names = list(panel.fields) if panel.fields else infer_form_fields(panel.model)
 
     offered: list[str] = []
+    secret = panel.get_sensitive_fields()
     for name in names:
-        if name in readonly or name in excluded:
+        if name in readonly or name in excluded or name in secret:
+            # A secret set on forty rows at once is forty rows sharing one secret.
             continue
         try:
             field = panel.model._meta.get_field(name)

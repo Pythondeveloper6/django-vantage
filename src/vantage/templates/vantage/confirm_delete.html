@@ -10,7 +10,7 @@
   <div>
     <h1 class="v-page-title">{% blocktranslate with label=panel.get_label|lower %}Delete {{ label }}?{% endblocktranslate %}</h1>
     <p class="v-page-description">
-      {{ object }} · <span class="v-mono">#{{ object.pk }}</span>
+      {{ object|record_label }} · <span class="v-mono">#{{ object.pk }}</span>
     </p>
   </div>
 </div>
@@ -33,12 +33,12 @@
          related rows are untouched, and listing them under a heading that says they
          will be destroyed is the opposite of informing someone. {% endcomment %}
       <p class="v-confirm-lede">
-        {% blocktranslate %}This moves <strong>{{ object }}</strong> to the trash. You can restore it later.{% endblocktranslate %}
+        {% blocktranslate with object=object|record_label %}This moves <strong>{{ object }}</strong> to the trash. You can restore it later.{% endblocktranslate %}
       </p>
       <p class="v-muted">{% translate "Related records are not affected." %}</p>
     {% else %}
       <p class="v-confirm-lede">
-        {% blocktranslate %}This permanently deletes <strong>{{ object }}</strong>. It cannot be undone.{% endblocktranslate %}
+        {% blocktranslate with object=object|record_label %}This permanently deletes <strong>{{ object }}</strong>. It cannot be undone.{% endblocktranslate %}
       </p>
 
       {% comment %} The cascade preview. A delete that silently takes 12 other rows with it is the

@@ -32,6 +32,7 @@ from django.utils.translation import gettext_lazy as _
 from vantage.introspection import resolve_path
 from vantage.optimizer import plan_related
 from vantage.permissions import get_permissions
+from vantage.sensitive import safe_str, strip_sensitive
 from vantage.views import SiteView
 
 __all__ = [
@@ -177,7 +178,10 @@ class GlobalSearch:
         a bad path gets reported.
         """
         resolved = []
-        for raw in panel.get_list_search(self.request):
+        # get_list_search has already dropped sensitive paths. Asked again because the
+        # sublabel prints the matching value, so a path that slipped through would not
+        # just match a secret but display it.
+        for raw in strip_sensitive(panel, panel.get_list_search(self.request)):
             path = raw.lstrip(PREFIXES)
             if path and resolve_path(panel.model, path):
                 resolved.append(path)
@@ -248,7 +252,9 @@ class GlobalSearch:
             url = _detail_url(panel, obj)
             if url is None:  # pragma: no cover - only when urls are not mounted
                 continue
-            label = str(obj)
+            # The record's own __str__ can print its token; safe_str swaps in
+            # "<Model> #<pk>" when it does. See vantage.sensitive.
+            label = safe_str(obj, panel.site)
             hits.append(
                 SearchHit(
                     id=f"{panel.slug}:{obj.pk}",

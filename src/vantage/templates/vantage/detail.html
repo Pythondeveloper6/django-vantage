@@ -4,7 +4,7 @@
 {% block content %}
 <div class="v-page-head">
   <div>
-    <h1 class="v-page-title">{{ object }}</h1>
+    <h1 class="v-page-title">{{ object_label }}</h1>
     <p class="v-page-description">{{ panel.get_label }} · <span class="v-mono">#{{ object.pk }}</span></p>
   </div>
   <div class="v-page-actions">
@@ -28,7 +28,8 @@
       {% for field in fields %}
         <div class="v-field">
           <dt>{{ field.label }}</dt>
-          <dd>{{ field.value }}</dd>
+          <dd>{{ field.value }}{% if field.set_password_url %}
+            <a class="v-btn v-btn-sm v-btn-ghost v-set-password" href="{{ field.set_password_url }}">{% translate "Set password" %}</a>{% endif %}</dd>
         </div>
       {% endfor %}
     </dl>

@@ -142,6 +142,10 @@ def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
                 # redirect back to step one), and exercising that path is as valid a
                 # smoke check as a happy one.
                 kwargs["token"] = "smoke-test-token"
+            elif param == "field":
+                # The reveal endpoint's field name. A GET is refused (405) whatever
+                # field it names, so any name exercises the route without revealing.
+                kwargs["field"] = "password"
             else:
                 unresolved.append(param)
 

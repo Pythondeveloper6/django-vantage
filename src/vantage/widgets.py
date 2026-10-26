@@ -48,7 +48,7 @@ from django.db import models
 from django.forms.models import modelform_factory
 from django.utils.translation import gettext_lazy as _
 
-from vantage.inference import DISPLAY_NAMES, SENSITIVE, TRAILING_NAMES
+from vantage.inference import DISPLAY_NAMES, TRAILING_NAMES
 from vantage.introspection import (
     editable_fields,
     is_auto_created_through,
@@ -63,6 +63,9 @@ __all__ = [
     "SearchSelect",
     "SearchSelectMultiple",
     "WidgetSpec",
+    "WriteOnlyInput",
+    "WriteOnlyModelForm",
+    "WriteOnlyTextarea",
     "build_form_class",
     "classify",
     "infer_form_fields",
@@ -755,10 +758,14 @@ def infer_form_fields(model: type[models.Model]) -> list[str]:
 
     Excluded: anything Django will not let a form write — auto primary keys,
     ``auto_now``/``auto_now_add`` timestamps, ``editable=False`` — plus generated
-    identity fields, sensitive names, and many-to-many relations through an explicit
+    identity fields, hashed secrets, and many-to-many relations through an explicit
     model. That last one is not a taste call: ``.set()`` raises on a through model with
     extra fields, so a multi-select there would render fine and fail on save. Those
     belong in an inline.
+
+    Other sensitive fields *are* offered, write-only: :func:`build_form_class` renders
+    them empty, and an empty submission keeps the stored value. See
+    :class:`WriteOnlyModelForm`.
 
     Ordering follows the same sections as :func:`layout`, so the flat field list and the
     grouped one never disagree, with declaration order breaking ties inside a section so
@@ -769,9 +776,13 @@ def infer_form_fields(model: type[models.Model]) -> list[str]:
         *(f for f in m2m_fields(model) if f.editable),
     ]
 
+    from vantage.sensitive import field_is_sensitive, is_hashed
+
     ordered: list[tuple[int, int, int, str]] = []
     for index, field in enumerate(candidates):
-        if SENSITIVE.search(field.name):
+        if field_is_sensitive(field) and is_hashed(model, field.name):
+            # A hash typed into a text box is a broken credential, not a new one. The
+            # detail page offers "Set password" for the one hash Django knows how to set.
             continue
         if field.primary_key and field.has_default():
             # A generated identity is not something to type over by accident.
@@ -836,6 +847,12 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
 
     formfield = scope_choices(db_field.formfield(**kwargs))
 
+    # A related record's __str__ is the option label, and some __str__s print a token.
+    if isinstance(formfield, forms.ModelChoiceField):
+        from vantage.sensitive import safe_str
+
+        formfield.label_from_instance = safe_str
+
     # An upload is the one input a panel accepts that the browser did not type. The
     # extension is a claim, the Content-Type is a claim, and both are chosen by whoever
     # supplied the file; vantage.media checks the bytes instead. Appended rather than
@@ -848,6 +865,168 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
     return formfield
 
 
+# ── write-only secrets ──────────────────────────────────────────────────────
+
+#: The suffix of the "clear this value" checkbox a nullable secret gets on edit.
+CLEAR_SUFFIX = "__clear"
+
+
+class _WriteOnly:
+    """Never put a value into the markup, and offer a clear box when asked to.
+
+    The value passed to ``render`` is discarded — including on a re-render after a
+    validation error, where Django would otherwise echo back whatever was typed.
+    """
+
+    clear_label: str | None = None
+
+    def render(self, name, value, attrs=None, renderer=None):
+        from django.utils.html import format_html
+
+        html = super().render(name, None, attrs, renderer)
+        if not self.clear_label:
+            return html
+        control_id = f"{(attrs or {}).get('id') or 'id_' + name}{CLEAR_SUFFIX}"
+        return format_html(
+            '{}<label class="v-writeonly-clear" for="{}">'
+            '<input type="checkbox" class="v-checkbox" name="{}" id="{}" value="1"> {}</label>',
+            html,
+            control_id,
+            f"{name}{CLEAR_SUFFIX}",
+            control_id,
+            self.clear_label,
+        )
+
+    def format_value(self, value):
+        return None
+
+
+class WriteOnlyInput(_WriteOnly, forms.PasswordInput):
+    """A one-line secret: a password box that never renders what is stored."""
+
+    def __init__(self, attrs=None):
+        super().__init__(attrs, render_value=False)
+
+
+class WriteOnlyTextarea(_WriteOnly, forms.Textarea):
+    """A multi-line secret — a PEM key, a JSON credential — rendered empty."""
+
+
+class WriteOnlyModelForm(forms.ModelForm):
+    """A ``ModelForm`` whose sensitive fields can be written but never read back.
+
+    * The control renders empty, with a placeholder saying whether a value is stored.
+    * An empty submission on an existing record keeps the stored value, so editing a
+      customer's name does not wipe their API token.
+    * A nullable (or blank-able) secret gets a "clear" checkbox, the only way to empty
+      it on purpose.
+    * ``form.initial`` never holds the stored value either, so nothing that reads the
+      form — a template, a diff, a third-party widget — can find it there.
+    """
+
+    #: Names rendered write-only. Set by :func:`build_form_class`.
+    vantage_write_only: tuple[str, ...] = ()
+    #: Every sensitive name on the model, for the audit diff. Set by build_form_class.
+    vantage_sensitive_fields: frozenset[str] = frozenset()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._vantage_originals: dict[str, Any] = {}
+        self._vantage_cleared: set[str] = set()
+        editing = self.instance.pk is not None and not self.instance._state.adding
+        for name in self.vantage_write_only:
+            field = self.fields.get(name)
+            if field is None:
+                continue
+            model_field = _model_field_or_none(self._meta.model, name)
+            stored = getattr(self.instance, getattr(model_field, "attname", name), None)
+            has_value = editing and stored not in (None, "", b"")
+            self._vantage_originals[name] = stored
+            self.initial[name] = None
+
+            attrs = {k: v for k, v in field.widget.attrs.items() if k != "value"}
+            attrs.update(
+                {
+                    "autocomplete": "new-password",
+                    "spellcheck": "false",
+                    "autocapitalize": "off",
+                    "data-vantage-writeonly": "",
+                    "placeholder": str(
+                        _("Unchanged — type to replace")
+                        if has_value
+                        else (_("Not set") if editing else "")
+                    ),
+                }
+            )
+            widget_class = (
+                WriteOnlyTextarea if isinstance(field.widget, forms.Textarea) else WriteOnlyInput
+            )
+            widget = widget_class(attrs=attrs)
+            nullable = bool(
+                getattr(model_field, "null", False) or getattr(model_field, "blank", False)
+            )
+            if has_value and nullable:
+                widget.clear_label = str(_("Clear %(field)s") % {"field": field.label or name})
+            field.widget = widget
+            if has_value:
+                field.required = False
+
+    @property
+    def _editing(self) -> bool:
+        return self.instance.pk is not None and not self.instance._state.adding
+
+    def _clear_requested(self, name: str) -> bool:
+        if not self.is_bound:
+            return False
+        return str(self.data.get(self.add_prefix(name) + CLEAR_SUFFIX, "")).lower() in (
+            "1",
+            "on",
+            "true",
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        for name in self.vantage_write_only:
+            if name not in self.fields:
+                continue
+            original = self._vantage_originals.get(name)
+            if self._editing and self._clear_requested(name) and original not in (None, ""):
+                model_field = _model_field_or_none(self._meta.model, name)
+                cleaned[name] = None if getattr(model_field, "null", False) else ""
+                self._vantage_cleared.add(name)
+                self.errors.pop(name, None)
+            elif (
+                self._editing
+                and name not in self.errors
+                and cleaned.get(name) in self.fields[name].empty_values
+            ):
+                # Empty means "leave it alone". The stored value goes back in so
+                # construct_instance writes what was there rather than nothing.
+                cleaned[name] = original
+        return cleaned
+
+    @property
+    def changed_data(self) -> list[str]:
+        changed = [
+            name
+            for name in forms.BaseForm.changed_data.func(self)
+            if name not in self.vantage_write_only or self._received_value(name)
+        ]
+        return changed + sorted(self._vantage_cleared - set(changed))
+
+    def _received_value(self, name: str) -> bool:
+        """Whether a write-only field received a value, as opposed to "keep it"."""
+        data = self.data.get(self.add_prefix(name)) if self.is_bound else None
+        return data not in (None, "")
+
+
+def _model_field_or_none(model, name: str):
+    try:
+        return model._meta.get_field(name)
+    except Exception:
+        return None
+
+
 def build_form_class(panel_or_model: Any, fields: list[str] | None = None) -> type[forms.ModelForm]:
     """Build a ``ModelForm`` for a model or a :class:`~vantage.panels.ModelPanel`.
 
@@ -857,9 +1036,23 @@ def build_form_class(panel_or_model: Any, fields: list[str] | None = None) -> ty
     per-attribute override rule — a panel that sets ``fields`` overrides the field list
     and nothing else; widgets stay inferred.
     """
+    from vantage.sensitive import is_hashed, sensitive_names
+
     model = getattr(panel_or_model, "model", panel_or_model)
     if fields is None:
         fields = getattr(panel_or_model, "fields", None) or infer_form_fields(model)
     excluded = set(getattr(panel_or_model, "exclude", None) or ())
-    names = [name for name in fields if name not in excluded]
-    return modelform_factory(model, fields=names, formfield_callback=_formfield_callback)
+    secret = sensitive_names(panel_or_model)
+    # A hash is never a form field, even when a panel lists it: whatever was typed
+    # would be stored as the "hash", and the account behind it would stop working.
+    names = [
+        name
+        for name in fields
+        if name not in excluded and not (name in secret and is_hashed(model, name))
+    ]
+    form_class = modelform_factory(
+        model, form=WriteOnlyModelForm, fields=names, formfield_callback=_formfield_callback
+    )
+    form_class.vantage_write_only = tuple(name for name in names if name in secret)
+    form_class.vantage_sensitive_fields = secret
+    return form_class

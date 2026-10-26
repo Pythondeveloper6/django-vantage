@@ -743,7 +743,7 @@ class TestRateLimitCounting:
 
 class TestRateLimitSettings:
     def test_the_defaults_cover_the_three_surfaces(self):
-        assert set(security.RATE_LIMITS) == {"autocomplete", "export", "import"}
+        assert set(security.RATE_LIMITS) == {"autocomplete", "export", "import", "reveal"}
 
     def test_an_unbudgeted_surface_has_no_limit(self):
         assert security.rate_limit_for("list") is None

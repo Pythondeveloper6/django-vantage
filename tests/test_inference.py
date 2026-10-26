@@ -293,6 +293,7 @@ class TestInferAll:
             "list_filter",
             "list_search",
             "ordering",
+            "sensitive_fields",
         }
 
     def test_the_linked_column_is_always_displayed(self):

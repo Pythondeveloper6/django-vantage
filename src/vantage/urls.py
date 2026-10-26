@@ -21,6 +21,7 @@ from vantage import (
     listprefsview,
     listviews,
     recordviews,
+    revealviews,
     rolesviews,
     savedviews,
     settingsview,
@@ -97,6 +98,8 @@ def build(site) -> list:
     urlpatterns.extend(recordviews.build_urls(site))
     # And '_kanban' — the board's move endpoint — for the same reason.
     urlpatterns.extend(listviews.build_urls(site))
+    # Same again: 'reveal/<field>' and 'set-password' are record-route suffixes.
+    urlpatterns.extend(revealviews.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts

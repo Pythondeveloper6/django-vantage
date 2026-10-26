@@ -28,7 +28,9 @@
                 {{ entry.created_at|date:"Y-m-d H:i" }}
               </time>
             </div>
-            {% if entry.action_name %}
+            {% if entry.revealed_field %}
+              <p class="v-history-note">{% blocktranslate with name=entry.revealed_field %}Revealed <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% elif entry.action_name %}
               <p class="v-history-note">{% blocktranslate with name=entry.action_name %}Ran <code>{{ name }}</code>.{% endblocktranslate %}</p>
             {% endif %}
             {% if entry.change_list %}

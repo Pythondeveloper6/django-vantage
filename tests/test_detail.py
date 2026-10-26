@@ -110,11 +110,11 @@ class TestDetailPage:
             class Meta:
                 app_label = "testapp"
 
-        from vantage.views import _is_hidden
+        from vantage.sensitive import field_is_sensitive
 
-        fields = {f.name for f in Credential._meta.get_fields() if not _is_hidden(f)}
-        assert "name" in fields
-        assert "api_token" not in fields
+        # Shown, but masked — see tests/test_sensitive.py for the rendered page.
+        masked = {f.name for f in Credential._meta.get_fields() if field_is_sensitive(f)}
+        assert masked == {"api_token"}
 
     def test_respects_a_scoped_queryset(self, client_in, post):
         """get_queryset is the multi-tenancy hook; the detail page must honour it."""

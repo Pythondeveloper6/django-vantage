@@ -540,3 +540,39 @@ class Venue(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ZCredential(models.Model):
+    """Every shape of sensitive column, and the near misses that must stay visible.
+
+    Left to pure inference, like the rest of this app: what :mod:`vantage.sensitive`
+    decides with no configuration is the thing under test. Named with a ``Z`` so it
+    sorts after the models other suites count and order.
+    """
+
+    class TokenType(models.TextChoices):
+        BEARER = "bearer", "Bearer"
+        BASIC = "basic", "Basic"
+
+    name = models.CharField(max_length=80)
+    owner = models.ForeignKey(
+        Author, null=True, blank=True, on_delete=models.SET_NULL, related_name="credentials"
+    )
+    # Sensitive.
+    api_token = models.CharField("API token", max_length=64, blank=True)
+    card_number = models.CharField(max_length=24, blank=True)
+    pin = models.CharField(max_length=8, null=True, blank=True)  # noqa: DJ001 — nullable on purpose: the "clear" path sets NULL
+    pin_hash = models.CharField(max_length=128, blank=True)
+    private_key = models.TextField(blank=True)
+    # Near misses: a name or a type that must *not* be masked.
+    token_type = models.CharField(max_length=10, choices=TokenType.choices, default="bearer")
+    tokenizer_name = models.CharField(max_length=40, blank=True)
+    is_secretary = models.BooleanField(default=False)
+    passport_photo_url = models.URLField(blank=True)
+    otp_enabled = models.BooleanField(default=False)
+    pin_attempts = models.PositiveIntegerField(default=0)
+    password_changed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
