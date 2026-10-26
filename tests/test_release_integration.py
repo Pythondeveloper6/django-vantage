@@ -197,3 +197,12 @@ class TestCardTitles:
         response = boss.get(reverse(LIST_URL), {"view": mode})
         assert response.status_code == 200
         assert not leaks(response.content)
+
+
+class TestUndoEntriesAreNotAdministrable:
+    """Snapshots hold deleted rows verbatim; they must never get a generic CRUD page."""
+
+    def test_undo_entries_are_not_registered(self):
+        from vantage.models import UndoEntry
+
+        assert not site.is_registered(UndoEntry)

@@ -4,6 +4,9 @@
 the shadows. Vantage ships ten, in the spirit of shadcn/ui's themes, and the default is
 the look it has always had.
 
+![The look picker on the account page](assets/screenshots/themes-light.webp){ .dv-shot .dv-only-light }
+![The look picker on the account page](assets/screenshots/themes-dark.webp){ .dv-shot .dv-only-dark }
+
 ```python
 VANTAGE = {
     "UI_THEME": "shadcn",      # the site default; "vantage" if you say nothing

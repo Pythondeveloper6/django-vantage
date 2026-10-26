@@ -43,12 +43,30 @@ PAGES = {
     "products": "/admin/shop/product/",
     "reviews": "/admin/shop/review/",
     "schema": "/admin/_/schema/",
+    # The alternative list views. The board is grouped by tier so its picker shows a
+    # choice other than the default.
+    "kanban": "/admin/shop/customer/?view=kanban&by=tier",
+    # The month of the newest order: the demo's dates are fixed when it is seeded, so
+    # "this month" may be empty by the time anyone runs this.
+    "calendar": "/admin/shop/order/?view=calendar&month={month}",
+    "gallery": "/admin/shop/product/?view=gallery",
+    "map": "/admin/shop/customer/?view=map",
+    "data-quality": "/admin/_/data-quality/",
+    "roles": "/admin/_/roles/",
+    "role-matrix": "/admin/_/roles/{role}/",
+    # A customer's API token, masked.
+    "masked": "/admin/shop/customer/1/",
+    "themes": "/admin/_/account/",
 }
 UI_OVERRIDES = ("vantage_siteconfiguration", "vantage_listpreference", "vantage_navconfiguration")
 
 
 def prepare(workdir: Path) -> dict[str, str]:
-    """A pristine copy of the demo database and a settings module pointing at it."""
+    """A pristine, migrated and seeded copy of the demo database, and settings for it.
+
+    Migrated and re-seeded because the demo database may predate the release being
+    pictured: a new migration, the map's coordinates, the roles. Both are idempotent.
+    """
     source = REPO / "example" / "db.sqlite3"
     if not source.exists():
         sys.exit("No example/db.sqlite3 yet. Run ./example/run.sh once to create it.")
@@ -62,11 +80,26 @@ def prepare(workdir: Path) -> dict[str, str]:
         f"DATABASES['default']['NAME'] = {str(db)!r}\n"
         "VANTAGE = {**VANTAGE, 'ENVIRONMENT': None}\n"
     )
-    return {
+    env = {
         **os.environ,
         "PYTHONPATH": str(workdir),
         "DJANGO_SETTINGS_MODULE": "screenshot_settings",
     }
+    for command in (["migrate", "-v0"], ["seed"]):
+        subprocess.run(
+            [sys.executable, "example/manage.py", *command],
+            cwd=REPO,
+            env=env,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+    return env
+
+
+def lookup(sql: str, db: Path):
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(sql).fetchone()
+    return row[0] if row else None
 
 
 def wait_for_port(port: int, timeout: float = 30) -> None:
@@ -79,7 +112,7 @@ def wait_for_port(port: int, timeout: float = 30) -> None:
     sys.exit(f"The demo server did not come up on :{port}.")
 
 
-def capture() -> None:
+def capture(db: Path) -> None:
     from PIL import Image
     from playwright.sync_api import sync_playwright
 
@@ -105,8 +138,10 @@ def capture() -> None:
             page.fill("input[name=password]", "admin12345")
             page.click("button[type=submit]")
             page.wait_for_load_state("networkidle")
+            role = lookup("SELECT id FROM auth_group WHERE name = 'Catalogue editors'", db)
+            month = lookup("SELECT substr(MAX(created_at), 1, 7) FROM shop_order", db)
             for name, path in PAGES.items():
-                page.goto(BASE + path)
+                page.goto(BASE + path.format(role=role, month=month))
                 page.wait_for_load_state("networkidle")
                 page.wait_for_timeout(600)  # let the charts' entry transition settle
                 save(page, f"{name}-{scheme}")
@@ -117,8 +152,39 @@ def capture() -> None:
             page.keyboard.type("ord")
             page.wait_for_timeout(900)
             save(page, f"palette-{scheme}")
+            undo_toast(page, db, scheme, save)
             context.close()
         browser.close()
+
+
+def undo_toast(page, db: Path, scheme: str, save) -> None:
+    """Delete one review, picture the toast that offers it back, then take the offer.
+
+    Last, because it changes the data the other pictures show, and undone straight
+    away so the dark pass finds the same review to delete.
+    """
+    review = lookup("SELECT id FROM shop_review ORDER BY id DESC LIMIT 1", db)
+    url = f"{BASE}/admin/shop/review/"
+    token = next(c["value"] for c in page.context.cookies() if c["name"] == "csrftoken")
+    page.request.post(
+        url,
+        form={
+            "action": "delete_selected",
+            "selected": str(review),
+            "confirmed": "1",
+            "csrfmiddlewaretoken": token,
+        },
+        headers={"Referer": url},
+        max_redirects=0,
+    )
+    page.goto(url)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(400)
+    save(page, f"undo-{scheme}")
+    undo = page.locator(".v-toast [data-undo-form] button")
+    if undo.count():
+        undo.first.click()
+        page.wait_for_load_state("networkidle")
 
 
 def main() -> None:
@@ -134,7 +200,7 @@ def main() -> None:
         try:
             wait_for_port(PORT)
             print(f"Writing to {OUT.relative_to(REPO)}/")
-            capture()
+            capture(Path(tmp) / "db.sqlite3")
         finally:
             server.terminate()
             server.wait()

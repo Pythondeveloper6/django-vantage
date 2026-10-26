@@ -6,6 +6,9 @@ uses it for: a **role**, a named bundle of permissions you grant to people. It l
 needs no configuration, no model and no migration — it works on the tables
 `django.contrib.auth` already has.
 
+![The permission matrix for one role](assets/screenshots/role-matrix-light.webp){ .dv-shot .dv-only-light }
+![The permission matrix for one role](assets/screenshots/role-matrix-dark.webp){ .dv-shot .dv-only-dark }
+
 ## What it does
 
 - **Roles list** — every role with its member and permission counts. Create, duplicate

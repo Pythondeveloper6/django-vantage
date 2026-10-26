@@ -5,6 +5,26 @@ be shown as a **Kanban board**, a **calendar**, a **gallery** or a **map**, chos
 segmented control in the list's toolbar. Nothing has to be configured: each view is
 inferred from the model, and each inference can be overridden in one line.
 
+=== "Board"
+
+    ![Customers as a Kanban board grouped by tier](assets/screenshots/kanban-light.webp){ .dv-shot .dv-only-light }
+    ![Customers as a Kanban board grouped by tier](assets/screenshots/kanban-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Calendar"
+
+    ![Orders on a month calendar](assets/screenshots/calendar-light.webp){ .dv-shot .dv-only-light }
+    ![Orders on a month calendar](assets/screenshots/calendar-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Gallery"
+
+    ![Products as a gallery](assets/screenshots/gallery-light.webp){ .dv-shot .dv-only-light }
+    ![Products as a gallery](assets/screenshots/gallery-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Map"
+
+    ![Customers on a map](assets/screenshots/map-light.webp){ .dv-shot .dv-only-light }
+    ![Customers on a map](assets/screenshots/map-dark.webp){ .dv-shot .dv-only-dark }
+
 ```python
 @register(Order)
 class OrderPanel(ModelPanel):
