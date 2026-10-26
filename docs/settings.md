@@ -176,6 +176,7 @@ strictness, so an item that cannot be shown is omitted.
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
+| `SENSITIVE_PATTERNS` | `None` | — | The words that mark a field as a secret. `None` is the built-in list; a list replaces it; `["...", "nhs_number"]` extends it — see [Sensitive fields](sensitive-fields.md#the-vocabulary) |
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
 | `RELATION_PICKER` | `"always"` | — | `"always"` or `"threshold"`. Whether a single-valued relation gets the searchable picker regardless of row count, or only above 50 — see [Relations and the search threshold](forms.md#relations-and-the-search-threshold) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
@@ -295,7 +296,7 @@ NAV  NAV_UNLISTED  DASHBOARD
 PLUGINS  PLUGINS_EXCLUDE
 
 PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION
-READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE
+READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER

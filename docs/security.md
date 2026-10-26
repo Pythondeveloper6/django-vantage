@@ -131,6 +131,7 @@ on the signed-in account, never the address:
 | `autocomplete` | 120 requests / 60s | Two per second sustained. A debounced typeahead makes roughly one request per word typed; a script paging a table makes thousands |
 | `export` | 12 requests / 300s | An export holds a database connection open for the whole download; a dozen concurrent ones is a capacity incident |
 | `import` | 10 requests / 300s | Every attempt parses an attacker-supplied file; the wizard is four requests per real import, so ten is "two imports and a mistake" |
+| `reveal` | 30 requests / 300s | One sensitive value per request. Enforced by the reveal view itself, so it holds even without this middleware — see [Sensitive fields](sensitive-fields.md#revealing-a-value) |
 
 A refusal is `429` with `Retry-After` and `Cache-Control: no-store` — JSON for
 autocomplete (`{"results": [], "more": false, "error": "..."}`, so a client's existing
