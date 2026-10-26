@@ -20,6 +20,7 @@ from vantage import (
     jobviews,
     listprefsview,
     recordviews,
+    revealviews,
     savedviews,
     settingsview,
     topbarviews,
@@ -84,6 +85,8 @@ def build(site) -> list:
     # And again: 'duplicate' and 'action' are suffixes on a record route, so they must
     # be declared before the bare '<path:pk>' that would otherwise swallow them.
     urlpatterns.extend(recordviews.build_urls(site))
+    # Same again: 'reveal/<field>' and 'set-password' are record-route suffixes.
+    urlpatterns.extend(revealviews.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts
