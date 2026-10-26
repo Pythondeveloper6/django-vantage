@@ -13,8 +13,8 @@ word *breaking*, so the log is useful either way.
 
 ## [0.2.0a1] — 2026-10-26
 
-Six features, each built on its own branch and merged into `release/0.2.0a1`. Four
-migrations were added (`0012`–`0014` in `vantage`, plus `shop/0002` in the demo), so run
+Six features, each built on its own branch and merged into `release/0.2.0a1`. Five
+migrations were added (`0012`–`0015` in `vantage`, plus `shop/0002` in the demo), so run
 `migrate` after upgrading.
 
 ### Known limitations
@@ -51,6 +51,12 @@ migrations were added (`0012`–`0014` in `vantage`, plus `shop/0002` in the dem
   also works without JavaScript. A move goes through the same permission checks,
   `full_clean` validation, optimistic locking and audit log as inline editing. Column
   counts come from one aggregate and cards from one windowed query.
+- **Group by** on the board and **Dates from** on the calendar pick the field the view
+  is arranged by, from every eligible field (or `kanban_fields` / `calendar_fields`;
+  `[]` hides the picker; sensitive fields are never offered). The choice is in the URL
+  (`?by=`), kept in saved views and remembered per person (migration `0015`), and a
+  card always moves within the field it was drawn under. `vantage.E078` and
+  `vantage.E079` validate the lists.
 - The map is a dependency-free, server-rendered SVG that fetches nothing by default;
   `VANTAGE["MAP_TILE_URL"]` opts into raster tiles.
 - `vantage.E070`–`vantage.E076` validate the new attributes; `vantage_scaffold` writes

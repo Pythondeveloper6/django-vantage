@@ -36,6 +36,7 @@ from django.utils.translation import gettext as _
 from vantage import concurrency
 from vantage.inline import BadRequest, InlineWriteView, Rejected
 from vantage.listviews.kanban import KanbanMode
+from vantage.sensitive import safe_str
 
 __all__ = ["KanbanMoveView"]
 
@@ -108,13 +109,13 @@ class KanbanMoveView(InlineWriteView):
         obj = saved[0][0]
         name = next(iter(row["fields"]))
         if as_form:
-            messages.success(request, _("Moved “%(record)s”.") % {"record": obj})
+            messages.success(request, _("Moved “%(record)s”.") % {"record": safe_str(obj)})
             return self.back()
         return JsonResponse(
             {
                 "ok": True,
                 "pk": str(obj.pk),
-                "label": str(obj),
+                "label": safe_str(obj),
                 "version": concurrency.token_for(obj) or "",
                 "value": concurrency._jsonify(getattr(obj, name)),
             }

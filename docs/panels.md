@@ -166,6 +166,8 @@ Details: [Lists](lists.md).
 | `list_views` | `list[str]` | inferred | Views the switcher offers, first is the default. `["table"]` switches the others off |
 | `kanban_field` | `str` | inferred | Choices or boolean field the board has one column per value of |
 | `calendar_field` | `str` | inferred | Date or datetime field the calendar places records by |
+| `kanban_fields` | `list[str]` | inferred | What the board's "Group by" picker offers; `[]` hides it |
+| `calendar_fields` | `list[str]` | inferred | What the calendar's "Dates from" picker offers; `[]` hides it |
 | `gallery_field` | `str` | inferred | Image (or picture-named file) field a gallery card leads with |
 | `map_fields` | `str` or `(str, str)` | inferred | A `PointField`, or a `("latitude", "longitude")` pair |
 | `card_fields` | `list[str]` | inferred | Fields under a card's title on the board and in the gallery |
@@ -471,6 +473,8 @@ defaults are skipped.
 | `vantage.E074` | `gallery_field` is not an `ImageField` or `FileField` |
 | `vantage.E075` | `map_fields` is neither a `PointField` nor a pair of `FloatField`/`DecimalField`s |
 | `vantage.E076` | `card_fields` names something that is not a field, a model attribute or a panel method |
+| `vantage.E078` | `kanban_fields` is not a list, or names a field a board cannot be grouped by |
+| `vantage.E079` | `calendar_fields` is not a list, or names something that is not a date |
 | `vantage.E077` | `undo` is set to something other than `True`, `False` or `None` |
 | `vantage.E090` | `sensitive_fields` is not a list, or names something that is not a field or attribute |
 | `vantage.W090` | `list_search`/`search_fields`, `list_filter` or `ordering` explicitly names a [sensitive field](sensitive-fields.md); it is dropped at request time |
