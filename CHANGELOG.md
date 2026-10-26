@@ -11,6 +11,136 @@ word *breaking*, so the log is useful either way.
 
 ## [Unreleased]
 
+## [0.2.0a1] — 2026-10-26
+
+Six features, each built on its own branch and merged into `release/0.2.0a1`. Four
+migrations were added (`0012`–`0014` in `vantage`, plus `shop/0002` in the demo), so run
+`migrate` after upgrading.
+
+### Known limitations
+
+- **The per-person UI theme is a cookie**, not a column on the user, so it does not
+  follow someone to another browser.
+- **Undo is not offered everywhere.** A hard delete gets no Undo button when the cascade
+  has delete signal receivers, a database-level `on_delete`, an overridden `delete()`, a
+  binary column, or more than `UNDO_MAX_ROWS` rows. The delete itself still runs.
+- **Masking is inferred from field names.** A secret kept in a field called `notes`
+  needs `sensitive_fields`. Panel method columns, custom templates, slots and
+  `list_stats` that read a sensitive field are not masked; see
+  [Sensitive fields](docs/sensitive-fields.md#threat-model).
+- **Roles are global.** With `ROLES_PERMISSION` widened, whoever is let in can search
+  every user and see anyone's effective permissions; groups and users are not
+  tenant-scoped.
+- **Data quality row estimates and the skip threshold need PostgreSQL**; other databases
+  sample the newest rows.
+- New strings are not yet in the `.po` catalogues.
+
+### Added
+
+#### List views
+
+- Any list can also be shown as a **Kanban board**, a **month calendar**, a **gallery**
+  or a **map**, picked from a switcher in the list toolbar. Each view is inferred from
+  the model (a status-like choices field, an event-like date, an image field, a
+  `PointField` or latitude/longitude pair) and overridable in one line: `list_views`,
+  `kanban_field`, `calendar_field`, `gallery_field`, `map_fields`, `card_fields`.
+- Every view honours the current search, filters, trash, tenancy and permissions, and
+  the stats strip still applies. The view is part of the URL (`?view=kanban`),
+  remembered per person per model (migration `0012`), and stored in saved views.
+- Kanban cards move by drag and drop or a keyboard-accessible "Move to…" menu that
+  also works without JavaScript. A move goes through the same permission checks,
+  `full_clean` validation, optimistic locking and audit log as inline editing. Column
+  counts come from one aggregate and cards from one windowed query.
+- The map is a dependency-free, server-rendered SVG that fetches nothing by default;
+  `VANTAGE["MAP_TILE_URL"]` opts into raster tiles.
+- `vantage.E070`–`vantage.E076` validate the new attributes; `vantage_scaffold` writes
+  the inferred views out.
+
+#### Undo
+
+- Deletes (record page and bulk), bulk edits, inline cell edits and the built-in
+  Publish/Unpublish actions offer **Undo** in their toast for `VANTAGE["UNDO_WINDOW"]`
+  seconds (default 10; `0` disables; `ModelPanel.undo = False` per model, checked by
+  `vantage.E077`). Ctrl/⌘+Z redeems it outside text fields.
+- Edits are restored only where nobody has changed the row since; soft deletes are
+  un-trashed; hard deletes are snapshotted and restored with their original keys,
+  refusing rather than overwriting if a key or unique value has since been taken.
+- Tokens are single-use, stored hashed (`UndoEntry`, migration `0014`), bound to user
+  and session, permission-checked again at redeem time, CSRF-protected and audit-logged.
+- `delete_selected`, an opt-in built-in bulk delete that trashes where the model has a
+  trash. `@action(undo_fields=[...])` and `@action(undo=...)` let custom actions offer
+  Undo. `manage.py vantage_purge_undo` clears expired entries.
+
+#### Data quality
+
+- A **Data quality** page (System) and `manage.py vantage_data_quality`: a read-only
+  audit of every registered model for empty-value rates, duplicate candidates, orphaned
+  references (generic foreign keys included), values outside `choices`, suspicious
+  dates, and empty or stale tables. Reports hold counts only, never row values; findings
+  link to the pre-filtered list wherever the filter system can express them.
+- Bounded and cached: sampling above `SAMPLE_SIZE` rows, per-check and per-page time
+  budgets, a re-run button, and `--fail-on` for CI. Checks are pluggable
+  (`vantage.dataquality.Check`, `@register_check`).
+- `VANTAGE["DATA_QUALITY"]` (enable, permission, thresholds) and
+  `ModelPanel.data_quality = False | [check names]` (`vantage.E063`).
+- `Page.post(request)`: a custom page can handle a form POST.
+
+#### Sensitive fields
+
+- Sensitive fields are **inferred and masked** with no configuration: whole-word names
+  (password, token, api_key, secret, ssn, iban, card_number, cvv, pin, otp, hash,
+  signature, …) on value-bearing field types, any `Encrypted*Field`, and Django's
+  `User.password`, which can never be revealed. `ModelPanel.sensitive_fields` overrides
+  inference (`[]` switches it off); `VANTAGE["SENSITIVE_PATTERNS"]` extends or replaces
+  the word list.
+- Values render as a fixed-width `••••••••` (or `•••• 4242` for card and account
+  numbers) on every surface: list cells and cards, the detail page, exports, the JSON
+  API, search, the palette, autocomplete, inline and bulk editing, duplicate, import
+  preview, audit history, and titles where a `__str__` contains a secret.
+- Sensitive fields can never be searched, filtered, sorted or aggregated
+  (`vantage.W090` warns when a panel declares one; `vantage.E090` rejects a bad
+  `sensitive_fields`).
+- **Reveal on click**: a rate-limited, audited `POST` answering with
+  `Cache-Control: no-store`, gated by the new `vantage.reveal_sensitive` permission or
+  `ModelPanel.can_reveal()`. The value re-masks after 30 seconds or on navigation.
+- A **Set password** page next to a masked password hash. Sensitive inputs on edit
+  forms are write-only: an empty submission keeps the stored value.
+
+#### Roles & permissions
+
+- A **Roles** screen (`_/roles/`, in the sidebar and palette) manages `auth.Group`s as
+  roles: create, rename, duplicate, delete with an impact preview; a permission matrix
+  (models by app, view/add/change/delete plus custom permissions, tri-state toggles,
+  filter, keyboard navigation) saved atomically after a "+N / −M" review; members with
+  a searchable picker; and any user's effective permissions with the source of each.
+- Superusers only unless `VANTAGE["ROLES_PERMISSION"]` widens it, and a non-superuser
+  can only grant what they hold. Concurrent edits conflict (409) instead of
+  overwriting; every change is audit-logged; read-only mode is respected; the matrix
+  costs a constant number of queries.
+
+#### UI themes
+
+- `VANTAGE["UI_THEME"]` selects a whole look. Ten ship: `vantage` (the original,
+  byte for byte), `shadcn`, `slate`, `stone`, `zinc`, `rose`, `blue`, `green`, `violet`
+  and `orange`. An explicit `BRAND_COLOR` or `BRAND_RADIUS` still wins.
+- `VANTAGE["UI_THEMES"]` registers custom presets, which inherit from `vantage`.
+- `VANTAGE["UI_THEME_TOGGLE"]` (on by default) lets each person pick a look from the
+  account page, with a live preview and no flash on load. The site default is editable
+  on the settings screen (migration `0013`).
+- Every built-in preset is tested light and dark for 4.5:1 text contrast and 3:1
+  form-field borders.
+
+### Changed
+
+- Card and panel borders read `--border-width`, and the bulk-action bar uses the shadow
+  token, so presets can restyle both.
+- The detail page shows sensitive fields masked instead of leaving them out.
+
+### Fixed
+
+- A record URL whose pk the field cannot parse (`/1/change/`) is a 404, not a 500.
+- Custom pages no longer run `get_context()` twice per render.
+
 ## [0.1.0a1] — 2026-10-25
 
 The first published pre-release. Everything below is new in it: the entries are
@@ -342,5 +472,6 @@ Read these before deploying an alpha anywhere it matters.
 - Sensitive field names are excluded from columns, filters, search, exports and audit
   diffs.
 
-[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.1.0a1...HEAD
+[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a1...HEAD
+[0.2.0a1]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.1.0a1...v0.2.0a1
 [0.1.0a1]: https://github.com/Pythondeveloper6/django-vantage/releases/tag/v0.1.0a1
