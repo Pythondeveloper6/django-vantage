@@ -229,6 +229,7 @@ Details: [Forms](forms.md).
 |---|---|---|---|
 | `actions` | `list[str \| Action]` | `None` | Bulk actions offered on the list page |
 | `row_actions` | `list[str]` | `None` | Which actions appear in the menu on each list row — see below |
+| `undo` | `bool \| None` | `None` | Whether deletes and edits offer **Undo** in their toast. `None` follows `UNDO_WINDOW`; `False` turns it off for this model — see [Undo](undo.md) |
 | `checks_class` | `type` | `ModelPanelChecks` | Subclass it to extend validation for your own panel base class |
 
 When `actions` is left unset, every method on the panel decorated with `@action` is
@@ -447,6 +448,7 @@ defaults are skipped.
 | `vantage.E018` | `list_select_related` names something that is not a field path, or crosses a multi-valued relation `select_related` cannot follow |
 | `vantage.E019` | `related_tabs` is set to something other than `True`, `False` or `None` |
 | `vantage.E020` | A [removed attribute](#removed-attributes) — currently only `permissions` — is still set |
+| `vantage.E070` | `undo` is set to something other than `True`, `False` or `None` |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different
