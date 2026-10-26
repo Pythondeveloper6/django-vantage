@@ -21,7 +21,7 @@ charts, a command palette, light and dark themes and a schema map.</p>
 ![The Orders list in django-vantage: stat cards, a revenue chart, a status breakdown and a filtered data grid](assets/screenshots/orders-light.webp){ .dv-shot .dv-only-light }
 ![The Orders list in django-vantage, dark theme](assets/screenshots/orders-dark.webp){ .dv-shot .dv-only-dark }
 
-!!! warning "Alpha — `0.1.0a1`"
+!!! warning "Alpha — `0.2.0a1`"
 
     Working and heavily tested — more than 3,600 tests — but the API may still move.
     See the [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is
