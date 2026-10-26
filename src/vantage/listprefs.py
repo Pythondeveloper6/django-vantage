@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import threading
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from django.conf import settings as django_settings
@@ -587,6 +587,10 @@ class ListSpec:
     stored: dict[str, Any] = field(default_factory=dict)
     #: Row column -> ``"user"`` or ``"site"``. Absent means the code decided.
     sources: dict[str, str] = field(default_factory=dict)
+    #: The list view this person last picked (``"kanban"``…), unvalidated: whether
+    #: the panel still offers it is :mod:`vantage.listviews`'s question. Read from the
+    #: per-user row only — a remembered choice is personal by definition.
+    list_view: str | None = None
 
     def source(self, name: str) -> str:
         return self.sources.get(name, "code")
@@ -722,7 +726,9 @@ def _build(panel, request, key: str) -> ListSpec:
                 sources[name] = origin
             break
 
-    return _assemble(panel, opts, key, stored, sources)
+    spec = _assemble(panel, opts, key, stored, sources)
+    list_view = getattr(user_row, "list_view", None) if user_row is not None else None
+    return replace(spec, list_view=list_view) if list_view else spec
 
 
 #: Every column this layer reads, in the order the sections declare them.

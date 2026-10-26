@@ -102,6 +102,12 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMITS": None,
     "UPLOAD_MAX_BYTES": None,
     "DEFAULT_PER_PAGE": 50,
+    # ── list views ──────────────────────────────────────────────────────────
+    # A raster tile URL template for the map view, e.g.
+    # "https://tile.openstreetmap.org/{z}/{x}/{y}.png". None, the default, draws a
+    # dependency-free SVG plot and fetches nothing from anywhere: sending every
+    # viewer's location of interest to a tile server is the owner's call to make.
+    "MAP_TILE_URL": None,
     # ── relation pickers ────────────────────────────────────────────────────
     # Which relation fields become the searchable chip picker rather than a plain
     # <select>. "always" is the default because one control for every relationship
@@ -214,6 +220,15 @@ class VantageSettings:
                 raise ImproperlyConfigured(
                     f"VANTAGE['{key}'] must be one of {', '.join(allowed)}; got {value!r}."
                 )
+
+        tiles = user.get("MAP_TILE_URL")
+        if tiles is not None and (
+            not isinstance(tiles, str) or not all(part in tiles for part in ("{z}", "{x}", "{y}"))
+        ):
+            raise ImproperlyConfigured(
+                "VANTAGE['MAP_TILE_URL'] must be a URL template containing {z}, {x} and {y}, "
+                f"or None; got {tiles!r}."
+            )
 
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
