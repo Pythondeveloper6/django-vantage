@@ -59,6 +59,7 @@ def build(site) -> list:
             views.ImpersonateView.as_view(site=site),
             name="impersonate",
         ),
+        path("_/undo/", views.UndoView.as_view(site=site), name="undo"),
     ]
 
     # The account page and the top-bar arrangement screen. Before the page loop for
