@@ -7,6 +7,181 @@
   "use strict";
 
   var STORAGE_KEY = "vantage-theme";
+  var TOAST_MS = 6000;
+
+  /* ── undo toasts ────────────────────────────────────────────────────────────
+   *
+   * The server renders the Undo form hidden, so with no script the change simply
+   * behaves as it always did. Here the form is revealed for the seconds the server
+   * said remain — a duration, not a timestamp, so a skewed client clock cannot keep
+   * a dead button alive — and removed when they run out. The server enforces the
+   * window regardless; this only keeps the button from promising what it cannot do.
+   *
+   * A rendered toast submits its form normally: the page reloads with the restored
+   * rows and a message saying so. A toast created by script (the inline grid, which
+   * must not reload over unsaved cells) redeems by fetch and reports in place. */
+
+  function armUndo(toast) {
+    var form = toast.querySelector("[data-undo-form]");
+    var remaining = parseInt(toast.getAttribute("data-undo-remaining"), 10);
+    if (!form || !(remaining > 0)) return;
+    form.hidden = false;
+    var button = form.querySelector("button");
+    var spent = false;
+
+    var timer = setTimeout(function () {
+      spent = true;
+      form.remove();
+      toast.removeAttribute("data-undo-remaining");
+      setTimeout(function () {
+        toast.remove();
+      }, TOAST_MS / 3);
+    }, remaining * 1000);
+
+    form.addEventListener("submit", function (event) {
+      // One press, one request. The server is idempotent anyway — a second press
+      // would only be told "already undone" — but a button that visibly does
+      // nothing on the second click is better than one that seems to work twice.
+      if (spent) {
+        event.preventDefault();
+        return;
+      }
+      spent = true;
+      clearTimeout(timer);
+      if (form.hasAttribute("data-undo-fetch")) {
+        event.preventDefault();
+        redeemByFetch(toast, form);
+      }
+      // Disabled after the event, so the native submission still carries the form.
+      setTimeout(function () {
+        if (button) button.disabled = true;
+      }, 0);
+    });
+  }
+
+  function csrfToken() {
+    var input = document.querySelector("input[name=csrfmiddlewaretoken]");
+    if (input) return input.value;
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function redeemByFetch(toast, form) {
+    var token = form.querySelector("input[name=token]").value;
+    window
+      .fetch(form.getAttribute("action"), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": csrfToken(),
+        },
+        body: "token=" + encodeURIComponent(token),
+      })
+      .then(function (response) {
+        return response.json().catch(function () {
+          return { ok: false, message: gettext("The undo could not be completed.") };
+        });
+      })
+      .catch(function () {
+        return { ok: false, message: gettext("Could not reach the server. Nothing was undone.") };
+      })
+      .then(function (data) {
+        form.remove();
+        toast.removeAttribute("data-undo-remaining");
+        toast.setAttribute("data-level", data.ok ? "success" : "error");
+        var text = toast.querySelector(".v-toast-text");
+        if (text) text.textContent = data.message || "";
+        document.dispatchEvent(new CustomEvent("vantage:undone", { detail: data }));
+        if (data.ok) {
+          setTimeout(function () {
+            toast.remove();
+          }, TOAST_MS);
+        }
+      });
+  }
+
+  /* Public, for scripts that change data without a page load. ``offer`` is the
+   * ``undo`` object the server put in its JSON response. */
+  window.vantageUndo = {
+    show: function (offer) {
+      var region = document.getElementById("v-toasts");
+      if (!region || !offer || !offer.token || !(offer.remaining > 0)) return null;
+      var toast = document.createElement("div");
+      toast.className = "v-toast";
+      toast.setAttribute("data-level", "success");
+      toast.setAttribute("data-undo-remaining", String(offer.remaining));
+
+      var text = document.createElement("span");
+      text.className = "v-toast-text";
+      text.textContent = offer.message || "";
+
+      var form = document.createElement("form");
+      form.className = "v-toast-undo";
+      form.method = "post";
+      form.setAttribute("action", offer.url);
+      form.setAttribute("data-undo-form", "");
+      form.setAttribute("data-undo-fetch", "");
+      form.hidden = true;
+      var input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "token";
+      input.value = offer.token;
+      var button = document.createElement("button");
+      button.type = "submit";
+      button.className = "v-toast-undo-button";
+      button.setAttribute("aria-keyshortcuts", "Control+Z Meta+Z");
+      button.textContent = gettext("Undo");
+      form.appendChild(input);
+      form.appendChild(button);
+
+      var close = document.createElement("button");
+      close.type = "button";
+      close.className = "v-toast-close";
+      close.setAttribute("aria-label", gettext("Dismiss this message"));
+      close.textContent = "\u00d7";
+      close.addEventListener("click", function () {
+        toast.remove();
+      });
+
+      toast.appendChild(text);
+      toast.appendChild(form);
+      toast.appendChild(close);
+      region.appendChild(toast);
+      armUndo(toast);
+      return toast;
+    },
+  };
+
+  /* Ctrl/⌘+Z presses the newest visible Undo — but never while typing, where the
+   * same keys belong to the text field, and never once the grid's keyboard
+   * shortcuts have been switched off. */
+  function initUndoShortcut() {
+    document.addEventListener("keydown", function (event) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (event.key !== "z" && event.key !== "Z") return;
+      var target = event.target;
+      if (
+        target &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) {
+        return;
+      }
+      try {
+        if (localStorage.getItem("vantage-grid-shortcuts") === "false") return;
+      } catch (e) {
+        /* No storage: the default is on. */
+      }
+      var forms = document.querySelectorAll(".v-toast [data-undo-form]:not([hidden])");
+      if (!forms.length) return;
+      var form = forms[forms.length - 1];
+      event.preventDefault();
+      var button = form.querySelector("button");
+      if (form.requestSubmit) form.requestSubmit(button);
+      else if (button) button.click();
+    });
+  }
 
   /* The theme the page is painted in right now: "light" or "dark", never "system". */
   function currentTheme() {
@@ -220,12 +395,18 @@
     });
 
     // Auto-dismiss, but only what is safe to miss. An error stays until dismissed:
-    // it usually names something the user still has to act on.
-    document.querySelectorAll('.v-toast:not([data-level="error"])').forEach(function (toast) {
-      setTimeout(function () {
-        toast.remove();
-      }, 6000);
-    });
+    // it usually names something the user still has to act on. A toast with an Undo
+    // stays for exactly as long as the undo does — see armUndo.
+    document
+      .querySelectorAll('.v-toast:not([data-level="error"]):not([data-undo-remaining])')
+      .forEach(function (toast) {
+        setTimeout(function () {
+          toast.remove();
+        }, TOAST_MS);
+      });
+
+    document.querySelectorAll(".v-toast[data-undo-remaining]").forEach(armUndo);
+    initUndoShortcut();
 
     initSelection();
 

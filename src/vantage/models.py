@@ -97,6 +97,7 @@ __all__ = [
     "SavedViewGrant",
     "SavedViewUserState",
     "SiteConfiguration",
+    "UndoEntry",
     "VantageJob",
     "VantageLogEntry",
     "validate_brand_color",
@@ -1233,3 +1234,61 @@ class DashboardLayout(models.Model):
         dashboard instead of showing the empty one they asked for.
         """
         return self.cards is None
+
+
+# ── undo ────────────────────────────────────────────────────────────────────
+
+
+class UndoEntry(models.Model):
+    """One reversible change, for the few seconds the toast offers to reverse it.
+
+    A table rather than the cache or the session, and that choice is the feature. The
+    undo has to be honoured by whichever worker process the click lands on, so per-process
+    memory is out; it must be consumed exactly once under a double click, which wants a
+    conditional ``UPDATE`` rather than a cache's best-effort ``delete``; and a hard
+    delete's snapshot can be hundreds of rows, which no cookie-backed session can hold.
+    See :mod:`vantage.undo` for what goes in :attr:`payload` and why.
+
+    Rows are short-lived by construction: :attr:`expires_at` is seconds away, expired rows
+    are purged on every write to this table, and a successful undo blanks the payload at
+    once. Nothing here is meant to be read by a person, so there is no admin for it.
+    """
+
+    #: SHA-256 of the token the browser holds. The token itself is never stored, so a
+    #: read of this table does not hand out working undo buttons.
+    token_hash = models.CharField(max_length=64, unique=True)
+    #: ``CASCADE``, unlike the audit log: an undo is not a record of anything, and one
+    #: that outlived the account it was issued to could never be redeemed anyway.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    #: A random value kept in the issuing session. Binds the token to that session
+    #: without depending on the session *key*, which signed-cookie sessions rotate on
+    #: every write.
+    session_nonce = models.CharField(max_length=64)
+    #: ``"shop.order"`` — a label, for the reason :class:`VantageJob` gives.
+    resource_key = models.CharField(max_length=100)
+    #: The permission verb the original change needed. The undo needs the same one.
+    verb = models.CharField(max_length=20)
+    #: What the change was, as the audit entry will phrase it: "delete of 3 orders".
+    summary = models.CharField(max_length=200)
+    #: JSON, as text: the steps that reverse the change. Text rather than a
+    #: ``JSONField`` so a snapshot's microsecond timestamps survive the round trip
+    #: exactly — the encoding is :mod:`vantage.undo`'s, not the database driver's.
+    payload = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    #: What redeeming it said, so a second click gets the same answer as the first.
+    result = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = _("undo entry")
+        verbose_name_plural = _("undo entries")
+        indexes = [
+            models.Index(fields=["expires_at"], name="vantage_undo_expiry_idx"),
+            models.Index(fields=["user", "-created_at"], name="vantage_undo_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.summary} · {self.resource_key}"
