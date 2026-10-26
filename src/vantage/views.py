@@ -10,7 +10,7 @@ from functools import cached_property
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import (
     get_language,
@@ -26,7 +26,7 @@ from vantage import listprefs, listquery
 from vantage.actions import Selection, resolve_actions
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
-from vantage.nav import build_nav, resolve_theme
+from vantage.nav import UI_THEME_COOKIE, build_nav, resolve_theme, resolve_ui_theme
 from vantage.pagination import CappedPaginator
 from vantage.permissions import get_permissions
 from vantage.safety import (
@@ -37,7 +37,7 @@ from vantage.safety import (
     start_impersonation,
     stop_impersonation,
 )
-from vantage.theme import no_flash_script, render_theme_css
+from vantage.theme import no_flash_script, render_theme_css, resolve_preset
 from vantage.topbar import topbar_context
 
 
@@ -68,6 +68,7 @@ class SiteView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        ui_theme = resolve_ui_theme(self.request)
         context.update(
             site=self.site,
             settings=vantage_settings,
@@ -80,7 +81,8 @@ class SiteView(TemplateView):
             real_user=real_user(self.request),
             language_code=get_language() or "en",
             is_rtl=get_language_bidi(),
-            theme_css=render_theme_css(),
+            ui_theme=ui_theme,
+            theme_css=render_theme_css(preset=ui_theme),
             no_flash_script=no_flash_script(),
             page_title=self.page_title,
             page_description=self.page_description,
@@ -835,6 +837,27 @@ class ImpersonateView(SiteView):
         return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
 
 
+class UIThemeCssView(SiteView):
+    """One preset's token stylesheet, for the account page's live preview.
+
+    The page carries only the active preset's tokens; trying another without a reload
+    means fetching its tokens, and this is that fetch - a few kilobytes, only ever asked
+    for from the picker, and only for staff (SiteView's gate). The picker swaps the text
+    of the page's token ``<style>`` for the response, so nothing here is applied twice.
+    """
+
+    def get(self, request, *args, name, **kwargs):
+        from vantage.presets import get_presets
+
+        if name not in get_presets():
+            raise Http404(name)
+        response = HttpResponse(
+            render_theme_css(preset=resolve_preset(name)), content_type="text/css; charset=utf-8"
+        )
+        response["Cache-Control"] = "private, max-age=60"
+        return response
+
+
 class ThemeView(SiteView):
     """Persist a theme choice. Posted to by the toggle, and by the account menu.
 
@@ -847,8 +870,21 @@ class ThemeView(SiteView):
     def dispatch(self, request, *args, **kwargs):
         if request.method != "POST":
             return HttpResponse(status=405)
-        theme = request.POST.get("theme")
         response = self._done(request)
+        if "ui_theme" in request.POST:
+            # The look and light/dark are independent choices on one endpoint; a post
+            # naming one must not reset the other.
+            from vantage.presets import get_presets
+
+            name = request.POST["ui_theme"]
+            if vantage_settings.UI_THEME_TOGGLE and name in get_presets():
+                response.set_cookie(
+                    UI_THEME_COOKIE, name, max_age=60 * 60 * 24 * 365, samesite="Lax"
+                )
+            elif not name:
+                response.delete_cookie(UI_THEME_COOKIE)
+            return response
+        theme = request.POST.get("theme")
         if theme in ("light", "dark"):
             response.set_cookie("vantage-theme", theme, max_age=60 * 60 * 24 * 365, samesite="Lax")
         else:

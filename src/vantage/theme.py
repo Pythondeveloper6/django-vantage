@@ -5,7 +5,8 @@ a small set of semantic role names (``--background``, ``--foreground``, ``--prim
 ``--muted``, ``--border``, ``--ring``) rather than a palette of colour names. No
 component ever hard-codes a colour, so the whole appearance is controlled from here.
 
-Neutrals are fixed; only the brand-derived tokens vary with ``BRAND_COLOR``. That
+Neutrals are fixed per *preset* (see :mod:`vantage.presets`); within a preset only the
+brand-derived tokens vary with ``BRAND_COLOR``. That
 split matters: a site owner supplying one colour should get a branded panel, not a
 panel where their colour has leaked into the page background and the table borders.
 
@@ -21,8 +22,9 @@ from __future__ import annotations
 
 from vantage.color import derive_palette
 from vantage.conf import vantage_settings
+from vantage.presets import DEFAULT_PRESET, Preset, get_presets
 
-__all__ = ["build_tokens", "render_theme_css"]
+__all__ = ["build_tokens", "render_theme_css", "resolve_preset", "swatch_css"]
 
 #: Neutral scale for the light theme. Very slightly cool rather than pure grey, which
 #: is what stops a panel looking like an unstyled document.
@@ -81,11 +83,39 @@ DARK_NEUTRALS: dict[str, str] = {
 }
 
 
-def build_tokens(brand: str | None = None, *, dark: bool = False) -> dict[str, str]:
-    """Every colour token for one theme, keyed without the leading ``--``."""
-    brand = brand or vantage_settings.BRAND_COLOR
-    neutrals = DARK_NEUTRALS if dark else LIGHT_NEUTRALS
-    return {**neutrals, **derive_palette(brand, dark=dark)}
+def resolve_preset(preset: str | Preset | None = None) -> Preset:
+    """A preset by name (or as given), defaulting to the configured ``UI_THEME``.
+
+    An unknown name falls back to the configured one rather than raising: the name can
+    come from a cookie, and a preset a project has since removed must not break a page.
+    """
+    if isinstance(preset, Preset):
+        return preset
+    presets = get_presets()
+    if preset in presets:
+        return presets[preset]
+    return presets.get(vantage_settings.UI_THEME, presets[DEFAULT_PRESET])
+
+
+def build_tokens(
+    brand: str | None = None, *, dark: bool = False, preset: str | Preset | None = None
+) -> dict[str, str]:
+    """Every colour token for one theme, keyed without the leading ``--``.
+
+    Precedence for the brand tokens: a ``brand`` argument, then an explicit
+    ``BRAND_COLOR``, then the preset's own primary, then the default ``BRAND_COLOR``.
+    """
+    chosen = resolve_preset(preset)
+    neutrals = {
+        **(DARK_NEUTRALS if dark else LIGHT_NEUTRALS),
+        **(chosen.dark if dark else chosen.light),
+    }
+
+    if brand is not None or vantage_settings.is_explicit("BRAND_COLOR"):
+        return {**neutrals, **derive_palette(brand or vantage_settings.BRAND_COLOR, dark=dark)}
+
+    derived = derive_palette(chosen.primary or vantage_settings.BRAND_COLOR, dark=dark)
+    return {**neutrals, **derived, **(chosen.dark_brand if dark else chosen.light_brand)}
 
 
 def _block(selector: str, tokens: dict[str, str], *, radius: str | None = None) -> str:
@@ -97,28 +127,81 @@ def _block(selector: str, tokens: dict[str, str], *, radius: str | None = None) 
     return "\n".join(lines)
 
 
-def render_theme_css(brand: str | None = None, radius: str | None = None) -> str:
+def render_theme_css(
+    brand: str | None = None,
+    radius: str | None = None,
+    preset: str | Preset | None = None,
+) -> str:
     """The complete themed token stylesheet, ready to inline into ``<head>``.
 
     Inlined rather than served as a file because the tokens depend on project settings:
     a static asset would have to be regenerated on every settings change, and would be
     wrong for any project running more than one brand.
-    """
-    brand = brand or vantage_settings.BRAND_COLOR
-    radius = radius or vantage_settings.BRAND_RADIUS
-    light = build_tokens(brand, dark=False)
-    dark = build_tokens(brand, dark=True)
 
+    Only the active preset is emitted, so choosing a preset costs a page nothing it did
+    not already carry. The live preview on the account page asks for another preset's
+    stylesheet through :class:`vantage.views.UIThemeCssView`, which calls this too.
+    """
+    chosen = resolve_preset(preset)
+    light = build_tokens(brand, dark=False, preset=chosen)
+    dark = build_tokens(brand, dark=True, preset=chosen)
+
+    if radius is None:
+        explicit = vantage_settings.is_explicit("BRAND_RADIUS")
+        radius = vantage_settings.BRAND_RADIUS if explicit or not chosen.radius else chosen.radius
+
+    parts = [
+        # Light on bare :root — a page with no theme attribute still renders.
+        _block(":root", light, radius=radius),
+        # System preference, but never overriding an explicit light choice.
+        "@media (prefers-color-scheme: dark) {",
+        _block('  :root:not([data-theme="light"])', dark),
+        "}",
+        # An explicit dark choice wins in both directions.
+        _block(':root[data-theme="dark"]', dark),
+    ]
+    layer = chosen.layer()
+    if layer:
+        # Not mode-dependent, and doubled so it beats the static stylesheet's own
+        # ``:root`` defaults (shadows, font) despite being emitted before it.
+        parts.append(_block(":root:root", layer))
+    return "\n".join(parts)
+
+
+def swatch_css(presets: dict[str, Preset] | None = None) -> str:
+    """Per-preset colour variables for the picker's cards, in both modes.
+
+    Scoped by attribute rather than inlined as ``style=`` because the panel's CSP
+    forbids inline style attributes. Small: four colours per preset per mode.
+    """
+    presets = presets if presets is not None else get_presets()
+
+    def rules(selector_for, dark: bool) -> list[str]:
+        out = []
+        for name, preset in presets.items():
+            tokens = build_tokens(dark=dark, preset=preset)
+            body = " ".join(
+                f"--sw-{label}: {tokens[token]};"
+                for label, token in (
+                    ("bg", "background"),
+                    ("card", "card"),
+                    ("fg", "muted-foreground"),
+                    ("border", "border"),
+                    ("primary", "primary"),
+                    ("on", "primary-foreground"),
+                )
+            )
+            out.append(f"{selector_for(name)} {{ {body} }}")
+        return out
+
+    card = '.v-uitheme-card[data-ui-theme-choice="{}"]'
     return "\n".join(
         [
-            # Light on bare :root — a page with no theme attribute still renders.
-            _block(":root", light, radius=radius),
-            # System preference, but never overriding an explicit light choice.
+            *rules(lambda n: card.format(n), dark=False),
             "@media (prefers-color-scheme: dark) {",
-            _block('  :root:not([data-theme="light"])', dark),
+            *rules(lambda n: f':root:not([data-theme="light"]) {card.format(n)}', dark=True),
             "}",
-            # An explicit dark choice wins in both directions.
-            _block(':root[data-theme="dark"]', dark),
+            *rules(lambda n: f':root[data-theme="dark"] {card.format(n)}', dark=True),
         ]
     )
 
