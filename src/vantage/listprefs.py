@@ -601,6 +601,9 @@ class ListSpec:
     #: the panel still offers it is :mod:`vantage.listviews`'s question. Read from the
     #: per-user row only — a remembered choice is personal by definition.
     list_view: str | None = None
+    #: ``{"kanban": "priority", "calendar": "due_on"}``: the field this person last
+    #: arranged each mode by. Per-user and unvalidated, like ``list_view``.
+    list_view_fields: dict[str, str] = field(default_factory=dict)
 
     def source(self, name: str) -> str:
         return self.sources.get(name, "code")
@@ -738,7 +741,17 @@ def _build(panel, request, key: str) -> ListSpec:
 
     spec = _assemble(panel, opts, key, stored, sources)
     list_view = getattr(user_row, "list_view", None) if user_row is not None else None
-    return replace(spec, list_view=list_view) if list_view else spec
+    if list_view:
+        spec = replace(spec, list_view=list_view)
+    view_fields = getattr(user_row, "list_view_fields", None) if user_row is not None else None
+    if isinstance(view_fields, dict) and view_fields:
+        spec = replace(
+            spec,
+            list_view_fields={
+                str(mode): name for mode, name in view_fields.items() if isinstance(name, str)
+            },
+        )
+    return spec
 
 
 #: Every column this layer reads, in the order the sections declare them.

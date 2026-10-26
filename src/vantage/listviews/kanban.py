@@ -75,6 +75,9 @@ class KanbanMode(ListMode):
     label = _("Board")
     icon = "kanban"
     template = "vantage/list_views/kanban.html"
+    field_label = _("Group by")
+    #: "Show more" names columns of the old field, which mean nothing under a new one.
+    field_resets = ("page", "more")
 
     #: Cards per column before "Show more". Each click on it adds this many again.
     column_limit = 20
@@ -88,9 +91,17 @@ class KanbanMode(ListMode):
 
     # ── the field and its columns ───────────────────────────────────────────
 
+    def field_choices(self) -> list[str]:
+        request = self.request
+        return [
+            name
+            for name in self.panel.get_kanban_fields(request)
+            if (field := local_field(self.panel.model, name)) is not None and kanban_field_ok(field)
+        ]
+
     @property
     def field(self) -> models.Field:
-        return local_field(self.panel.model, self.panel.get_kanban_field())
+        return local_field(self.panel.model, self.field_name)
 
     def declared_values(self) -> list[tuple[Any, str]]:
         field = self.field
@@ -171,10 +182,9 @@ class KanbanMode(ListMode):
 
         labels = field_labels(self.panel, card_fields)
         from vantage import concurrency
-        from vantage.listviews import mode_url
         from vantage.render import _tone_for
 
-        base_url = mode_url(request, self.name)
+        base_url = self.own_url(request)
         columns = []
         for value, label in columns_spec:
             cards = []
@@ -208,6 +218,7 @@ class KanbanMode(ListMode):
             "kanban_field_label": str(field.verbose_name).capitalize(),
             "kanban_can_move": can_move,
             "kanban_move_url": self.move_url() if can_move else "",
+            "view_field": self.field_picker(request),
         }
 
     def fetch(self, queryset, values, limits, counts) -> dict[Any, list]:

@@ -99,6 +99,9 @@ SORT_PARAM = "sort"
 #: ``?view=`` with the saved view's own primary key — digits are a saved view, a name
 #: is a list view; see :mod:`vantage.listviews`.
 LIST_VIEW_KEY = "list_view"
+#: The field that list view is arranged by (``?by=``), kept only beside a list view
+#: that offers a choice: "open orders, as a board by priority".
+LIST_VIEW_FIELD_KEY = "list_view_field"
 
 
 def _list_view_param(params) -> str:
@@ -196,7 +199,23 @@ def capture(panel, params) -> dict[str, Any]:
     list_view = _list_view_param(params)
     if list_view and list_view in panel.get_list_views():
         state[LIST_VIEW_KEY] = list_view
+        by = params.get(_field_param(), "").strip()
+        if by and by in _field_choices(panel, list_view):
+            state[LIST_VIEW_FIELD_KEY] = by
     return state
+
+
+def _field_param() -> str:
+    from vantage.listviews.base import ListMode
+
+    return ListMode.FIELD_PARAM
+
+
+def _field_choices(panel, list_view: str) -> list[str]:
+    from vantage.listviews import MODES
+
+    mode = MODES.get(list_view)
+    return mode(panel).field_choices() if mode is not None else []
 
 
 def hydrate(panel, state: dict | None) -> Hydrated:
@@ -246,6 +265,22 @@ def hydrate(panel, state: dict | None) -> Hydrated:
     if list_view:
         if list_view in panel.get_list_views() and not list_view.isdigit():
             pairs.append((VIEW_PARAM, list_view))
+            by = str(state.get(LIST_VIEW_FIELD_KEY) or "").strip()
+            if by and by in _field_choices(panel, list_view):
+                pairs.append((_field_param(), by))
+            elif by:
+                broken.append(
+                    BrokenReference(
+                        _field_param(),
+                        [by],
+                        _(
+                            "“%(field)s” can no longer arrange this view, "
+                            "so its default field is used."
+                        )
+                        % {"field": by},
+                        widens=False,
+                    )
+                )
         else:
             broken.append(
                 BrokenReference(

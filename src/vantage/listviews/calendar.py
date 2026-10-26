@@ -70,6 +70,7 @@ class CalendarMode(ListMode):
     label = _("Calendar")
     icon = "calendar"
     template = "vantage/list_views/calendar.html"
+    field_label = _("Dates from")
 
     #: The most records one month will fetch. Past it the page says it was truncated.
     max_events = 500
@@ -80,9 +81,16 @@ class CalendarMode(ListMode):
     def supports(cls, panel) -> bool:
         return isinstance(local_field(panel.model, panel.get_calendar_field()), models.DateField)
 
+    def field_choices(self) -> list[str]:
+        return [
+            name
+            for name in self.panel.get_calendar_fields(self.request)
+            if isinstance(local_field(self.panel.model, name), models.DateField)
+        ]
+
     @property
     def field(self) -> models.DateField:
-        return local_field(self.panel.model, self.panel.get_calendar_field())
+        return local_field(self.panel.model, self.field_name)
 
     def bounds(self, start: date, end: date):
         """The query's half-open range, as local midnights for a ``DateTimeField``."""
@@ -105,7 +113,6 @@ class CalendarMode(ListMode):
         return value
 
     def context(self, request, queryset, *, permissions) -> dict[str, Any]:
-        from vantage.listviews import mode_url
 
         field = self.field
         today = timezone.localdate()
@@ -164,7 +171,7 @@ class CalendarMode(ListMode):
 
         python_start = (first_weekday - 1) % 7
         order = [(python_start + offset) % 7 for offset in range(7)]
-        base = mode_url(request, self.name)
+        base = self.own_url(request)
         joiner = "&" if "?" in base and not base.endswith("?") else ""
         return {
             "calendar_field": field.name,
@@ -181,4 +188,5 @@ class CalendarMode(ListMode):
             "calendar_count": len(rows),
             "calendar_truncated": truncated,
             "calendar_max": self.max_events,
+            "view_field": self.field_picker(request),
         }

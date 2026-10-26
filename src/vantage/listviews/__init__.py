@@ -51,8 +51,10 @@ __all__ = [
     "build_urls",
     "mode_url",
     "remember",
+    "remember_field",
     "requested",
     "resolve",
+    "stored_field",
     "supported",
     "switcher",
 ]
@@ -70,7 +72,7 @@ MODES: dict[str, type[ListMode]] = {
 #: Query parameters that belong to one mode's own navigation — the month on show, the
 #: Kanban column being expanded. Dropped when switching to another mode, because a
 #: month means nothing to a board and keeping it would make the URL lie.
-MODE_PARAMS = ("page", "month", "more")
+MODE_PARAMS = ("page", "month", "more", ListMode.FIELD_PARAM)
 
 
 def supported(panel, name: str) -> bool:
@@ -106,11 +108,11 @@ def resolve(panel, request) -> ListMode:
     wanted = requested(request)
     if wanted in names:
         remember(panel, request, wanted, default=names[0])
-        return MODES[wanted](panel)
+        return MODES[wanted](panel, request)
     stored = _stored(panel, request)
     if stored in names:
-        return MODES[stored](panel)
-    return modes[0](panel) if modes else TableMode(panel)
+        return MODES[stored](panel, request)
+    return modes[0](panel, request) if modes else TableMode(panel, request)
 
 
 def mode_url(request, name: str) -> str:
@@ -186,6 +188,51 @@ def remember(panel, request, name: str, *, default: str | None = None) -> None:
     cache = getattr(request, listprefs._CACHE_ATTR, None)
     if cache is not None:
         cache[spec.key] = replace(spec, list_view=name)
+
+
+def stored_field(panel, request, mode: str) -> str | None:
+    """The field this person last arranged ``mode`` by here. Unvalidated, like the mode."""
+    from vantage import listprefs
+
+    if request is None:
+        return None
+    fields = getattr(listprefs.resolve(panel, request), "list_view_fields", None) or {}
+    value = fields.get(mode)
+    return value if isinstance(value, str) else None
+
+
+def remember_field(panel, request, mode: str, name: str, *, default: str | None = None) -> None:
+    """Store ``name`` as this person's field for ``mode`` on this model. Never raises.
+
+    The same rules as :func:`remember`: no write when nothing changes, and no row
+    created just to say "the default".
+    """
+    from vantage import listprefs
+
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return
+    spec = listprefs.resolve(panel, request)
+    fields = dict(getattr(spec, "list_view_fields", None) or {})
+    current = fields.get(mode)
+    if current == name or (current is None and name == default):
+        return
+    fields[mode] = name
+    try:
+        model = listprefs._model()
+        if model is None:  # pragma: no cover - only when the app is not installed
+            return
+        row = listprefs.row_for(panel, user)
+        if row is None:
+            row = model(resource_key=listprefs.resource_key(panel), user=user)
+        row.list_view_fields = fields
+        row.save()
+    except Exception:  # a preference is not worth a 500 on a page view
+        logger.exception("Could not remember the %s field for %s.", mode, panel.opts.label)
+        return
+    cache = getattr(request, listprefs._CACHE_ATTR, None)
+    if cache is not None:
+        cache[spec.key] = replace(spec, list_view_fields=fields)
 
 
 def build_urls(site) -> list:

@@ -183,6 +183,23 @@
     });
   }
 
+  /* A <select data-submit-on-change> applies itself — the list views' field pickers.
+   * The form is complete without this: its Apply button submits it. With a script the
+   * button is redundant, so it is hidden and choosing an option submits instead. */
+  function initSubmitOnChange() {
+    document.querySelectorAll("select[data-submit-on-change]").forEach(function (select) {
+      var form = select.form;
+      if (!form) return;
+      form.querySelectorAll("[data-submit-on-change-fallback]").forEach(function (button) {
+        button.hidden = true;
+      });
+      select.addEventListener("change", function () {
+        if (form.requestSubmit) form.requestSubmit();
+        else form.submit();
+      });
+    });
+  }
+
   /* The theme the page is painted in right now: "light" or "dark", never "system". */
   function currentTheme() {
     var explicit = document.documentElement.getAttribute("data-theme");
@@ -385,6 +402,7 @@
     else if (system.addListener) system.addListener(paintTheme);
 
     initUiThemePicker();
+    initSubmitOnChange();
     initSidebar();
     initUserMenu();
 
