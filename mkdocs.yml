@@ -123,6 +123,7 @@ nav:
       - Settings reference: settings.md
       - Deployment: deployment.md
       - Security: security.md
+      - Data quality: data-quality.md
       - Accessibility: accessibility.md
       - Browser tests: browser-tests.md
   - FAQ: faq.md

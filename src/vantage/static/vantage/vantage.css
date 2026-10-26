@@ -2706,3 +2706,12 @@ a.v-file-chip:focus-visible {
     background: color-mix(in oklab, var(--primary) 35%, var(--muted));
   }
 }
+
+/* ── data quality page ────────────────────────────────────────────────────── */
+
+.v-dq-rerun { margin-inline-start: auto; }
+.v-dq-note { padding: 0.75rem 1rem; color: var(--muted-foreground); }
+.v-dq-table th[scope="row"] { font-weight: 550; text-align: start; }
+.v-health-dot[data-status="info"] { background: var(--muted-foreground); }
+.v-page-head ~ .v-card + .v-card { margin-block-start: 1rem; }
+.v-page-head ~ .v-dq-note { margin-block-end: 1rem; }
