@@ -136,8 +136,8 @@
       toasts nowhere to land either. It collapses to zero height when empty.
     {% endcomment %}
     <div class="v-toasts" id="v-toasts" role="status" aria-live="polite">
-      {% for message in messages %}
-        <div class="v-toast" data-level="{{ message.level_tag }}">
+      {% for message in messages %}{% with undo=message|undo_offer %}
+        <div class="v-toast" data-level="{{ message.level_tag }}"{% if undo %} data-undo-remaining="{{ undo.remaining }}"{% endif %}>
           {% comment %} The tint on the left edge is the only visual signal of severity, so the
              word itself is carried in text for anyone the colour does not reach.
 
@@ -149,11 +149,23 @@
           {% elif message.level_tag == "success" %}{% translate "Success" context "message severity" as severity %}
           {% elif message.level_tag == "debug" %}{% translate "Debug" context "message severity" as severity %}
           {% else %}{% translate "Info" context "message severity" as severity %}{% endif %}
-          <span><span class="v-sr-only">{{ severity }}:</span> {{ message }}</span>
+          <span class="v-toast-text"><span class="v-sr-only">{{ severity }}:</span> {{ message }}</span>
+          {% if undo %}
+            {% comment %} Hidden until vantage.js reveals it, so without JavaScript the change
+               behaves exactly as it did before undo existed: no button that outlives its
+               window, and nothing that only works for some visitors. The server enforces
+               the window either way; the script only keeps the button honest about it. {% endcomment %}
+            <form class="v-toast-undo" method="post" action="{% url 'vantage:undo' %}" data-undo-form hidden>
+              {% csrf_token %}
+              <input type="hidden" name="token" value="{{ undo.token }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path|default:path }}">
+              <button type="submit" class="v-toast-undo-button" aria-keyshortcuts="Control+Z Meta+Z">{% translate "Undo" %}</button>
+            </form>
+          {% endif %}
           <button type="button" class="v-toast-close"
                   aria-label="{% translate "Dismiss this message" %}">&times;</button>
         </div>
-      {% endfor %}
+      {% endwith %}{% endfor %}
     </div>
 
     <main class="v-content" id="v-content" tabindex="-1">

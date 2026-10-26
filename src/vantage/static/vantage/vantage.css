@@ -1821,6 +1821,37 @@ textarea {
   to   { opacity: 1; transform: none; }
 }
 
+.v-toast-text { min-inline-size: 0; overflow-wrap: anywhere; }
+
+/* The undo button sits between the message and the close mark. A text button in the
+   brand colour rather than a filled one: it is the one thing in the toast worth doing,
+   but it is optional, and a solid block would read as "you must". */
+.v-toast-undo { display: contents; }
+.v-toast-undo[hidden] { display: none; }
+
+.v-toast-undo-button {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v-toast-undo-button:hover { background: var(--accent); color: var(--accent-foreground); }
+.v-toast-undo-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.v-toast-undo-button:disabled { opacity: 0.6; cursor: progress; }
+.v-toast-undo + .v-toast-close,
+.v-toast-undo-button + .v-toast-close { margin-inline-start: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .v-toast { animation: none; }
+}
+
 /* ── bulk actions ─────────────────────────────────────────────────────────── */
 
 .v-action-bar {

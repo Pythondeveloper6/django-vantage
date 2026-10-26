@@ -540,7 +540,49 @@
     );
     paintBar();
     announce(noteEl.textContent);
+    if (data.undo && window.vantageUndo) {
+      window.vantageUndo.show({
+        token: data.undo.token,
+        url: data.undo.url,
+        remaining: data.undo.remaining,
+        message: noteEl.textContent,
+      });
+    }
   }
+
+  // An undo redeemed from the toast hands back the rows as they now stand. A cell the
+  // person has edited again since is left showing what they typed — only its baseline
+  // moves — because silently replacing typed work is the one thing this grid never
+  // does. Every other cell, and the row's version token, follows the server.
+  document.addEventListener("vantage:undone", function (event) {
+    var data = event.detail || {};
+    if (!data.ok || !data.rows) return;
+    data.rows.forEach(function (row) {
+      var entry = rows[row.pk];
+      if (!entry) return;
+      entry.version = row.version;
+      if (row.version) entry.row.setAttribute("data-version", row.version);
+      else entry.row.removeAttribute("data-version");
+      Object.keys(row.values || {}).forEach(function (field) {
+        var cell = entry.cells[field];
+        if (!cell) return;
+        if (staged.has(cell)) {
+          var typed = readControl(cell.control);
+          writeControl(cell.control, row.values[field]);
+          cell.baseline = readControl(cell.control);
+          writeControl(cell.control, typed);
+          restage(cell);
+        } else {
+          writeControl(cell.control, row.values[field]);
+          cell.baseline = readControl(cell.control);
+          cell.state = "";
+          cell.messages = [];
+        }
+        paintCell(cell);
+      });
+    });
+    paintBar();
+  });
 
   function applyErrors(data) {
     var total = 0;
