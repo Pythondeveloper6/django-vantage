@@ -34,6 +34,7 @@ from django.utils.translation import gettext_lazy as _
 
 from vantage.listviews.base import ListMode, detail_url
 from vantage.listviews.kanban import local_field
+from vantage.sensitive import safe_str
 
 __all__ = ["CalendarMode", "month_grid", "parse_month"]
 
@@ -141,7 +142,7 @@ class CalendarMode(ListMode):
                 {
                     "obj": obj,
                     "pk": obj.pk,
-                    "title": str(obj),
+                    "title": safe_str(obj),
                     "url": detail_url(self.panel, obj),
                     "time": time_format(moment) if timed else "",
                     "iso": moment.isoformat(),

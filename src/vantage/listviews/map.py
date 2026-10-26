@@ -29,6 +29,7 @@ from django.utils.translation import gettext_lazy as _
 from vantage.listviews.base import ListMode, detail_url
 from vantage.listviews.inference import is_point_field
 from vantage.listviews.kanban import local_field
+from vantage.sensitive import safe_str
 
 __all__ = ["MapMode", "fit_equirectangular", "fit_mercator", "osm_url"]
 
@@ -222,7 +223,7 @@ class MapMode(ListMode):
                     {
                         "obj": obj,
                         "pk": obj.pk,
-                        "title": str(obj),
+                        "title": safe_str(obj),
                         "url": detail_url(self.panel, obj),
                         "osm_url": osm_url(lat, lng),
                         "lat": f"{lat:.5f}",

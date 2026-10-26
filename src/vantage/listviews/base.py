@@ -18,6 +18,7 @@ from django.db.models import QuerySet
 from django.urls import NoReverseMatch, reverse
 
 from vantage.optimizer import plan_related
+from vantage.sensitive import safe_str
 
 __all__ = ["Card", "ListMode", "card_for", "detail_url", "with_related"]
 
@@ -178,7 +179,7 @@ def card_for(panel, obj, fields: list[str], labels: dict[str, str]) -> Card:
         obj=obj,
         pk=obj.pk,
         url=detail_url(panel, obj),
-        title=str(obj),
+        title=safe_str(obj),
         fields=rendered,
     )
 
