@@ -268,10 +268,15 @@ def _with_more(base_url: str, more: list[str]) -> str:
 
 
 def build_urls(site) -> list:
-    """``<app>/<model>/_kanban/move/`` for every panel that can show a board.
+    """``<app>/<model>/_kanban/move/`` for every panel.
 
     Mounted before the per-panel loop for the reason every ``_``-prefixed record route
     is: the detail route's ``<path:pk>`` would otherwise swallow ``_kanban``.
+
+    Every panel, not only those that can show a board when the URLconf is built:
+    whether a board exists is a request-time answer (``get_list_views(request)``, a
+    panel reconfigured after import), and the view refuses any field it may not write.
+    Filtering here made the route's existence depend on when the URLconf was loaded.
     """
     from django.urls import path
 
@@ -279,8 +284,6 @@ def build_urls(site) -> list:
 
     urlpatterns = []
     for panel in site.panels():
-        if not KanbanMode.supports(panel):
-            continue
         opts = panel.opts
         urlpatterns.append(
             path(
