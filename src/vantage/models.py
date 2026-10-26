@@ -267,6 +267,10 @@ class SiteConfiguration(models.Model):
         ],
     )
     theme_toggle = models.BooleanField(null=True, blank=True)
+    # The preset *name*; its choices are not a static list (UI_THEMES registers more), so
+    # the settings form validates it against the live registry instead of ``choices``.
+    ui_theme = models.CharField(max_length=32, null=True, blank=True)  # noqa: DJ001
+    ui_theme_toggle = models.BooleanField(null=True, blank=True)
 
     # ── behaviour ───────────────────────────────────────────────────────────
     environment = models.CharField(max_length=120, null=True, blank=True)  # noqa: DJ001

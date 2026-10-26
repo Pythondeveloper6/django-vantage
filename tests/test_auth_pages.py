@@ -72,6 +72,12 @@ class TestLogin:
         """Without it the sign-in page paints light and flips, before the panel does."""
         assert "vantage-theme" in client.get("/accounts/login/").content.decode()
 
+    def test_follows_the_ui_theme_cookie(self, client, db):
+        client.cookies["vantage-ui-theme"] = "shadcn"
+        body = client.get("/accounts/login/").content.decode()
+        assert 'data-ui-theme="shadcn"' in body
+        assert "--radius: 0.625rem;" in body
+
     def test_shows_the_login_image_only_when_configured(self, client, db):
         assert "v-auth-art" not in client.get("/accounts/login/").content.decode()
         with override_settings(VANTAGE={"LOGIN_IMAGE": "/media/side.jpg"}):
