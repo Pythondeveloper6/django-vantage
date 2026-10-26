@@ -10,7 +10,7 @@ from functools import cached_property
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import (
     get_language,
@@ -734,6 +734,13 @@ class PageView(SiteView):
             _("You do not have permission to view %(page)s.")
             % {"page": self.page_class.get_title()}
         )
+
+    def post(self, request, *args, **kwargs):
+        """Only for a page that defines ``post(request)``; any other is read-only."""
+        handler = getattr(self.get_page(), "post", None)
+        if handler is None:
+            return HttpResponseNotAllowed(["GET", "HEAD"])
+        return handler(request)
 
     def get_template_names(self):
         return self.get_page().get_template_names()

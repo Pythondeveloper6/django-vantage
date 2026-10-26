@@ -1,0 +1,105 @@
+{% extends "vantage/base.html" %}
+{% load vantage i18n %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{% translate "Data quality" %}</h1>
+    <p class="v-page-description">
+      {% blocktranslate trimmed with models=totals.models issues=totals.issues %}
+        {{ issues }} issues across {{ models }} models. Read-only: counts and links, never the values themselves.
+      {% endblocktranslate %}
+    </p>
+  </div>
+  <form method="post" class="v-dq-rerun">
+    {% csrf_token %}
+    {% if detail %}<input type="hidden" name="model" value="{{ detail.model }}"><input type="hidden" name="stay" value="1">{% endif %}
+    <button type="submit" class="v-btn v-btn-secondary">
+      {% icon "rotate-ccw" %} {% if detail %}{% translate "Re-run this model" %}{% else %}{% translate "Re-run audit" %}{% endif %}
+    </button>
+  </form>
+</div>
+
+{% if audit.pending %}
+  <div class="v-card v-dq-note" role="status">
+    {% blocktranslate trimmed count counter=audit.pending|length %}
+      {{ counter }} model has not been audited yet. Re-run the audit to continue; each run stays within its time budget.
+    {% plural %}
+      {{ counter }} models have not been audited yet. Re-run the audit to continue; each run stays within its time budget.
+    {% endblocktranslate %}
+  </div>
+{% endif %}
+
+{% if detail %}
+  {% include "vantage/pages/_data_quality_detail.html" %}
+{% else %}
+<div class="v-card">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Models" %}</h2></div>
+  {% if audit.reports %}
+  <div class="v-table-wrap">
+    <table class="v-table v-dq-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Model" %}</th>
+          <th scope="col">{% translate "Rows" %}</th>
+          <th scope="col">{% translate "Score" %}</th>
+          <th scope="col">{% translate "Issues" %}</th>
+          <th scope="col">{% translate "Worst issue" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in audit.reports %}
+        <tr>
+          <th scope="row"><a class="v-cell-link" href="?model={{ report.model }}">{{ report.label }}</a></th>
+          <td class="v-money">
+            {{ report.rows_display }}
+            {% if report.skipped %}<span class="v-badge" data-tone="warning">{% translate "skipped" %}</span>
+            {% elif report.sampled %}<span class="v-badge">{% translate "sampled" %}</span>
+            {% elif report.rows_kind == "estimated" %}<span class="v-badge">{% translate "estimated" %}</span>{% endif %}
+          </td>
+          <td>
+            {% if report.error %}<span class="v-badge" data-tone="destructive">{% translate "error" %}</span>
+            {% elif report.score is None %}<span class="v-muted">&ndash;</span>
+            {% else %}<span class="v-badge" data-tone="{{ report.tone }}">{{ report.score }}</span>{% endif %}
+          </td>
+          <td class="v-money">{{ report.issues|length }}</td>
+          <td>
+            {% with worst=report.worst %}
+              {% if worst %}
+                <span class="v-health-dot" data-status="{{ worst.severity }}" aria-hidden="true"></span>
+                <span class="v-sr-only">{{ worst.severity }}:</span>
+                {{ worst.field|default:report.label }} &middot; {{ worst.message }}
+              {% elif report.partial %}<span class="v-muted">{% translate "Incomplete" %}</span>
+              {% else %}<span class="v-muted">{% translate "None" %}</span>{% endif %}
+            {% endwith %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% for label, name in audit.pending %}
+        <tr>
+          <th scope="row">{{ name }}</th>
+          <td colspan="4"><span class="v-badge">{% translate "not yet run" %}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="v-empty">
+    {% icon "box" class="v-empty-icon" %}
+    <p class="v-empty-title">{% translate "No models to check." %}</p>
+    <p class="v-empty-body">{% translate "No registered model is visible to you, or all are opted out." %}</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="v-card">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Checks" %}</h2></div>
+  <dl class="v-fields">
+    {% for check in checks %}
+    <div class="v-field"><dt>{{ check.label|default:check.name }}</dt><dd>{{ check.description }}</dd></div>
+    {% endfor %}
+  </dl>
+</div>
+{% endif %}
+{% endblock %}

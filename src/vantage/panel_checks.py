@@ -45,6 +45,7 @@ class ModelPanelChecks:
             *self._check_layout(panel),
             *self._check_list_select_related(panel),
             *self._check_related_tabs(panel),
+            *self._check_data_quality(panel),
             *self._check_removed(panel),
         ]
 
@@ -241,6 +242,38 @@ class ModelPanelChecks:
                 hint="None lets the panel decide from how many relations there are.",
                 obj=type(panel),
                 id="vantage.E019",
+            )
+        ]
+
+    def _check_data_quality(self, panel: ModelPanel) -> list[Error]:
+        """``data_quality`` is False, None, or a list of real check names."""
+        value = panel.data_quality
+        if value is None or isinstance(value, bool):
+            return [] if value is not True else self._dq_error(panel, value)
+        if not isinstance(value, list | tuple):
+            return self._dq_error(panel, value)
+        from vantage.dataquality import get_checks
+
+        known = {c.name for c in get_checks()}
+        unknown = [n for n in value if n not in known]
+        if not unknown:
+            return []
+        return [
+            Error(
+                f"'data_quality' names unknown check(s) {unknown!r} on {panel.opts.label}.",
+                hint=f"Known checks: {', '.join(sorted(known))}.",
+                obj=type(panel),
+                id="vantage.E063",
+            )
+        ]
+
+    def _dq_error(self, panel: ModelPanel, value) -> list[Error]:
+        return [
+            Error(
+                f"'data_quality' must be False, None or a list of check names; got {value!r}.",
+                hint="False leaves the model out of the audit; a list skips those checks.",
+                obj=type(panel),
+                id="vantage.E063",
             )
         ]
 

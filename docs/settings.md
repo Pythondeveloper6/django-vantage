@@ -269,6 +269,12 @@ What a list page does once the table outgrows the sample data. Everything is fas
 whether the page is showing 25 rows or two million. Details, and the reasoning behind
 each number: [Deployment](deployment.md#counting-a-large-table).
 
+## Data quality
+
+One key, `DATA_QUALITY`, holding a dict of its own settings (`ENABLED`, `PERMISSION`,
+`SAMPLE_SIZE`, `STALE_DAYS`, and so on). Unknown keys inside it are rejected like any
+other typo. Every one is documented in [Data quality](data-quality.md#settings).
+
 ## Plugins
 
 | Key | Default | Effect |
@@ -310,6 +316,8 @@ JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS
+
+DATA_QUALITY
 ```
 
 ## Reading a setting in your own code
