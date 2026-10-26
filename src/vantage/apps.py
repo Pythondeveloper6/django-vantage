@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.apps import apps as django_apps
 from django.core import checks
 from django.utils.module_loading import autodiscover_modules
 from django.utils.translation import gettext_lazy as _
@@ -52,7 +53,7 @@ class VantageConfig(SimpleVantageConfig):
 
     def ready(self) -> None:
         super().ready()
-        from vantage.pages import HealthPage, SchemaPage
+        from vantage.pages import HealthPage, RolesPage, SchemaPage
         from vantage.plugins import load_plugins
         from vantage.sites import site
 
@@ -60,6 +61,9 @@ class VantageConfig(SimpleVantageConfig):
         # or replace one from its own panel.py.
         site.register_page(SchemaPage)
         site.register_page(HealthPage)
+        # Groups are a contrib.auth table, and a project without it has no roles.
+        if django_apps.is_installed("django.contrib.auth"):
+            site.register_page(RolesPage)
 
         # Plugins next, and before autodiscovery for the same reason: a project's
         # panel.py is its last word, so it must be able to unregister or replace

@@ -1,0 +1,4 @@
+<input type="checkbox" class="v-roles-perm" name="perm" value="{{ cell.id }}"
+       data-action="{{ action }}" data-label="{{ row.app_label }}.{{ cell.codename }}"
+       data-name="{{ cell.name }}" aria-label="{{ cell.name }}"
+       title="{{ row.app_label }}.{{ cell.codename }}"{% if cell.checked %} checked{% endif %}{% if cell.id in base %} data-base{% endif %}{% if cell.locked %} disabled data-locked aria-describedby="v-roles-locked-note"{% elif not can_change %} disabled{% endif %}>{% if cell.locked and cell.checked %}<input type="hidden" name="perm" value="{{ cell.id }}" data-roles-kept>{% endif %}
