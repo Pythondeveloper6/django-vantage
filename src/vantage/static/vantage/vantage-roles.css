@@ -1,0 +1,550 @@
+/* Roles & permissions: the list, the matrix, members and effective permissions.
+ *
+ * The matrix is a real <table> of real checkboxes. Everything here is presentation;
+ * nothing hides a control that only exists once the script has run, except the
+ * tri-state "select all" boxes and fold buttons, which are useless without it and are
+ * shown by `.v-roles-ready` — a class the script sets, never the server. */
+
+/* Icons inside this screen's own controls. The global rule sizes them inside buttons
+ * and nav items only, and an unsized inline SVG renders at its full viewBox. */
+.v-roles-filter svg,
+.v-roles-rename svg,
+.v-roles-note svg,
+.v-roles-disclose svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* ── list ─────────────────────────────────────────────────────────────────── */
+
+.v-roles-create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-block-end: 1rem;
+}
+
+.v-roles-create-field {
+  display: grid;
+  gap: 0.375rem;
+  flex: 1 1 16rem;
+}
+
+.v-roles-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.v-roles-num {
+  inline-size: 8rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-table .v-roles-num {
+  text-align: end;
+}
+
+.v-roles-actions-col {
+  inline-size: 20rem;
+}
+
+.v-roles-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.v-roles-row-actions form {
+  display: contents;
+}
+
+/* ── role header, rename and tabs ─────────────────────────────────────────── */
+
+.v-roles-head form {
+  display: inline;
+}
+
+.v-roles-rename {
+  margin-block-end: 0.75rem;
+}
+
+.v-roles-rename summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-roles-rename summary:hover {
+  color: var(--foreground);
+}
+
+.v-roles-rename form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+}
+
+.v-roles-rename .v-input {
+  min-inline-size: 16rem;
+}
+
+.v-roles-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-block: 0.75rem 1rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-roles-tab {
+  padding: 0.4375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+}
+
+.v-roles-tab:hover {
+  color: var(--foreground);
+}
+
+.v-roles-tab[aria-current="page"] {
+  color: var(--foreground);
+  border-block-end-color: var(--primary);
+}
+
+.v-roles-tab:focus-visible,
+.v-roles-disclose:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.v-roles-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-roles-head + .v-form-alert,
+.v-form-alert + .v-roles-tabs {
+  margin-block-start: 0.75rem;
+}
+
+/* ── toolbar ──────────────────────────────────────────────────────────────── */
+
+.v-roles-toolbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding-block: 0.625rem;
+  background: var(--background);
+}
+
+.v-roles-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--muted-foreground);
+  flex: 0 1 20rem;
+}
+
+.v-roles-filter .v-input {
+  inline-size: 100%;
+}
+
+.v-roles-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-roles-spacer {
+  flex: 1 1 auto;
+}
+
+.v-roles-diff {
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.v-roles-diff [data-tone="success"] {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.v-roles-diff [data-tone="destructive"] {
+  color: var(--destructive);
+  font-weight: 600;
+}
+
+.v-roles-js-only {
+  display: none;
+}
+
+.v-roles-ready .v-roles-js-only {
+  display: inline-flex;
+}
+
+.v-roles-ready input.v-roles-js-only {
+  display: inline-block;
+}
+
+.v-roles-fold {
+  gap: 0.25rem;
+}
+
+.v-roles-empty {
+  padding: 1rem;
+  color: var(--muted-foreground);
+}
+
+/* ── the matrix ───────────────────────────────────────────────────────────── */
+
+.v-roles-wrap {
+  overflow-x: auto;
+}
+
+.v-roles-matrix {
+  min-inline-size: 48rem;
+}
+
+.v-roles-matrix th,
+.v-roles-matrix td {
+  padding-block: 0.375rem;
+  vertical-align: middle;
+}
+
+.v-roles-model-col {
+  inline-size: 16rem;
+}
+
+.v-roles-col {
+  inline-size: 7.5rem;
+}
+
+.v-table thead .v-roles-col {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.v-table .v-roles-col,
+.v-roles-cell {
+  text-align: center;
+}
+
+.v-roles-other-col {
+  inline-size: auto;
+}
+
+.v-roles-hcell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.v-table th .v-roles-hcell {
+  overflow: visible;
+}
+
+.v-roles-model {
+  font-weight: 500;
+}
+
+.v-roles-app-tag {
+  margin-inline-start: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.v-roles-matrix input[type="checkbox"] {
+  margin: 0;
+  vertical-align: middle;
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.v-roles-matrix input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.v-roles-matrix input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* A pending change is marked on the cell, so the "+12 / −3" in the toolbar can be
+ * found again on the page — not just counted. Shape as well as colour: a ring for a
+ * grant, a strike for a revoke. */
+.v-roles-cell[data-pending="add"],
+.v-roles-chip[data-pending="add"] {
+  background: color-mix(in oklab, var(--success) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--success) 45%, transparent);
+}
+
+.v-roles-cell[data-pending="remove"],
+.v-roles-chip[data-pending="remove"] {
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 40%, transparent);
+}
+
+.v-roles-chip[data-pending="remove"] span {
+  text-decoration: line-through;
+}
+
+.v-roles-app-row th {
+  background: var(--muted);
+  white-space: normal;
+}
+
+.v-roles-app-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.v-roles-app-name {
+  font-weight: 600;
+}
+
+.v-roles-count {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.v-roles-disclose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.v-roles-disclose:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.v-roles-disclose svg {
+  transition: transform 120ms ease;
+}
+
+.v-roles-disclose[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+[dir="rtl"] .v-roles-disclose[aria-expanded="false"] svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-roles-disclose svg {
+    transition: none;
+  }
+}
+
+.v-roles-other {
+  white-space: normal;
+}
+
+.v-table .v-roles-other {
+  white-space: normal;
+}
+
+.v-roles-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.125rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* ── review dialog ────────────────────────────────────────────────────────── */
+
+/* The explicit auto margin re-centres it: the base reset zeroes every margin, and a
+ * modal <dialog> is centred only by the UA's own `margin: auto`. */
+.v-roles-dialog {
+  margin: auto;
+  inline-size: min(44rem, 92vw);
+  max-block-size: 85vh;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-lg);
+}
+
+.v-roles-dialog::backdrop {
+  background: oklch(0 0 0 / 0.45);
+}
+
+.v-roles-dialog-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.v-roles-review {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+
+@media (max-width: 40rem) {
+  .v-roles-review {
+    grid-template-columns: 1fr;
+  }
+}
+
+.v-roles-review-head {
+  margin: 0 0 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.v-roles-review-head[data-tone="success"] {
+  color: var(--success);
+}
+
+.v-roles-review-head[data-tone="destructive"] {
+  color: var(--destructive);
+}
+
+.v-roles-review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-block-size: 40vh;
+  overflow-y: auto;
+  font-size: 0.8125rem;
+}
+
+.v-roles-review-list li {
+  padding-block: 0.25rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-roles-review-list code {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.v-roles-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ── members and effective permissions ────────────────────────────────────── */
+
+.v-roles-add {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  padding: 1rem;
+  margin-block-end: 1rem;
+}
+
+.v-roles-add .v-roles-label {
+  grid-column: 1 / -1;
+}
+
+.v-roles-member-total {
+  margin-inline-start: auto;
+  font-size: 0.8125rem;
+}
+
+.v-roles-more {
+  margin-block: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.v-roles-impact {
+  margin-block: 0.5rem 1rem;
+  padding-inline-start: 1.25rem;
+}
+
+.v-roles-user-roles {
+  margin-block-end: 1rem;
+}
+
+.v-roles-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v-roles-chips .v-chip {
+  text-decoration: none;
+}
+
+.v-roles-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.v-table .v-roles-sources {
+  white-space: normal;
+}
+
+.v-roles-sources a.v-badge {
+  text-decoration: none;
+}
+
+@media (max-width: 40rem) {
+  .v-roles-add {
+    grid-template-columns: 1fr;
+  }
+
+  .v-roles-actions-col {
+    inline-size: auto;
+  }
+
+  .v-roles-row-actions {
+    flex-wrap: wrap;
+  }
+}

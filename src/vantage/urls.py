@@ -20,6 +20,7 @@ from vantage import (
     jobviews,
     listprefsview,
     recordviews,
+    rolesviews,
     savedviews,
     settingsview,
     topbarviews,
@@ -64,6 +65,9 @@ def build(site) -> list:
     # The account page and the top-bar arrangement screen. Before the page loop for
     # the same reason as the block above: both live under the reserved "_/" prefix.
     urlpatterns += topbarviews.build_urls(site)
+
+    # The roles screens hang off the roles page's path, and only exist while it does.
+    urlpatterns += rolesviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.

@@ -55,6 +55,11 @@ DEFAULTS: dict[str, Any] = {
     # request widens it. Never itself editable from the UI — that would be a self-grant.
     "SETTINGS_PERMISSION": None,
     "LIST_PREFS_PERMISSION": None,
+    # Who may open the roles & permissions screen. None means superusers only. A
+    # permission string ("auth.change_group") or a callable taking the request widens
+    # it; whoever is let in can still only grant permissions they hold themselves.
+    # Code-only for the same reason as SETTINGS_PERMISSION: editable, it is a self-grant.
+    "ROLES_PERMISSION": None,
     "READ_ONLY": False,
     "ENVIRONMENT": None,
     # ── multi-tenancy ───────────────────────────────────────────────────────
