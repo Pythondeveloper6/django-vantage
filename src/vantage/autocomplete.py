@@ -20,6 +20,8 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.utils.translation import gettext_lazy as _
 
+from vantage.sensitive import safe_str
+
 __all__ = ["AutocompleteView", "build_urls"]
 
 #: Options per response. Enough to scroll, few enough that the payload stays small
@@ -72,7 +74,10 @@ class AutocompleteView:
 
         return JsonResponse(
             {
-                "results": [{"id": str(obj.pk), "text": str(obj)} for obj in rows[:PAGE_SIZE]],
+                "results": [
+                    {"id": str(obj.pk), "text": safe_str(obj, self.site)}
+                    for obj in rows[:PAGE_SIZE]
+                ],
                 "more": more,
                 "term": term,
             },
@@ -110,8 +115,14 @@ class AutocompleteView:
             # Nothing declared or inferred as searchable: fall back to the label
             # column so the picker is still usable rather than silently inert.
             from vantage.inference import infer_list_link
+            from vantage.sensitive import is_sensitive_path
 
-            combined = Q(**{f"{infer_list_link(panel.model)}__icontains": term})
+            link = infer_list_link(panel.model)
+            if is_sensitive_path(panel, link):
+                # Matching on a secret, even to fill a picker, answers "does any row's
+                # token contain sk_live_4f?" one keystroke at a time.
+                return Q(pk__in=[])
+            combined = Q(**{f"{link}__icontains": term})
         return combined
 
 

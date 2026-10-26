@@ -424,6 +424,7 @@ def importable_fields(panel, request=None, permissions=None) -> list[FieldOption
     declared = getattr(panel, "fields", None)
     names = list(declared) if declared else infer_form_fields(model)
 
+    secret = panel.get_sensitive_fields() if hasattr(panel, "get_sensitive_fields") else ()
     options: list[FieldOption] = []
     for name in names:
         if name in readonly or name in excluded:
@@ -441,7 +442,9 @@ def importable_fields(panel, request=None, permissions=None) -> list[FieldOption
                 label=_label(field),
                 kind=str(classify(field)),
                 writable=True,
-                unique=bool(field.unique or field.primary_key),
+                # A sensitive column is never a key: "updated" against "created" in the
+                # preview would tell the uploader whether a token they guessed exists.
+                unique=bool(field.unique or field.primary_key) and name not in secret,
             )
         )
 
@@ -952,7 +955,7 @@ class _Runner:
             return
 
         before = self._snapshot(existing) if existing is not None else None
-        label = str(existing) if existing is not None else ""
+        label = _display(existing) if existing is not None else ""
 
         # Relations are resolved after the record is found, so a row with an unresolvable
         # foreign key can still be run through the form: one pass then reports everything
@@ -1108,10 +1111,18 @@ class _Runner:
         and the instance as it now stands — the same values that are about to be saved,
         rather than a re-derivation that could disagree with them.
         """
+        from vantage.sensitive import MASK
+
+        secret = self.panel.get_sensitive_fields()
         changes: list[RowChange] = []
         for name, field in self.fields.items():
             after = getattr(form.instance, field.attname, None)
             if after == before[name]:
+                continue
+            if name in secret:
+                # "This row's token will change" is the useful half of the preview; the
+                # stored token is the half the mask exists for.
+                changes.append(RowChange(label=_label(field), before=MASK, after=MASK))
                 continue
             changes.append(
                 RowChange(
@@ -1191,6 +1202,10 @@ def _display(value: Any) -> str:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
+    if hasattr(value, "_meta"):
+        from vantage.sensitive import safe_str
+
+        return safe_str(value)
     return str(value)
 
 
