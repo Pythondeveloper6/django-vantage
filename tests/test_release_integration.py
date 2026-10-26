@@ -166,3 +166,20 @@ class TestUnparseablePk:
     def test_a_guessed_record_url_is_not_found(self, boss, cred, suffix):
         base = reverse("vantage:testapp-zcredential-detail", args=[cred.pk])
         assert boss.get(f"{base}{suffix}").status_code == 404
+
+
+class TestKanbanRouteEverywhere:
+    """The move route exists for every panel; the view decides what may move."""
+
+    def test_a_model_without_a_board_changes_nothing(self, boss, panel, cred):
+        panel.list_views = ["table"]
+        response = boss.post(
+            reverse("vantage:testapp-zcredential-kanban-move"),
+            data=json.dumps(
+                {"pk": cred.pk, "value": "basic", "version": concurrency.token_for(cred)}
+            ),
+            content_type="application/json",
+        )
+        assert response.status_code >= 400
+        cred.refresh_from_db()
+        assert cred.token_type == "bearer"
