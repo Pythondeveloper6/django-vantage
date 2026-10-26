@@ -102,6 +102,15 @@ def _list_view_lines(model: type[Model]) -> list[str]:
         if value:
             lines.append(f'    {attr} = "{value}"')
             own_fields.append(value)
+    # The pickers' choices, only where there is a choice: a one-item list would read
+    # as a deliberate restriction, which inference never made.
+    for attr, candidates in (
+        ("kanban_fields", views.kanban_candidates),
+        ("calendar_fields", views.calendar_candidates),
+    ):
+        found = candidates(model)
+        if len(found) > 1:
+            lines.append(f"    {attr} = {_format_list(found)}")
     location = views.infer_map_fields(model)
     if isinstance(location, str):
         lines.append(f'    map_fields = "{location}"')

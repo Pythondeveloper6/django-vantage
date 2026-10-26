@@ -11,6 +11,8 @@ class OrderPanel(ModelPanel):
     list_views = ["table", "kanban", "calendar"]   # which views, first is the default
     kanban_field = "status"                         # columns of the board
     calendar_field = "ships_on"                     # where records land on the calendar
+    kanban_fields = ["status", "priority"]          # what "Group by" offers
+    calendar_fields = ["ships_on", "created_at"]    # what "Dates from" offers
     card_fields = ["customer", "total"]             # what a card shows under its title
 ```
 
@@ -56,9 +58,40 @@ the model cannot support is dropped from the switcher, and `manage.py check` rep
 `vantage_scaffold` writes the inferred views and their fields into the generated
 `panel.py`, so you can see what was chosen and edit it.
 
+## Choosing the field from the page
+
+A board and a calendar each have a picker in their header — **Group by** on the board,
+**Dates from** on the calendar — listing every field that view can be arranged by. The
+panel's `kanban_field` / `calendar_field` is the default and comes first; the rest are
+inferred with the same rules (every short choices field and stage-like boolean for the
+board, every date that is not an `updated`/`deleted` stamp for the calendar), or listed
+explicitly:
+
+```python
+kanban_fields = ["status", "priority"]   # offer these two
+calendar_fields = []                     # no picker: always calendar_field
+```
+
+The picker is only drawn when there are at least two fields to choose between, and a
+[sensitive field](sensitive-fields.md) is never offered, even when listed.
+
+- **The choice is part of the URL** (`?by=priority`), so it can be bookmarked, shared
+  and stored in a [saved view](lists.md). A field that no longer qualifies shows on a
+  saved view as a broken reference and the default is used.
+- **It is remembered per person, per model, per view**, next to the remembered view
+  itself. Choosing the default stores nothing.
+- **It survives the view's own navigation** — the next month, **Show more** — and is
+  dropped when you switch to another view, where it would mean nothing.
+- **A card moves within the field it was drawn under.** The board posts its field with
+  every move and the server checks it against the same choices; a field the board
+  cannot be grouped by is never written.
+
+Without JavaScript the picker is an ordinary form with an **Apply** button; with it, the
+view changes as soon as a field is chosen.
+
 ## Kanban
 
-One column per value of `kanban_field`, in the order the choices are declared, plus a
+One column per value of the board's field (`kanban_field`, or the one picked), in the order the choices are declared, plus a
 "No value" column for a nullable field and a column for any value the data holds that the
 choices no longer list. Column totals come from one `GROUP BY`; cards come from one
 windowed query (the first N of every column at once), so the board costs the same with
@@ -87,7 +120,8 @@ No moving at all — no drag handles, no menu — for a person without `change` 
 for a field in `readonly_fields` or `exclude`, and in [read-only mode](settings.md#behaviour).
 
 The endpoint is `POST <app>/<model>/_kanban/move/` with a JSON body
-`{"pk": …, "value": …, "version": …}`.
+`{"pk": …, "value": …, "version": …, "field": …}` — `field` is the column the board was
+grouped by, optional, and checked against the board's choices.
 
 ## Calendar
 

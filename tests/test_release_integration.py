@@ -183,3 +183,17 @@ class TestKanbanRouteEverywhere:
         assert response.status_code >= 400
         cred.refresh_from_db()
         assert cred.token_type == "bearer"
+
+
+class TestCardTitles:
+    """A card's title is the record's name, and a name can carry the secret."""
+
+    @pytest.mark.parametrize("mode", ["kanban", "calendar"])
+    def test_a_secret_in_str_is_not_a_card_title(self, boss, panel, cred, mode):
+        ZCredential.objects.filter(pk=cred.pk).update(name=f"key {TOKEN}")
+        panel.list_views = ["table", "kanban", "calendar"]
+        panel.kanban_field = "token_type"
+        panel.calendar_field = "password_changed_at"
+        response = boss.get(reverse(LIST_URL), {"view": mode})
+        assert response.status_code == 200
+        assert not leaks(response.content)

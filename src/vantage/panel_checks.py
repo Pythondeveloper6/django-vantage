@@ -382,6 +382,37 @@ class ModelPanelChecks:
             if not self._resolves(panel, entry):
                 errors.append(self._error(panel, "card_fields", entry, "vantage.E076"))
 
+        # The pickers' choices: each must be something the view could be arranged by,
+        # or the picker would offer a field that silently falls back to the default.
+        pickers = (
+            (
+                "kanban_fields",
+                "vantage.E078",
+                kanban_field_ok,
+                "a field with 2 to 12 choices, or a BooleanField",
+            ),
+            (
+                "calendar_fields",
+                "vantage.E079",
+                lambda f: isinstance(f, models.DateField),
+                "a DateField or DateTimeField",
+            ),
+        )
+        for attr, ident, ok, wanted in pickers:
+            declared = getattr(panel, attr)
+            if declared is None:
+                continue
+            if isinstance(declared, str) or not isinstance(declared, list | tuple):
+                error(f"'{attr}' must be a list of field names; got {declared!r}.", ident)
+                continue
+            for name in declared:
+                field = local_field(panel.model, name)
+                if field is None or not ok(field):
+                    error(
+                        f"'{attr}' includes {name!r}, which is not {wanted} on {panel.opts.label}.",
+                        ident,
+                    )
+
         if panel.list_views is None:
             return errors
         if isinstance(panel.list_views, str) or not panel.list_views:
