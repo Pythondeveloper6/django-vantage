@@ -47,6 +47,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         "vantage.savedviewuserstate",
         "vantage.listpreference",
         "vantage.vantagejob",
+        # Undo snapshots hold deleted rows verbatim, secrets included, and redeeming
+        # one is a capability bound to a user and a session. A CRUD form would print
+        # the first and route around the second.
+        "vantage.undoentry",
     }
 )
 

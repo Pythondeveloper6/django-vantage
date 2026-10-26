@@ -156,6 +156,7 @@ class Command(BaseCommand):
             # so adding them did not reshuffle a single order in the existing demo.
             self._locations(customers)
             self._pictures(products)
+            self._roles()
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -175,6 +176,37 @@ class Command(BaseCommand):
         """
         self._account("admin", "admin@example.com", "admin12345", superuser=True)
         self._account("editor", "editor@example.com", "editor12345", superuser=False)
+
+    @staticmethod
+    def _roles():
+        """Two roles, so the Roles screen has something to show and to edit.
+
+        ``permissions.set`` rather than ``add``, so re-seeding puts a role back to
+        exactly this after someone has been trying the matrix out.
+        """
+        from django.contrib.auth.models import Group, Permission
+
+        def perms(*pairs):
+            return [
+                Permission.objects.get(content_type__app_label="shop", codename=f"{verb}_{model}")
+                for model, verbs in pairs
+                for verb in verbs
+            ]
+
+        catalogue, _ = Group.objects.get_or_create(name="Catalogue editors")
+        catalogue.permissions.set(
+            perms(
+                ("product", ("view", "add", "change")),
+                ("category", ("view", "add", "change")),
+                ("tag", ("view", "add", "change", "delete")),
+                ("review", ("view", "change")),
+            )
+        )
+        support, _ = Group.objects.get_or_create(name="Support")
+        support.permissions.set(
+            perms(("customer", ("view",)), ("order", ("view", "change")), ("orderitem", ("view",)))
+        )
+        get_user_model().objects.get(username="editor").groups.add(catalogue)
 
     @staticmethod
     def _account(username, email, password, *, superuser):

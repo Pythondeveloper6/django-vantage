@@ -6,6 +6,9 @@ A read-only health check of the *rows* in every registered model, at
 `System` answers "is the deployment sound?". This answers the question that comes a
 month later: is the data any good?
 
+![The data quality overview](assets/screenshots/data-quality-light.webp){ .dv-shot .dv-only-light }
+![The data quality overview](assets/screenshots/data-quality-dark.webp){ .dv-shot .dv-only-dark }
+
 ## What it checks
 
 | Check | Finds | Links to the list page? |

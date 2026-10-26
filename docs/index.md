@@ -23,7 +23,7 @@ charts, a command palette, light and dark themes and a schema map.</p>
 
 !!! warning "Alpha — `0.2.0a1`"
 
-    Working and heavily tested — more than 3,600 tests — but the API may still move.
+    Working and heavily tested — more than 4,600 tests — but the API may still move.
     See the [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is
     not done. Use it on an internal tool; pin the exact version if you depend on it.
 
@@ -73,6 +73,7 @@ python manage.py vantage_scaffold blog
 That prints a real `panel.py` containing exactly what Vantage decided. Own it, edit it,
 or delete an attribute to hand it back to inference.
 Full walkthrough: [Getting started](getting-started.md).
+Want the whole list in one place? [Features at a glance](features.md).
 
 ## What you get
 
@@ -141,6 +142,42 @@ Full walkthrough: [Getting started](getting-started.md).
 
     [:octicons-arrow-right-24: Theming](theming.md)
 
+-   :material-view-column-outline:{ .lg .middle } **Board, calendar, gallery, map**
+
+    ---
+
+    Any list as a Kanban board, a month calendar, a gallery or a map — inferred from
+    the model, with the grouping field picked from the page.
+
+    [:octicons-arrow-right-24: List views](list-views.md)
+
+-   :material-undo-variant:{ .lg .middle } **Undo**
+
+    ---
+
+    Deletes, bulk edits and inline edits offer an Undo toast, and never restore over
+    somebody else's newer change.
+
+    [:octicons-arrow-right-24: Undo](undo.md)
+
+-   :material-eye-off-outline:{ .lg .middle } **Secrets masked by default**
+
+    ---
+
+    Passwords, tokens and card numbers are hidden everywhere, revealed one at a time
+    by people allowed to, and every reveal is logged.
+
+    [:octicons-arrow-right-24: Sensitive fields](sensitive-fields.md)
+
+-   :material-account-key-outline:{ .lg .middle } **Roles and data quality**
+
+    ---
+
+    A permission matrix for Django groups, and a read-only audit of the data in every
+    model.
+
+    [:octicons-arrow-right-24: Roles](roles.md) · [Data quality](data-quality.md)
+
 -   :material-tune-variant:{ .lg .middle } **Configurable from the UI too**
 
     ---
@@ -173,6 +210,21 @@ Full walkthrough: [Getting started](getting-started.md).
 
     ![Catalogue list](assets/screenshots/products-light.webp){ .dv-shot .dv-only-light }
     ![Catalogue list](assets/screenshots/products-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Board"
+
+    ![Kanban board](assets/screenshots/kanban-light.webp){ .dv-shot .dv-only-light }
+    ![Kanban board](assets/screenshots/kanban-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Roles"
+
+    ![Role permission matrix](assets/screenshots/role-matrix-light.webp){ .dv-shot .dv-only-light }
+    ![Role permission matrix](assets/screenshots/role-matrix-dark.webp){ .dv-shot .dv-only-dark }
+
+=== "Data quality"
+
+    ![Data quality](assets/screenshots/data-quality-light.webp){ .dv-shot .dv-only-light }
+    ![Data quality](assets/screenshots/data-quality-dark.webp){ .dv-shot .dv-only-dark }
 
 === "Schema map"
 
