@@ -909,6 +909,10 @@ class ListPreference(models.Model):
     #: rather than ``""`` for the reason every column here is nullable: ``NULL`` is
     #: "the code decides", and no empty string means anything else.
     list_view = models.CharField(max_length=20, null=True, blank=True)  # noqa: DJ001
+    #: ``{"kanban": "priority"}``: the field each mode was last arranged by, from the
+    #: board's "Group by" and the calendar's "Dates from" pickers. Validated against
+    #: the live panel on every read, like everything else in this row.
+    list_view_fields = models.JSONField(null=True, blank=True)
 
     # ── provenance ──────────────────────────────────────────────────────────
 
@@ -961,7 +965,7 @@ class ListPreference(models.Model):
         A row of nothing but NULLs resolves identically to no row at all, so the write
         path deletes it instead of keeping a tombstone that later has to be explained.
         """
-        if self.list_view is not None:
+        if self.list_view is not None or self.list_view_fields:
             # A remembered view is a setting too, just not one a rail section owns.
             return False
         return all(getattr(self, name) is None for name in SETTING_COLUMNS)

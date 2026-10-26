@@ -163,6 +163,7 @@
         pk: card.getAttribute("data-pk"),
         value: value,
         version: card.getAttribute("data-version") || null,
+        field: board.getAttribute("data-kanban-field") || null,
       }),
     })
       .then(function (response) {

@@ -22,6 +22,7 @@ from vantage.introspection import concrete_fields, resolve_path
 __all__ = [
     "KANBAN_MAX_COLUMNS",
     "MAX_CARD_FIELDS",
+    "calendar_candidates",
     "infer_calendar_field",
     "infer_card_fields",
     "infer_gallery_field",
@@ -29,6 +30,7 @@ __all__ = [
     "infer_list_views",
     "infer_map_fields",
     "is_point_field",
+    "kanban_candidates",
     "kanban_field_ok",
 ]
 
@@ -121,12 +123,12 @@ def kanban_field_ok(field: models.Field) -> bool:
     return 2 <= len(choices) <= KANBAN_MAX_COLUMNS
 
 
-def infer_kanban_field(model: type[models.Model]) -> str | None:
-    """A status-like choices field, else any short choices field, else a boolean.
+def kanban_candidates(model: type[models.Model]) -> list[str]:
+    """Every field a board could be grouped by, best first.
 
-    Booleans come last on purpose, and only the ones named like a stage (see
-    :data:`KANBAN_BOOLEAN_TOKENS`): a two-column board is a weak view, offered only
-    when nothing that looks more like a workflow exists.
+    Status-like choices fields (:data:`KANBAN_NAMES` order), then any other short
+    choices field, then booleans named like a stage. The first is the inferred
+    ``kanban_field``; the rest are what the board's "Group by" picker offers.
     """
     candidates = [
         field
@@ -134,18 +136,30 @@ def infer_kanban_field(model: type[models.Model]) -> str | None:
         if getattr(field, "editable", False) and not _sensitive(field) and kanban_field_ok(field)
     ]
     with_choices = [field for field in candidates if getattr(field, "flatchoices", None)]
+    ranked: list[str] = []
     for wanted in KANBAN_NAMES:
         for field in with_choices:
-            if field.name == wanted or wanted in _tokens(field.name):
-                return field.name
-    if with_choices:
-        return with_choices[0].name
-    for field in candidates:
-        if isinstance(field, models.BooleanField) and any(
-            token in KANBAN_BOOLEAN_TOKENS for token in _tokens(field.name)
-        ):
-            return field.name
-    return None
+            if (field.name == wanted or wanted in _tokens(field.name)) and field.name not in ranked:
+                ranked.append(field.name)
+    ranked.extend(field.name for field in with_choices if field.name not in ranked)
+    ranked.extend(
+        field.name
+        for field in candidates
+        if isinstance(field, models.BooleanField)
+        and any(token in KANBAN_BOOLEAN_TOKENS for token in _tokens(field.name))
+    )
+    return ranked
+
+
+def infer_kanban_field(model: type[models.Model]) -> str | None:
+    """A status-like choices field, else any short choices field, else a boolean.
+
+    Booleans come last on purpose, and only the ones named like a stage (see
+    :data:`KANBAN_BOOLEAN_TOKENS`): a two-column board is a weak view, offered only
+    when nothing that looks more like a workflow exists.
+    """
+    candidates = kanban_candidates(model)
+    return candidates[0] if candidates else None
 
 
 # ── calendar ────────────────────────────────────────────────────────────────
@@ -164,22 +178,38 @@ def _date_candidates(model: type[models.Model]) -> list[models.Field]:
     return found
 
 
-def infer_calendar_field(model: type[models.Model]) -> str | None:
-    """The date that best says *when this happens*.
+def calendar_candidates(model: type[models.Model]) -> list[str]:
+    """Every date a calendar could be placed by, best first.
 
     By name first (``start``, ``date``, ``scheduled``, ``due``, ``published`` …), then
-    any other date, and only then an audit stamp like ``created_at`` — which is on
-    nearly every model and is still a fair calendar of activity when it is all there is.
+    any other date, and audit stamps like ``created_at`` last. The first is the
+    inferred ``calendar_field``; the rest are what the "Dates from" picker offers.
     """
     candidates = _date_candidates(model)
+    ranked: list[str] = []
     for wanted in CALENDAR_TOKENS:
         for field in candidates:
-            if wanted in _tokens(field.name):
-                return field.name
-    for field in candidates:
-        if not any(token in CALENDAR_AUDIT_TOKENS for token in _tokens(field.name)):
-            return field.name
-    return candidates[0].name if candidates else None
+            if wanted in _tokens(field.name) and field.name not in ranked:
+                ranked.append(field.name)
+    ranked.extend(
+        field.name
+        for field in candidates
+        if field.name not in ranked
+        and not any(token in CALENDAR_AUDIT_TOKENS for token in _tokens(field.name))
+    )
+    ranked.extend(field.name for field in candidates if field.name not in ranked)
+    return ranked
+
+
+def infer_calendar_field(model: type[models.Model]) -> str | None:
+    """The date that best says *when this happens*: the first of the candidates.
+
+    An audit stamp like ``created_at`` — on nearly every model — is chosen only when
+    there is nothing else, and is still a fair calendar of activity when it is all
+    there is.
+    """
+    candidates = calendar_candidates(model)
+    return candidates[0] if candidates else None
 
 
 # ── gallery ─────────────────────────────────────────────────────────────────

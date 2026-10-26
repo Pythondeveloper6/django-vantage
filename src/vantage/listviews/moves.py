@@ -41,16 +41,32 @@ __all__ = ["KanbanMoveView"]
 
 
 class KanbanMoveView(InlineWriteView):
-    """``POST <app>/<model>/_kanban/move/`` — ``{"pk", "value", "version"}``."""
+    """``POST <app>/<model>/_kanban/move/`` — ``{"pk", "value", "version", "field"}``.
+
+    ``field`` is the column the board was grouped by when it was drawn (its "Group by"
+    picker). It is optional — absent means the board's default — and it is checked
+    against the fields the board may be grouped by, so it can only ever name one of
+    those, never an arbitrary column.
+    """
 
     http_method_names = ["post"]
 
+    #: The field the move asked for, set by :meth:`read_move` before the allowlist runs.
+    _move_field: str | None = None
+
+    def board(self) -> KanbanMode:
+        # ``field=`` rather than the request: a move must write the column the card was
+        # drawn in, not whatever ``?by=`` or the stored preference says now.
+        return KanbanMode(self.panel, self.request, field=self._move_field or "")
+
     def allowed_fields(self, submitted: dict[str, Any]) -> dict[str, Any]:
         """The board's own field, if this panel offers a board and may write it."""
-        mode = KanbanMode(self.panel)
+        mode = self.board()
+        if mode.field is None:
+            return {}
         if "kanban" not in self.panel.get_list_views(self.request):
             return {}
-        if not KanbanMode.supports(self.panel) or not mode.is_writable(self.request):
+        if not mode.is_writable(self.request):
             return {}
         name = mode.field.name
         return {key: value for key, value in submitted.items() if key == name}
@@ -117,12 +133,15 @@ class KanbanMoveView(InlineWriteView):
             "pk": self.request.POST.get("pk"),
             "value": value,
             "version": self.request.POST.get("version") or None,
+            "field": self.request.POST.get("field") or None,
         }
 
     def read_move(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         if payload.get("pk") in (None, "") or "value" not in payload:
             raise BadRequest("A move needs a 'pk' and a 'value'.")
-        name = KanbanMode(self.panel).field
+        field = payload.get("field")
+        self._move_field = field if isinstance(field, str) and field else None
+        name = self.board().field
         fields = self.allowed_fields({name.name: payload["value"]}) if name is not None else {}
         if not fields:
             return None

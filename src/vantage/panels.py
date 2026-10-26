@@ -72,6 +72,11 @@ class ModelPanel:
     list_views: list[str] | None = None
     kanban_field: str | None = None
     calendar_field: str | None = None
+    #: What the board's "Group by" and the calendar's "Dates from" pickers offer.
+    #: Inferred as every eligible field; ``[]`` hides the picker, leaving only the
+    #: default above. The default is always offered, first.
+    kanban_fields: list[str] | None = None
+    calendar_fields: list[str] | None = None
     gallery_field: str | None = None
     #: A ``PointField`` name, or a ``("latitude", "longitude")`` pair.
     map_fields: str | tuple[str, str] | None = None
@@ -383,6 +388,34 @@ class ModelPanel:
         from vantage.listviews.inference import infer_calendar_field
 
         return infer_calendar_field(self.model)
+
+    def get_kanban_fields(self, request=None) -> list[str]:
+        """The fields a person may group the board by, the default first."""
+        from vantage.listviews.inference import kanban_candidates
+
+        return self._view_field_choices(
+            self.get_kanban_field(request), self.kanban_fields, kanban_candidates
+        )
+
+    def get_calendar_fields(self, request=None) -> list[str]:
+        """The dates a person may place the calendar by, the default first."""
+        from vantage.listviews.inference import calendar_candidates
+
+        return self._view_field_choices(
+            self.get_calendar_field(request), self.calendar_fields, calendar_candidates
+        )
+
+    def _view_field_choices(self, default, declared, infer) -> list[str]:
+        """``default`` first, then the declared or inferred rest, never a sensitive one.
+
+        A sensitive field is refused even when declared: grouping by a secret prints
+        one column per distinct value, which is the value.
+        """
+        sensitive = self.get_sensitive_fields()
+        rest = infer(self.model) if declared is None else list(declared)
+        chosen = [default] if default else []
+        chosen.extend(name for name in rest if name not in chosen)
+        return [name for name in chosen if name not in sensitive]
 
     def get_gallery_field(self, request=None) -> str | None:
         if self.gallery_field is not None:

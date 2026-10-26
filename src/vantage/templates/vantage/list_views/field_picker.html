@@ -1,0 +1,18 @@
+{% load i18n %}{% comment %}
+  "Group by" on the board, "Dates from" on the calendar: which field this view is
+  arranged by. A plain GET form — the choice is part of the URL (?by=), so it can be
+  bookmarked, shared and saved with a view — whose Apply button vantage.js hides and
+  replaces with applying on change. Every other parameter rides along in hidden inputs,
+  so changing the field keeps the filters, the search and the saved view.
+{% endcomment %}{% if view_field.options %}
+<form class="v-view-field" method="get" data-view-field>
+  {% for key, value in view_field.keep %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  <label class="v-view-field-label" for="v-view-field-{{ view_field.mode }}">{{ view_field.label }}</label>
+  <select class="v-select v-input-sm" id="v-view-field-{{ view_field.mode }}" name="{{ view_field.param }}" data-submit-on-change>
+    {% for option in view_field.options %}
+      <option value="{{ option.name }}"{% if option.current %} selected{% endif %}>{{ option.label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="v-btn v-btn-secondary v-btn-sm" data-submit-on-change-fallback>{% translate "Apply" %}</button>
+</form>
+{% endif %}
