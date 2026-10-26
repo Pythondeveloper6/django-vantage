@@ -220,7 +220,9 @@ def claim(obj, token: str | None) -> str | None:
 # ── reporting the conflict ──────────────────────────────────────────────────
 
 
-def field_diff(obj, submitted: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def field_diff(
+    obj, submitted: dict[str, Any], *, sensitive: frozenset[str] | None = None
+) -> dict[str, dict[str, Any]]:
     """Mine versus theirs, one entry per submitted field.
 
     Only the fields the writer actually touched: a diff of the whole row would bury
@@ -230,11 +232,30 @@ def field_diff(obj, submitted: dict[str, Any]) -> dict[str, dict[str, Any]]:
     field both people set to the same thing is not a disagreement, and marking it as
     one turns a one-field decision into a five-field interrogation.
     """
+    if sensitive is None:
+        from vantage.sensitive import sensitive_names
+
+        sensitive = sensitive_names(obj)
     entries: dict[str, dict[str, Any]] = {}
     for name, raw in submitted.items():
         try:
             field = obj._meta.get_field(name)
         except FieldDoesNotExist:  # pragma: no cover - callers filter first
+            continue
+
+        if name in sensitive:
+            # "Theirs" is the stored secret. A conflict panel is not a way to read it;
+            # the writer learns only that the field moved under them.
+            from vantage.sensitive import MASK
+
+            entries[name] = {
+                "mine": None,
+                "mine_display": MASK,
+                "theirs": None,
+                "theirs_display": MASK,
+                "conflict": True,
+                "masked": True,
+            }
             continue
 
         theirs = getattr(obj, name, None)

@@ -91,6 +91,8 @@
 
     <div class="v-listbar-spacer"></div>
 
+    {% if list_modes %}{% include "vantage/partials/view_switcher.html" %}{% endif %}
+
     {% if rows %}{% include "vantage/partials/grid_controls.html" %}{% endif %}
   </div>
 

@@ -7,6 +7,11 @@ both kinds in the sidebar and judge whether the configured ones were worth the t
 
 Note that ``ProductPanel`` sets ``list_display`` and nothing else: its filters and
 search are still inferred. Overriding one attribute never costs you the others.
+
+The list views follow the same rule. Every model here gets a view switcher inferred from
+its fields — orders become a Kanban board by ``status`` and a calendar by when they
+were placed, products a gallery from their ``image``, customers a map from their
+latitude/longitude pair — and each panel below changes one thing about that, in one line.
 """
 
 from django.db.models import Avg, Count, Q, Sum
@@ -44,6 +49,9 @@ class OrderPanel(ModelPanel):
         Chart.breakdown("By status", group_by="status", value=Count("id"), kind="donut"),
     ]
 
+    #: The board and the calendar are inferred; this only chooses what a card shows.
+    card_fields = ["customer", "total", "shipping_city"]
+
 
 @register(Product)
 class ProductPanel(ModelPanel):
@@ -55,10 +63,16 @@ class ProductPanel(ModelPanel):
     #: number, not something to scan a catalogue by.
     list_display = ["name", "sku", "category", "status", "price", "stock"]
 
+    #: A catalogue is browsed by eye, so it opens as the gallery. The table is still
+    #: one click away, and a person's own choice is remembered per model.
+    list_views = ["gallery", "table", "kanban"]
+
 
 @register(Review)
 class ReviewPanel(ModelPanel):
-    """Shows the action API: three bulk operations declared as ordinary methods."""
+    """Shows the action API: two bulk operations declared as ordinary methods, plus the
+    built-in ``delete_selected``. All three offer Undo in their toast — the two methods
+    because they say which field they write, the built-in because it snapshots."""
 
     icon = "message-square"
     group = "People"
@@ -66,23 +80,13 @@ class ReviewPanel(ModelPanel):
 
     list_display = ["headline", "product", "customer", "rating", "is_published", "created_at"]
     list_filter = ["is_published", "rating", "created_at"]
+    list_editable = ["rating", "is_published"]
+    actions = ["publish", "unpublish", "delete_selected"]
 
-    @action("Publish", icon="check", permission="change")
+    @action("Publish", icon="check", permission="change", undo_fields=["is_published"])
     def publish(self, request, queryset):
         return f"Published {queryset.update(is_published=True)} reviews."
 
-    @action("Unpublish", icon="x", permission="change")
+    @action("Unpublish", icon="x", permission="change", undo_fields=["is_published"])
     def unpublish(self, request, queryset):
         return f"Unpublished {queryset.update(is_published=False)} reviews."
-
-    @action(
-        "Delete",
-        icon="trash",
-        permission="delete",
-        destructive=True,
-        max_rows=500,
-        confirm="Permanently delete {count} reviews? This cannot be undone.",
-    )
-    def delete_selected(self, request, queryset):
-        deleted, _ = queryset.delete()
-        return f"Deleted {deleted} records."

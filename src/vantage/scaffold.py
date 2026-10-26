@@ -54,17 +54,72 @@ def render_panel_class(model: type[Model]) -> str:
         f"class {name}(ModelPanel):",
     ]
 
-    for attr in ("list_display", "list_link", "list_filter", "list_search", "ordering"):
+    # ``sensitive_fields`` last, and only when inference found some: it is the line a
+    # reviewer most needs to see, and printing ``sensitive_fields = []`` for every model
+    # would read as switching masking *off* — which is what an empty list means.
+    for attr in (
+        "list_display",
+        "list_link",
+        "list_filter",
+        "list_search",
+        "ordering",
+        "sensitive_fields",
+    ):
         value = inferred[attr]
         if not value:
             continue
         rendered = f'"{value}"' if isinstance(value, str) else _format_list(value)
         lines.append(f"    {attr} = {rendered}")
 
+    lines.extend(_list_view_lines(model))
+
     if len(lines) == 2:  # nothing worth writing
         lines.append("    pass")
 
     return "\n".join(lines)
+
+
+def _list_view_lines(model: type[Model]) -> list[str]:
+    """The alternative list views, written out only when there is more than the table.
+
+    A model that can only be a table gets no ``list_views`` line at all: writing
+    ``list_views = ["table"]`` into every generated panel would pin each of them to
+    the table forever, silently, the day a date field is added.
+    """
+    from vantage.listviews import inference as views
+
+    names = views.infer_list_views(model)
+    if names == ["table"]:
+        return []
+    lines = [f"    list_views = {_format_list(names)}"]
+    own_fields: list[str] = []
+    for attr, infer in (
+        ("kanban_field", views.infer_kanban_field),
+        ("calendar_field", views.infer_calendar_field),
+        ("gallery_field", views.infer_gallery_field),
+    ):
+        value = infer(model)
+        if value:
+            lines.append(f'    {attr} = "{value}"')
+            own_fields.append(value)
+    # The pickers' choices, only where there is a choice: a one-item list would read
+    # as a deliberate restriction, which inference never made.
+    for attr, candidates in (
+        ("kanban_fields", views.kanban_candidates),
+        ("calendar_fields", views.calendar_candidates),
+    ):
+        found = candidates(model)
+        if len(found) > 1:
+            lines.append(f"    {attr} = {_format_list(found)}")
+    location = views.infer_map_fields(model)
+    if isinstance(location, str):
+        lines.append(f'    map_fields = "{location}"')
+    elif location:
+        lines.append(f'    map_fields = ("{location[0]}", "{location[1]}")')
+    cards = views.infer_card_fields(model, exclude=tuple(own_fields))
+    if cards:
+        lines.append(f"    card_fields = {_format_list(cards)}")
+    return lines
 
 
 def render_panel_module(app_label: str, models: list[type[Model]] | None = None) -> str:

@@ -68,6 +68,7 @@ __all__ = [
     "may_see",
     "reset_declaration",
     "resolve_theme",
+    "resolve_ui_theme",
     "save_declaration",
     "stored_declaration",
     "stored_known_keys",
@@ -1288,6 +1289,27 @@ def check_nav(app_configs, **kwargs) -> list:
                         )
                     )
     return messages
+
+
+UI_THEME_COOKIE = "vantage-ui-theme"
+
+
+def resolve_ui_theme(request) -> str:
+    """The UI theme preset this request renders with: the person's choice, else the site's.
+
+    Resolved on the server from a cookie, so the first byte of the page already carries
+    the right tokens. That is the whole no-flash story for presets: there is nothing for a
+    script to correct afterwards, which is why unlike light/dark there is no localStorage
+    mirror and no blocking script. A cookie naming a preset that no longer exists is
+    ignored rather than trusted.
+    """
+    from vantage.presets import get_presets
+
+    default = vantage_settings.UI_THEME
+    if not vantage_settings.UI_THEME_TOGGLE:
+        return default
+    chosen = request.COOKIES.get(UI_THEME_COOKIE) if request else None
+    return chosen if chosen in get_presets() else default
 
 
 def resolve_theme(request) -> str:

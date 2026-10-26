@@ -64,7 +64,7 @@
      {% if inline.enabled and rows %}data-inline data-inline-save-url="{{ inline.save_url }}" data-inline-validate-url="{{ inline.validate_url }}"{% endif %}
      {% if list_prefs %}data-col-width-min="{{ list_prefs.column_width_min }}" data-col-width-max="{{ list_prefs.column_width_max }}"{% endif %}>
 
-{% if searchable or rows or saved_view_write_url or timeline_field or patterns.soft_delete or has_active_filters %}
+{% if searchable or rows or saved_view_write_url or timeline_field or patterns.soft_delete or has_active_filters or list_modes %}
   {% include "vantage/partials/list_toolbar.html" %}
 {% endif %}
 
@@ -112,6 +112,16 @@
   </div>
 {% endif %}
 
+{% comment %}
+  The table is one list view among several (vantage.listviews). Every other mode is a
+  template of its own, rendered in this same slot: under the same control band, beside
+  the same filter rail and below the same stats strip, which is how a board or a map
+  honours the search and the filters without knowing they exist.
+{% endcomment %}
+{% if not list_mode.is_table %}
+  <link rel="stylesheet" href="{% static 'vantage/vantage-listviews.css' %}">
+  {% include list_mode.template %}
+{% else %}
 {% comment %}
   The keyboard handlers bind to the table inside the grid element, never to the
   document, which is how the single-character shortcuts stay compliant with WCAG
@@ -268,7 +278,7 @@
                 {% if actions or "change" in allowed %}
                   <td class="v-select-cell">
                     <input type="checkbox" name="selected" value="{{ row.pk }}" tabindex="-1"
-                           data-select-row aria-label="{% blocktranslate with obj=row.obj %}Select {{ obj }}{% endblocktranslate %}">
+                           data-select-row aria-label="{% blocktranslate with obj=row.obj|record_label %}Select {{ obj }}{% endblocktranslate %}">
                   </td>
                 {% endif %}
                 {% for cell in row.cells %}
@@ -434,6 +444,8 @@
     <div class="v-grid-drawer-body" data-drawer-body aria-busy="false"></div>
   </aside>
 {% endif %}
+
+{% endif %}{# list_mode #}
 
     {% if page.paginator.num_pages > 1 %}
     <div class="v-pagination">

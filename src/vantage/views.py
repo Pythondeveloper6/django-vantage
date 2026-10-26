@@ -10,7 +10,8 @@ from functools import cached_property
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
+from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import (
     get_language,
@@ -20,13 +21,14 @@ from django.utils.translation import (
 from django.utils.translation import (
     gettext_lazy as _,
 )
+from django.views.decorators.csrf import csrf_protect
 from django.views.generic import TemplateView
 
 from vantage import listprefs, listquery
 from vantage.actions import Selection, resolve_actions
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
-from vantage.nav import build_nav, resolve_theme
+from vantage.nav import UI_THEME_COOKIE, build_nav, resolve_theme, resolve_ui_theme
 from vantage.pagination import CappedPaginator
 from vantage.permissions import get_permissions
 from vantage.safety import (
@@ -37,7 +39,8 @@ from vantage.safety import (
     start_impersonation,
     stop_impersonation,
 )
-from vantage.theme import no_flash_script, render_theme_css
+from vantage.sensitive import REVEAL_SECONDS, may_reveal_anything
+from vantage.theme import no_flash_script, render_theme_css, resolve_preset
 from vantage.topbar import topbar_context
 
 
@@ -68,6 +71,7 @@ class SiteView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        ui_theme = resolve_ui_theme(self.request)
         context.update(
             site=self.site,
             settings=vantage_settings,
@@ -80,11 +84,14 @@ class SiteView(TemplateView):
             real_user=real_user(self.request),
             language_code=get_language() or "en",
             is_rtl=get_language_bidi(),
-            theme_css=render_theme_css(),
+            ui_theme=ui_theme,
+            theme_css=render_theme_css(preset=ui_theme),
             no_flash_script=no_flash_script(),
             page_title=self.page_title,
             page_description=self.page_description,
             breadcrumbs=self.get_breadcrumbs(),
+            may_reveal=may_reveal_anything(self.request, self.site),
+            reveal_seconds=REVEAL_SECONDS,
         )
         # The end of the header: the arranged controls, plus who is signed in. One
         # call rather than three keys, so authviews.shell_context cannot drift.
@@ -247,14 +254,21 @@ class ListView(PanelView):
                 )
             return redirect(job.get_absolute_url())
 
+        from vantage import undo
+
+        # Armed only here, on the in-request path: a job has no toast to put a button
+        # in, and building a snapshot nobody can redeem is pure cost.
+        undo.arm(request, self.panel)
         result = chosen.run(self.panel, request, queryset)
         audit.log_action(request, self.panel.model, chosen, count)
+        offered = undo.offer(request, self.panel, result.undo)
         # Report the scope that was actually resolved. Django's own admin once let
         # select-across silently fall back to page one on a destructive action.
         getattr(messages, result.level, messages.info)(
             request,
             _("%(message)s (%(scope)s)")
             % {"message": result.message, "scope": selection.describe(count)},
+            extra_tags=offered.tag if offered else "",
         )
         return redirect(result.redirect or request.get_full_path())
 
@@ -274,8 +288,15 @@ class ListView(PanelView):
         queryset = self.build_queryset(request)[0]
         columns = panel.get_list_display(request)
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
+        from vantage.sensitive import is_sensitive_path
+
         return stream_export(
-            request.GET["export"], queryset, columns, headers, panel.get_label_plural()
+            request.GET["export"],
+            queryset,
+            columns,
+            headers,
+            panel.get_label_plural(),
+            masked={name for name in columns if is_sensitive_path(panel, name)},
         )
 
     def get_context_data(self, **kwargs):
@@ -291,6 +312,40 @@ class ListView(PanelView):
 
             apply_facet_counts(filters, base)
 
+        from vantage import listviews
+
+        # Which view of these rows. Every mode is handed the same filtered, scoped
+        # queryset, so search, filters, trash and tenancy apply to a board or a map
+        # exactly as they do to the table; only presentation differs below.
+        mode = listviews.resolve(panel, request)
+        context.update(
+            panel=panel,
+            sort=sort,
+            query=query,
+            filters=filters,
+            has_active_filters=any(f.is_active for f in filters),
+            analytics=self.get_analytics(spec, queryset, base=base, filters=filters),
+            searchable=bool(panel.get_list_search(request)),
+            patterns=panel.get_patterns(),
+            showing_tree=self.showing_tree(request),
+            showing_trash=self.showing_trash(request),
+            trash_count=self.get_trash_count(panel, request),
+            list_prefs=listprefs.panel_context(panel, request, spec),
+            page_title=panel.get_label_plural(),
+            list_mode=mode,
+            list_modes=listviews.switcher(panel, request, mode),
+        )
+        if mode.is_table:
+            context.update(self.table_context(panel, request, queryset, sort, spec))
+        else:
+            context.update(mode.context(request, queryset, permissions=self.permissions))
+        from vantage import savedviews
+
+        context.update(savedviews.list_context(request, panel))
+        return context
+
+    def table_context(self, panel, request, queryset, sort, spec) -> dict:
+        """The grid's own context: columns, the page of rows, grouping, the footer."""
         columns = panel.get_list_display(request)
         link = panel.get_list_link(request)
 
@@ -302,41 +357,24 @@ class ListView(PanelView):
         )
         page = paginator.get_page(request.GET.get("page"))
 
-        context.update(
-            panel=panel,
-            columns=[self._column_header(panel, name, sort) for name in columns],
-            sort=sort,
-            rows=self._rows(panel, page.object_list, columns, link, request),
-            grouping=self.grouping(request),
-            group_options=[
+        return {
+            "columns": [self._column_header(panel, name, sort) for name in columns],
+            "rows": self._rows(panel, page.object_list, columns, link, request),
+            "grouping": self.grouping(request),
+            "group_options": [
                 ("day", _("Day")),
                 ("week", _("Week")),
                 ("month", _("Month")),
                 ("year", _("Year")),
             ],
-            groups=self._groups(panel, page.object_list, request),
-            timeline_field=self._timeline_field(panel),
-            page=page,
-            paginator=paginator,
-            row_count=paginator.row_count,
-            query=query,
-            filters=filters,
-            has_active_filters=any(f.is_active for f in filters),
-            analytics=self.get_analytics(spec, queryset, base=base, filters=filters),
-            searchable=bool(panel.get_list_search(request)),
-            patterns=panel.get_patterns(),
-            showing_tree=self.showing_tree(request),
-            showing_trash=self.showing_trash(request),
-            trash_count=self.get_trash_count(panel, request),
-            actions=resolve_actions(panel, request),
-            summary=self.get_summary(spec, queryset),
-            list_prefs=listprefs.panel_context(panel, request, spec),
-            page_title=panel.get_label_plural(),
-        )
-        from vantage import savedviews
-
-        context.update(savedviews.list_context(request, panel))
-        return context
+            "groups": self._groups(panel, page.object_list, request),
+            "timeline_field": self._timeline_field(panel),
+            "page": page,
+            "paginator": paginator,
+            "row_count": paginator.row_count,
+            "actions": resolve_actions(panel, request),
+            "summary": self.get_summary(spec, queryset),
+        }
 
     #: Grouping keys the list page accepts, mapped to the truncation to apply.
     GROUPINGS = {"day": "day", "week": "week", "month": "month", "year": "year"}
@@ -404,7 +442,13 @@ class ListView(PanelView):
         else:
             label = name.replace("_", " ")
 
-        sortable = bool(hops) and not any(hop.is_multivalued for hop in hops)
+        from vantage.sensitive import is_sensitive_path
+
+        sortable = (
+            bool(hops)
+            and not any(hop.is_multivalued for hop in hops)
+            and not is_sensitive_path(panel, name)
+        )
         active = bool(sort and sort["path"] == name)
         return {
             "name": name,
@@ -565,19 +609,21 @@ class DetailView(PanelView):
     template_name = "vantage/detail.html"
 
     def get_object(self):
-        from django.shortcuts import get_object_or_404
+        from vantage.formviews import get_by_pk_or_404
 
         queryset = self.permissions.filter_queryset(
             self.request, self.panel.get_queryset(self.request), "view"
         )
-        return get_object_or_404(queryset, pk=self.kwargs["pk"])
+        return get_by_pk_or_404(queryset, self.kwargs["pk"])
 
     def get_breadcrumbs(self):
         from django.urls import reverse
 
+        from vantage.sensitive import safe_str
+
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.object), None),
+            (safe_str(self.object, self.panel.site), None),
         ]
 
     def get(self, request, *args, **kwargs):
@@ -592,15 +638,27 @@ class DetailView(PanelView):
         obj = self.object
         panel = self.panel
 
+        from vantage.sensitive import safe_str, set_password_url
+
+        def password_url(name):
+            url = set_password_url(panel, obj, name)
+            if url and self.permissions.has_object_perm(self.request, panel.model, "change", obj):
+                return url
+            return None
+
         fields = [
             {
                 "label": str(getattr(field, "verbose_name", field.name)).capitalize(),
                 # "lg" is the thumbnail box: this is the page someone opened to look
                 # at the record, so a picture on it is the point rather than a marker.
+                # A sensitive field is rendered masked rather than left out: knowing
+                # that a customer *has* an API token is the useful half.
                 "value": render_cell(panel, obj, field.name, size="lg"),
+                # A password hash can never be revealed; what someone looking at it
+                # actually wants is to set a new one.
+                "set_password_url": password_url(field.name),
             }
             for field in displayable_fields(panel.model)
-            if not _is_hidden(field)
         ]
 
         related = self._related(obj)
@@ -613,7 +671,8 @@ class DetailView(PanelView):
             # None decides by count (two or more blocks); True/False assert. See
             # ModelPanel.get_related_tabs.
             related_tabs=panel.get_related_tabs(len(related)),
-            page_title=str(obj),
+            page_title=safe_str(obj, panel.site),
+            object_label=safe_str(obj, panel.site),
         )
         from vantage import audit
 
@@ -699,12 +758,6 @@ class DetailView(PanelView):
         }
 
 
-def _is_hidden(field) -> bool:
-    from vantage.inference import SENSITIVE
-
-    return bool(SENSITIVE.search(field.name))
-
-
 def _related_url(site, rel, obj) -> str | None:
     """A link through to the related model's list, pre-filtered to this record."""
     from django.urls import NoReverseMatch, reverse
@@ -735,6 +788,13 @@ class PageView(SiteView):
             % {"page": self.page_class.get_title()}
         )
 
+    def post(self, request, *args, **kwargs):
+        """Only for a page that defines ``post(request)``; any other is read-only."""
+        handler = getattr(self.get_page(), "post", None)
+        if handler is None:
+            return HttpResponseNotAllowed(["GET", "HEAD"])
+        return handler(request)
+
     def get_template_names(self):
         return self.get_page().get_template_names()
 
@@ -751,10 +811,13 @@ class PageView(SiteView):
         )
         # The page's own keys go on top, so a page can override anything the shell
         # supplied. Its data is the reason the page exists.
-        context.update(page.get_context(self.request))
+        # Called once: ``setdefault`` evaluates its argument eagerly, so asking for the
+        # rows inline ran every page's queries twice whether it needed them or not.
+        data = page.get_context(self.request)
+        context.update(data)
         # The generic renderer needs an ordered view of the data; a page with its own
         # template ignores this entirely.
-        context.setdefault("page_data", _as_rows(page.get_context(self.request)))
+        context.setdefault("page_data", _as_rows(data))
         return context
 
 
@@ -808,6 +871,70 @@ class ImpersonateView(SiteView):
         return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
 
 
+class UIThemeCssView(SiteView):
+    """One preset's token stylesheet, for the account page's live preview.
+
+    The page carries only the active preset's tokens; trying another without a reload
+    means fetching its tokens, and this is that fetch - a few kilobytes, only ever asked
+    for from the picker, and only for staff (SiteView's gate). The picker swaps the text
+    of the page's token ``<style>`` for the response, so nothing here is applied twice.
+    """
+
+    def get(self, request, *args, name, **kwargs):
+        from vantage.presets import get_presets
+
+        if name not in get_presets():
+            raise Http404(name)
+        response = HttpResponse(
+            render_theme_css(preset=resolve_preset(name)), content_type="text/css; charset=utf-8"
+        )
+        response["Cache-Control"] = "private, max-age=60"
+        return response
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class UndoView(SiteView):
+    """Redeem an undo token from a toast. POST only, and CSRF-checked.
+
+    ``csrf_protect`` explicitly rather than trusting the project's middleware list: a
+    token is a capability, and redeeming one must not be something a forged form on
+    another site can do even where ``CsrfViewMiddleware`` was left out.
+
+    Answers JSON to a script that asks for it — the inline grid, which has no page to
+    reload — and otherwise sets a message and redirects back, so the button is a plain
+    form underneath. All the deciding happens in :func:`vantage.undo.redeem`.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from django.http import JsonResponse
+
+        from vantage import undo
+
+        outcome = undo.redeem(request, self.site, request.POST.get("token", ""), self.permissions)
+        if "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse(outcome.as_json(), status=outcome.status)
+        getattr(messages, outcome.level, messages.info)(request, outcome.message)
+        return HttpResponseRedirect(self.next_url(request, outcome))
+
+    def next_url(self, request, outcome) -> str:
+        from django.urls import NoReverseMatch, reverse
+
+        target = request.POST.get("next", "")
+        if target and url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return target
+        if outcome.resource_key:
+            try:
+                return reverse(f"vantage:{outcome.resource_key.replace('.', '-')}-list")
+            except NoReverseMatch:
+                pass
+        return reverse("vantage:dashboard")
+
+
 class ThemeView(SiteView):
     """Persist a theme choice. Posted to by the toggle, and by the account menu.
 
@@ -820,8 +947,21 @@ class ThemeView(SiteView):
     def dispatch(self, request, *args, **kwargs):
         if request.method != "POST":
             return HttpResponse(status=405)
-        theme = request.POST.get("theme")
         response = self._done(request)
+        if "ui_theme" in request.POST:
+            # The look and light/dark are independent choices on one endpoint; a post
+            # naming one must not reset the other.
+            from vantage.presets import get_presets
+
+            name = request.POST["ui_theme"]
+            if vantage_settings.UI_THEME_TOGGLE and name in get_presets():
+                response.set_cookie(
+                    UI_THEME_COOKIE, name, max_age=60 * 60 * 24 * 365, samesite="Lax"
+                )
+            elif not name:
+                response.delete_cookie(UI_THEME_COOKIE)
+            return response
+        theme = request.POST.get("theme")
         if theme in ("light", "dark"):
             response.set_cookie("vantage-theme", theme, max_age=60 * 60 * 24 * 365, samesite="Lax")
         else:

@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.urls import NoReverseMatch, get_resolver, reverse
 from django.urls.resolvers import URLResolver
 from model_bakery import baker
@@ -83,7 +84,7 @@ def _prefix_pk_map(panels, instances) -> dict[str, object]:
     return {f"{p.opts.app_label}/{p.opts.model_name}/": instances[p.model].pk for p in panels}
 
 
-def _iter_requests(panels, instances, job, saved_view):
+def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
     """Every request this test will make: ``(description, url_name, kwargs)``.
 
     Walks the mounted resolver rather than naming routes, so a route added after this
@@ -127,14 +128,24 @@ def _iter_requests(panels, instances, job, saved_view):
                     kwargs["pk"] = job.pk
                 elif route.startswith("_/views/"):
                     kwargs["pk"] = saved_view.pk
+                elif route.startswith("_/roles/") and role is not None:
+                    kwargs["pk"] = role.pk
                 else:
                     unresolved.append(param)
+            elif param == "user" and route.startswith("_/roles/") and user is not None:
+                kwargs["user"] = user.pk
+            elif param == "name" and route.startswith("_/ui-theme/"):
+                kwargs["name"] = "shadcn"
             elif param == "token":
                 # The import wizard's session token. Deliberately not a real one: an
                 # expired/unknown token is a supported, non-crashing outcome (a
                 # redirect back to step one), and exercising that path is as valid a
                 # smoke check as a happy one.
                 kwargs["token"] = "smoke-test-token"
+            elif param == "field":
+                # The reveal endpoint's field name. A GET is refused (405) whatever
+                # field it names, so any name exercises the route without revealing.
+                kwargs["field"] = "password"
             else:
                 unresolved.append(param)
 
@@ -226,6 +237,8 @@ def world(db):
         "staff": staff,
         "job": job,
         "saved_view": saved_view,
+        # The roles screens take a group's pk, and the per-user screen a user's.
+        "role": Group.objects.create(name="Smoke role"),
     }
 
 
@@ -269,7 +282,14 @@ class TestFullRouteWalk:
     def test_as_a_superuser(self, world, client):
         client.force_login(world["superuser"])
         requests = list(
-            _iter_requests(world["panels"], world["instances"], world["job"], world["saved_view"])
+            _iter_requests(
+                world["panels"],
+                world["instances"],
+                world["job"],
+                world["saved_view"],
+                role=world["role"],
+                user=world["staff"],
+            )
         )
         failures: list[str] = []
         _walk(client, requests, who="superuser", failures=failures)
@@ -284,7 +304,14 @@ class TestFullRouteWalk:
         """
         client.force_login(world["staff"])
         requests = list(
-            _iter_requests(world["panels"], world["instances"], world["job"], world["saved_view"])
+            _iter_requests(
+                world["panels"],
+                world["instances"],
+                world["job"],
+                world["saved_view"],
+                role=world["role"],
+                user=world["staff"],
+            )
         )
         failures: list[str] = []
         _walk(client, requests, who="restricted staff", failures=failures)

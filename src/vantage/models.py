@@ -97,6 +97,7 @@ __all__ = [
     "SavedViewGrant",
     "SavedViewUserState",
     "SiteConfiguration",
+    "UndoEntry",
     "VantageJob",
     "VantageLogEntry",
     "validate_brand_color",
@@ -267,6 +268,10 @@ class SiteConfiguration(models.Model):
         ],
     )
     theme_toggle = models.BooleanField(null=True, blank=True)
+    # The preset *name*; its choices are not a static list (UI_THEMES registers more), so
+    # the settings form validates it against the live registry instead of ``choices``.
+    ui_theme = models.CharField(max_length=32, null=True, blank=True)  # noqa: DJ001
+    ui_theme_toggle = models.BooleanField(null=True, blank=True)
 
     # ── behaviour ───────────────────────────────────────────────────────────
     environment = models.CharField(max_length=120, null=True, blank=True)  # noqa: DJ001
@@ -540,11 +545,41 @@ class VantageLogEntry(models.Model):
     @property
     def change_list(self) -> list[dict]:
         """The diff as an ordered list, because templates cannot iterate a dict's items
-        and sort them at the same time."""
+        and sort them at the same time.
+
+        A field that is sensitive *now* shows as "changed — value not recorded" even if
+        the entry was written before it was declared so: masking is applied when the log
+        is read as well as when it is written. The content type comes from Django's
+        per-process cache, so this costs no query per entry.
+        """
+        hidden = self._sensitive_now()
         return [
-            {"field": name, "from": delta.get("from"), "to": delta.get("to")}
+            {"field": name, "from": None, "to": None}
+            if name in hidden
+            else {"field": name, "from": delta.get("from"), "to": delta.get("to")}
             for name, delta in sorted((self.changes or {}).items())
         ]
+
+    @property
+    def revealed_field(self) -> str:
+        """The field name for a "revealed <field> on <record>" entry, else ``""``."""
+        name = self.action_name or ""
+        if self.action != self.Action.ACTION or not name.startswith("revealed "):
+            return ""
+        return name.removeprefix("revealed ").removesuffix(" on")
+
+    def _sensitive_now(self) -> frozenset[str]:
+        if not self.content_type_id or not self.changes:
+            return frozenset()
+        try:
+            model = ContentType.objects.get_for_id(self.content_type_id).model_class()
+        except ContentType.DoesNotExist:
+            return frozenset()
+        if model is None:
+            return frozenset()
+        from vantage.sensitive import sensitive_names
+
+        return sensitive_names(model)
 
 
 # ── saved views ─────────────────────────────────────────────────────────────
@@ -866,6 +901,19 @@ class ListPreference(models.Model):
     #: off an aggregate the inference offered — and is why this is not merely a list.
     summary_aggregates = models.JSONField(null=True, blank=True)
 
+    # ── which view ──────────────────────────────────────────────────────────
+
+    #: The list view this person last chose — ``"table"``, ``"kanban"``, … — read by
+    #: :mod:`vantage.listviews`. Not part of any rail section: it is set by using the
+    #: switcher, not by a form, and resetting the columns must not forget it. ``NULL``
+    #: rather than ``""`` for the reason every column here is nullable: ``NULL`` is
+    #: "the code decides", and no empty string means anything else.
+    list_view = models.CharField(max_length=20, null=True, blank=True)  # noqa: DJ001
+    #: ``{"kanban": "priority"}``: the field each mode was last arranged by, from the
+    #: board's "Group by" and the calendar's "Dates from" pickers. Validated against
+    #: the live panel on every read, like everything else in this row.
+    list_view_fields = models.JSONField(null=True, blank=True)
+
     # ── provenance ──────────────────────────────────────────────────────────
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -917,6 +965,9 @@ class ListPreference(models.Model):
         A row of nothing but NULLs resolves identically to no row at all, so the write
         path deletes it instead of keeping a tombstone that later has to be explained.
         """
+        if self.list_view is not None or self.list_view_fields:
+            # A remembered view is a setting too, just not one a rail section owns.
+            return False
         return all(getattr(self, name) is None for name in SETTING_COLUMNS)
 
 
@@ -1217,3 +1268,61 @@ class DashboardLayout(models.Model):
         dashboard instead of showing the empty one they asked for.
         """
         return self.cards is None
+
+
+# ── undo ────────────────────────────────────────────────────────────────────
+
+
+class UndoEntry(models.Model):
+    """One reversible change, for the few seconds the toast offers to reverse it.
+
+    A table rather than the cache or the session, and that choice is the feature. The
+    undo has to be honoured by whichever worker process the click lands on, so per-process
+    memory is out; it must be consumed exactly once under a double click, which wants a
+    conditional ``UPDATE`` rather than a cache's best-effort ``delete``; and a hard
+    delete's snapshot can be hundreds of rows, which no cookie-backed session can hold.
+    See :mod:`vantage.undo` for what goes in :attr:`payload` and why.
+
+    Rows are short-lived by construction: :attr:`expires_at` is seconds away, expired rows
+    are purged on every write to this table, and a successful undo blanks the payload at
+    once. Nothing here is meant to be read by a person, so there is no admin for it.
+    """
+
+    #: SHA-256 of the token the browser holds. The token itself is never stored, so a
+    #: read of this table does not hand out working undo buttons.
+    token_hash = models.CharField(max_length=64, unique=True)
+    #: ``CASCADE``, unlike the audit log: an undo is not a record of anything, and one
+    #: that outlived the account it was issued to could never be redeemed anyway.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    #: A random value kept in the issuing session. Binds the token to that session
+    #: without depending on the session *key*, which signed-cookie sessions rotate on
+    #: every write.
+    session_nonce = models.CharField(max_length=64)
+    #: ``"shop.order"`` — a label, for the reason :class:`VantageJob` gives.
+    resource_key = models.CharField(max_length=100)
+    #: The permission verb the original change needed. The undo needs the same one.
+    verb = models.CharField(max_length=20)
+    #: What the change was, as the audit entry will phrase it: "delete of 3 orders".
+    summary = models.CharField(max_length=200)
+    #: JSON, as text: the steps that reverse the change. Text rather than a
+    #: ``JSONField`` so a snapshot's microsecond timestamps survive the round trip
+    #: exactly — the encoding is :mod:`vantage.undo`'s, not the database driver's.
+    payload = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    #: What redeeming it said, so a second click gets the same answer as the first.
+    result = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = _("undo entry")
+        verbose_name_plural = _("undo entries")
+        indexes = [
+            models.Index(fields=["expires_at"], name="vantage_undo_expiry_idx"),
+            models.Index(fields=["user", "-created_at"], name="vantage_undo_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.summary} · {self.resource_key}"

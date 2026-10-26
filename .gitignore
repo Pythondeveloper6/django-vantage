@@ -47,3 +47,6 @@ node_modules/
 
 # mkdocs build output
 /site/
+
+# Uploads and generated product pictures from the demo seed.
+/example/media/

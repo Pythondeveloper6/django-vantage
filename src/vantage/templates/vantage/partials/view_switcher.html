@@ -1,0 +1,18 @@
+{% load static vantage i18n %}{% comment %}
+  The list-view switcher: a segmented control of plain links.
+
+  Links rather than buttons, because each choice is a different URL — ?view=kanban is
+  shareable, bookmarkable and opens in a new tab like any other page — and a link is
+  the element that already means "go there". aria-current marks the one on screen.
+  Only the views this model supports are listed; with one, the control is not drawn.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'vantage/vantage-listviews.css' %}">
+<nav class="v-viewswitch" aria-label="{% translate "View as" %}">
+  {% for mode in list_modes %}
+    <a class="v-viewswitch-option" href="{{ mode.url }}"
+       {% if mode.current %}aria-current="page"{% endif %}
+       title="{{ mode.label }}">
+      {% icon mode.icon %}<span class="v-viewswitch-label">{{ mode.label }}</span>
+    </a>
+  {% endfor %}
+</nav>

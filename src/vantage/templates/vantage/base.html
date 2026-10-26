@@ -1,5 +1,5 @@
 {% load static vantage i18n %}<!doctype html>
-<html lang="{{ language_code }}"{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<html lang="{{ language_code }}"{% if ui_theme %} data-ui-theme="{{ ui_theme }}"{% endif %}{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,15 +9,21 @@
 {# Blocking and inline on purpose: a deferred script paints light first and flips. #}
 <script{{ csp_nonce_attr }}>{{ no_flash_script|safe }}</script>
 
+{% comment %}
+  Keep this the first <style> in <head>: the look picker swaps its text in place
+  (vantage.js finds it as `head > style`; an id would break the exact
+  `<style nonce="...">` the CSP tests and projects' own checks look for).
+{% endcomment %}
 <style{{ csp_nonce_attr }}>{{ theme_css|safe }}</style>
 <link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
 <link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">
 {# Carries the skip link and the auth chrome; every panel screen needs the first. #}
 <link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-sensitive.css' %}">
 {% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if may_reveal %} data-vantage-reveal="{{ reveal_seconds }}"{% endif %}>
 {% comment %}
   WCAG 2.4.1. First element in the body and therefore the first tab stop, ahead of
   the banners: a skip link placed after the thing it skips is decoration. The target
@@ -136,8 +142,8 @@
       toasts nowhere to land either. It collapses to zero height when empty.
     {% endcomment %}
     <div class="v-toasts" id="v-toasts" role="status" aria-live="polite">
-      {% for message in messages %}
-        <div class="v-toast" data-level="{{ message.level_tag }}">
+      {% for message in messages %}{% with undo=message|undo_offer %}
+        <div class="v-toast" data-level="{{ message.level_tag }}"{% if undo %} data-undo-remaining="{{ undo.remaining }}"{% endif %}>
           {% comment %} The tint on the left edge is the only visual signal of severity, so the
              word itself is carried in text for anyone the colour does not reach.
 
@@ -149,11 +155,23 @@
           {% elif message.level_tag == "success" %}{% translate "Success" context "message severity" as severity %}
           {% elif message.level_tag == "debug" %}{% translate "Debug" context "message severity" as severity %}
           {% else %}{% translate "Info" context "message severity" as severity %}{% endif %}
-          <span><span class="v-sr-only">{{ severity }}:</span> {{ message }}</span>
+          <span class="v-toast-text"><span class="v-sr-only">{{ severity }}:</span> {{ message }}</span>
+          {% if undo %}
+            {% comment %} Hidden until vantage.js reveals it, so without JavaScript the change
+               behaves exactly as it did before undo existed: no button that outlives its
+               window, and nothing that only works for some visitors. The server enforces
+               the window either way; the script only keeps the button honest about it. {% endcomment %}
+            <form class="v-toast-undo" method="post" action="{% url 'vantage:undo' %}" data-undo-form hidden>
+              {% csrf_token %}
+              <input type="hidden" name="token" value="{{ undo.token }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path|default:path }}">
+              <button type="submit" class="v-toast-undo-button" aria-keyshortcuts="Control+Z Meta+Z">{% translate "Undo" %}</button>
+            </form>
+          {% endif %}
           <button type="button" class="v-toast-close"
                   aria-label="{% translate "Dismiss this message" %}">&times;</button>
         </div>
-      {% endfor %}
+      {% endwith %}{% endfor %}
     </div>
 
     <main class="v-content" id="v-content" tabindex="-1">
@@ -177,6 +195,12 @@
 <script src="{% url 'vantage:jsi18n' %}"></script>
 <script src="{% static 'vantage/vantage-i18n-fallback.js' %}"></script>
 <script src="{% static 'vantage/vantage.js' %}" defer></script>
+{% if may_reveal %}
+  {% comment %} The reveal endpoint is a POST, so the page needs a CSRF token even when
+     nothing else on it is a form. Masked values stay plain bullets without it. {% endcomment %}
+  <div hidden data-vantage-reveal-csrf>{% csrf_token %}</div>
+  <script src="{% static 'vantage/vantage-sensitive.js' %}" defer></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>
