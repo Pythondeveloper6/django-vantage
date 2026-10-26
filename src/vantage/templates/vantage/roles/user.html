@@ -1,0 +1,74 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">
+      {% if target.name %}{{ target.name }} · {% endif %}{% if target.email %}{{ target.email }} · {% endif %}{{ page_description }}
+    </p>
+  </div>
+</div>
+
+{% if target_is_superuser %}
+  <p class="v-form-alert" data-tone="info">
+    {% translate "This account is a superuser: it holds every permission, whatever is listed below." %}
+  </p>
+{% endif %}
+{% if not target.active %}
+  <p class="v-form-alert" data-tone="warning">{% translate "This account is inactive, so none of these permissions currently apply." %}</p>
+{% endif %}
+
+<section class="v-card v-roles-user-roles">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Roles" %}</h2></div>
+  <div class="v-card-body">
+    {% if target_roles %}
+      <ul class="v-roles-chips">
+        {% for role in target_roles %}<li><a class="v-chip" href="{% url 'vantage:role-edit' role.pk %}">{{ role.name }}</a></li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="v-muted">{% translate "No roles." %}</p>
+    {% endif %}
+  </div>
+</section>
+
+<div class="v-table-wrap">
+  {% if effective %}
+    <table class="v-table v-roles-effective">
+      <caption class="v-sr-only">{% blocktranslate count counter=effective_count %}{{ counter }} permission{% plural %}{{ counter }} permissions{% endblocktranslate %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Permission" %}</th>
+          <th scope="col">{% translate "Code" %}</th>
+          <th scope="col">{% translate "Granted by" %}</th>
+        </tr>
+      </thead>
+      {% for app, rows in effective %}
+        <tbody>
+          <tr class="v-roles-app-row"><th scope="colgroup" colspan="3">{{ app }}</th></tr>
+          {% for row in rows %}
+            <tr>
+              <th scope="row">{{ row.permission.name }}</th>
+              <td class="v-mono">{{ row.label }}</td>
+              <td class="v-roles-sources">
+                {% if row.direct %}<span class="v-badge" data-tone="warning">{% translate "Direct grant" %}</span>{% endif %}
+                {% for role in row.roles %}<a class="v-badge" data-tone="primary" href="{% url 'vantage:role-edit' role.pk %}">{{ role.name }}</a>{% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endfor %}
+    </table>
+  {% else %}
+    <div class="v-empty">
+      {% icon "shield" class="v-empty-icon" %}
+      <p class="v-empty-title">{% translate "No permissions from roles or direct grants." %}</p>
+    </div>
+  {% endif %}
+</div>
+<p class="v-muted v-roles-more">{% translate "Lists what the database grants through roles and directly. A custom authentication backend may grant more." %}</p>
+{% endblock %}
