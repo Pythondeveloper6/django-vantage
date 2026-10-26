@@ -115,3 +115,15 @@ def asset_tag(path) -> str:
     if not text or text.startswith(("/", "//", "http://", "https://", "data:")):
         return text
     return static(text)
+
+
+@register.filter(name="undo_offer")
+def undo_offer(message):
+    """The undo a toast's message carries, as ``{"token", "remaining"}``, or ``None``.
+
+    ``None`` once the window has passed, so a toast rendered late — a slow redirect, a
+    page reopened from history — shows no button that would only answer "too late".
+    """
+    from vantage.undo import offer_from_message
+
+    return offer_from_message(message)
