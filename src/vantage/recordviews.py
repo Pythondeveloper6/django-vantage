@@ -35,7 +35,6 @@ from typing import Any
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -43,7 +42,7 @@ from django.utils.translation import gettext_lazy as _
 
 from vantage import listprefs, records
 from vantage.actions import Selection
-from vantage.formviews import PanelFormView, _control_class
+from vantage.formviews import PanelFormView, _control_class, get_by_pk_or_404
 from vantage.sensitive import safe_str
 from vantage.views import ListView, PanelView
 from vantage.widgets import FieldKind, classify
@@ -86,7 +85,7 @@ class DuplicateView(PanelFormView):
         queryset = self.permissions.filter_queryset(
             self.request, self.panel.get_queryset(self.request), "view"
         )
-        obj = get_object_or_404(queryset, pk=self.kwargs["pk"])
+        obj = get_by_pk_or_404(queryset, self.kwargs["pk"])
         if not self.permissions.has_object_perm(self.request, self.panel.model, "view", obj):
             raise PermissionDenied(
                 _("You do not have permission to view this %(model)s.")
@@ -261,7 +260,7 @@ class RowActionView(ListView):
 
     def get_object(self, request, chosen):
         """The one row, with the one object-level check that can differ between rows."""
-        obj = get_object_or_404(self.scoped_queryset(request), pk=self.kwargs["pk"])
+        obj = get_by_pk_or_404(self.scoped_queryset(request), self.kwargs["pk"])
         verb = chosen.permission
         if verb is not None and not self.permissions.has_object_perm(
             request, self.panel.model, verb, obj

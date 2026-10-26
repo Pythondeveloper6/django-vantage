@@ -26,7 +26,7 @@ from typing import Any
 
 from django import forms
 from django.contrib import messages
-from django.core.exceptions import FieldDoesNotExist, PermissionDenied
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db import DatabaseError, router, transaction
 from django.db.models.deletion import Collector, ProtectedError, RestrictedError
 from django.http import Http404, HttpResponseRedirect
@@ -221,6 +221,19 @@ def object_denied_message(panel, action: str) -> str:
     return message % {"model": model}
 
 
+def get_by_pk_or_404(queryset, pk):
+    """``get_object_or_404`` that also answers 404 for a pk the field cannot parse.
+
+    Record routes take ``<path:pk>`` so string and composite keys work, which means
+    ``/1/change/`` arrives as the pk ``"1/change"``; an integer field raises
+    ``ValueError`` on it, and a guessed URL is not a server error.
+    """
+    try:
+        return get_object_or_404(queryset, pk=pk)
+    except (ValueError, TypeError, ValidationError) as exc:
+        raise Http404(str(exc)) from exc
+
+
 def get_record(request, panel, permissions, pk, action: str, *, include_trashed=False):
     """One row, scoped then authorised. The order is the whole point.
 
@@ -241,7 +254,7 @@ def get_record(request, panel, permissions, pk, action: str, *, include_trashed=
         if pattern is not None and pattern.manager_hides_trashed:
             base = panel.model._base_manager.all()
     queryset = permissions.filter_queryset(request, base, "view")
-    obj = get_object_or_404(queryset, pk=pk)
+    obj = get_by_pk_or_404(queryset, pk)
     if not permissions.has_object_perm(request, panel.model, action, obj):
         raise PermissionDenied(object_denied_message(panel, action))
     return obj
@@ -913,7 +926,7 @@ class RestoreView(RecordView):
         queryset = self.permissions.filter_queryset(
             self.request, self.panel.get_trash_queryset(self.request), "view"
         )
-        obj = get_object_or_404(queryset, pk=self.kwargs["pk"])
+        obj = get_by_pk_or_404(queryset, self.kwargs["pk"])
         if not self.permissions.has_object_perm(
             self.request, self.panel.model, self.required_action, obj
         ):
