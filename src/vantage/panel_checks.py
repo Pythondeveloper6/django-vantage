@@ -46,6 +46,7 @@ class ModelPanelChecks:
             *self._check_list_select_related(panel),
             *self._check_related_tabs(panel),
             *self._check_removed(panel),
+            *self._check_list_views(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -262,3 +263,105 @@ class ModelPanelChecks:
                     )
                 )
         return errors
+
+    # ── list views ──────────────────────────────────────────────────────────
+
+    def _check_list_views(self, panel: ModelPanel) -> list[Error]:
+        """``list_views`` and the fields each view is arranged by (E070 to E076).
+
+        Run against what is *declared*, field by field, so a typo in ``kanban_field``
+        is reported even when ``list_views`` is left to inference — where the panel
+        would otherwise just quietly lose its board.
+        """
+        from django.db import models
+
+        from vantage.listviews import MODES
+        from vantage.listviews.inference import KANBAN_MAX_COLUMNS, is_point_field, kanban_field_ok
+        from vantage.listviews.kanban import local_field
+
+        errors: list[Error] = []
+
+        def error(message: str, ident: str, hint: str | None = None) -> None:
+            errors.append(Error(message, hint=hint, obj=type(panel), id=ident))
+
+        if panel.kanban_field is not None:
+            field = local_field(panel.model, panel.kanban_field)
+            if field is None or not kanban_field_ok(field):
+                error(
+                    f"'kanban_field' is {panel.kanban_field!r}, which is not a field on "
+                    f"{panel.opts.label} with between 2 and {KANBAN_MAX_COLUMNS} choices, "
+                    "or a BooleanField.",
+                    "vantage.E072",
+                    "A board needs one column per value, so the values have to be few and known.",
+                )
+        if panel.calendar_field is not None:
+            field = local_field(panel.model, panel.calendar_field)
+            if not isinstance(field, models.DateField):
+                error(
+                    f"'calendar_field' is {panel.calendar_field!r}, which is not a DateField "
+                    f"or DateTimeField on {panel.opts.label}.",
+                    "vantage.E073",
+                )
+        if panel.gallery_field is not None:
+            field = local_field(panel.model, panel.gallery_field)
+            if not isinstance(field, models.FileField):
+                error(
+                    f"'gallery_field' is {panel.gallery_field!r}, which is not an ImageField "
+                    f"or FileField on {panel.opts.label}.",
+                    "vantage.E074",
+                )
+        if panel.map_fields is not None:
+            value = panel.map_fields
+            numbers = (models.FloatField, models.DecimalField)
+            if isinstance(value, str):
+                field = local_field(panel.model, value)
+                ok = field is not None and is_point_field(field)
+            else:
+                pair = list(value) if isinstance(value, list | tuple) else []
+                ok = len(pair) == 2 and all(
+                    isinstance(local_field(panel.model, name), numbers) for name in pair
+                )
+            if not ok:
+                error(
+                    f"'map_fields' is {value!r}, which is neither a PointField nor a "
+                    f"(latitude, longitude) pair of Float/Decimal fields on {panel.opts.label}.",
+                    "vantage.E075",
+                    'Write map_fields = ("latitude", "longitude") or name a PointField.',
+                )
+        for entry in panel.card_fields or ():
+            if not self._resolves(panel, entry):
+                errors.append(self._error(panel, "card_fields", entry, "vantage.E076"))
+
+        if panel.list_views is None:
+            return errors
+        if isinstance(panel.list_views, str) or not panel.list_views:
+            error(
+                '\'list_views\' must be a non-empty list, such as ["table", "kanban"].',
+                "vantage.E070",
+            )
+            return errors
+        for name in panel.list_views:
+            mode = MODES.get(name)
+            if mode is None:
+                error(
+                    f"'list_views' refers to {name!r}, which is not a list view.",
+                    "vantage.E070",
+                    f"Choose from: {', '.join(MODES)}.",
+                )
+            elif not mode.supports(panel):
+                error(
+                    f"'list_views' includes {name!r}, but {panel.opts.label} has no field "
+                    "that view can be arranged by.",
+                    "vantage.E071",
+                    f"Set '{_FIELD_ATTR.get(name, name)}' on the panel, or remove {name!r}.",
+                )
+        return errors
+
+
+#: The attribute that tells each view which field to use, for E071's hint.
+_FIELD_ATTR = {
+    "kanban": "kanban_field",
+    "calendar": "calendar_field",
+    "gallery": "gallery_field",
+    "map": "map_fields",
+}
