@@ -52,7 +52,7 @@ class VantageConfig(SimpleVantageConfig):
 
     def ready(self) -> None:
         super().ready()
-        from vantage.pages import HealthPage, SchemaPage
+        from vantage.pages import DataQualityPage, HealthPage, SchemaPage
         from vantage.plugins import load_plugins
         from vantage.sites import site
 
@@ -60,6 +60,7 @@ class VantageConfig(SimpleVantageConfig):
         # or replace one from its own panel.py.
         site.register_page(SchemaPage)
         site.register_page(HealthPage)
+        site.register_page(DataQualityPage)
 
         # Plugins next, and before autodiscovery for the same reason: a project's
         # panel.py is its last word, so it must be able to unregister or replace

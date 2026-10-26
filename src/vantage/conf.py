@@ -134,6 +134,38 @@ DEFAULTS: dict[str, Any] = {
     "JOB_RETENTION_DAYS": 30,
     # Queue name for django.tasks / RQ. Celery uses its own routing.
     "JOB_QUEUE": "default",
+    # ── data quality ────────────────────────────────────────────────────────
+    # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
+    # other typo. Empty means "the defaults".
+    "DATA_QUALITY": {},
+}
+
+#: The data quality page's own settings, nested under ``VANTAGE["DATA_QUALITY"]`` so
+#: that eleven related knobs are one key in the registry rather than eleven.
+DATA_QUALITY_DEFAULTS: dict[str, Any] = {
+    "ENABLED": True,
+    # None means superusers only. A permission string or a callable taking the request
+    # widens it; each model is still gated by the resolver's own "view" answer.
+    "PERMISSION": None,
+    # Check names skipped everywhere, e.g. ["stale", "nulls"].
+    "CHECKS_EXCLUDE": [],
+    # Rows read per model. Above this a check looks at the newest rows by primary key
+    # and the report says so.
+    "SAMPLE_SIZE": 50_000,
+    # Estimated rows above which a model's data checks are skipped outright. Only
+    # reachable where a planner estimate exists (PostgreSQL).
+    "SKIP_ABOVE": 5_000_000,
+    # Seconds one check may spend on one model before it is cut off.
+    "CHECK_TIME_BUDGET": 3.0,
+    # Seconds a page render may spend auditing; the rest show as "not yet run".
+    "PAGE_TIME_BUDGET": 12.0,
+    "CACHE_SECONDS": 3600,
+    # Share of empty values above which a field is a warning rather than a note.
+    "NULL_WARN_RATE": 0.5,
+    # Days without a change before a table is called stale.
+    "STALE_DAYS": 365,
+    # Extra field names to treat as "should be unique", e.g. ["external_id"].
+    "DUPLICATE_FIELDS": [],
 }
 
 #: Values that must be one of a fixed set.
@@ -179,6 +211,7 @@ class VantageSettings:
                 )
 
         resolved = {**DEFAULTS, **user}
+        resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
 
         # The database layer goes *under* attribute access rather than beside it, so
         # every existing ``vantage_settings.X`` picks up a UI override without knowing
@@ -208,6 +241,27 @@ class VantageSettings:
 
     def reset(self) -> None:
         self._cache = None
+
+
+def _resolve_data_quality(value: Any) -> dict[str, Any]:
+    """Merge ``VANTAGE["DATA_QUALITY"]`` over its defaults, rejecting unknown keys."""
+    if value is None:
+        value = {}
+    if not isinstance(value, dict):
+        raise ImproperlyConfigured(
+            f"VANTAGE['DATA_QUALITY'] must be a dict, got {type(value).__name__}."
+        )
+    unknown = sorted(set(value) - set(DATA_QUALITY_DEFAULTS))
+    if unknown:
+        lines = []
+        for key in unknown:
+            close = difflib.get_close_matches(key, DATA_QUALITY_DEFAULTS, n=1, cutoff=0.6)
+            hint = f" Did you mean {close[0]!r}?" if close else ""
+            lines.append(f"  {key!r} is not a DATA_QUALITY setting.{hint}")
+        raise ImproperlyConfigured(
+            "Unrecognised key(s) in VANTAGE['DATA_QUALITY']:\n" + "\n".join(lines)
+        )
+    return {**DATA_QUALITY_DEFAULTS, **value}
 
 
 def _unknown_key_message(unknown: list[str]) -> str:

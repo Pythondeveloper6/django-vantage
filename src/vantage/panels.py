@@ -84,6 +84,10 @@ class ModelPanel:
     actions: list[Any] | None = None
     row_actions: list[Any] | None = None
 
+    #: The data quality audit: ``None`` runs every check, ``False`` leaves this model
+    #: out, a list of check names (``["nulls", "stale"]``) skips just those.
+    data_quality: bool | list[str] | None = None
+
     #: Accepting ``search_fields`` as an alias keeps muscle memory from
     #: ``django.contrib.admin`` intact.
     search_fields: list[str] | None = None

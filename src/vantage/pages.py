@@ -25,7 +25,7 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-__all__ = ["HealthPage", "Page", "SchemaPage", "page_slug"]
+__all__ = ["DataQualityPage", "HealthPage", "Page", "SchemaPage", "page_slug"]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -158,3 +158,85 @@ class HealthPage(Page):
                 (s for s in ("fail", "warn") if any(c.status == s for c in checks)), "ok"
             ),
         }
+
+
+class DataQualityPage(Page):
+    """A read-only health check of the data in every registered model.
+
+    Superusers by default; ``VANTAGE["DATA_QUALITY"]["PERMISSION"]`` widens it. The
+    page only ever shows models the user may view, through the same scoped queryset
+    the list page uses. Results come from the cache; the "re-run" button posts here.
+    """
+
+    title = _("Data quality")
+    icon = "database"
+    group = _("System")
+    order = 96
+    path = "_/data-quality/"
+    template_name = "vantage/pages/data-quality.html"
+
+    def has_permission(self, request) -> bool:
+        from vantage.dataquality import config
+
+        cfg = config()
+        if not cfg["ENABLED"]:
+            return False
+        rule = cfg["PERMISSION"]
+        if rule is None:
+            return bool(request.user.is_superuser)
+        if callable(rule):
+            return bool(rule(request))
+        return request.user.has_perm(str(rule))
+
+    def get_breadcrumbs(self):
+        return [(self.get_title(), None)]
+
+    def get_context(self, request):
+        from vantage.dataquality import SEVERITIES, config, get_checks, run_audit
+
+        cfg = config()
+        audit = run_audit(self.site, request, page_budget=float(cfg["PAGE_TIME_BUDGET"]))
+        selected = request.GET.get("model", "")
+        detail = next((r for r in audit.reports if r.model == selected), None)
+        issues = [f for r in audit.reports for f in r.issues]
+        return {
+            "audit": audit,
+            "detail": detail,
+            "selected": selected,
+            "totals": {
+                "models": len(audit.reports),
+                "issues": len(issues),
+                "failures": sum(1 for f in issues if f.severity == "fail"),
+                "pending": len(audit.pending),
+            },
+            "checks": [c for c in get_checks() if c.name not in cfg["CHECKS_EXCLUDE"]],
+            "severities": SEVERITIES,
+            "cfg": cfg,
+        }
+
+    def post(self, request):
+        """The re-run button: audit again, bypassing the cache, then show the result."""
+        from django.contrib import messages
+        from django.shortcuts import redirect
+
+        from vantage.dataquality import config, run_audit
+
+        label = request.POST.get("model") or None
+        audit = run_audit(
+            self.site,
+            request,
+            labels=[label] if label else None,
+            force=True,
+            page_budget=float(config()["PAGE_TIME_BUDGET"]),
+        )
+        if audit.pending:
+            messages.warning(
+                request,
+                _("Re-ran part of the audit before its time budget ran out. Run it again."),
+            )
+        else:
+            messages.success(request, _("Data quality audit re-run."))
+        target = request.path
+        if label and request.POST.get("stay"):
+            target += f"?model={label}"
+        return redirect(target)

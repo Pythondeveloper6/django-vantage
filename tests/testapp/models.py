@@ -6,6 +6,7 @@ densest coverage. Adding a model here is how you add an inference test case.
 """
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db import models
 
 
@@ -476,3 +477,39 @@ class ZInlineWidgetPart(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.part}"
+
+
+class DqContact(models.Model):
+    """Data quality fixture: every defect the audit looks for, one field each.
+
+    ``email`` should be unique and is not; ``ghost`` is a foreign key with no database
+    constraint, so it can dangle; ``status`` has choices a row can fall out of;
+    ``refs`` is a generic foreign key.
+    """
+
+    STATUS = [("new", "New"), ("old", "Old")]
+
+    name = models.CharField(max_length=40)
+    email = models.CharField(max_length=80, blank=True)
+    nickname = models.CharField(max_length=40, blank=True)
+    note = models.CharField(max_length=40, null=True, blank=True)  # noqa: DJ001
+    status = models.CharField(max_length=10, choices=STATUS, default="new")
+    ghost = models.ForeignKey(
+        Author,
+        null=True,
+        blank=True,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
+        related_name="+",
+    )
+    content_type = models.ForeignKey(
+        "contenttypes.ContentType", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    target = GenericForeignKey("content_type", "object_id")
+    created_at = models.DateTimeField(null=True, blank=True)
+    born_on = models.DateField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
