@@ -539,9 +539,15 @@ forgetting the parentheses is the mistake everyone makes once.
 | `confirm` | `None` | A confirmation sentence. `{count}` is substituted |
 | `max_rows` | `None` | Refuses above this many rows, guarding against a mis-click wiping a table |
 | `keywords` | `[]` | Extra terms that match in the command palette |
+| `undo_fields` | `None` | Fields the action writes; the toast offers [Undo](undo.md#undo-for-your-own-actions), which restores them where nobody has changed them since |
+| `undo` | `None` | A panel method name (or callable) that reverses the run from `ActionResult.undo_state` |
 
 The method returns a string, `None`, or an `ActionResult(message, level, redirect)`
 where `level` is one of `success`, `info`, `warning`, `error`.
+
+A ready-made bulk delete ships as `"delete_selected"` — add it to `actions` to get the
+same trash-or-destroy behaviour as the record page's Delete button, with
+[Undo](undo.md).
 
 ### How the selection travels
 
