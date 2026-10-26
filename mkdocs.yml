@@ -115,6 +115,7 @@ nav:
       - Theming: theming.md
   - Platform:
       - Permissions: permissions.md
+      - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
       - Multi-tenancy: tenancy.md
       - Internationalization: internationalization.md
