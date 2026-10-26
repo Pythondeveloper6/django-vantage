@@ -1,0 +1,72 @@
+{% load vantage i18n %}{% comment %}
+  The month grid. A real <table>: seven columns with weekday headers is tabular data,
+  and a screen reader then announces "Wednesday, 14" as it moves through it, which no
+  arrangement of divs can be made to do as reliably.
+
+  Every event is a link to its record. A day with more than a few folds the rest into
+  a <details>, so the grid keeps its shape however busy one day is, and nothing is
+  hidden from a keyboard or a screen reader — "3 more" is a control, not a tooltip.
+{% endcomment %}
+<div class="v-cal" data-calendar>
+  <header class="v-cal-head">
+    <h2 class="v-cal-title">{{ calendar_title }}</h2>
+    <span class="v-muted v-cal-field">{% blocktranslate with field=calendar_field_label %}by {{ field }}{% endblocktranslate %}</span>
+    <nav class="v-cal-nav" aria-label="{% translate "Month" %}">
+      <a class="v-btn v-btn-secondary v-btn-sm v-btn-icon" href="{{ calendar_prev_url }}" rel="prev"
+         aria-label="{% translate "Previous month" %}">{% icon "chevron-left" %}</a>
+      <a class="v-btn v-btn-secondary v-btn-sm" href="{{ calendar_today_url }}"
+         {% if calendar_is_current %}aria-current="date"{% endif %}>{% translate "Today" %}</a>
+      <a class="v-btn v-btn-secondary v-btn-sm v-btn-icon" href="{{ calendar_next_url }}" rel="next"
+         aria-label="{% translate "Next month" %}">{% icon "chevron-right" %}</a>
+    </nav>
+  </header>
+  {% if calendar_truncated %}
+    <p class="v-cal-note" role="note">
+      {% blocktranslate with max=calendar_max %}Showing the first {{ max }} records this month. Narrow the list with a filter to see the rest.{% endblocktranslate %}
+    </p>
+  {% endif %}
+  <div class="v-cal-scroll">
+    <table class="v-cal-grid">
+      <caption class="v-sr-only">{{ panel.get_label_plural }} — {{ calendar_title }}</caption>
+      <thead>
+        <tr>
+          {% for day in calendar_weekdays %}
+            <th scope="col"><abbr title="{{ day.long }}">{{ day.short }}</abbr></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in calendar_weeks %}
+          <tr>
+            {% for day in week %}
+              <td class="v-cal-day{% if not day.in_month %} v-cal-outside{% endif %}{% if day.is_today %} v-cal-today{% endif %}"
+                  {% if day.is_today %}aria-current="date"{% endif %}>
+                <time class="v-cal-date" datetime="{{ day.iso }}" aria-label="{{ day.label }}">{{ day.date.day }}</time>
+                {% if day.events %}
+                  <ul class="v-cal-events">
+                    {% for event in day.events %}
+                      <li><a class="v-cal-event" href="{{ event.url }}">{% if event.time %}<time datetime="{{ event.iso }}">{{ event.time }}</time> {% endif %}{{ event.title }}</a></li>
+                    {% endfor %}
+                  </ul>
+                  {% if day.overflow %}
+                    <details class="v-cal-more">
+                      <summary>{% blocktranslate count counter=day.overflow|length %}{{ counter }} more{% plural %}{{ counter }} more{% endblocktranslate %}</summary>
+                      <ul class="v-cal-events">
+                        {% for event in day.overflow %}
+                          <li><a class="v-cal-event" href="{{ event.url }}">{% if event.time %}<time datetime="{{ event.iso }}">{{ event.time }}</time> {% endif %}{{ event.title }}</a></li>
+                        {% endfor %}
+                      </ul>
+                    </details>
+                  {% endif %}
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not calendar_count %}
+    <p class="v-cal-empty v-muted">{% blocktranslate with label=panel.get_label_plural|lower %}No {{ label }} this month.{% endblocktranslate %}</p>
+  {% endif %}
+</div>

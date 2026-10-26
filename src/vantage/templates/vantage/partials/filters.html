@@ -34,6 +34,7 @@
 
   <form class="v-filter-form" method="get" action="{{ request.path }}">
     {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+    {% if list_modes %}<input type="hidden" name="view" value="{{ list_mode.name }}">{% endif %}
     {% if sort %}
       <input type="hidden" name="sort" value="{% if sort.descending %}-{% endif %}{{ sort.path }}">
     {% endif %}

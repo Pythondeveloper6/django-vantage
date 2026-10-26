@@ -47,6 +47,15 @@ ICONS: dict[str, str] = {
     "pencil": '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
     "trash": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
     "filter": '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
+    # The list-view switcher's marks: table, board, calendar, map.
+    "table": '<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/>'
+    '<path d="M3 9h18"/><path d="M3 15h18"/>',
+    "kanban": '<path d="M6 5v11"/><path d="M12 5v6"/><path d="M18 5v14"/>',
+    "calendar": '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/>'
+    '<path d="M3 10h18"/>',
+    "map-pin": '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 '
+    '20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
 }
 
 SVG = (

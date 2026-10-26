@@ -19,6 +19,7 @@ from vantage import (
     inline,
     jobviews,
     listprefsview,
+    listviews,
     recordviews,
     savedviews,
     settingsview,
@@ -84,6 +85,8 @@ def build(site) -> list:
     # And again: 'duplicate' and 'action' are suffixes on a record route, so they must
     # be declared before the bare '<path:pk>' that would otherwise swallow them.
     urlpatterns.extend(recordviews.build_urls(site))
+    # And '_kanban' — the board's move endpoint — for the same reason.
+    urlpatterns.extend(listviews.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts

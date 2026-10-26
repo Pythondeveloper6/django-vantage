@@ -5,6 +5,10 @@
   the filters, exactly as the rail restates the search — otherwise the two controls
   silently cancel each other out, which is the same bug in both directions.
 {% endcomment %}
+{% comment %}
+  The list view rides along too, or searching from a board would land on the table.
+{% endcomment %}
+{% if list_modes %}<input type="hidden" name="view" value="{{ list_mode.name }}">{% endif %}
 {% facets_on as facets %}
 {% if facets %}<input type="hidden" name="_facets" value="1">{% endif %}
 {% for filt in filters %}
