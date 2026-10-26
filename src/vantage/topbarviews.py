@@ -26,8 +26,11 @@ from django.http import HttpResponseRedirect
 from django.urls import NoReverseMatch, reverse
 from django.utils.translation import gettext_lazy as _
 
+from vantage.conf import vantage_settings
+from vantage.presets import get_presets
 from vantage.settingsview import may_edit_settings
 from vantage.templatetags.vantage import ICONS
+from vantage.theme import swatch_css
 from vantage.topbar import (
     BUILTIN_KEYS,
     ITEM_KINDS,
@@ -63,6 +66,10 @@ class AccountView(SiteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["may_arrange_topbar"] = may_edit_settings(self.request)
+        if vantage_settings.UI_THEME_TOGGLE:
+            presets = get_presets()
+            context["ui_presets"] = list(presets.values())
+            context["ui_swatch_css"] = swatch_css(presets)
         return context
 
 

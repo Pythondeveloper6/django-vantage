@@ -316,7 +316,7 @@
   padding: 0.75rem;
   background: var(--popover);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
 }
