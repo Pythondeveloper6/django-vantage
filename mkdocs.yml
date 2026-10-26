@@ -109,6 +109,7 @@ nav:
       - Panels: panels.md
       - Inference: inference.md
       - Lists: lists.md
+      - List views: list-views.md
       - Analytics: analytics.md
       - Forms: forms.md
       - Pages and dashboards: pages-and-dashboards.md

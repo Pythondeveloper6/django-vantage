@@ -866,6 +866,15 @@ class ListPreference(models.Model):
     #: off an aggregate the inference offered — and is why this is not merely a list.
     summary_aggregates = models.JSONField(null=True, blank=True)
 
+    # ── which view ──────────────────────────────────────────────────────────
+
+    #: The list view this person last chose — ``"table"``, ``"kanban"``, … — read by
+    #: :mod:`vantage.listviews`. Not part of any rail section: it is set by using the
+    #: switcher, not by a form, and resetting the columns must not forget it. ``NULL``
+    #: rather than ``""`` for the reason every column here is nullable: ``NULL`` is
+    #: "the code decides", and no empty string means anything else.
+    list_view = models.CharField(max_length=20, null=True, blank=True)  # noqa: DJ001
+
     # ── provenance ──────────────────────────────────────────────────────────
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -917,6 +926,9 @@ class ListPreference(models.Model):
         A row of nothing but NULLs resolves identically to no row at all, so the write
         path deletes it instead of keeping a tombstone that later has to be explained.
         """
+        if self.list_view is not None:
+            # A remembered view is a setting too, just not one a rail section owns.
+            return False
         return all(getattr(self, name) is None for name in SETTING_COLUMNS)
 
 

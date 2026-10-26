@@ -1,0 +1,58 @@
+{% load i18n %}{% comment %}
+  The map. An inline SVG plot, server-rendered and dependency-free: no map library, no
+  script, and — unless the owner set VANTAGE["MAP_TILE_URL"] — nothing fetched from
+  anywhere. Every point is a link to its record.
+
+  The plot is a picture for sighted pointer users; the list under it is the same data
+  for everybody else, and it is where the OpenStreetMap links live. A point on a plot is
+  a poor keyboard target and a worse screen-reader one, so the plot's points stay out
+  of the tab order and the list carries the real controls.
+{% endcomment %}
+<div class="v-map" data-map>
+  {% if map_points %}
+    <figure class="v-map-figure">
+      <svg class="v-map-plot{% if map_tiles %} v-map-tiled{% endif %}" viewBox="0 0 {{ map_width }} {{ map_height }}"
+           role="img" aria-labelledby="v-map-caption" preserveAspectRatio="xMidYMid meet">
+        <rect class="v-map-sea" x="0" y="0" width="{{ map_width }}" height="{{ map_height }}"/>
+        {% for tile in map_tiles %}
+          <image href="{{ tile.url }}" x="{{ tile.x }}" y="{{ tile.y }}" width="256" height="256"/>
+        {% endfor %}
+        {% for line in map_graticule %}
+          {% if line.axis == "lat" %}
+            <line class="v-map-grid" x1="0" x2="{{ map_width }}" y1="{{ line.y }}" y2="{{ line.y }}"/>
+            <text class="v-map-label" x="6" y="{{ line.y }}" dy="-4">{{ line.label }}</text>
+          {% else %}
+            <line class="v-map-grid" y1="0" y2="{{ map_height }}" x1="{{ line.x }}" x2="{{ line.x }}"/>
+            <text class="v-map-label" x="{{ line.x }}" y="{{ map_height }}" dx="4" dy="-6">{{ line.label }}</text>
+          {% endif %}
+        {% endfor %}
+        {% for point in map_points %}
+          <a href="{{ point.url }}" tabindex="-1" class="v-map-point">
+            <title>{{ point.title }} ({{ point.lat }}, {{ point.lng }})</title>
+            <circle cx="{{ point.x }}" cy="{{ point.y }}" r="6"/>
+          </a>
+        {% endfor %}
+      </svg>
+      <figcaption id="v-map-caption" class="v-map-caption v-muted">
+        {% blocktranslate count counter=map_points|length %}{{ counter }} location{% plural %}{{ counter }} locations{% endblocktranslate %}
+        {% if map_truncated %}— {% blocktranslate with max=map_max %}showing the first {{ max }}; narrow the list with a filter to see the rest.{% endblocktranslate %}{% endif %}
+        {% if map_tiles %}<span class="v-map-attribution">{% translate "Map tiles from the configured tile server." %}</span>{% endif %}
+      </figcaption>
+    </figure>
+    <ul class="v-map-list" aria-label="{% translate "Locations" %}">
+      {% for point in map_points %}
+        <li class="v-map-item">
+          <a href="{{ point.url }}">{{ point.title }}</a>
+          <span class="v-muted v-map-coords">{{ point.lat }}, {{ point.lng }}</span>
+          <a class="v-map-osm" href="{{ point.osm_url }}" target="_blank" rel="noopener noreferrer">
+            {% translate "OpenStreetMap" %}<span class="v-sr-only"> {% translate "(opens in a new tab)" %}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="v-empty">
+      <p class="v-empty-title">{% blocktranslate with label=panel.get_label_plural|lower %}No {{ label }} have a location.{% endblocktranslate %}</p>
+    </div>
+  {% endif %}
+</div>

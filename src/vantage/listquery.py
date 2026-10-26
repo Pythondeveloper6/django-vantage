@@ -35,9 +35,10 @@ __all__ = [
 ]
 
 #: GET parameters that do not count as "the user is looking at a subset". Paging,
-#: opening the trash, asking for the flat view and requesting facet counts all leave
-#: the row *set* alone, so none of them should switch a hierarchy off.
-TREE_NEUTRAL_PARAMS = frozenset({"page", "trash", "flat", "_facets"})
+#: opening the trash, asking for the flat view, requesting facet counts and choosing a
+#: list view (``?view=table``) all leave the row *set* alone, so none of them should
+#: switch a hierarchy off.
+TREE_NEUTRAL_PARAMS = frozenset({"page", "trash", "flat", "_facets", "view"})
 
 
 class ListQuery(NamedTuple):

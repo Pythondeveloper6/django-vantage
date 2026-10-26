@@ -291,6 +291,40 @@ class ListView(PanelView):
 
             apply_facet_counts(filters, base)
 
+        from vantage import listviews
+
+        # Which view of these rows. Every mode is handed the same filtered, scoped
+        # queryset, so search, filters, trash and tenancy apply to a board or a map
+        # exactly as they do to the table; only presentation differs below.
+        mode = listviews.resolve(panel, request)
+        context.update(
+            panel=panel,
+            sort=sort,
+            query=query,
+            filters=filters,
+            has_active_filters=any(f.is_active for f in filters),
+            analytics=self.get_analytics(spec, queryset, base=base, filters=filters),
+            searchable=bool(panel.get_list_search(request)),
+            patterns=panel.get_patterns(),
+            showing_tree=self.showing_tree(request),
+            showing_trash=self.showing_trash(request),
+            trash_count=self.get_trash_count(panel, request),
+            list_prefs=listprefs.panel_context(panel, request, spec),
+            page_title=panel.get_label_plural(),
+            list_mode=mode,
+            list_modes=listviews.switcher(panel, request, mode),
+        )
+        if mode.is_table:
+            context.update(self.table_context(panel, request, queryset, sort, spec))
+        else:
+            context.update(mode.context(request, queryset, permissions=self.permissions))
+        from vantage import savedviews
+
+        context.update(savedviews.list_context(request, panel))
+        return context
+
+    def table_context(self, panel, request, queryset, sort, spec) -> dict:
+        """The grid's own context: columns, the page of rows, grouping, the footer."""
         columns = panel.get_list_display(request)
         link = panel.get_list_link(request)
 
@@ -302,41 +336,24 @@ class ListView(PanelView):
         )
         page = paginator.get_page(request.GET.get("page"))
 
-        context.update(
-            panel=panel,
-            columns=[self._column_header(panel, name, sort) for name in columns],
-            sort=sort,
-            rows=self._rows(panel, page.object_list, columns, link, request),
-            grouping=self.grouping(request),
-            group_options=[
+        return {
+            "columns": [self._column_header(panel, name, sort) for name in columns],
+            "rows": self._rows(panel, page.object_list, columns, link, request),
+            "grouping": self.grouping(request),
+            "group_options": [
                 ("day", _("Day")),
                 ("week", _("Week")),
                 ("month", _("Month")),
                 ("year", _("Year")),
             ],
-            groups=self._groups(panel, page.object_list, request),
-            timeline_field=self._timeline_field(panel),
-            page=page,
-            paginator=paginator,
-            row_count=paginator.row_count,
-            query=query,
-            filters=filters,
-            has_active_filters=any(f.is_active for f in filters),
-            analytics=self.get_analytics(spec, queryset, base=base, filters=filters),
-            searchable=bool(panel.get_list_search(request)),
-            patterns=panel.get_patterns(),
-            showing_tree=self.showing_tree(request),
-            showing_trash=self.showing_trash(request),
-            trash_count=self.get_trash_count(panel, request),
-            actions=resolve_actions(panel, request),
-            summary=self.get_summary(spec, queryset),
-            list_prefs=listprefs.panel_context(panel, request, spec),
-            page_title=panel.get_label_plural(),
-        )
-        from vantage import savedviews
-
-        context.update(savedviews.list_context(request, panel))
-        return context
+            "groups": self._groups(panel, page.object_list, request),
+            "timeline_field": self._timeline_field(panel),
+            "page": page,
+            "paginator": paginator,
+            "row_count": paginator.row_count,
+            "actions": resolve_actions(panel, request),
+            "summary": self.get_summary(spec, queryset),
+        }
 
     #: Grouping keys the list page accepts, mapped to the truncation to apply.
     GROUPINGS = {"day": "day", "week": "week", "month": "month", "year": "year"}

@@ -513,3 +513,30 @@ class DqContact(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Venue(models.Model):
+    """Exercises the alternative list views' inference in one model.
+
+    A ``(latitude, longitude)`` pair of ``DecimalField``\\ s for the map, a scheduling
+    date (``starts_on``) that must beat the audit stamp for the calendar, a ``stage``
+    choices field for the board, and a picture stored in a plain ``FileField`` that is
+    only recognisable as one by its name.
+    """
+
+    class Stage(models.TextChoices):
+        PLANNED = "planned", "Planned"
+        OPEN = "open", "Open"
+        CLOSED = "closed", "Closed"
+
+    name = models.CharField(max_length=80)
+    stage = models.CharField(max_length=10, choices=Stage.choices, default=Stage.PLANNED)
+    city = models.CharField(max_length=80, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    photo = models.FileField(upload_to="venues/", blank=True)
+    starts_on = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
