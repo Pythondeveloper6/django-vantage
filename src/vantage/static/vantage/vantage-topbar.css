@@ -18,7 +18,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
 }
@@ -146,7 +146,7 @@
 /* The live preview. A scaled-down bar rather than a description of one: the whole
  * screen is about arrangement, and arrangement is the thing a sentence is worst at. */
 .v-topbar-preview {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
 }
@@ -196,4 +196,164 @@
   .v-topbar-row {
     transition: none;
   }
+}
+
+/* ── the look picker (account page) ──────────────────────────────────────────
+ *
+ * Each card draws a miniature of its preset from --sw-* variables that the page's
+ * swatch <style> sets per card and per mode (inline style="" is off the table under the
+ * CSP). The card itself uses the *current* look's tokens, so only the sample inside is
+ * "someone else's" colours.
+ */
+.v-uitheme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.v-uitheme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  text-align: start;
+  font: inherit;
+  color: var(--foreground);
+  background: var(--card);
+  border: var(--border-width, 1px) solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.v-uitheme-card:hover {
+  border-color: var(--input);
+}
+
+.v-uitheme-card:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.v-uitheme-card[aria-pressed="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.v-uitheme-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  background: var(--sw-bg);
+  border: 1px solid var(--sw-border);
+  border-radius: 0.375rem;
+}
+
+.v-uitheme-card-bar {
+  display: block;
+  block-size: 0.875rem;
+  background: var(--sw-card);
+  border: 1px solid var(--sw-border);
+  border-radius: 0.25rem;
+}
+
+.v-uitheme-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.v-uitheme-lines i {
+  display: block;
+  block-size: 0.25rem;
+  background: var(--sw-fg);
+  border-radius: 999px;
+}
+
+.v-uitheme-lines i:last-child {
+  inline-size: 60%;
+}
+
+.v-uitheme-btn {
+  display: block;
+  inline-size: 55%;
+  block-size: 0.875rem;
+  background: var(--sw-primary);
+  border-radius: 0.25rem;
+}
+
+.v-uitheme-name {
+  font-weight: 600;
+}
+
+.v-uitheme-desc {
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+/* ── the account page's cards ─────────────────────────────────────────────────
+ * These classes had no rules, so the page rendered as bare blocks inside bare cards -
+ * which went unnoticed until a card of swatches was put in one. */
+.v-account-grid {
+  display: grid;
+  gap: 1rem;
+  max-inline-size: 48rem;
+}
+
+.v-account-card > :not(.v-card-head) {
+  margin-inline: 1.25rem;
+}
+
+.v-account-card > :last-child {
+  margin-block-end: 1.25rem;
+}
+
+.v-account-who {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-block-start: 1rem;
+}
+
+.v-account-name {
+  font-weight: 600;
+}
+
+.v-account-actions,
+.v-account-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}
+
+.v-account-blurb {
+  margin-block: 0.75rem 0;
+}
+
+.v-account-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  color: var(--foreground);
+  background: var(--card);
+  border: var(--border-width, 1px) solid var(--input);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.v-account-theme[aria-pressed="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.v-account-theme svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.v-uitheme-grid {
+  margin-block-start: 1rem;
 }

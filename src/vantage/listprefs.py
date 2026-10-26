@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import threading
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from django.conf import settings as django_settings
@@ -254,7 +254,15 @@ def options(panel, request=None) -> Options:
         search_fields = tuple(dict.fromkeys(panel.get_list_search(request)))
         per_page = panel.get_per_page(request)
 
-    measures = tuple(name for name in columns if isinstance(_local_field(model, name), NUMERIC))
+    from vantage.sensitive import is_sensitive_path
+
+    # A sensitive column is never a measure or a breakdown: a stat card's min, max or
+    # group label is a value from it.
+    measures = tuple(
+        name
+        for name in columns
+        if isinstance(_local_field(model, name), NUMERIC) and not is_sensitive_path(panel, name)
+    )
     # Dates and groups are drawn from the filters as well as the columns: a panel that
     # offers a date filter has declared that date as something worth slicing by, and a
     # chart of it is the same declaration read the other way round.
@@ -264,7 +272,9 @@ def options(panel, request=None) -> Options:
         if isinstance(_local_field(model, name), DateField)
     )
     groups = tuple(
-        name for name in dict.fromkeys(filter_fields + columns) if _has_labels(model, name)
+        name
+        for name in dict.fromkeys(filter_fields + columns)
+        if _has_labels(model, name) and not is_sensitive_path(panel, name)
     )
     return Options(
         columns=columns,
@@ -587,6 +597,13 @@ class ListSpec:
     stored: dict[str, Any] = field(default_factory=dict)
     #: Row column -> ``"user"`` or ``"site"``. Absent means the code decided.
     sources: dict[str, str] = field(default_factory=dict)
+    #: The list view this person last picked (``"kanban"``…), unvalidated: whether
+    #: the panel still offers it is :mod:`vantage.listviews`'s question. Read from the
+    #: per-user row only — a remembered choice is personal by definition.
+    list_view: str | None = None
+    #: ``{"kanban": "priority", "calendar": "due_on"}``: the field this person last
+    #: arranged each mode by. Per-user and unvalidated, like ``list_view``.
+    list_view_fields: dict[str, str] = field(default_factory=dict)
 
     def source(self, name: str) -> str:
         return self.sources.get(name, "code")
@@ -722,7 +739,19 @@ def _build(panel, request, key: str) -> ListSpec:
                 sources[name] = origin
             break
 
-    return _assemble(panel, opts, key, stored, sources)
+    spec = _assemble(panel, opts, key, stored, sources)
+    list_view = getattr(user_row, "list_view", None) if user_row is not None else None
+    if list_view:
+        spec = replace(spec, list_view=list_view)
+    view_fields = getattr(user_row, "list_view_fields", None) if user_row is not None else None
+    if isinstance(view_fields, dict) and view_fields:
+        spec = replace(
+            spec,
+            list_view_fields={
+                str(mode): name for mode, name in view_fields.items() if isinstance(name, str)
+            },
+        )
+    return spec
 
 
 #: Every column this layer reads, in the order the sections declare them.

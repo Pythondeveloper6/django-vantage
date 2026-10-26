@@ -15,10 +15,11 @@ same function the table cell uses — with its markup stripped. A JSON API that 
 only the raw value forces every client to re-implement choice labels, money formatting
 and date formats, and they will all do it differently to the panel.
 
-**A serialiser never widens what a page shows.** The sensitive-name pattern that keeps
-a password column out of a list is :data:`vantage.inference.SENSITIVE`, imported here
-rather than restated, so a field hidden from the HTML detail page is hidden from the
-JSON one for the same reason at the same moment.
+**A serialiser never widens what a page shows.** A sensitive field (see
+:mod:`vantage.sensitive`) goes out as ``{"value": null, "display": "••••••••",
+"masked": true}`` — the same mask the HTML page draws, decided by the same function, so
+the JSON API cannot become the way round it. Revealing one value is a separate,
+audited ``POST``; nothing in a ``GET`` response ever carries it.
 
 **Nothing here decides which rows or which fields.** Callers pass the columns, the
 fields and the objects. That is what stops this module from becoming a second, subtly
@@ -41,9 +42,9 @@ from django.utils.html import strip_tags
 from django.utils.text import capfirst
 
 from vantage import concurrency
-from vantage.inference import SENSITIVE
 from vantage.introspection import displayable_fields, m2m_fields, resolve_path
 from vantage.render import render_cell
+from vantage.sensitive import safe_str
 from vantage.widgets import WidgetSpec, classify, infer_widget
 
 __all__ = [
@@ -157,7 +158,16 @@ def raw(panel, obj, name: str) -> Any:
 
 
 def cell(panel, obj, name: str) -> dict[str, Any]:
-    """One column of one row: what is stored, and what it reads as."""
+    """One column of one row: what is stored, and what it reads as.
+
+    A sensitive column has no ``value`` at all — ``null``, never the stored one — and
+    its ``display`` is the mask. ``masked`` tells a client the null is a refusal rather
+    than an empty field.
+    """
+    from vantage.sensitive import is_sensitive_path
+
+    if is_sensitive_path(panel, name):
+        return {"value": None, "display": display(panel, obj, name), "masked": True}
     return {"value": raw(panel, obj, name), "display": display(panel, obj, name)}
 
 
@@ -182,7 +192,7 @@ def row(
     """
     payload: dict[str, Any] = {
         "pk": json_value(obj.pk),
-        "display": str(obj),
+        "display": safe_str(obj, getattr(panel, "site", None)),
         "url": url,
         "html_url": html_url,
         "version": concurrency.token_for(obj),
@@ -196,20 +206,19 @@ def row(
 def record_fields(model: type[models.Model]) -> list[Any]:
     """The fields a record's JSON exposes, in a fixed order.
 
-    :func:`~vantage.introspection.displayable_fields` minus sensitive names — the same
-    rule the HTML detail page applies — plus many-to-many relations, which the detail
-    page shows as related blocks and an API client needs as a list of ids because that
-    is what it has to send back to change them.
+    :func:`~vantage.introspection.displayable_fields` — the same list the HTML detail
+    page shows, sensitive fields included because they go out masked — plus
+    many-to-many relations, which the detail page shows as related blocks and an API
+    client needs as a list of ids because that is what it has to send back to change
+    them.
 
     Separate from :func:`object_fields` because it is also the *allowlist*: it is the
     answer to "which field names may a caller ask for?", and having one function answer
     both questions is what stops a ``?fields=`` parameter from reaching a column the
-    detail page would have hidden.
+    detail page would not show. Asking for a sensitive field is allowed and answers the
+    mask; sorting by one is refused by :func:`vantage.listquery.resolve_sort`.
     """
-    return [
-        *(f for f in displayable_fields(model) if not SENSITIVE.search(f.name)),
-        *(f for f in m2m_fields(model) if not SENSITIVE.search(f.name)),
-    ]
+    return [*displayable_fields(model), *m2m_fields(model)]
 
 
 def object_fields(panel, obj) -> dict[str, dict[str, Any]]:
@@ -220,12 +229,22 @@ def object_fields(panel, obj) -> dict[str, dict[str, Any]]:
     why the caller is expected to have prefetched them.
     """
     fields: dict[str, dict[str, Any]] = {}
+    secret = panel.get_sensitive_fields()
 
     for field in record_fields(panel.model):
+        if field.name in secret:
+            fields[field.name] = {
+                "label": _label(field),
+                "kind": str(classify(field)),
+                "value": None,
+                "display": display(panel, obj, field.name),
+                "masked": True,
+            }
+            continue
         if field.many_to_many:
             related = list(getattr(obj, field.name).all())
             value: Any = [json_value(item.pk) for item in related]
-            rendered = ", ".join(str(item) for item in related)
+            rendered = ", ".join(safe_str(item) for item in related)
         else:
             value = json_value(getattr(obj, field.attname, None))
             rendered = display(panel, obj, field.name)

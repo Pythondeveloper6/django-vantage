@@ -64,6 +64,24 @@ class ModelPanel:
     list_charts: list[Any] | None = None
     list_aggregates: dict[str, Any] | None = None
 
+    # ── alternative list views ──────────────────────────────────────────────
+    #
+    # ``list_views = ["table", "kanban"]`` picks which views the switcher offers, in
+    # order; the first is the default. ``["table"]`` switches the others off. Each
+    # field below is inferred independently, see :mod:`vantage.listviews.inference`.
+    list_views: list[str] | None = None
+    kanban_field: str | None = None
+    calendar_field: str | None = None
+    #: What the board's "Group by" and the calendar's "Dates from" pickers offer.
+    #: Inferred as every eligible field; ``[]`` hides the picker, leaving only the
+    #: default above. The default is always offered, first.
+    kanban_fields: list[str] | None = None
+    calendar_fields: list[str] | None = None
+    gallery_field: str | None = None
+    #: A ``PointField`` name, or a ``("latitude", "longitude")`` pair.
+    map_fields: str | tuple[str, str] | None = None
+    card_fields: list[str] | None = None
+
     # ── detail page ─────────────────────────────────────────────────────────
     fields: list[str] | None = None
     exclude: list[str] | None = None
@@ -71,6 +89,13 @@ class ModelPanel:
     readonly_fields: list[str] | None = None
     inlines: list[Any] | None = None
     related_tabs: bool | None = None
+
+    # ── sensitive values ────────────────────────────────────────────────────
+    #
+    # ``None`` infers them (see vantage.sensitive); a list names them outright and
+    # replaces inference; ``[]`` switches masking off for this model. A user model's
+    # password hash is masked whatever this says.
+    sensitive_fields: list[str] | None = None
 
     # ── behaviour ───────────────────────────────────────────────────────────
     #
@@ -83,6 +108,14 @@ class ModelPanel:
     # by ``vantage.E050`` rather than ignored.
     actions: list[Any] | None = None
     row_actions: list[Any] | None = None
+    #: Whether deletes and edits on this model offer "Undo" in their toast. ``None``
+    #: follows ``VANTAGE["UNDO_WINDOW"]``; ``False`` switches it off for this model —
+    #: for one whose rows must never come back once deleted, say.
+    undo: bool | None = None
+
+    #: The data quality audit: ``None`` runs every check, ``False`` leaves this model
+    #: out, a list of check names (``["nulls", "stale"]``) skips just those.
+    data_quality: bool | list[str] | None = None
 
     #: Accepting ``search_fields`` as an alias keeps muscle memory from
     #: ``django.contrib.admin`` intact.
@@ -205,7 +238,14 @@ class ModelPanel:
             return list(stored)
         if self.list_display is not None:
             return list(self.list_display)
-        return inference.infer_list_display(self.model)
+        inferred = inference.infer_list_display(self.model)
+        # Inference already skips names that *look* sensitive; this also drops a field
+        # the panel declared sensitive under an innocent name. An explicit list_display
+        # is left alone — the column renders masked.
+        if self.sensitive_fields:
+            hidden = self.get_sensitive_fields()
+            inferred = [name for name in inferred if name not in hidden] or [self.opts.pk.name]
+        return inferred
 
     def get_list_link(self, request=None) -> str:
         if self.list_link is not None:
@@ -214,12 +254,21 @@ class ModelPanel:
         # list_link should link its first column, not a column inference would have
         # chosen but the user then hid.
         inferred = inference.infer_list_link(self.model)
+        if self.sensitive_fields and inferred in self.get_sensitive_fields():
+            # A link whose text is a mask opens the record fine and reads as nothing.
+            return self.get_list_display(request)[0]
         if self.list_display or listprefs.override(self, request, "list_display"):
             columns = self.get_list_display(request)
             return inferred if inferred in columns else columns[0]
         return inferred
 
     def get_list_filter(self, request=None) -> list[str]:
+        # Never a sensitive path, whoever declared it: a filter is an oracle — ticking
+        # "pin = 1234" and watching the row count answers the question the mask exists
+        # to refuse. ``vantage.W090`` tells the author their declaration was dropped.
+        return self._without_sensitive(self._declared_list_filter(request))
+
+    def _declared_list_filter(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_filter")
         if stored is not None:
             return list(stored)
@@ -228,6 +277,10 @@ class ModelPanel:
         return inference.infer_list_filter(self.model)
 
     def get_list_search(self, request=None) -> list[str]:
+        # Same reason as get_list_filter: a substring search is a guessing oracle.
+        return self._without_sensitive(self._declared_list_search(request))
+
+    def _declared_list_search(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_search")
         if stored is not None:
             return list(stored)
@@ -235,9 +288,50 @@ class ModelPanel:
             return list(self.list_search)
         return inference.infer_list_search(self.model)
 
+    def _without_sensitive(self, paths: list[str]) -> list[str]:
+        from vantage.sensitive import strip_sensitive
+
+        return strip_sensitive(self, paths)
+
+    # ── sensitive values ────────────────────────────────────────────────────
+
+    def get_sensitive_fields(self) -> frozenset[str]:
+        """The field names masked on every surface. See :mod:`vantage.sensitive`.
+
+        Memoised per vocabulary: this is asked once per cell on a list page, and the
+        answer only changes when ``sensitive_fields`` or the settings do.
+        """
+        from vantage.sensitive import panel_sensitive_fields, patterns
+
+        declared = self.sensitive_fields
+        key = (patterns(), None if declared is None else tuple(declared))
+        cached = getattr(self, "_sensitive_memo", None)
+        if cached is None or cached[0] != key:
+            cached = (key, panel_sensitive_fields(self), {})
+            self._sensitive_memo = cached
+        return cached[1]
+
+    def can_reveal(self, request, obj, field_name: str) -> bool:
+        """Whether ``request`` may reveal ``field_name`` on ``obj``. Override to narrow or widen.
+
+        Superusers, and anyone holding ``vantage.reveal_sensitive``. Asked only after the
+        user has passed the view check for ``obj`` and only for a field that is not a
+        hash — a hashed field cannot be made revealable from here.
+        """
+        from vantage.sensitive import REVEAL_PERMISSION
+
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False
+        return bool(user.is_superuser) or user.has_perm(REVEAL_PERMISSION)
+
     def get_ordering(self, request=None) -> list[str]:
         if self.ordering is not None:
-            return list(self.ordering)
+            # A fixed order by a secret still ranks every row by it. Dropped, with
+            # vantage.W090 saying so; inference never chooses one.
+            kept = self._without_sensitive(list(self.ordering))
+            if kept or not self.ordering:
+                return kept
         return inference.infer_ordering(self.model)
 
     def get_related_tabs(self, related_count: int | None = None) -> bool:
@@ -261,6 +355,92 @@ class ModelPanel:
         if self.list_per_page is not None:
             return self.list_per_page
         return vantage_settings.DEFAULT_PER_PAGE
+
+    # ── alternative list views ──────────────────────────────────────────────
+
+    def get_list_views(self, request=None) -> list[str]:
+        """The views the switcher offers, first one the default.
+
+        A declared list is filtered down to the views this model can actually draw,
+        so a panel naming ``"map"`` on a model with no coordinates loses the button
+        rather than rendering an empty plot — ``vantage.E071`` reports the mistake.
+        """
+        from vantage.listviews import supported
+
+        if self.list_views is None:
+            from vantage.listviews.inference import infer_list_views
+
+            declared = infer_list_views(self.model)
+        else:
+            declared = list(self.list_views)
+        return [name for name in declared if supported(self, name)] or ["table"]
+
+    def get_kanban_field(self, request=None) -> str | None:
+        if self.kanban_field is not None:
+            return self.kanban_field
+        from vantage.listviews.inference import infer_kanban_field
+
+        return infer_kanban_field(self.model)
+
+    def get_calendar_field(self, request=None) -> str | None:
+        if self.calendar_field is not None:
+            return self.calendar_field
+        from vantage.listviews.inference import infer_calendar_field
+
+        return infer_calendar_field(self.model)
+
+    def get_kanban_fields(self, request=None) -> list[str]:
+        """The fields a person may group the board by, the default first."""
+        from vantage.listviews.inference import kanban_candidates
+
+        return self._view_field_choices(
+            self.get_kanban_field(request), self.kanban_fields, kanban_candidates
+        )
+
+    def get_calendar_fields(self, request=None) -> list[str]:
+        """The dates a person may place the calendar by, the default first."""
+        from vantage.listviews.inference import calendar_candidates
+
+        return self._view_field_choices(
+            self.get_calendar_field(request), self.calendar_fields, calendar_candidates
+        )
+
+    def _view_field_choices(self, default, declared, infer) -> list[str]:
+        """``default`` first, then the declared or inferred rest, never a sensitive one.
+
+        A sensitive field is refused even when declared: grouping by a secret prints
+        one column per distinct value, which is the value.
+        """
+        sensitive = self.get_sensitive_fields()
+        rest = infer(self.model) if declared is None else list(declared)
+        chosen = [default] if default else []
+        chosen.extend(name for name in rest if name not in chosen)
+        return [name for name in chosen if name not in sensitive]
+
+    def get_gallery_field(self, request=None) -> str | None:
+        if self.gallery_field is not None:
+            return self.gallery_field
+        from vantage.listviews.inference import infer_gallery_field
+
+        return infer_gallery_field(self.model)
+
+    def get_map_fields(self, request=None) -> str | tuple[str, str] | None:
+        if self.map_fields is not None:
+            fields = self.map_fields
+            return fields if isinstance(fields, str) else tuple(fields)
+        from vantage.listviews.inference import infer_map_fields
+
+        return infer_map_fields(self.model)
+
+    def get_card_fields(self, request=None, exclude: tuple[str, ...] = ()) -> list[str]:
+        """What a card shows under its title. ``exclude`` is the view's own field."""
+        if self.card_fields is not None:
+            return list(self.card_fields)
+        from vantage.listviews.inference import infer_card_fields
+
+        return infer_card_fields(
+            self.model, self.get_list_display(request), exclude, self.get_list_link(request)
+        )
 
     # ── overridable hooks ───────────────────────────────────────────────────
 

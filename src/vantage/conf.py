@@ -28,6 +28,15 @@ DEFAULTS: dict[str, Any] = {
     "BRAND_RADIUS": "0.5rem",
     "THEME": "system",
     "THEME_TOGGLE": True,
+    # The look, as opposed to THEME's light/dark: "vantage" (the original), "shadcn",
+    # "slate", ... or a name registered in UI_THEMES. See vantage.presets.
+    "UI_THEME": "vantage",
+    # {"name": {"light": {...}, "dark": {...}, "primary": "#hex", "radius": ...}}.
+    # Anything omitted is inherited from the "vantage" preset.
+    "UI_THEMES": {},
+    # Lets each person pick a preset for themselves, like THEME_TOGGLE does for
+    # light/dark.
+    "UI_THEME_TOGGLE": True,
     "CUSTOM_CSS": None,
     "LOGIN_IMAGE": None,
     # ── discovery ───────────────────────────────────────────────────────────
@@ -55,6 +64,11 @@ DEFAULTS: dict[str, Any] = {
     # request widens it. Never itself editable from the UI — that would be a self-grant.
     "SETTINGS_PERMISSION": None,
     "LIST_PREFS_PERMISSION": None,
+    # Who may open the roles & permissions screen. None means superusers only. A
+    # permission string ("auth.change_group") or a callable taking the request widens
+    # it; whoever is let in can still only grant permissions they hold themselves.
+    # Code-only for the same reason as SETTINGS_PERMISSION: editable, it is a self-grant.
+    "ROLES_PERMISSION": None,
     "READ_ONLY": False,
     "ENVIRONMENT": None,
     # ── multi-tenancy ───────────────────────────────────────────────────────
@@ -77,6 +91,11 @@ DEFAULTS: dict[str, Any] = {
     "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
+    # ── sensitive values ────────────────────────────────────────────────────
+    # The names that mark a field as a secret, matched as whole words. None means the
+    # built-in list (vantage.sensitive.DEFAULT_PATTERNS); a list replaces it; a list
+    # containing "..." extends it: ["...", "nhs_number"].
+    "SENSITIVE_PATTERNS": None,
     # ── security ────────────────────────────────────────────────────────────
     # Registered here, but described and defaulted in vantage.security.DEFAULTS,
     # which is where the reasoning for each number lives. They have to appear in
@@ -97,6 +116,12 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMITS": None,
     "UPLOAD_MAX_BYTES": None,
     "DEFAULT_PER_PAGE": 50,
+    # ── list views ──────────────────────────────────────────────────────────
+    # A raster tile URL template for the map view, e.g.
+    # "https://tile.openstreetmap.org/{z}/{x}/{y}.png". None, the default, draws a
+    # dependency-free SVG plot and fetches nothing from anywhere: sending every
+    # viewer's location of interest to a tile server is the owner's call to make.
+    "MAP_TILE_URL": None,
     # ── relation pickers ────────────────────────────────────────────────────
     # Which relation fields become the searchable chip picker rather than a plain
     # <select>. "always" is the default because one control for every relationship
@@ -134,6 +159,45 @@ DEFAULTS: dict[str, Any] = {
     "JOB_RETENTION_DAYS": 30,
     # Queue name for django.tasks / RQ. Celery uses its own routing.
     "JOB_QUEUE": "default",
+    # ── undo ────────────────────────────────────────────────────────────────
+    # Seconds the "Undo" button on a delete or edit toast stays redeemable. 0 turns
+    # undo off everywhere; ModelPanel.undo = False turns it off for one model.
+    "UNDO_WINDOW": 10,
+    # The most rows one undo may carry, cascades included. Past it the change still
+    # happens, it just is not offered for undo: the snapshot would be the problem.
+    "UNDO_MAX_ROWS": 1000,
+    # ── data quality ────────────────────────────────────────────────────────
+    # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
+    # other typo. Empty means "the defaults".
+    "DATA_QUALITY": {},
+}
+
+#: The data quality page's own settings, nested under ``VANTAGE["DATA_QUALITY"]`` so
+#: that eleven related knobs are one key in the registry rather than eleven.
+DATA_QUALITY_DEFAULTS: dict[str, Any] = {
+    "ENABLED": True,
+    # None means superusers only. A permission string or a callable taking the request
+    # widens it; each model is still gated by the resolver's own "view" answer.
+    "PERMISSION": None,
+    # Check names skipped everywhere, e.g. ["stale", "nulls"].
+    "CHECKS_EXCLUDE": [],
+    # Rows read per model. Above this a check looks at the newest rows by primary key
+    # and the report says so.
+    "SAMPLE_SIZE": 50_000,
+    # Estimated rows above which a model's data checks are skipped outright. Only
+    # reachable where a planner estimate exists (PostgreSQL).
+    "SKIP_ABOVE": 5_000_000,
+    # Seconds one check may spend on one model before it is cut off.
+    "CHECK_TIME_BUDGET": 3.0,
+    # Seconds a page render may spend auditing; the rest show as "not yet run".
+    "PAGE_TIME_BUDGET": 12.0,
+    "CACHE_SECONDS": 3600,
+    # Share of empty values above which a field is a warning rather than a note.
+    "NULL_WARN_RATE": 0.5,
+    # Days without a change before a table is called stale.
+    "STALE_DAYS": 365,
+    # Extra field names to treat as "should be unique", e.g. ["external_id"].
+    "DUPLICATE_FIELDS": [],
 }
 
 #: Values that must be one of a fixed set.
@@ -142,6 +206,14 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "NAV_UNLISTED": ("append", "hide"),
     "TENANT_UNSCOPED": ("deny", "allow"),
     "RELATION_PICKER": ("always", "threshold"),
+}
+
+#: Values that must be a whole number of at least this much. Checked rather than
+#: coerced: ``"10"`` in a settings file is a typo for ``10``, and an undo window that
+#: silently became zero would be an undo that silently stopped existing.
+MINIMUMS: dict[str, int] = {
+    "UNDO_WINDOW": 0,
+    "UNDO_MAX_ROWS": 1,
 }
 
 
@@ -178,7 +250,34 @@ class VantageSettings:
                     f"VANTAGE['{key}'] must be one of {', '.join(allowed)}; got {value!r}."
                 )
 
+        tiles = user.get("MAP_TILE_URL")
+        if tiles is not None and (
+            not isinstance(tiles, str) or not all(part in tiles for part in ("{z}", "{x}", "{y}"))
+        ):
+            raise ImproperlyConfigured(
+                "VANTAGE['MAP_TILE_URL'] must be a URL template containing {z}, {x} and {y}, "
+                f"or None; got {tiles!r}."
+            )
+
+        from vantage.presets import validate_ui_themes
+
+        problems = validate_ui_themes(
+            user.get("UI_THEMES", DEFAULTS["UI_THEMES"]), user.get("UI_THEME", DEFAULTS["UI_THEME"])
+        )
+        if problems:
+            raise ImproperlyConfigured("Invalid UI theme settings:\n  " + "\n  ".join(problems))
+
+        for key, floor in MINIMUMS.items():
+            value = user.get(key, DEFAULTS[key])
+            if isinstance(value, bool) or not isinstance(value, int) or value < floor:
+                raise ImproperlyConfigured(
+                    f"VANTAGE['{key}'] must be a whole number of at least {floor}; got {value!r}."
+                )
+
+        _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
+
         resolved = {**DEFAULTS, **user}
+        resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
 
         # The database layer goes *under* attribute access rather than beside it, so
         # every existing ``vantage_settings.X`` picks up a UI override without knowing
@@ -186,7 +285,12 @@ class VantageSettings:
         # module is imported before the app registry is populated.
         from vantage.siteconfig import database_overrides
 
-        resolved.update(database_overrides())
+        overrides = database_overrides()
+        resolved.update(overrides)
+        # Remembered because "BRAND_COLOR is #6366f1" cannot tell an owner who chose it
+        # from one who never chose anything, and a UI theme preset may only supply its
+        # own primary in the second case.
+        resolved["_explicit"] = frozenset(user) | frozenset(overrides)
 
         # Derived values. Each is computed only when the user left it unset, so an
         # explicit value always wins.
@@ -203,11 +307,54 @@ class VantageSettings:
             raise AttributeError(f"{name!r} is not a Vantage setting.")
         return self._resolve()[name]
 
+    def is_explicit(self, name: str) -> bool:
+        """Whether the owner set ``name`` (in ``VANTAGE`` or the settings screen)."""
+        return name in self._resolve()["_explicit"]
+
     def as_dict(self) -> dict[str, Any]:
-        return dict(self._resolve())
+        return {k: v for k, v in self._resolve().items() if not k.startswith("_")}
 
     def reset(self) -> None:
         self._cache = None
+
+
+def _resolve_data_quality(value: Any) -> dict[str, Any]:
+    """Merge ``VANTAGE["DATA_QUALITY"]`` over its defaults, rejecting unknown keys."""
+    if value is None:
+        value = {}
+    if not isinstance(value, dict):
+        raise ImproperlyConfigured(
+            f"VANTAGE['DATA_QUALITY'] must be a dict, got {type(value).__name__}."
+        )
+    unknown = sorted(set(value) - set(DATA_QUALITY_DEFAULTS))
+    if unknown:
+        lines = []
+        for key in unknown:
+            close = difflib.get_close_matches(key, DATA_QUALITY_DEFAULTS, n=1, cutoff=0.6)
+            hint = f" Did you mean {close[0]!r}?" if close else ""
+            lines.append(f"  {key!r} is not a DATA_QUALITY setting.{hint}")
+        raise ImproperlyConfigured(
+            "Unrecognised key(s) in VANTAGE['DATA_QUALITY']:\n" + "\n".join(lines)
+        )
+    return {**DATA_QUALITY_DEFAULTS, **value}
+
+
+def _validate_sensitive_patterns(value: Any) -> None:
+    """A list of words, optionally with ``"..."`` meaning "and the defaults".
+
+    Rejected loudly rather than coerced: a bare string would otherwise be iterated a
+    character at a time and mask every column with an ``a`` in its name, and a typo'd
+    type that silently disabled masking is worse.
+    """
+    if value is None:
+        return
+    if not isinstance(value, list | tuple) or any(
+        not (entry is Ellipsis or (isinstance(entry, str) and entry.strip())) for entry in value
+    ):
+        raise ImproperlyConfigured(
+            "VANTAGE['SENSITIVE_PATTERNS'] must be a list of field-name words, optionally "
+            f'including "..." to keep the built-in ones; got {value!r}.'
+        )
 
 
 def _unknown_key_message(unknown: list[str]) -> str:

@@ -110,7 +110,7 @@ value.
 
 ### The built-in pages
 
-Two pages are registered by the app config rather than left for projects to add,
+Four pages are registered by the app config rather than left for projects to add,
 because they are only useful if they are always there — one you have to switch on is one
 you never remember exists.
 
@@ -118,8 +118,10 @@ you never remember exists.
 |---|---|---|
 | Schema | `/_/schema/` | anyone who can reach the panel |
 | System | `/_/health/` | superusers only |
+| Data quality | `/_/data-quality/` | superusers, unless `DATA_QUALITY["PERMISSION"]` widens it — see [Data quality](data-quality.md) |
+| Roles | `/_/roles/` | superusers, unless `ROLES_PERMISSION` widens it; only with `django.contrib.auth` — see [Roles](roles.md) |
 
-Both register **before** autodiscovery, so a project can unregister or replace one from
+All four register **before** autodiscovery, so a project can unregister or replace one from
 its own `panel.py`.
 
 The **schema map** is derived from the registry at request time, so it is always

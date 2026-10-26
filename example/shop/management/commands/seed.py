@@ -44,6 +44,24 @@ PLACES = [
     ("Bremen", "DE"), ("Valencia", "ES"), ("Bilbao", "ES"), ("Utrecht", "NL"),
 ]
 
+#: City centres for the map view. Each customer is placed near their city with a small,
+#: deterministic offset, so a city reads as a cluster rather than one stacked dot.
+COORDINATES = {
+    "Bristol": (51.4545, -2.5879), "Leeds": (53.8008, -1.5491),
+    "Glasgow": (55.8642, -4.2518), "Cork": (51.8985, -8.4756),
+    "Galway": (53.2707, -9.0568), "Lyon": (45.7640, 4.8357),
+    "Nantes": (47.2184, -1.5536), "Leipzig": (51.3397, 12.3731),
+    "Bremen": (53.0793, 8.8017), "Valencia": (39.4699, -0.3763),
+    "Bilbao": (43.2630, -2.9350), "Utrecht": (52.0907, 5.1214),
+}
+
+#: One colour per top-level category for the generated product pictures.
+PICTURE_COLOURS = {
+    "Beverages": ((120, 72, 44), (214, 170, 120)),
+    "Pantry": ((52, 110, 74), (180, 214, 160)),
+    "Equipment": ((40, 78, 120), (160, 196, 230)),
+}
+
 CATEGORY_TREE = {
     "Beverages": ["Coffee", "Tea"],
     "Pantry": ["Baking", "Preserves"],
@@ -134,6 +152,11 @@ class Command(BaseCommand):
             customers = self._customers(rng)
             orders = self._orders(rng, customers, products)
             reviews = self._reviews(rng, customers, products)
+            # After everything that draws from ``rng``, and with their own generator,
+            # so adding them did not reshuffle a single order in the existing demo.
+            self._locations(customers)
+            self._pictures(products)
+            self._roles()
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -153,6 +176,37 @@ class Command(BaseCommand):
         """
         self._account("admin", "admin@example.com", "admin12345", superuser=True)
         self._account("editor", "editor@example.com", "editor12345", superuser=False)
+
+    @staticmethod
+    def _roles():
+        """Two roles, so the Roles screen has something to show and to edit.
+
+        ``permissions.set`` rather than ``add``, so re-seeding puts a role back to
+        exactly this after someone has been trying the matrix out.
+        """
+        from django.contrib.auth.models import Group, Permission
+
+        def perms(*pairs):
+            return [
+                Permission.objects.get(content_type__app_label="shop", codename=f"{verb}_{model}")
+                for model, verbs in pairs
+                for verb in verbs
+            ]
+
+        catalogue, _ = Group.objects.get_or_create(name="Catalogue editors")
+        catalogue.permissions.set(
+            perms(
+                ("product", ("view", "add", "change")),
+                ("category", ("view", "add", "change")),
+                ("tag", ("view", "add", "change", "delete")),
+                ("review", ("view", "change")),
+            )
+        )
+        support, _ = Group.objects.get_or_create(name="Support")
+        support.permissions.set(
+            perms(("customer", ("view",)), ("order", ("view", "change")), ("orderitem", ("view",)))
+        )
+        get_user_model().objects.get(username="editor").groups.add(catalogue)
 
     @staticmethod
     def _account(username, email, password, *, superuser):
@@ -259,6 +313,53 @@ class Command(BaseCommand):
             )
             customers.append(customer)
         return customers
+
+    @staticmethod
+    def _locations(customers):
+        """Coordinates for the map view, filled in only where they are missing."""
+        jitter = random.Random(SEED + 1)
+        for customer in customers:
+            if customer.latitude is not None or customer.city not in COORDINATES:
+                continue
+            lat, lng = COORDINATES[customer.city]
+            customer.latitude = round(lat + jitter.uniform(-0.06, 0.06), 5)
+            customer.longitude = round(lng + jitter.uniform(-0.09, 0.09), 5)
+            customer.save(update_fields=["latitude", "longitude"])
+
+    def _pictures(self, products):
+        """A generated picture per product, for the gallery view. Needs Pillow.
+
+        Drawn rather than shipped, so the repository carries no binary assets and the
+        demo still runs — with file chips instead of pictures — where Pillow is absent.
+        """
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:  # pragma: no cover - Pillow is optional
+            self.stdout.write("Pillow is not installed; products get no pictures.")
+            return
+
+        from io import BytesIO
+
+        from django.core.files.base import ContentFile
+
+        for product in products:
+            if product.image:
+                continue
+            parent = product.category.parent or product.category
+            dark, light = PICTURE_COLOURS.get(parent.name, ((80, 80, 80), (200, 200, 200)))
+            picture = Image.new("RGB", (480, 360), light)
+            draw = ImageDraw.Draw(picture)
+            for step in range(12):
+                inset = step * 14
+                shade = tuple(int(d + (l - d) * step / 12) for d, l in zip(dark, light))
+                draw.rounded_rectangle(
+                    (inset, inset, 480 - inset, 360 - inset), radius=24, fill=shade
+                )
+            initials = "".join(word[0] for word in product.name.split()[:2]).upper()
+            draw.text((240, 180), initials, fill=(255, 255, 255), anchor="mm", font_size=120)
+            buffer = BytesIO()
+            picture.save(buffer, format="PNG")
+            product.image.save(f"{product.sku.lower()}.png", ContentFile(buffer.getvalue()))
 
     # ── activity ────────────────────────────────────────────────────────────
 

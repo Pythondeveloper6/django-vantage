@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.core.checks import Error
+from django.core.checks import Error, Warning
 
 from vantage.introspection import resolve_path
 
@@ -45,7 +45,12 @@ class ModelPanelChecks:
             *self._check_layout(panel),
             *self._check_list_select_related(panel),
             *self._check_related_tabs(panel),
+            *self._check_data_quality(panel),
+            *self._check_undo(panel),
             *self._check_removed(panel),
+            *self._check_list_views(panel),
+            *self._check_sensitive_fields(panel),
+            *self._check_sensitive_lookups(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -244,6 +249,52 @@ class ModelPanelChecks:
             )
         ]
 
+    def _check_data_quality(self, panel: ModelPanel) -> list[Error]:
+        """``data_quality`` is False, None, or a list of real check names."""
+        value = panel.data_quality
+        if value is None or isinstance(value, bool):
+            return [] if value is not True else self._dq_error(panel, value)
+        if not isinstance(value, list | tuple):
+            return self._dq_error(panel, value)
+        from vantage.dataquality import get_checks
+
+        known = {c.name for c in get_checks()}
+        unknown = [n for n in value if n not in known]
+        if not unknown:
+            return []
+        return [
+            Error(
+                f"'data_quality' names unknown check(s) {unknown!r} on {panel.opts.label}.",
+                hint=f"Known checks: {', '.join(sorted(known))}.",
+                obj=type(panel),
+                id="vantage.E063",
+            )
+        ]
+
+    def _dq_error(self, panel: ModelPanel, value) -> list[Error]:
+        return [
+            Error(
+                f"'data_quality' must be False, None or a list of check names; got {value!r}.",
+                hint="False leaves the model out of the audit; a list skips those checks.",
+                obj=type(panel),
+                id="vantage.E063",
+            )
+        ]
+
+    def _check_undo(self, panel: ModelPanel) -> list[Error]:
+        """``undo`` is tri-state like ``related_tabs``; anything else is a typo."""
+        value = getattr(panel, "undo", None)
+        if value is None or isinstance(value, bool):
+            return []
+        return [
+            Error(
+                f"'undo' must be True, False or None; got {value!r}.",
+                hint="None follows VANTAGE['UNDO_WINDOW']; False turns undo off for this model.",
+                obj=type(panel),
+                id="vantage.E077",
+            )
+        ]
+
     def _check_removed(self, panel: ModelPanel) -> list[Error]:
         """Fail loudly on an attribute that no longer exists.
 
@@ -262,3 +313,207 @@ class ModelPanelChecks:
                     )
                 )
         return errors
+
+    # ── list views ──────────────────────────────────────────────────────────
+
+    def _check_list_views(self, panel: ModelPanel) -> list[Error]:
+        """``list_views`` and the fields each view is arranged by (E070 to E076).
+
+        Run against what is *declared*, field by field, so a typo in ``kanban_field``
+        is reported even when ``list_views`` is left to inference — where the panel
+        would otherwise just quietly lose its board.
+        """
+        from django.db import models
+
+        from vantage.listviews import MODES
+        from vantage.listviews.inference import KANBAN_MAX_COLUMNS, is_point_field, kanban_field_ok
+        from vantage.listviews.kanban import local_field
+
+        errors: list[Error] = []
+
+        def error(message: str, ident: str, hint: str | None = None) -> None:
+            errors.append(Error(message, hint=hint, obj=type(panel), id=ident))
+
+        if panel.kanban_field is not None:
+            field = local_field(panel.model, panel.kanban_field)
+            if field is None or not kanban_field_ok(field):
+                error(
+                    f"'kanban_field' is {panel.kanban_field!r}, which is not a field on "
+                    f"{panel.opts.label} with between 2 and {KANBAN_MAX_COLUMNS} choices, "
+                    "or a BooleanField.",
+                    "vantage.E072",
+                    "A board needs one column per value, so the values have to be few and known.",
+                )
+        if panel.calendar_field is not None:
+            field = local_field(panel.model, panel.calendar_field)
+            if not isinstance(field, models.DateField):
+                error(
+                    f"'calendar_field' is {panel.calendar_field!r}, which is not a DateField "
+                    f"or DateTimeField on {panel.opts.label}.",
+                    "vantage.E073",
+                )
+        if panel.gallery_field is not None:
+            field = local_field(panel.model, panel.gallery_field)
+            if not isinstance(field, models.FileField):
+                error(
+                    f"'gallery_field' is {panel.gallery_field!r}, which is not an ImageField "
+                    f"or FileField on {panel.opts.label}.",
+                    "vantage.E074",
+                )
+        if panel.map_fields is not None:
+            value = panel.map_fields
+            numbers = (models.FloatField, models.DecimalField)
+            if isinstance(value, str):
+                field = local_field(panel.model, value)
+                ok = field is not None and is_point_field(field)
+            else:
+                pair = list(value) if isinstance(value, list | tuple) else []
+                ok = len(pair) == 2 and all(
+                    isinstance(local_field(panel.model, name), numbers) for name in pair
+                )
+            if not ok:
+                error(
+                    f"'map_fields' is {value!r}, which is neither a PointField nor a "
+                    f"(latitude, longitude) pair of Float/Decimal fields on {panel.opts.label}.",
+                    "vantage.E075",
+                    'Write map_fields = ("latitude", "longitude") or name a PointField.',
+                )
+        for entry in panel.card_fields or ():
+            if not self._resolves(panel, entry):
+                errors.append(self._error(panel, "card_fields", entry, "vantage.E076"))
+
+        # The pickers' choices: each must be something the view could be arranged by,
+        # or the picker would offer a field that silently falls back to the default.
+        pickers = (
+            (
+                "kanban_fields",
+                "vantage.E078",
+                kanban_field_ok,
+                "a field with 2 to 12 choices, or a BooleanField",
+            ),
+            (
+                "calendar_fields",
+                "vantage.E079",
+                lambda f: isinstance(f, models.DateField),
+                "a DateField or DateTimeField",
+            ),
+        )
+        for attr, ident, ok, wanted in pickers:
+            declared = getattr(panel, attr)
+            if declared is None:
+                continue
+            if isinstance(declared, str) or not isinstance(declared, list | tuple):
+                error(f"'{attr}' must be a list of field names; got {declared!r}.", ident)
+                continue
+            for name in declared:
+                field = local_field(panel.model, name)
+                if field is None or not ok(field):
+                    error(
+                        f"'{attr}' includes {name!r}, which is not {wanted} on {panel.opts.label}.",
+                        ident,
+                    )
+
+        if panel.list_views is None:
+            return errors
+        if isinstance(panel.list_views, str) or not panel.list_views:
+            error(
+                '\'list_views\' must be a non-empty list, such as ["table", "kanban"].',
+                "vantage.E070",
+            )
+            return errors
+        for name in panel.list_views:
+            mode = MODES.get(name)
+            if mode is None:
+                error(
+                    f"'list_views' refers to {name!r}, which is not a list view.",
+                    "vantage.E070",
+                    f"Choose from: {', '.join(MODES)}.",
+                )
+            elif not mode.supports(panel):
+                error(
+                    f"'list_views' includes {name!r}, but {panel.opts.label} has no field "
+                    "that view can be arranged by.",
+                    "vantage.E071",
+                    f"Set '{_FIELD_ATTR.get(name, name)}' on the panel, or remove {name!r}.",
+                )
+        return errors
+
+    # ── sensitive values ────────────────────────────────────────────────────
+
+    def _check_sensitive_fields(self, panel: ModelPanel) -> list[Error]:
+        """``sensitive_fields`` must be a list of names the model actually has.
+
+        A typo here is the worst kind of silent: the field the author meant to mask is
+        printed in full, and nothing on the page says the declaration did nothing.
+        """
+        declared = panel.sensitive_fields
+        if declared is None:
+            return []
+        if isinstance(declared, str) or not isinstance(declared, list | tuple | set | frozenset):
+            return [
+                Error(
+                    f"'sensitive_fields' must be a list of field names; got {declared!r}.",
+                    hint="Use [] to switch masking off for this model.",
+                    obj=type(panel),
+                    id="vantage.E090",
+                )
+            ]
+        return [
+            Error(
+                f"'sensitive_fields' refers to {name!r}, which is not a field or "
+                f"attribute of {panel.opts.label}.",
+                hint="An unknown name masks nothing, so the field you meant is shown.",
+                obj=type(panel),
+                id="vantage.E090",
+            )
+            for name in declared
+            if not (resolve_path(panel.model, str(name)) or hasattr(panel.model, str(name)))
+        ]
+
+    def _check_sensitive_lookups(self, panel: ModelPanel) -> list[Warning]:
+        """A sensitive field the panel *explicitly* asked to search, filter or sort by.
+
+        Vantage drops it at request time either way — a search box over a secret is a
+        guessing oracle, a filter's row count is one, and so is a sort order — so this
+        is a warning that the declaration does nothing, not a vulnerability report.
+        Inferred configuration never includes one, which is why only declared
+        attributes are checked.
+        """
+        from vantage.sensitive import is_sensitive_path
+
+        declared = {
+            "list_search": panel.list_search,
+            "list_filter": panel.list_filter,
+            "ordering": panel.ordering,
+        }
+        if panel.search_fields is not None and panel.search_fields is panel.list_search:
+            declared["search_fields"] = declared.pop("list_search")
+
+        warnings: list[Warning] = []
+        for attr, entries in declared.items():
+            for entry in entries or ():
+                path = str(entry).lstrip("-^=@")
+                if path == "?" or not resolve_path(panel.model, path):
+                    continue
+                if is_sensitive_path(panel, path):
+                    warnings.append(
+                        Warning(
+                            f"{attr!r} lists {entry!r}, which is a sensitive field on "
+                            f"{panel.opts.label}; it is ignored there.",
+                            hint="Searching, filtering or sorting by a masked value would "
+                            "reveal it a guess at a time. Remove it, or take it out of "
+                            "masking with sensitive_fields if it is not actually secret.",
+                            obj=type(panel),
+                            id="vantage.W090",
+                        )
+                    )
+        return warnings
+
+
+#: The attribute that tells each view which field to use, for E071's hint.
+_FIELD_ATTR = {
+    "kanban": "kanban_field",
+    "calendar": "calendar_field",
+    "gallery": "gallery_field",
+    "map": "map_fields",
+}

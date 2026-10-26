@@ -149,6 +149,17 @@ class TestSaving:
         body = client_in.get(reverse("vantage:dashboard")).content.decode()
         assert "Acme Admin" in body
 
+    def test_saving_a_site_default_look(self, client_in):
+        client_in.post(url(), payload(ui_theme="slate", ui_theme_toggle="false"))
+        row = SiteConfiguration.objects.get(pk=1)
+        assert row.ui_theme == "slate"
+        assert row.ui_theme_toggle is False
+
+    def test_the_look_is_a_select_of_the_registered_presets(self, client_in):
+        body = client_in.get(url()).content.decode()
+        assert 'name="ui_theme"' in body
+        assert '<option value="shadcn">' in body
+
     def test_saving_a_colour_changes_the_rendered_theme(self, client_in):
         """The point of the whole feature, asserted on the bytes the browser receives."""
         before = client_in.get(reverse("vantage:dashboard")).content.decode()

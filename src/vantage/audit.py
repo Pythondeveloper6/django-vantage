@@ -17,11 +17,13 @@ is the row history we just declined to build, minus the actor, at the same cost.
 Entries are written from the two places a person's intent is actually known: the form
 views and the bulk-action runner.
 
-**The diff never carries a secret and never carries a file.** Field names are matched
-against :data:`vantage.inference.SENSITIVE` — the same pattern that keeps a password
-column out of a list page, imported rather than restated so the two can never drift
-apart — and a file field records the *name* it was given, never a byte of its
-contents. An audit log is read by more people than the records it describes.
+**The diff never carries a secret and never carries a file.** A sensitive field — the
+same answer :mod:`vantage.sensitive` gives every other surface, including a panel's
+own ``sensitive_fields`` — is recorded as having changed and never with its value, and
+a file field records the *name* it was given, never a byte of its contents. An audit
+log is read by more people than the records it describes. The rule is applied twice:
+when an entry is written, and again when one is displayed, so an entry written before a
+field was declared sensitive does not keep printing it.
 
 **Logging must never break the write it describes.** Every entry is written through
 :func:`record`, which catches everything, logs it and returns ``None``. It is also
@@ -44,7 +46,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from vantage.conf import vantage_settings
-from vantage.inference import SENSITIVE
 from vantage.models import VantageLogEntry
 
 __all__ = [
@@ -139,7 +140,7 @@ def _entry_kwargs(
         "content_type": _content_type(target),
         "object_id": "" if obj is None or obj.pk is None else _clip(str(obj.pk), 255),
         "object_repr": _clip(
-            object_repr if object_repr is not None else ("" if obj is None else str(obj)), 200
+            object_repr if object_repr is not None else ("" if obj is None else _repr(obj)), 200
         ),
         "changes": changes or {},
         "ip_address": _client_ip(request),
@@ -218,9 +219,10 @@ def diff_from_form(form) -> dict[str, dict[str, Any]]:
     they decided to change it. ``changed_data`` is Django's own answer to "what
     moved", so the diff cannot disagree with what was saved.
     """
+    sensitive = _form_sensitive(form)
     changes: dict[str, dict[str, Any]] = {}
     for name in getattr(form, "changed_data", ()):
-        if SENSITIVE.search(name):
+        if name in sensitive:
             # Recorded as having changed, never with its value. "Someone rotated the
             # API token at 14:02" is the useful half; the token is the dangerous half.
             changes[name] = {"redacted": True}
@@ -245,10 +247,12 @@ def snapshot(obj) -> dict[str, dict[str, Any]]:
     row that no longer exists.
     """
     from vantage.introspection import concrete_fields
+    from vantage.sensitive import sensitive_names
 
+    sensitive = sensitive_names(obj)
     values: dict[str, dict[str, Any]] = {}
     for field in concrete_fields(type(obj)):
-        if SENSITIVE.search(field.name):
+        if field.name in sensitive:
             continue
         if isinstance(field, models.FileField):
             # The name, never the bytes: an audit row is not a place to copy a file to.
@@ -257,6 +261,30 @@ def snapshot(obj) -> dict[str, dict[str, Any]]:
             continue
         values[field.name] = {"from": _jsonify(getattr(obj, field.attname, None))}
     return values
+
+
+def _form_sensitive(form) -> frozenset[str]:
+    """The sensitive names for a form: what build_form_class stamped on it, else inferred.
+
+    A form built by :func:`vantage.widgets.build_form_class` carries its panel's answer.
+    Anything else — a test's hand-built form, a third-party one — falls back to the
+    model's answer, and then to the name vocabulary for fields the model does not have.
+    """
+    from vantage.sensitive import name_is_sensitive, sensitive_names
+
+    stamped = getattr(form, "vantage_sensitive_fields", None)
+    if stamped is not None:
+        return frozenset(stamped)
+    model = getattr(getattr(form, "_meta", None), "model", None)
+    names = set(sensitive_names(model)) if model is not None else set()
+    names.update(name for name in getattr(form, "fields", {}) if name_is_sensitive(name))
+    return frozenset(names)
+
+
+def _repr(obj) -> str:
+    from vantage.sensitive import safe_str
+
+    return safe_str(obj)
 
 
 def _jsonify(value: Any) -> Any:
@@ -275,7 +303,7 @@ def _jsonify(value: Any) -> Any:
     if isinstance(value, UUID):
         return str(value)
     if isinstance(value, models.Model):
-        return _clip(str(value), MAX_VALUE_CHARS)
+        return _clip(_repr(value), MAX_VALUE_CHARS)
     if hasattr(value, "name") and hasattr(value, "url"):  # FieldFile / UploadedFile
         return _clip(str(getattr(value, "name", "")), MAX_VALUE_CHARS)
     if hasattr(value, "all"):  # a manager or queryset, from an m2m field

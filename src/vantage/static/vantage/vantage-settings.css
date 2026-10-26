@@ -125,7 +125,7 @@
   inline-size: 2.5rem;
   block-size: 1.75rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
 }
 
 /* A palette is abstract until something is wearing it. */
@@ -135,7 +135,7 @@
   gap: 0.75rem;
   flex-wrap: wrap;
   padding: 0.75rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--muted);
 }
@@ -188,7 +188,7 @@
 }
 
 .v-navedit-group {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--card);
 }
@@ -303,7 +303,7 @@
   flex: none;
   inline-size: 1.5rem;
   block-size: 1.5rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--background);
   color: var(--foreground);
@@ -370,7 +370,7 @@
   gap: 0.625rem;
   padding: 0.625rem;
   margin-block-start: 0.375rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--background);
 }
@@ -413,7 +413,7 @@
 }
 
 .v-navedit-fieldset {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.75rem;
   display: grid;

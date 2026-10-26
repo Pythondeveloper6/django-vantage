@@ -28,14 +28,22 @@ the count shown at selection time.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
+from django.db import router, transaction
 from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext, ngettext_lazy
 
-__all__ = ["Action", "ActionResult", "Selection", "action", "resolve_actions"]
+__all__ = [
+    "Action",
+    "ActionResult",
+    "Selection",
+    "action",
+    "delete_selected",
+    "resolve_actions",
+]
 
 
 @dataclass(frozen=True)
@@ -45,6 +53,13 @@ class ActionResult:
     message: str
     level: str = "success"  # success | info | warning | error
     redirect: str | None = None
+    #: For an action declared with ``@action(undo=…)``: anything JSON-serialisable the
+    #: undo hook will need, such as the ids it touched and what they were. Returning
+    #: ``None`` (the default) means this run offers no undo.
+    undo_state: Any = None
+    #: A ready :class:`vantage.undo.UndoPlan`. Set by the built-in actions and by
+    #: ``undo_fields``; a custom action normally uses ``undo_state`` instead.
+    undo: Any = None
 
 
 @dataclass
@@ -74,6 +89,14 @@ class Action:
     #: request; an instance action over 1,001 does not.
     bulk_strategy: str = "instances"
     keywords: list[str] = field(default_factory=list)
+    #: Fields this action writes, for an automatic undo: their values are recorded
+    #: before and after the run, and Undo restores the "before" — only on rows that
+    #: still hold the "after". The simplest correct undo for an update-style action.
+    undo_fields: list[str] | None = None
+    #: A hook for anything ``undo_fields`` cannot express: a panel method name or a
+    #: callable ``(panel, request, state)``, called with the action's ``undo_state``
+    #: inside a transaction. Raise :class:`vantage.undo.UndoConflict` to refuse.
+    undo: Callable | str | None = None
 
     def needs_confirmation(self) -> bool:
         return self.destructive or self.confirm is not None
@@ -88,7 +111,47 @@ class Action:
         ) % {"label": self.label, "count": count}
 
     def run(self, panel, request, queryset) -> ActionResult:
-        outcome = self.func(panel, request, queryset)
+        from vantage import undo
+
+        capture = None
+        # Counted before the run: an action that moves rows out of the page's filter
+        # would otherwise describe itself as having touched none of them.
+        hooked = self.undo is not None and undo.armed(request)
+        count = queryset.count() if hooked else 0
+        if self.undo_fields and undo.armed(request):
+            capture = undo.FieldCapture(panel.model, self.undo_fields, strategy=self.bulk_strategy)
+        if capture is None or not capture.active:
+            result = self._normalise(self.func(panel, request, queryset))
+        else:
+            # One transaction, so the rows recorded, the rows the action wrote and the
+            # values read back afterwards are the same rows in the same state.
+            with transaction.atomic(using=capture.db):
+                pinned = capture.lock(queryset)
+                result = self._normalise(self.func(panel, request, pinned))
+                capture.read_after()
+            if result.undo is None and result.level != "error":
+                result = replace(
+                    result,
+                    undo=capture.plan(
+                        panel, verb=self.permission or "view", what="action", label=self.label
+                    ),
+                )
+        if hooked and result.undo is None and result.undo_state is not None:
+            if result.level != "error":
+                summary, done = undo.describe(panel, count, "action", label=str(self.label))
+                result = replace(
+                    result,
+                    undo=undo.UndoPlan(
+                        model=panel.model,
+                        verb=self.permission or "view",
+                        summary=summary,
+                        done=done,
+                        steps=[{"kind": "custom", "action": self.name, "state": result.undo_state}],
+                    ),
+                )
+        return result
+
+    def _normalise(self, outcome) -> ActionResult:
         if isinstance(outcome, ActionResult):
             return outcome
         if outcome is None:
@@ -106,11 +169,18 @@ def action(
     max_rows: int | None = None,
     bulk_strategy: str = "instances",
     keywords: list[str] | None = None,
+    undo_fields: list[str] | None = None,
+    undo: Callable | str | None = None,
 ):
     """Mark a panel method as an action.
 
     Used bare or called: ``@action`` and ``@action("Mark as paid")`` both work, because
     forgetting the parentheses is the mistake everyone makes once.
+
+    An action offers Undo in its toast only when it says how: ``undo_fields=["status"]``
+    for the common update-style action, or ``undo="undo_mark_paid"`` naming a panel
+    method that receives the run's ``ActionResult.undo_state``. Nothing is inferred —
+    an action is arbitrary code, and guessing its inverse is how undo loses data.
     """
 
     def wrap(func: Callable) -> Callable:
@@ -123,6 +193,8 @@ def action(
             "max_rows": max_rows,
             "bulk_strategy": bulk_strategy,
             "keywords": keywords or [],
+            "undo_fields": list(undo_fields) if undo_fields else None,
+            "undo": undo,
         }
         return func
 
@@ -219,6 +291,8 @@ def _from_patterns(panel) -> list[Action]:
                 icon="check" if name == "publish" else "x",
                 permission="change",
                 bulk_strategy="sql",
+                # Exactly reversible: one column, written by one UPDATE.
+                undo_fields=[pattern.field],
             )
         )
     return built
@@ -243,7 +317,9 @@ def _build(panel, entry: Any) -> Action | None:
 
     func = entry if callable(entry) else getattr(type(panel), str(entry), None)
     if func is None:
-        return None
+        # A built-in, reachable by name only when the panel has nothing of its own
+        # called that — a panel method always wins.
+        return BUILTIN_ACTIONS.get(str(entry))
 
     meta = getattr(func, "vantage_action", None)
     if meta is None:
@@ -257,8 +333,128 @@ def _build(panel, entry: Any) -> Action | None:
             "max_rows": None,
             "bulk_strategy": "instances",
             "keywords": [],
+            "undo_fields": None,
+            "undo": None,
         }
     return Action(func=func, name=getattr(func, "__name__", str(entry)), **meta)
+
+
+# ── built-in actions ────────────────────────────────────────────────────────
+
+
+def _delete_selected(panel, request, queryset) -> ActionResult:
+    """Delete the selection: into the trash where the model has one, for good otherwise.
+
+    The same two outcomes the single-record Delete page has, so the bulk bar cannot
+    destroy what the per-row button would only have trashed. Rows already in the trash
+    are destroyed — that is what Delete means inside a trash. Everything runs in one
+    transaction: a ``PROTECT`` reference on one row leaves every row as it was.
+    """
+    from django.db.models.deletion import ProtectedError, RestrictedError
+
+    from vantage import undo
+
+    model = panel.model
+    pattern = panel.get_patterns().soft_delete
+    db = router.db_for_write(model)
+    wants_undo = undo.armed(request)
+    if pattern is not None:
+        live = list(queryset.filter(pattern.live).order_by().values_list("pk", flat=True))
+        dead = list(queryset.filter(pattern.trashed).order_by().values_list("pk", flat=True))
+    else:
+        live, dead = [], list(queryset.order_by().values_list("pk", flat=True))
+
+    steps: list[dict] = []
+    reversible = True
+    trashed = destroyed = related = 0
+    try:
+        with transaction.atomic(using=db):
+            if live:
+                trashed, step = undo.soft_delete(
+                    panel, model._base_manager.using(db).filter(pk__in=live), capture=wants_undo
+                )
+                if step is None:
+                    reversible = False
+                else:
+                    steps.append(step)
+            if dead:
+                outcome = undo.delete(panel, _deletable(model, db, dead), request=request)
+                destroyed = outcome.per_model.get(model._meta.label, 0)
+                related = max(outcome.total - destroyed, 0)
+                if outcome.step is None:
+                    reversible = False
+                else:
+                    steps.append(outcome.step)
+    except (ProtectedError, RestrictedError) as exc:
+        blockers = sorted({str(obj._meta.verbose_name_plural) for obj in exc.args[1]})
+        return ActionResult(
+            _("Nothing was deleted: %(blockers)s still depend on some of these records.")
+            % {"blockers": ", ".join(blockers)},
+            level="error",
+        )
+
+    one, many = str(panel.get_label()).lower(), str(panel.get_label_plural()).lower()
+    parts = []
+    if trashed:
+        parts.append(
+            ngettext(
+                "Moved %(count)s %(model)s to the trash.",
+                "Moved %(count)s %(models)s to the trash.",
+                trashed,
+            )
+            % {"count": trashed, "model": one, "models": many}
+        )
+    if destroyed and related:
+        parts.append(
+            ngettext(
+                "Deleted %(count)s %(model)s and %(related)s related records.",
+                "Deleted %(count)s %(models)s and %(related)s related records.",
+                destroyed,
+            )
+            % {"count": destroyed, "model": one, "models": many, "related": related}
+        )
+    elif destroyed:
+        parts.append(
+            ngettext("Deleted %(count)s %(model)s.", "Deleted %(count)s %(models)s.", destroyed)
+            % {"count": destroyed, "model": one, "models": many}
+        )
+    message = " ".join(parts) or _("Nothing was deleted.")
+
+    plan = None
+    if wants_undo and reversible and steps:
+        summary, done = undo.describe(panel, trashed + destroyed, "delete")
+        plan = undo.UndoPlan(model=model, verb="delete", summary=summary, done=done, steps=steps)
+    return ActionResult(message, undo=plan)
+
+
+def _deletable(model, db, pks):
+    """The queryset a hard delete runs on.
+
+    The default manager's own queryset class when it overrides ``delete()`` — the
+    project's delete has to be the one that runs — and the base manager otherwise, so a
+    default manager that hides trashed rows cannot hide the very rows being purged.
+    """
+    default = model._default_manager.db_manager(db).all()
+    if type(default).delete is not QuerySet.delete:
+        return default.filter(pk__in=pks)
+    return model._base_manager.using(db).filter(pk__in=pks)
+
+
+#: ``actions = ["delete_selected", …]`` on a panel. Opt-in, like Django admin's
+#: action of the same name is not: a bulk delete appearing on every list of every
+#: project the day it upgrades is a change nobody asked for.
+delete_selected = Action(
+    func=_delete_selected,
+    name="delete_selected",
+    label=_("Delete"),
+    icon="trash",
+    permission="delete",
+    destructive=True,
+    bulk_strategy="instances",
+    keywords=["remove", "trash", "destroy"],
+)
+
+BUILTIN_ACTIONS: dict[str, Action] = {"delete_selected": delete_selected}
 
 
 # ── selection ───────────────────────────────────────────────────────────────

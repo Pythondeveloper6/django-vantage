@@ -1,0 +1,165 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+{% include "vantage/roles/_header.html" %}
+
+{% if conflict %}
+  <div class="v-form-alert" data-tone="warning" role="alert">
+    <p class="v-form-alert-title">{% translate "Someone else changed this role while you were editing it." %}</p>
+    <p>
+      {% blocktranslate trimmed %}
+        Nothing was saved. Their changes are shown below, with yours re-applied on top —
+        review the result and save again.
+      {% endblocktranslate %}
+    </p>
+    {% if conflict.added %}<p><strong>{% translate "They granted:" %}</strong> <span class="v-mono">{{ conflict.added|join:", " }}</span></p>{% endif %}
+    {% if conflict.removed %}<p><strong>{% translate "They revoked:" %}</strong> <span class="v-mono">{{ conflict.removed|join:", " }}</span></p>{% endif %}
+  </div>
+{% endif %}
+
+{% if partial_reach %}
+  <p class="v-roles-note" id="v-roles-locked-note">
+    {% icon "shield" %}
+    <span>{% translate "Greyed-out boxes are permissions you do not hold yourself. You cannot grant or revoke them." %}</span>
+  </p>
+{% endif %}
+
+<form class="v-roles-form" method="post" action="{% url 'vantage:role-edit' group.pk %}"
+      data-roles-matrix data-role-name="{{ group.name }}">
+  {% csrf_token %}
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="base" value="{{ base_ids }}">
+
+  <div class="v-roles-toolbar">
+    <label class="v-roles-filter">
+      <span class="v-sr-only">{% translate "Filter models and permissions" %}</span>
+      {% icon "search" %}
+      <input class="v-input v-input-sm" type="search" data-roles-filter
+             placeholder="{% translate 'Filter models or permissions…' %}" autocomplete="off">
+    </label>
+    {% if has_unregistered %}
+      <label class="v-roles-toggle">
+        <input type="checkbox" data-roles-hide-other>
+        <span>{% translate "Hide models not in this panel" %}</span>
+      </label>
+    {% endif %}
+    <span class="v-roles-js-only v-roles-fold">
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-roles-expand>{% translate "Expand all" %}</button>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm" data-roles-collapse>{% translate "Collapse all" %}</button>
+    </span>
+    {% if can_change %}
+      <span class="v-roles-spacer"></span>
+      <output class="v-roles-diff v-roles-js-only" data-roles-diff aria-live="polite">{% translate "No changes" %}</output>
+      <button type="button" class="v-btn v-btn-ghost v-btn-sm v-roles-js-only" data-roles-reset disabled>{% icon "rotate-ccw" %}<span>{% translate "Reset" %}</span></button>
+      <button type="submit" class="v-btn v-btn-primary v-btn-sm" data-roles-review>{% icon "check" %}<span>{% translate "Review & save" %}</span></button>
+    {% endif %}
+  </div>
+
+  <p class="v-roles-empty" data-roles-nomatch hidden>{% translate "No model or permission matches that filter." %}</p>
+
+  <div class="v-table-wrap v-roles-wrap">
+    <table class="v-table v-roles-matrix" data-roles-grid
+           aria-label="{% blocktranslate with name=group.name %}Permissions granted by {{ name }}{% endblocktranslate %}">
+      <thead>
+        <tr>
+          <th scope="col" class="v-roles-model-col">
+            <label class="v-roles-hcell">
+              <input type="checkbox" class="v-roles-tri v-roles-js-only" data-roles-scope="all"
+                     aria-label="{% translate 'Every permission shown' %}"{% if not can_change %} disabled{% endif %}>
+              <span>{% translate "Model" %}</span>
+            </label>
+          </th>
+          {% for action in actions %}
+            <th scope="col" class="v-roles-col">
+              <label class="v-roles-hcell">
+                <input type="checkbox" class="v-roles-tri v-roles-js-only" data-roles-scope="col" data-action="{{ action }}"
+                       aria-label="{% blocktranslate with verb=action %}Every “{{ verb }}” permission shown{% endblocktranslate %}"{% if not can_change %} disabled{% endif %}>
+                <span>{% if action == "view" %}{% translate "View" %}{% elif action == "add" %}{% translate "Add" %}{% elif action == "change" %}{% translate "Change" %}{% else %}{% translate "Delete" %}{% endif %}</span>
+              </label>
+            </th>
+          {% endfor %}
+          <th scope="col" class="v-roles-other-col">{% translate "Other" context "custom permissions column" %}</th>
+        </tr>
+      </thead>
+      {% for section in sections %}
+        <tbody class="v-roles-app" data-roles-section="{{ section.key }}"{% if section.unregistered %} data-roles-unregistered{% endif %}>
+          <tr class="v-roles-app-row">
+            <th scope="colgroup" colspan="6">
+              <div class="v-roles-app-head">
+                <button type="button" class="v-roles-disclose v-roles-js-only" aria-expanded="true"
+                        aria-controls="v-roles-rows-{{ forloop.counter }}" data-roles-disclose>
+                  {% icon "chevron-right" %}
+                  <span class="v-sr-only">{% blocktranslate with app=section.label %}Show or hide {{ app }}{% endblocktranslate %}</span>
+                </button>
+                <label class="v-roles-hcell">
+                  <input type="checkbox" class="v-roles-tri v-roles-js-only" data-roles-scope="app"
+                         aria-label="{% blocktranslate with app=section.label %}Every permission in {{ app }}{% endblocktranslate %}"{% if not can_change %} disabled{% endif %}>
+                  <span class="v-roles-app-name">{{ section.label }}</span>
+                </label>
+                {% if section.unregistered %}<span class="v-badge">{% translate "not in this panel" %}</span>{% endif %}
+                <span class="v-roles-count" data-roles-count>{{ section.checked }} / {{ section.total }}</span>
+              </div>
+            </th>
+          </tr>
+        </tbody>
+        <tbody class="v-roles-rows" id="v-roles-rows-{{ forloop.counter }}" data-roles-rows="{{ section.key }}"{% if section.unregistered %} data-roles-unregistered{% endif %}>
+          {% for row in section.rows %}
+            <tr data-roles-row data-search="{{ row.search }}">
+              <th scope="row" class="v-roles-model">
+                <label class="v-roles-hcell">
+                  <input type="checkbox" class="v-roles-tri v-roles-js-only" data-roles-scope="row"
+                         aria-label="{% blocktranslate with model=row.label %}Every permission on {{ model }}{% endblocktranslate %}"{% if not can_change %} disabled{% endif %}>
+                  <span>{{ row.label }}</span>
+                </label>
+                {% if section.unregistered %}<span class="v-roles-app-tag v-mono">{{ row.app_label }}</span>{% endif %}
+              </th>
+              {% for action, cell in row.columns %}
+                <td class="v-roles-cell">
+                  {% if cell %}{% include "vantage/roles/_perm.html" %}{% else %}<span class="v-muted" aria-hidden="true">—</span>{% endif %}
+                </td>
+              {% endfor %}
+              <td class="v-roles-other">
+                {% for cell in row.other %}
+                  <label class="v-roles-chip" title="{{ row.app_label }}.{{ cell.codename }}">
+                    {% with action="other" %}{% include "vantage/roles/_perm.html" %}{% endwith %}
+                    <span>{{ cell.name }}</span>
+                  </label>
+                {% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% if can_change %}
+    <dialog class="v-roles-dialog" data-roles-dialog aria-labelledby="v-roles-review-title">
+      <h2 class="v-roles-dialog-title" id="v-roles-review-title">
+        {% blocktranslate with name=group.name %}Review changes to {{ name }}{% endblocktranslate %}
+      </h2>
+      <p class="v-muted" data-roles-review-summary></p>
+      <div class="v-roles-review">
+        <section>
+          <h3 class="v-roles-review-head" data-tone="success">{% translate "Granted" %} <span data-roles-added-count></span></h3>
+          <ul class="v-roles-review-list" data-roles-added></ul>
+        </section>
+        <section>
+          <h3 class="v-roles-review-head" data-tone="destructive">{% translate "Revoked" %} <span data-roles-removed-count></span></h3>
+          <ul class="v-roles-review-list" data-roles-removed></ul>
+        </section>
+      </div>
+      <div class="v-roles-dialog-actions">
+        <button type="button" class="v-btn v-btn-ghost" data-roles-cancel>{% translate "Keep editing" %}</button>
+        <button type="button" class="v-btn v-btn-primary" data-roles-confirm>{% translate "Save changes" %}</button>
+      </div>
+    </dialog>
+  {% endif %}
+</form>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'vantage/vantage-roles.js' %}" defer></script>{% endblock %}

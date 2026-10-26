@@ -1,0 +1,76 @@
+{% load static i18n %}{% comment %}
+  The Kanban board. One column per value of the board's field, each a list of cards.
+
+  Moving a card has two ways in, and neither is the only one. Drag and drop for the
+  pointer, and a "Move to…" menu on every card for the keyboard, for touch screens
+  where HTML5 drag never fires, and for anybody who prefers to say where a card goes
+  rather than carry it there. The menu is a real form posting to the same endpoint, so
+  it works with JavaScript switched off; vantage-listviews.js upgrades it to a fetch.
+
+  Nothing about moving is drawn unless the server already said this person may move
+  cards — model-level change permission and a field the change form would let them
+  write. Each move is still checked again, per object, on the way in.
+{% endcomment %}
+<div class="v-board" data-kanban
+     data-kanban-field="{{ kanban_field }}"
+     {% if kanban_can_move %}data-kanban-move-url="{{ kanban_move_url }}"{% endif %}
+     aria-label="{% blocktranslate with label=panel.get_label_plural field=kanban_field_label|lower %}{{ label }} by {{ field }}{% endblocktranslate %}"
+     role="region">
+  {% csrf_token %}
+  <p class="v-sr-only" role="status" aria-live="polite" data-kanban-live></p>
+  {% if view_field.options or kanban_can_move %}
+    <div class="v-board-bar">
+      {% include "vantage/list_views/field_picker.html" %}
+      {% if kanban_can_move %}
+        <p class="v-board-hint v-muted">{% translate "Drag a card to another column, or use its “Move to” menu." %}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+  <div class="v-board-columns">
+    {% for column in kanban_columns %}
+      <section class="v-board-col" id="kanban-{{ column.slug }}" data-kanban-col
+               data-value="{{ column.key }}" aria-labelledby="kanban-{{ column.slug }}-title">
+        <header class="v-board-col-head">
+          <h2 class="v-board-col-title" id="kanban-{{ column.slug }}-title">
+            <span class="v-badge"{% if column.tone %} data-tone="{{ column.tone }}"{% endif %}>{{ column.label }}</span>
+          </h2>
+          <span class="v-board-count" data-kanban-count
+                aria-label="{% blocktranslate count counter=column.count %}{{ counter }} record{% plural %}{{ counter }} records{% endblocktranslate %}">{{ column.count }}</span>
+        </header>
+        <ol class="v-board-cards" data-kanban-cards>
+          {% for card in column.cards %}
+            <li class="v-board-card" data-kanban-card data-pk="{{ card.pk }}" data-version="{{ card.version }}"
+                {% if kanban_can_move %}draggable="true"{% endif %}>
+              <a class="v-board-card-title" href="{{ card.url }}">{{ card.title }}</a>
+              {% include "vantage/list_views/card_fields.html" %}
+              {% if kanban_can_move %}
+                <details class="v-board-move" data-kanban-menu>
+                  <summary class="v-board-move-trigger">
+                    {% translate "Move to…" %}<span class="v-sr-only"> {{ card.title }}</span>
+                  </summary>
+                  <form class="v-board-move-menu" method="post" action="{{ kanban_move_url }}" data-kanban-form>
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" value="{{ card.pk }}">
+                    <input type="hidden" name="version" value="{{ card.version }}">
+                    <input type="hidden" name="field" value="{{ kanban_field }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% for target in kanban_columns %}{% if target.key != column.key %}
+                      <button type="submit" class="v-board-move-option" name="value" value="{{ target.key }}">{{ target.label }}</button>
+                    {% endif %}{% endfor %}
+                  </form>
+                </details>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+        {% if not column.cards %}<p class="v-board-empty" data-kanban-empty>{% translate "Nothing here" %}</p>{% endif %}
+        {% if column.more_url %}
+          <a class="v-btn v-btn-ghost v-btn-sm v-board-more" href="{{ column.more_url }}#kanban-{{ column.slug }}">
+            {% blocktranslate count counter=column.remaining %}Show more ({{ counter }} hidden){% plural %}Show more ({{ counter }} hidden){% endblocktranslate %}
+          </a>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+</div>
+{% if kanban_can_move %}<script src="{% static 'vantage/vantage-listviews.js' %}" defer></script>{% endif %}

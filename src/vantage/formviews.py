@@ -26,7 +26,7 @@ from typing import Any
 
 from django import forms
 from django.contrib import messages
-from django.core.exceptions import FieldDoesNotExist, PermissionDenied
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db import DatabaseError, router, transaction
 from django.db.models.deletion import Collector, ProtectedError, RestrictedError
 from django.http import Http404, HttpResponseRedirect
@@ -36,6 +36,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
 from vantage import inlines
+from vantage.sensitive import is_hashed, safe_str, set_password_url
 from vantage.views import PanelView
 from vantage.widgets import FieldKind, build_form_class, classify, infer_form_fields, layout
 
@@ -125,7 +126,12 @@ def form_field_names(panel) -> list[str]:
 def form_editable_names(panel) -> list[str]:
     """The names a write may actually set. Everything else is not in the form at all."""
     readonly = set(panel.readonly_fields or ())
-    return [name for name in form_field_names(panel) if name not in readonly]
+    secret = panel.get_sensitive_fields()
+    return [
+        name
+        for name in form_field_names(panel)
+        if name not in readonly and not (name in secret and is_hashed(panel.model, name))
+    ]
 
 
 def save_form(
@@ -215,6 +221,19 @@ def object_denied_message(panel, action: str) -> str:
     return message % {"model": model}
 
 
+def get_by_pk_or_404(queryset, pk):
+    """``get_object_or_404`` that also answers 404 for a pk the field cannot parse.
+
+    Record routes take ``<path:pk>`` so string and composite keys work, which means
+    ``/1/change/`` arrives as the pk ``"1/change"``; an integer field raises
+    ``ValueError`` on it, and a guessed URL is not a server error.
+    """
+    try:
+        return get_object_or_404(queryset, pk=pk)
+    except (ValueError, TypeError, ValidationError) as exc:
+        raise Http404(str(exc)) from exc
+
+
 def get_record(request, panel, permissions, pk, action: str, *, include_trashed=False):
     """One row, scoped then authorised. The order is the whole point.
 
@@ -235,7 +254,7 @@ def get_record(request, panel, permissions, pk, action: str, *, include_trashed=
         if pattern is not None and pattern.manager_hides_trashed:
             base = panel.model._base_manager.all()
     queryset = permissions.filter_queryset(request, base, "view")
-    obj = get_object_or_404(queryset, pk=pk)
+    obj = get_by_pk_or_404(queryset, pk)
     if not permissions.has_object_perm(request, panel.model, action, obj):
         raise PermissionDenied(object_denied_message(panel, action))
     return obj
@@ -418,6 +437,9 @@ class PanelFormView(PanelView):
             "label": str(getattr(model_field, "verbose_name", name)).capitalize(),
             "value": render_cell(self.panel, self.object, name),
             "help_text": str(getattr(model_field, "help_text", "") or ""),
+            # A password hash is shown masked and never edited as text; this is the
+            # page that changes it instead.
+            "set_password_url": set_password_url(self.panel, self.object, name),
         }
 
     def get_success_url(self, obj) -> str:
@@ -470,7 +492,7 @@ class CreateView(PanelFormView):
     def get_success_message(self, obj) -> str:
         return _("Created %(model)s “%(object)s”.") % {
             "model": self.panel.get_label().lower(),
-            "object": obj,
+            "object": safe_str(obj),
         }
 
 
@@ -519,14 +541,14 @@ class UpdateView(RecordView, PanelFormView):
     @property
     def page_title(self) -> str:
         if self.object:
-            return _("Edit %(object)s") % {"object": self.object}
+            return _("Edit %(object)s") % {"object": safe_str(self.object)}
         return _("Edit")
 
     def get_breadcrumbs(self):
         detail = self.get_detail_url(self.object) if self.object else None
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.object), detail),
+            (safe_str(self.object), detail),
             (_("Edit"), None),
         ]
 
@@ -536,7 +558,7 @@ class UpdateView(RecordView, PanelFormView):
     def get_success_message(self, obj) -> str:
         return _("Saved changes to %(model)s “%(object)s”.") % {
             "model": self.panel.get_label().lower(),
-            "object": obj,
+            "object": safe_str(obj),
         }
 
 
@@ -697,14 +719,14 @@ class DeleteView(RecordView):
     @property
     def page_title(self) -> str:
         if self.object:
-            return _("Delete %(object)s") % {"object": self.object}
+            return _("Delete %(object)s") % {"object": safe_str(self.object)}
         return _("Delete")
 
     def get_breadcrumbs(self):
         detail = self.get_detail_url(self.object) if self.object else None
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.object), detail),
+            (safe_str(self.object), detail),
             (_("Delete"), None),
         ]
 
@@ -740,8 +762,18 @@ class DeleteView(RecordView):
         """
         from django.utils import timezone
 
+        from vantage import undo
+
         value = True if pattern.kind == "boolean" else timezone.now()
-        self.panel.model._base_manager.filter(pk=self.object.pk).update(**{pattern.field: value})
+        # Through vantage.undo, which is the same UPDATE plus a record of exactly what
+        # it wrote — the condition the toast's Undo checks before un-trashing.
+        _count, step = undo.soft_delete(
+            self.panel,
+            self.panel.model._base_manager.filter(pk=self.object.pk),
+            capture=undo.armed(self.request),
+            value=value,
+        )
+        self._undo_steps = [step] if step is not None else []
         setattr(self.object, pattern.field, value)
 
     def post(self, request, *args, **kwargs):
@@ -752,13 +784,19 @@ class DeleteView(RecordView):
             # No cascade check: nothing is being destroyed, so nothing downstream can
             # be orphaned or protected. Checking anyway would refuse a soft delete for
             # a PROTECT reference that a soft delete does not violate.
-            label = str(self.object)
-            from vantage import audit
+            label = safe_str(self.object)
+            from vantage import audit, undo
 
+            undo.arm(request, self.panel)
             audit.log_delete(request, self.object, soft=True)
             with transaction.atomic(using=router.db_for_write(self.panel.model)):
                 self.soft_delete(pattern)
-            messages.success(request, self.get_trashed_message(label))
+            offered = self.offer_undo(label)
+            messages.success(
+                request,
+                self.get_trashed_message(label),
+                extra_tags=offered.tag if offered else "",
+            )
             return HttpResponseRedirect(reverse(self.panel.list_url_name))
 
         cascade = collect_cascade(self.object)
@@ -768,16 +806,38 @@ class DeleteView(RecordView):
             messages.error(request, cascade.blocked_by)
             return self.render_to_response(self.get_context_data(cascade=cascade), status=409)
 
-        label = str(self.object)
+        label = safe_str(self.object)
         # Before the delete: Model.delete() blanks the pk, so an entry written
         # afterwards would snapshot a record with no identity.
-        from vantage import audit
+        from vantage import audit, undo
 
+        undo.arm(request, self.panel)
         audit.log_delete(request, self.object)
         with transaction.atomic(using=router.db_for_write(self.panel.model)):
-            self.object.delete()
-        messages.success(request, self.get_success_message(label, cascade))
+            # ``self.object.delete()`` exactly, unless an undo snapshot can be taken
+            # safely — see vantage.undo for every case in which it cannot.
+            outcome = undo.delete(self.panel, self.object, request=request)
+        self._undo_steps = [outcome.step] if outcome.step is not None else []
+        offered = self.offer_undo(label)
+        messages.success(
+            request,
+            self.get_success_message(label, cascade),
+            extra_tags=offered.tag if offered else "",
+        )
         return HttpResponseRedirect(reverse(self.panel.list_url_name))
+
+    def offer_undo(self, label: str):
+        """Store the undo for what was just deleted, or return ``None``."""
+        from vantage import undo
+
+        steps = getattr(self, "_undo_steps", None)
+        if not steps:
+            return None
+        summary, done = undo.describe(self.panel, 1, "delete", obj=label)
+        plan = undo.UndoPlan(
+            model=self.panel.model, verb="delete", summary=summary, done=done, steps=steps
+        )
+        return undo.offer(self.request, self.panel, plan)
 
     def get_trashed_message(self, label: str) -> str:
         return _("Moved %(model)s “%(object)s” to the trash.") % {
@@ -866,7 +926,7 @@ class RestoreView(RecordView):
         queryset = self.permissions.filter_queryset(
             self.request, self.panel.get_trash_queryset(self.request), "view"
         )
-        obj = get_object_or_404(queryset, pk=self.kwargs["pk"])
+        obj = get_by_pk_or_404(queryset, self.kwargs["pk"])
         if not self.permissions.has_object_perm(
             self.request, self.panel.model, self.required_action, obj
         ):
@@ -876,7 +936,7 @@ class RestoreView(RecordView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         pattern = self.panel.get_patterns().soft_delete
-        label = str(self.object)
+        label = safe_str(self.object)
 
         from vantage import audit
 

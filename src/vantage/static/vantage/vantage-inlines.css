@@ -14,7 +14,7 @@
 /* ── the group shell ──────────────────────────────────────────────────────── */
 
 .v-inline {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
   color: var(--card-foreground);
@@ -131,7 +131,7 @@
 }
 
 .v-inline-card {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.875rem;
   background: var(--background);
@@ -165,7 +165,7 @@
 /* ── removal ──────────────────────────────────────────────────────────────── */
 
 .v-inline-remove {
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
   border-radius: var(--radius-sm);

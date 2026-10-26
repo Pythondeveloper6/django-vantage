@@ -66,6 +66,9 @@ The **UI** column below says which ones can.
 | `BRAND_RADIUS` | `"0.5rem"` | ✓ | `--radius`. Validated as a CSS length |
 | `THEME` | `"system"` | ✓ | `"light"`, `"dark"` or `"system"` |
 | `THEME_TOGGLE` | `True` | ✓ | Whether users may switch theme. `False` pins everyone to `THEME` |
+| `UI_THEME` | `"vantage"` | ✓ | The look: a preset name. See [UI theme presets](ui-themes.md) |
+| `UI_THEMES` | `{}` |  | Custom presets; omitted keys inherit from `vantage` |
+| `UI_THEME_TOGGLE` | `True` | ✓ | Whether each person may choose their own preset |
 | `CUSTOM_CSS` | `None` | — | A stylesheet loaded after Vantage's own |
 | `LOGIN_IMAGE` | `None` | ✓ | Image beside the sign-in form, when you mount [Vantage's auth views](getting-started.md#signing-in) |
 
@@ -172,11 +175,14 @@ strictness, so an item that cannot be shown is omitted.
 | `PERMISSIONS` | `None` | — | Dotted path to a `PanelPermissions` subclass |
 | `SETTINGS_PERMISSION` | `None` | — | Who may open the settings screen. `None` means superusers only |
 | `LIST_PREFS_PERMISSION` | `None` | — | Who may save a list's preferences **for everyone**. `None` means superusers only |
+| `ROLES_PERMISSION` | `None` | — | Who may open the [roles & permissions screen](roles.md). `None` means superusers only |
 | `READ_ONLY` | `False` | ✓ | `True`, or a string that doubles as the explanation shown to users |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
+| `SENSITIVE_PATTERNS` | `None` | — | The words that mark a field as a secret. `None` is the built-in list; a list replaces it; `["...", "nhs_number"]` extends it — see [Sensitive fields](sensitive-fields.md#the-vocabulary) |
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
+| `MAP_TILE_URL` | `None` | — | Opt-in raster tiles for the [map view](list-views.md#map), e.g. `"https://tile.openstreetmap.org/{z}/{x}/{y}.png"`. Must contain `{z}`, `{x}` and `{y}`. `None` draws a dependency-free SVG plot and fetches nothing |
 | `RELATION_PICKER` | `"always"` | — | `"always"` or `"threshold"`. Whether a single-valued relation gets the searchable picker regardless of row count, or only above 50 — see [Relations and the search threshold](forms.md#relations-and-the-search-threshold) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
@@ -186,7 +192,7 @@ with their defaults in [Security](security.md#installing-the-middleware) — see
 [Two settings layers](security.md#two-settings-layers) for why their defaults live
 there.
 
-`SETTINGS_PERMISSION` and `LIST_PREFS_PERMISSION` each accept a permission string or a
+`SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION` and `ROLES_PERMISSION` each accept a permission string or a
 callable taking the request:
 
 ```python
@@ -196,8 +202,8 @@ VANTAGE = {
 }
 ```
 
-Neither is editable from the UI. `SETTINGS_PERMISSION` in particular would be a
-self-grant.
+None is editable from the UI. `SETTINGS_PERMISSION` and `ROLES_PERMISSION` in
+particular would be self-grants.
 
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
@@ -252,6 +258,19 @@ retry behaviour, and the backends it is tried against.
 | `JOB_RETENTION_DAYS` | `30` | How long a finished job's row is kept before it is swept |
 | `JOB_QUEUE` | `"default"` | Queue name passed to `django.tasks` or RQ. Celery uses its own routing instead |
 
+## Undo
+
+After a delete or an edit, the toast offers **Undo** for a few seconds — see
+[Undo](undo.md) for what can be undone, and the cases in which the toast deliberately
+has no button.
+
+| Key | Default | Effect |
+|---|---|---|
+| `UNDO_WINDOW` | `10` | Seconds the Undo button stays redeemable. `0` turns undo off everywhere |
+| `UNDO_MAX_ROWS` | `1000` | Most rows one undo may carry, cascade included. Larger changes still happen, without Undo |
+
+`ModelPanel.undo = False` turns it off for one model.
+
 ## Scale
 
 What a list page does once the table outgrows the sample data. Everything is fast at
@@ -268,6 +287,12 @@ What a list page does once the table outgrows the sample data. Everything is fas
 `COUNT(*)` on Postgres is always a full relation scan under MVCC, and it costs that
 whether the page is showing 25 rows or two million. Details, and the reasoning behind
 each number: [Deployment](deployment.md#counting-a-large-table).
+
+## Data quality
+
+One key, `DATA_QUALITY`, holding a dict of its own settings (`ENABLED`, `PERMISSION`,
+`SAMPLE_SIZE`, `STALE_DAYS`, and so on). Unknown keys inside it are rejected like any
+other typo. Every one is documented in [Data quality](data-quality.md#settings).
 
 ## Plugins
 
@@ -288,15 +313,16 @@ if the two drift apart:
 ```
 SITE_TITLE   SITE_ACRONYM   LOGO   LOGO_DARK   FAVICON
 BRAND_COLOR  BRAND_RADIUS   THEME  THEME_TOGGLE
+UI_THEME  UI_THEMES  UI_THEME_TOGGLE
 CUSTOM_CSS   LOGIN_IMAGE
 
 AUTO_REGISTER  EXCLUDE  INCLUDE_ONLY
 NAV  NAV_UNLISTED  DASHBOARD
 PLUGINS  PLUGINS_EXCLUDE
 
-PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION
-READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE
-DEFAULT_PER_PAGE  RELATION_PICKER
+PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION  ROLES_PERMISSION
+READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
+DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES
@@ -308,8 +334,12 @@ TENANT_SCOPE  TENANT_EXEMPT  TENANT_UNSCOPED
 JOBS  JOB_THRESHOLD_SECONDS  JOB_CHUNK_SIZE
 JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
 
+UNDO_WINDOW  UNDO_MAX_ROWS
+
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS
+
+DATA_QUALITY
 ```
 
 ## Reading a setting in your own code

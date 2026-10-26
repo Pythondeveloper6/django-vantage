@@ -52,7 +52,30 @@ def _cell(value: Any) -> str:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
+    if hasattr(value, "_meta"):
+        # A related record whose __str__ prints one of its own secrets exports as
+        # "<Model> #<pk>" instead. See vantage.sensitive.safe_str.
+        from vantage.sensitive import safe_str
+
+        return safe_str(value)
     return str(value)
+
+
+def _value(obj: Any, column: str, masked: frozenset[str]) -> str:
+    """One exported cell: masked when the column is sensitive, never the raw value.
+
+    An export is the surface a masked value is most likely to escape through — it is
+    a file, it gets emailed — so a sensitive column exports as the same bullets the
+    table shows. Empty stays empty, exactly as on the page.
+    """
+    value = _resolve(obj, column)
+    if column in masked:
+        if value is None or value == "":
+            return ""
+        from vantage.sensitive import mask
+
+        return mask(value, column)
+    return _cell(value)
 
 
 def _resolve(obj: Any, path: str) -> Any:
@@ -69,16 +92,18 @@ def _resolve(obj: Any, path: str) -> Any:
     return value
 
 
-def _rows(queryset, columns: list[str], headers: list[str]) -> Iterator[list[str]]:
+def _rows(
+    queryset, columns: list[str], headers: list[str], masked: frozenset[str] = frozenset()
+) -> Iterator[list[str]]:
     yield headers
     for obj in queryset.iterator(chunk_size=CHUNK_SIZE):
-        yield [_cell(_resolve(obj, column)) for column in columns]
+        yield [_value(obj, column, masked) for column in columns]
 
 
-def stream_export(fmt: str, queryset, columns, headers, filename):
-    """Dispatch to the writer for ``fmt``."""
+def stream_export(fmt: str, queryset, columns, headers, filename, *, masked=frozenset()):
+    """Dispatch to the writer for ``fmt``. ``masked`` names the sensitive columns."""
     return {"csv": stream_csv, "tsv": stream_tsv, "json": stream_json}[fmt](
-        queryset, columns, headers, filename
+        queryset, columns, headers, filename, masked=frozenset(masked)
     )
 
 
@@ -89,7 +114,9 @@ def _attach(response, filename: str, extension: str):
     return response
 
 
-def stream_json(queryset, columns: list[str], headers: list[str], filename: str):
+def stream_json(
+    queryset, columns: list[str], headers: list[str], filename: str, *, masked=frozenset()
+):
     """Newline-delimited JSON: one object per line.
 
     NDJSON rather than one big array because a streamed array cannot be closed if
@@ -101,7 +128,7 @@ def stream_json(queryset, columns: list[str], headers: list[str], filename: str)
     def lines():
         for obj in queryset.iterator(chunk_size=CHUNK_SIZE):
             row = {
-                header: _cell(_resolve(obj, column))
+                header: _value(obj, column, masked)
                 for header, column in zip(headers, columns, strict=True)
             }
             yield json.dumps(row, ensure_ascii=False) + "\n"
@@ -110,21 +137,25 @@ def stream_json(queryset, columns: list[str], headers: list[str], filename: str)
     return _attach(response, filename, "ndjson")
 
 
-def stream_tsv(queryset, columns: list[str], headers: list[str], filename: str):
+def stream_tsv(
+    queryset, columns: list[str], headers: list[str], filename: str, *, masked=frozenset()
+):
     """Tab-separated, for pasting straight into a spreadsheet."""
     writer = csv.writer(_Echo(), delimiter="\t", quoting=csv.QUOTE_MINIMAL)
     response = StreamingHttpResponse(
-        (writer.writerow(row) for row in _rows(queryset, columns, headers)),
+        (writer.writerow(row) for row in _rows(queryset, columns, headers, masked)),
         content_type="text/tab-separated-values; charset=utf-8",
     )
     return _attach(response, filename, "tsv")
 
 
-def stream_csv(queryset, columns: list[str], headers: list[str], filename: str):
+def stream_csv(
+    queryset, columns: list[str], headers: list[str], filename: str, *, masked=frozenset()
+):
     """A ``StreamingHttpResponse`` of ``queryset`` as CSV."""
     writer = csv.writer(_Echo())
     response = StreamingHttpResponse(
-        (writer.writerow(row) for row in _rows(queryset, columns, headers)),
+        (writer.writerow(row) for row in _rows(queryset, columns, headers, masked)),
         content_type="text/csv; charset=utf-8",
     )
     return _attach(response, filename, "csv")

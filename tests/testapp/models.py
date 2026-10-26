@@ -6,6 +6,7 @@ densest coverage. Adding a model here is how you add an inference test case.
 """
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db import models
 
 
@@ -476,3 +477,102 @@ class ZInlineWidgetPart(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.part}"
+
+
+class DqContact(models.Model):
+    """Data quality fixture: every defect the audit looks for, one field each.
+
+    ``email`` should be unique and is not; ``ghost`` is a foreign key with no database
+    constraint, so it can dangle; ``status`` has choices a row can fall out of;
+    ``refs`` is a generic foreign key.
+    """
+
+    STATUS = [("new", "New"), ("old", "Old")]
+
+    name = models.CharField(max_length=40)
+    email = models.CharField(max_length=80, blank=True)
+    nickname = models.CharField(max_length=40, blank=True)
+    note = models.CharField(max_length=40, null=True, blank=True)  # noqa: DJ001
+    status = models.CharField(max_length=10, choices=STATUS, default="new")
+    ghost = models.ForeignKey(
+        Author,
+        null=True,
+        blank=True,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
+        related_name="+",
+    )
+    content_type = models.ForeignKey(
+        "contenttypes.ContentType", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    target = GenericForeignKey("content_type", "object_id")
+    created_at = models.DateTimeField(null=True, blank=True)
+    born_on = models.DateField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Venue(models.Model):
+    """Exercises the alternative list views' inference in one model.
+
+    A ``(latitude, longitude)`` pair of ``DecimalField``\\ s for the map, a scheduling
+    date (``starts_on``) that must beat the audit stamp for the calendar, a ``stage``
+    choices field for the board, and a picture stored in a plain ``FileField`` that is
+    only recognisable as one by its name.
+    """
+
+    class Stage(models.TextChoices):
+        PLANNED = "planned", "Planned"
+        OPEN = "open", "Open"
+        CLOSED = "closed", "Closed"
+
+    name = models.CharField(max_length=80)
+    stage = models.CharField(max_length=10, choices=Stage.choices, default=Stage.PLANNED)
+    city = models.CharField(max_length=80, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    photo = models.FileField(upload_to="venues/", blank=True)
+    starts_on = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ZCredential(models.Model):
+    """Every shape of sensitive column, and the near misses that must stay visible.
+
+    Left to pure inference, like the rest of this app: what :mod:`vantage.sensitive`
+    decides with no configuration is the thing under test. Named with a ``Z`` so it
+    sorts after the models other suites count and order.
+    """
+
+    class TokenType(models.TextChoices):
+        BEARER = "bearer", "Bearer"
+        BASIC = "basic", "Basic"
+
+    name = models.CharField(max_length=80)
+    owner = models.ForeignKey(
+        Author, null=True, blank=True, on_delete=models.SET_NULL, related_name="credentials"
+    )
+    # Sensitive.
+    api_token = models.CharField("API token", max_length=64, blank=True)
+    card_number = models.CharField(max_length=24, blank=True)
+    pin = models.CharField(max_length=8, null=True, blank=True)  # noqa: DJ001 — nullable on purpose: the "clear" path sets NULL
+    pin_hash = models.CharField(max_length=128, blank=True)
+    private_key = models.TextField(blank=True)
+    # Near misses: a name or a type that must *not* be masked.
+    token_type = models.CharField(max_length=10, choices=TokenType.choices, default="bearer")
+    tokenizer_name = models.CharField(max_length=40, blank=True)
+    is_secretary = models.BooleanField(default=False)
+    passport_photo_url = models.URLField(blank=True)
+    otp_enabled = models.BooleanField(default=False)
+    pin_attempts = models.PositiveIntegerField(default=0)
+    password_changed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

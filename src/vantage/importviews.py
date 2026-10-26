@@ -180,12 +180,23 @@ class ImportView(PanelView):
         samples = parsed.sample(3)
         pk_name = self.panel.model._meta.pk.name
 
+        from vantage.sensitive import is_sensitive_path, mask, name_is_sensitive
+
+        def shown(header: str, value: str) -> str:
+            # The uploader's own file, but still a secret on a screen: a column that
+            # feeds, or is named like, a sensitive field shows its samples masked.
+            target = inferred.get(header, "")
+            secret = (target and is_sensitive_path(self.panel, target)) or name_is_sensitive(
+                header.strip().replace(" ", "_")
+            )
+            return mask(value, target or header) if secret and value else value
+
         columns = [
             {
                 "index": index,
                 "header": header,
                 "target": inferred.get(header, ""),
-                "samples": [row[index] for row in samples],
+                "samples": [shown(header, row[index]) for row in samples],
             }
             for index, header in enumerate(parsed.headers)
         ]

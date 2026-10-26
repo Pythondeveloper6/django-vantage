@@ -114,6 +114,8 @@ VANTAGE = {
             "items": [
                 {"route": "vantage:settings", "label": "Settings", "icon": "sliders"},
                 {"page": "schema", "label": "Schema", "icon": "share-2"},
+                {"page": "roles", "label": "Roles", "icon": "shield"},
+                {"page": "data-quality", "label": "Data quality", "icon": "database"},
             ],
         },
         {

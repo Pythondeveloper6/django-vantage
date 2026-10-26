@@ -59,6 +59,8 @@ UI_EDITABLE: dict[str, str] = {
     "BRAND_RADIUS": "brand_radius",
     "THEME": "theme",
     "THEME_TOGGLE": "theme_toggle",
+    "UI_THEME": "ui_theme",
+    "UI_THEME_TOGGLE": "ui_theme_toggle",
     "ENVIRONMENT": "environment",
     "DEFAULT_PER_PAGE": "default_per_page",
     "COMMAND_PALETTE": "command_palette",

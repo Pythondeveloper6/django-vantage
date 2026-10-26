@@ -28,7 +28,7 @@ Zero config to start. One line to override anything.
   <img alt="The Orders list in django-vantage: stat cards with trends, a revenue chart, a status breakdown, filters and a data grid" src="docs/assets/screenshots/orders-light.webp">
 </picture>
 
-> **Alpha (`0.1.0a1`).** Working and heavily tested — more than 3,600 tests — but the
+> **Alpha (`0.2.0a1`).** Working and heavily tested — more than 4,500 tests — but the
 > API may still move. See the
 > [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/#how-finished-is-this)
 > for an honest account of what is and is not done. Use it on an internal tool, and
@@ -161,6 +161,118 @@ at all — a money column is summed, a rating column is averaged, and an identif
   </tr>
 </table>
 
+## Board, calendar, gallery and map views
+
+Any list can also be shown as a **Kanban board**, a **month calendar**, a **gallery** or a
+**map**, picked from a switcher in the toolbar. Each view is inferred from the model — a
+status field, a date, an image, a pair of coordinates — and honours the same search,
+filters and permissions as the table. On the board and the calendar, **Group by** and
+**Dates from** let anyone pick the field from the page.
+
+```python
+@register(Order)
+class OrderPanel(ModelPanel):
+    list_views = ["table", "kanban", "calendar"]   # first one is the default
+    kanban_field = "status"                        # optional: inferred when left out
+```
+
+Cards move by drag and drop or a keyboard-friendly "Move to…" menu, through the same
+validation, locking and audit log as any edit. [Docs →](https://pythondeveloper6.github.io/django-vantage/list-views/)
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/kanban-dark.webp">
+        <img alt="Customers as a Kanban board grouped by tier, with a Group by picker" src="docs/assets/screenshots/kanban-light.webp">
+      </picture>
+      <p align="center"><b>Board</b> — group by any status-like field, drag cards between columns</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/calendar-dark.webp">
+        <img alt="Orders placed on a month calendar" src="docs/assets/screenshots/calendar-light.webp">
+      </picture>
+      <p align="center"><b>Calendar</b> — records on the days they happen, in your time zone</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/gallery-dark.webp">
+        <img alt="Products shown as a gallery of image cards" src="docs/assets/screenshots/gallery-light.webp">
+      </picture>
+      <p align="center"><b>Gallery</b> — for any model with an image</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/map-dark.webp">
+        <img alt="Customers plotted on a map" src="docs/assets/screenshots/map-light.webp">
+      </picture>
+      <p align="center"><b>Map</b> — a dependency-free plot of latitude and longitude, no external requests</p>
+    </td>
+  </tr>
+</table>
+
+## Undo, sensitive fields, roles and data quality
+
+**Undo.** Deletes, bulk edits and inline edits show a toast with an **Undo** button for a
+few seconds (<kbd>⌘</kbd>/<kbd>Ctrl</kbd> <kbd>Z</kbd> works too). Nothing is restored over
+somebody else's newer change. [Docs →](https://pythondeveloper6.github.io/django-vantage/undo/)
+
+**Secrets stay secret.** Fields named like `password`, `api_token`, `iban` or `card_number`
+are masked everywhere — lists, exports, search, the API, the audit log — with zero
+configuration. A permitted user can reveal one value at a time, and every reveal is
+logged. [Docs →](https://pythondeveloper6.github.io/django-vantage/sensitive-fields/)
+
+```python
+sensitive_fields = ["api_token", "notes"]   # optional: replaces the inferred list
+```
+
+**Roles.** Manage Django groups as roles in a permission matrix: tick view / add / change /
+delete per model, review the diff, save once. Nobody can grant a permission they don't
+hold themselves. [Docs →](https://pythondeveloper6.github.io/django-vantage/roles/)
+
+**Data quality.** One read-only page audits every model for empty fields, duplicate
+candidates, broken references and odd dates — counts and links, never the values.
+`manage.py vantage_data_quality --fail-on warn` runs the same audit in CI.
+[Docs →](https://pythondeveloper6.github.io/django-vantage/data-quality/)
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/undo-dark.webp">
+        <img alt="A toast reading Deleted 1 review with an Undo button" src="docs/assets/screenshots/undo-light.webp">
+      </picture>
+      <p align="center"><b>Undo</b> — a deleted record comes back with its original id</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/masked-dark.webp">
+        <img alt="A customer's API token shown as dots with a Reveal button" src="docs/assets/screenshots/masked-light.webp">
+      </picture>
+      <p align="center"><b>Sensitive fields</b> — masked by default, revealed on purpose</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/role-matrix-dark.webp">
+        <img alt="The permission matrix for the Catalogue editors role" src="docs/assets/screenshots/role-matrix-light.webp">
+      </picture>
+      <p align="center"><b>Roles</b> — one matrix per role, saved after a review step</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/data-quality-dark.webp">
+        <img alt="The data quality overview scoring each model" src="docs/assets/screenshots/data-quality-light.webp">
+      </picture>
+      <p align="center"><b>Data quality</b> — a score and the worst issue per model</p>
+    </td>
+  </tr>
+</table>
+
 ## Bulk actions
 
 Ordinary methods with a decorator:
@@ -215,6 +327,23 @@ primary and its foreground are guaranteed to clear WCAG AA for any hue you suppl
 
 Anything here can also be edited **in the panel** by a superuser — logo upload, brand colour,
 title, theme — and the database value overrides the file.
+
+Pick a whole look with one line — the original `vantage`, shadcn/ui's stock `shadcn`, or
+`slate`, `stone`, `zinc`, `rose`, `blue`, `green`, `violet`, `orange` — and let each person
+choose their own from the account page:
+
+```python
+VANTAGE = {"UI_THEME": "shadcn"}
+```
+
+Every preset is tested for WCAG contrast in light and dark. [Docs →](https://pythondeveloper6.github.io/django-vantage/ui-themes/)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/themes-dark.webp">
+    <img alt="The account page's look picker with ten theme presets" src="docs/assets/screenshots/themes-light.webp" width="80%">
+  </picture>
+</p>
 
 ## Organise the sidebar
 
