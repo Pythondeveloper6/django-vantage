@@ -58,6 +58,7 @@ from django.http import Http404, JsonResponse
 from django.urls import NoReverseMatch, path, reverse
 
 from vantage import concurrency
+from vantage.sensitive import safe_str
 from vantage.views import PanelView
 from vantage.widgets import FieldKind, build_form_class, classify, infer_form_fields
 
@@ -220,6 +221,10 @@ def inline_fields(panel, request=None) -> tuple[InlineField, ...]:
             continue
         if field.is_relation or not getattr(field, "editable", False):
             continue
+        if name in panel.get_sensitive_fields():
+            # A cell editor round-trips the value it edits, through the control and
+            # back in the save response. A secret has no business in either.
+            continue
         kind = classify(field)
         if kind not in INLINE_KINDS or not _is_short(field, kind):
             continue
@@ -307,7 +312,7 @@ def control_attrs(field: InlineField, obj) -> dict[str, str]:
         "form": "v-inline-form",
         "data-inline-input": "",
         "data-inline-field": field.name,
-        "aria-label": f"{field.label}: {obj}",
+        "aria-label": f"{field.label}: {safe_str(obj)}",
         "aria-describedby": error_id(obj, field),
     }
 
@@ -539,7 +544,7 @@ class InlineWriteView(InlinePanelView):
         return {
             "pk": str(stale.obj.pk),
             "version": stale.token,
-            "label": str(stale.obj),
+            "label": safe_str(stale.obj),
             "fields": concurrency.field_diff(stale.obj, values),
         }
 
@@ -556,7 +561,7 @@ class InlineWriteView(InlinePanelView):
         return {
             "pk": str(obj.pk),
             "version": concurrency.token_for(obj),
-            "label": str(obj),
+            "label": safe_str(obj),
             "values": {name: _widget_value(form, name) for name in config.names},
         }
 
@@ -669,9 +674,18 @@ def json_to_form_data(form_class, values: dict[str, Any]) -> dict[str, Any]:
     a boolean or a JSON value cannot behave differently depending on which endpoint set
     it.
     """
+    write_only = set(getattr(form_class, "vantage_write_only", ()))
     data: dict[str, Any] = {}
     for name, value in values.items():
         field = form_class.base_fields.get(name)
+        if name in write_only and value is None:
+            # JSON null on a write-only secret means "clear it"; an empty string or an
+            # omitted key means "keep it". See vantage.widgets.WriteOnlyModelForm.
+            from vantage.widgets import CLEAR_SUFFIX
+
+            data[name] = ""
+            data[f"{name}{CLEAR_SUFFIX}"] = "1"
+            continue
         if field is not None and isinstance(field.widget, forms.CheckboxInput):
             if _truthy(value):
                 data[name] = "on"

@@ -73,8 +73,18 @@ def render_cell(panel, obj, name: str, *, size: str = "sm") -> SafeString | str:
         return method(obj)
 
     hops = resolve_path(panel.model, name)
+
+    # Before anything formats the value: a masked cell must not depend on a renderer
+    # remembering to be careful. See vantage.sensitive.
+    from vantage.sensitive import is_sensitive_path, masked_html
+
+    sensitive = is_sensitive_path(panel, name)
+
     if not hops:
-        return _plain(getattr(obj, name, None))
+        value = getattr(obj, name, None)
+        if sensitive:
+            return masked_html(None, obj, name, value)
+        return _plain(value)
 
     value = obj
     for hop in hops:
@@ -83,6 +93,12 @@ def render_cell(panel, obj, name: str, *, size: str = "sm") -> SafeString | str:
         value = getattr(value, hop.name, None)
 
     field = hops[-1].field
+
+    if sensitive:
+        # Only a local column gets a reveal control: revealing customer__api_token is a
+        # question for the customer's own panel and its own permission answer.
+        label = str(getattr(field, "verbose_name", name))
+        return masked_html(panel if len(hops) == 1 else None, obj, name, value, label)
 
     # Currency before the generic numeric path: a bare Decimal reads as data, and a
     # column of unaligned unformatted numbers is the thing people complain about
@@ -110,7 +126,9 @@ def _render_value(value, field, obj, first_hop):
 
     # A relation rendered as a reference chip.
     if getattr(first_hop, "is_relation", False) and len(str(value)) and field is first_hop.field:
-        return format_html('<span class="v-badge">{}</span>', str(value))
+        from vantage.sensitive import safe_str
+
+        return format_html('<span class="v-badge">{}</span>', safe_str(value))
 
     if isinstance(field, models.BooleanField):
         return format_html(
