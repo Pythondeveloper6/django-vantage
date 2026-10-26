@@ -392,18 +392,28 @@ class TestFormFields:
     def test_the_auto_primary_key_is_never_offered(self):
         assert "id" not in infer_form_fields(Post)
 
-    def test_sensitive_fields_never_appear_on_a_form(self):
+    def test_sensitive_fields_are_on_the_form_but_hashes_are_not(self):
+        """A secret is write-only on the form (see tests/test_sensitive.py); a hash of
+        one is not an input at all — nobody can type a valid hash by hand."""
+
         class WCredential(models.Model):
             username = models.CharField(max_length=50)
             password = models.CharField(max_length=128)
             api_key = models.CharField(max_length=64)
             reset_token = models.CharField(max_length=64)
             secret = models.CharField(max_length=64)
+            pin_hash = models.CharField(max_length=128)
 
             class Meta:
                 app_label = "testapp"
 
-        assert infer_form_fields(WCredential) == ["username"]
+        assert infer_form_fields(WCredential) == [
+            "username",
+            "password",
+            "api_key",
+            "reset_token",
+            "secret",
+        ]
 
     def test_a_natural_primary_key_is_still_editable(self):
         class WCountry(models.Model):
