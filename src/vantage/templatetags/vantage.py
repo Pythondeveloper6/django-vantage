@@ -115,3 +115,15 @@ def asset_tag(path) -> str:
     if not text or text.startswith(("/", "//", "http://", "https://", "data:")):
         return text
     return static(text)
+
+
+@register.filter(name="record_label")
+def record_label(obj) -> str:
+    """``str(obj)``, unless it would print one of the record's sensitive values.
+
+    For templates that name a record in a heading, a confirmation sentence or an
+    ``aria-label``. See :func:`vantage.sensitive.safe_str`.
+    """
+    from vantage.sensitive import safe_str
+
+    return safe_str(obj)
