@@ -1,0 +1,68 @@
+{% load vantage i18n %}
+<div class="v-card">
+  <div class="v-card-head">
+    <h2 class="v-card-title">{{ detail.label }}</h2>
+    <a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "All models" %}</a>
+  </div>
+  <dl class="v-fields">
+    <div class="v-field"><dt>{% translate "Rows" %}</dt><dd>{{ detail.rows_display }}
+      {% if detail.skipped %}<span class="v-badge" data-tone="warning">{% translate "skipped" %}</span>
+      {% elif detail.sampled %}<span class="v-badge">{% blocktranslate with n=detail.scanned %}sample of the newest {{ n }}{% endblocktranslate %}</span>
+      {% elif detail.rows_kind == "estimated" %}<span class="v-badge">{% translate "estimated" %}</span>{% endif %}
+    </dd></div>
+    <div class="v-field"><dt>{% translate "Score" %}</dt><dd>
+      {% if detail.score is None %}&ndash;{% else %}<span class="v-badge" data-tone="{{ detail.tone }}">{{ detail.score }}</span>{% endif %}
+    </dd></div>
+    <div class="v-field"><dt>{% translate "Audited" %}</dt><dd>{{ detail.ran_at|timesince }} {% translate "ago" %}</dd></div>
+    {% if detail.url %}<div class="v-field"><dt>{% translate "List page" %}</dt><dd><a class="v-cell-link" href="{{ detail.url }}">{{ detail.label }}</a></dd></div>{% endif %}
+  </dl>
+</div>
+
+<div class="v-card">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Findings" %}</h2></div>
+  {% if detail.findings %}
+  <div class="v-table-wrap">
+    <table class="v-table">
+      <thead><tr>
+        <th scope="col">{% translate "Check" %}</th>
+        <th scope="col">{% translate "Field" %}</th>
+        <th scope="col">{% translate "Finding" %}</th>
+        <th scope="col">{% translate "Share" %}</th>
+        <th scope="col"><span class="v-sr-only">{% translate "Rows" %}</span></th>
+      </tr></thead>
+      <tbody>
+      {% for f in detail.findings %}
+        <tr>
+          <td><span class="v-health-dot" data-status="{{ f.severity }}" aria-hidden="true"></span>
+            <span class="v-sr-only">{{ f.severity }}:</span> {{ f.check }}</td>
+          <td class="v-mono">{{ f.field|default:"&ndash;" }}</td>
+          <td>{{ f.message }}{% if f.sampled %} <span class="v-muted">({% translate "in sample" %})</span>{% endif %}</td>
+          <td class="v-money">{{ f.percent|default:"&ndash;" }}</td>
+          <td>{% if f.url %}<a class="v-cell-link" href="{{ f.url }}">{% translate "View rows" %}</a>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="v-empty"><p class="v-empty-title">{% translate "Nothing found." %}</p></div>
+  {% endif %}
+</div>
+
+<div class="v-card">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Checks run" %}</h2></div>
+  <div class="v-table-wrap">
+    <table class="v-table">
+      <thead><tr><th scope="col">{% translate "Check" %}</th><th scope="col">{% translate "Status" %}</th><th scope="col">{% translate "Detail" %}</th></tr></thead>
+      <tbody>
+      {% for run in detail.checks %}
+        <tr>
+          <td>{{ run.label }}</td>
+          <td><span class="v-badge" {% if run.status == "ok" %}data-tone="success"{% elif run.status == "skipped" %}{% else %}data-tone="warning"{% endif %}>{{ run.status }}</span></td>
+          <td class="v-muted">{{ run.reason }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
