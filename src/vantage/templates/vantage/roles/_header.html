@@ -1,0 +1,51 @@
+{% load vantage i18n %}
+<div class="v-page-head v-roles-head">
+  <div>
+    <h1 class="v-page-title">{{ group.name }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  <div class="v-page-actions">
+    {% if can_add and within_reach %}
+      <form method="post" action="{% url 'vantage:role-duplicate' group.pk %}">
+        {% csrf_token %}
+        <button class="v-btn v-btn-secondary v-btn-sm">{% icon "file-text" %}<span>{% translate "Duplicate" %}</span></button>
+      </form>
+    {% endif %}
+    {% if can_delete and within_reach and tab != "delete" %}
+      <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:role-delete' group.pk %}">{% icon "trash" %}<span>{% translate "Delete" %}</span></a>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_change and within_reach and tab != "delete" %}
+  <details class="v-roles-rename">
+    <summary>{% icon "pencil" %}<span>{% translate "Rename" %}</span></summary>
+    <form method="post" action="{% url 'vantage:role-rename' group.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="token" value="{{ token }}">
+      <label>
+        <span class="v-sr-only">{% translate "New name" %}</span>
+        <input class="v-input v-input-sm" type="text" name="name" value="{{ group.name }}" required maxlength="{{ name_limit }}">
+      </label>
+      <button class="v-btn v-btn-secondary v-btn-sm">{% translate "Save name" %}</button>
+    </form>
+  </details>
+{% endif %}
+
+{% if not within_reach %}
+  <p class="v-form-alert" data-tone="info">
+    {% blocktranslate trimmed %}
+      This role grants permissions you do not hold yourself. You can change the ones you
+      do hold; the rest are locked, and so are its members, its name and deleting it.
+    {% endblocktranslate %}
+  </p>
+{% endif %}
+
+{% if tab != "delete" %}
+  <nav class="v-roles-tabs" aria-label="{% translate 'Role sections' %}">
+    <a class="v-roles-tab" href="{% url 'vantage:role-edit' group.pk %}"{% if tab == "permissions" %} aria-current="page"{% endif %}>{% translate "Permissions" %}</a>
+    {% if membership %}
+      <a class="v-roles-tab" href="{% url 'vantage:role-members' group.pk %}"{% if tab == "members" %} aria-current="page"{% endif %}>{% translate "Members" %}</a>
+    {% endif %}
+  </nav>
+{% endif %}

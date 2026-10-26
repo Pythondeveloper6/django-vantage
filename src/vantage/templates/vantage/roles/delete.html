@@ -1,0 +1,54 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+  </div>
+</div>
+
+<section class="v-card v-confirm">
+  <div class="v-card-body">
+    <p class="v-confirm-lede">
+      {% blocktranslate trimmed with name=group.name %}
+        This permanently deletes the role <strong>{{ name }}</strong>. It cannot be undone.
+      {% endblocktranslate %}
+    </p>
+    <ul class="v-roles-impact">
+      <li>{% blocktranslate count counter=impact.permissions %}It grants {{ counter }} permission.{% plural %}It grants {{ counter }} permissions.{% endblocktranslate %}</li>
+      {% if membership %}<li>{% blocktranslate count counter=impact.members %}{{ counter }} person holds it.{% plural %}{{ counter }} people hold it.{% endblocktranslate %}</li>{% endif %}
+    </ul>
+
+    {% if impact.affected_total %}
+      <h2 class="v-confirm-heading">
+        {% blocktranslate count counter=impact.affected_total %}{{ counter }} person will lose access{% plural %}{{ counter }} people will lose access{% endblocktranslate %}
+      </h2>
+      <p class="v-muted">{% translate "Counted after every other role and direct grant they hold — only what they would actually lose." %}</p>
+      <ul class="v-cascade">
+        {% for user, lost in impact.affected %}
+          <li>
+            <a href="{% url 'vantage:role-user' user.pk %}">{{ user.get_username }}</a>
+            <span class="v-badge" data-tone="destructive">{% blocktranslate count counter=lost %}−{{ counter }} permission{% plural %}−{{ counter }} permissions{% endblocktranslate %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if impact.affected_total > impact.affected|length %}
+        <p class="v-muted">{% blocktranslate with more=impact.affected_total shown=impact.affected|length %}Showing {{ shown }} of {{ more }}.{% endblocktranslate %}</p>
+      {% endif %}
+    {% elif impact.members %}
+      <p class="v-muted">{% translate "Nobody loses anything: every member also holds these permissions some other way." %}</p>
+    {% endif %}
+
+    <form method="post" class="v-confirm-actions">
+      {% csrf_token %}
+      <input type="hidden" name="token" value="{{ token }}">
+      <a class="v-btn v-btn-ghost" href="{% url 'vantage:role-edit' group.pk %}">{% translate "Cancel" %}</a>
+      <button class="v-btn v-btn-destructive">{% icon "trash" %}<span>{% translate "Delete role" %}</span></button>
+    </form>
+  </div>
+</section>
+{% endblock %}

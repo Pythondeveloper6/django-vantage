@@ -25,7 +25,7 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-__all__ = ["DataQualityPage", "HealthPage", "Page", "SchemaPage", "page_slug"]
+__all__ = ["DataQualityPage", "HealthPage", "Page", "RolesPage", "SchemaPage", "page_slug"]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -240,3 +240,34 @@ class DataQualityPage(Page):
         if label and request.POST.get("stay"):
             target += f"?model={label}"
         return redirect(target)
+
+
+def _may_manage_roles(request) -> bool:
+    from vantage.roles import may_manage_roles
+
+    return may_manage_roles(request)
+
+
+class RolesPage(Page):
+    """Roles and permissions: ``auth.Group`` managed as a matrix, not a 400-row list.
+
+    Built in for the same reason as the schema page — the alternative is Django's
+    filter-horizontal widget over every permission in the project, which is where
+    permission hygiene goes to die. Superusers only unless
+    ``VANTAGE["ROLES_PERMISSION"]`` widens it. The editor, members and per-user screens
+    hang off this page's path; see :mod:`vantage.rolesviews`.
+    """
+
+    title = _("Roles")
+    description = _("Who can do what: permissions bundled into roles, and who holds them.")
+    icon = "shield"
+    group = _("System")
+    order = 92
+    path = "_/roles/"
+    template_name = "vantage/roles/list.html"
+    permission = staticmethod(_may_manage_roles)
+
+    def get_context(self, request):
+        from vantage.rolesviews import list_context
+
+        return list_context(request)
