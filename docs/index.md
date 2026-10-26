@@ -224,6 +224,7 @@ django-simple-history are all used when present and never required.
 | [Analytics](analytics.md) | `Stat`, `Chart`, the summary bar and the query-cost guarantees |
 | [Forms](forms.md) | Widget inference, the layout DSL, editable inlines, readonly fields, validation, delete preview |
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
+| [Sensitive fields](sensitive-fields.md) | Inferred masking of secrets on every surface, audited reveal, write-only inputs, the threat model |
 | [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |
 | [Multi-tenancy](tenancy.md) | Scoping every registered model to a tenant, fail-closed, over both the panel and the API |
 | [Theming](theming.md) | `BRAND_COLOR`, the derived palette, tokens, light/dark, RTL, custom CSS, the settings screen |
