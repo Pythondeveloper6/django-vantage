@@ -1,8 +1,8 @@
 """A small wholesale shop, written to be browsed rather than to be complete.
 
 The field mix is deliberate. Between them these models cover choices, booleans,
-decimals, dates, a self-referential tree, a many-to-many, a soft-delete column and a
-credential column — the shapes inference has to make decisions about. Open the panel
+decimals, dates, a self-referential tree, a many-to-many, a soft-delete column, a
+credential column, an image and a latitude/longitude pair — the shapes inference has to make decisions about. Open the panel
 next to this file and every decision is visible without reading any of the library.
 """
 
@@ -41,6 +41,9 @@ class Customer(models.Model):
     api_token = models.CharField("API token", max_length=64, blank=True)
     joined_on = models.DateField(default=timezone.localdate)
     deleted_at = models.DateTimeField("archived at", null=True, blank=True)
+    #: A latitude/longitude pair is all the map view needs: no GeoDjango, no GDAL.
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -106,6 +109,8 @@ class Product(models.Model):
     stock = models.PositiveIntegerField("units in stock", default=0)
     is_featured = models.BooleanField("featured", default=False)
     description = models.TextField(blank=True)
+    #: The gallery view's picture. Inferred from the field type, configured nowhere.
+    image = models.ImageField(upload_to="products/", blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
