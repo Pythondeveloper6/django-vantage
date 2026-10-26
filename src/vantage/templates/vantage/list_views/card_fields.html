@@ -1,0 +1,15 @@
+{% comment %}
+  The two or three fields under a card's title, shared by the board and the gallery.
+  A description list because that is what it is — a label and its value, repeated —
+  and a screen reader announces it as such rather than as loose text.
+{% endcomment %}
+{% if card.fields %}
+  <dl class="v-card-fields">
+    {% for field in card.fields %}
+      <div class="v-card-field">
+        <dt>{{ field.label }}</dt>
+        <dd>{{ field.value }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+{% endif %}

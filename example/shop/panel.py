@@ -7,6 +7,11 @@ both kinds in the sidebar and judge whether the configured ones were worth the t
 
 Note that ``ProductPanel`` sets ``list_display`` and nothing else: its filters and
 search are still inferred. Overriding one attribute never costs you the others.
+
+The list views follow the same rule. Every model here gets a view switcher inferred from
+its fields — orders become a Kanban board by ``status`` and a calendar by when they
+were placed, products a gallery from their ``image``, customers a map from their
+latitude/longitude pair — and each panel below changes one thing about that, in one line.
 """
 
 from django.db.models import Avg, Count, Q, Sum
@@ -44,6 +49,9 @@ class OrderPanel(ModelPanel):
         Chart.breakdown("By status", group_by="status", value=Count("id"), kind="donut"),
     ]
 
+    #: The board and the calendar are inferred; this only chooses what a card shows.
+    card_fields = ["customer", "total", "shipping_city"]
+
 
 @register(Product)
 class ProductPanel(ModelPanel):
@@ -54,6 +62,10 @@ class ProductPanel(ModelPanel):
     #: Deliberately drops ``cost`` and reorders the rest — margin is a back-office
     #: number, not something to scan a catalogue by.
     list_display = ["name", "sku", "category", "status", "price", "stock"]
+
+    #: A catalogue is browsed by eye, so it opens as the gallery. The table is still
+    #: one click away, and a person's own choice is remembered per model.
+    list_views = ["gallery", "table", "kanban"]
 
 
 @register(Review)

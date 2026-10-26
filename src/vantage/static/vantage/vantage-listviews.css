@@ -1,0 +1,472 @@
+/* The alternative list views: the switcher, the board, the calendar, the gallery and
+ * the map.
+ *
+ * Loaded only on a list page that offers more than the table, the same arrangement the
+ * grid and the inline editor use. Every colour is a theme token and every direction is
+ * logical, so a board reads right-to-left under dir="rtl" without a second stylesheet:
+ * the columns flow from the inline start, and the drag affordance follows them.
+ */
+
+/* ── the switcher ────────────────────────────────────────────────────────── */
+
+.v-viewswitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+}
+
+.v-viewswitch-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.v-viewswitch-option svg { inline-size: 0.875rem; block-size: 0.875rem; }
+.v-viewswitch-option:hover { color: var(--foreground); background: var(--muted); }
+
+.v-viewswitch-option[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 600;
+}
+
+.v-viewswitch-option:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* Labels fold away on a narrow screen; the icons and the title attribute remain, and
+ * the accessible name is still the label (it is visually hidden, not removed). */
+@media (max-width: 40rem) {
+  .v-viewswitch-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ── shared card fields ─────────────────────────────────────────────────── */
+
+.v-card-fields {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0.375rem 0 0;
+  font-size: 0.75rem;
+}
+
+.v-card-field {
+  display: flex;
+  gap: 0.375rem;
+  min-inline-size: 0;
+}
+
+.v-card-field dt {
+  color: var(--muted-foreground);
+  flex: none;
+}
+
+.v-card-field dt::after { content: ":"; }
+
+.v-card-field dd {
+  margin: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── the board ──────────────────────────────────────────────────────────── */
+
+.v-board-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+}
+
+.v-board-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(15rem, 1fr);
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-block-end: 0.5rem;
+  align-items: start;
+}
+
+.v-board-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  min-block-size: 8rem;
+}
+
+.v-board-col[data-drop-target] {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+}
+
+.v-board-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-inline: 0.25rem;
+}
+
+.v-board-col-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.v-board-count {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-board-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v-board-card {
+  position: relative;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.v-board-card[draggable="true"] { cursor: grab; }
+.v-board-card[data-dragging] { opacity: 0.5; }
+.v-board-card[data-busy] { opacity: 0.6; pointer-events: none; }
+
+.v-board-card-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.v-board-card-title:hover { text-decoration: underline; }
+
+.v-board-card-title:focus-visible,
+.v-board-move-trigger:focus-visible,
+.v-board-move-option:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.v-board-move {
+  margin-block-start: 0.375rem;
+}
+
+.v-board-move-trigger {
+  display: inline-flex;
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.25rem;
+  margin-inline-start: -0.25rem;
+}
+
+.v-board-move-trigger::-webkit-details-marker { display: none; }
+.v-board-move-trigger:hover { color: var(--foreground); background: var(--muted); }
+
+.v-board-move-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-block-start: 0.375rem;
+}
+
+.v-board-move-option {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.1875rem 0.5rem;
+  cursor: pointer;
+}
+
+.v-board-move-option:hover { background: var(--accent); color: var(--accent-foreground); }
+
+.v-board-empty {
+  margin: 0;
+  padding: 0.75rem 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.v-board-more { align-self: center; }
+
+.v-board-error {
+  margin-block-start: 0.375rem;
+  color: var(--destructive);
+  font-size: 0.75rem;
+}
+
+/* ── the calendar ───────────────────────────────────────────────────────── */
+
+.v-cal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  margin-block-end: 0.75rem;
+}
+
+.v-cal-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.v-cal-field { font-size: 0.8125rem; }
+
+.v-cal-nav {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+}
+
+.v-cal-note {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.v-cal-scroll { overflow-x: auto; }
+
+.v-cal-grid {
+  inline-size: 100%;
+  min-inline-size: 42rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.v-cal-grid th {
+  padding: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: start;
+}
+
+.v-cal-grid abbr { text-decoration: none; }
+
+.v-cal-day {
+  block-size: 6.5rem;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--border);
+  vertical-align: top;
+  background: var(--card);
+}
+
+.v-cal-outside { background: var(--muted); }
+.v-cal-outside .v-cal-date { color: var(--muted-foreground); }
+
+.v-cal-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-cal-today .v-cal-date {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.v-cal-events {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0.125rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v-cal-event {
+  display: block;
+  padding: 0.0625rem 0.3125rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.v-cal-event:hover { text-decoration: underline; }
+.v-cal-event:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.v-cal-event time { font-variant-numeric: tabular-nums; opacity: 0.8; }
+
+.v-cal-more summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  padding-inline-start: 0.3125rem;
+}
+
+.v-cal-empty {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+}
+
+/* ── the gallery ────────────────────────────────────────────────────────── */
+
+.v-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v-gallery-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+.v-gallery-picture {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  background: var(--muted);
+  overflow: hidden;
+}
+
+.v-gallery-picture img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.v-gallery-placeholder {
+  color: var(--muted-foreground);
+}
+
+.v-gallery-placeholder svg { inline-size: 2rem; block-size: 2rem; }
+
+.v-gallery-body { padding: 0.625rem 0.75rem 0.75rem; min-inline-size: 0; }
+
+.v-gallery-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.v-gallery-title:hover { text-decoration: underline; }
+.v-gallery-title:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* ── the map ────────────────────────────────────────────────────────────── */
+
+.v-map-figure { margin: 0; }
+
+.v-map-plot {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+
+.v-map-sea { fill: var(--muted); }
+.v-map-tiled .v-map-sea { fill: var(--background); }
+
+.v-map-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.v-map-label {
+  fill: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.v-map-point circle {
+  fill: var(--primary);
+  stroke: var(--background);
+  stroke-width: 2;
+}
+
+.v-map-point:hover circle { fill: var(--destructive); }
+
+.v-map-caption {
+  margin-block-start: 0.375rem;
+  font-size: 0.75rem;
+}
+
+.v-map-attribution { margin-inline-start: 0.5rem; }
+
+.v-map-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.v-map-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  padding-block: 0.25rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-map-coords { font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+.v-map-osm { margin-inline-start: auto; font-size: 0.75rem; }
