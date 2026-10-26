@@ -47,7 +47,7 @@ A real run against the demo:
 [ok  ] Background tasks   Django Tasks configured.
 [ok  ] Media storage      /path/to/media
 [warn] Debug mode         DEBUG is on.
-[info] Versions           Vantage 0.1.0a1 · Django 6.1 · Python 3.13.12
+[info] Versions           Vantage 0.2.0a1 · Django 6.1 · Python 3.13.12
 ```
 
 ## Read-only mode
