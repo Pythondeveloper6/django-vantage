@@ -540,11 +540,41 @@ class VantageLogEntry(models.Model):
     @property
     def change_list(self) -> list[dict]:
         """The diff as an ordered list, because templates cannot iterate a dict's items
-        and sort them at the same time."""
+        and sort them at the same time.
+
+        A field that is sensitive *now* shows as "changed — value not recorded" even if
+        the entry was written before it was declared so: masking is applied when the log
+        is read as well as when it is written. The content type comes from Django's
+        per-process cache, so this costs no query per entry.
+        """
+        hidden = self._sensitive_now()
         return [
-            {"field": name, "from": delta.get("from"), "to": delta.get("to")}
+            {"field": name, "from": None, "to": None}
+            if name in hidden
+            else {"field": name, "from": delta.get("from"), "to": delta.get("to")}
             for name, delta in sorted((self.changes or {}).items())
         ]
+
+    @property
+    def revealed_field(self) -> str:
+        """The field name for a "revealed <field> on <record>" entry, else ``""``."""
+        name = self.action_name or ""
+        if self.action != self.Action.ACTION or not name.startswith("revealed "):
+            return ""
+        return name.removeprefix("revealed ").removesuffix(" on")
+
+    def _sensitive_now(self) -> frozenset[str]:
+        if not self.content_type_id or not self.changes:
+            return frozenset()
+        try:
+            model = ContentType.objects.get_for_id(self.content_type_id).model_class()
+        except ContentType.DoesNotExist:
+            return frozenset()
+        if model is None:
+            return frozenset()
+        from vantage.sensitive import sensitive_names
+
+        return sensitive_names(model)
 
 
 # ── saved views ─────────────────────────────────────────────────────────────
