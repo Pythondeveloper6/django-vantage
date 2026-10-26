@@ -10,7 +10,11 @@
 <div class="v-cal" data-calendar>
   <header class="v-cal-head">
     <h2 class="v-cal-title">{{ calendar_title }}</h2>
-    <span class="v-muted v-cal-field">{% blocktranslate with field=calendar_field_label %}by {{ field }}{% endblocktranslate %}</span>
+    {% if view_field.options %}
+      {% include "vantage/list_views/field_picker.html" %}
+    {% else %}
+      <span class="v-muted v-cal-field">{% blocktranslate with field=calendar_field_label %}by {{ field }}{% endblocktranslate %}</span>
+    {% endif %}
     <nav class="v-cal-nav" aria-label="{% translate "Month" %}">
       <a class="v-btn v-btn-secondary v-btn-sm v-btn-icon" href="{{ calendar_prev_url }}" rel="prev"
          aria-label="{% translate "Previous month" %}">{% icon "chevron-left" %}</a>

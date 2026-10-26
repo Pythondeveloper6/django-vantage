@@ -18,8 +18,13 @@
      role="region">
   {% csrf_token %}
   <p class="v-sr-only" role="status" aria-live="polite" data-kanban-live></p>
-  {% if kanban_can_move %}
-    <p class="v-board-hint v-muted">{% translate "Drag a card to another column, or use its “Move to” menu." %}</p>
+  {% if view_field.options or kanban_can_move %}
+    <div class="v-board-bar">
+      {% include "vantage/list_views/field_picker.html" %}
+      {% if kanban_can_move %}
+        <p class="v-board-hint v-muted">{% translate "Drag a card to another column, or use its “Move to” menu." %}</p>
+      {% endif %}
+    </div>
   {% endif %}
   <div class="v-board-columns">
     {% for column in kanban_columns %}
@@ -47,6 +52,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="pk" value="{{ card.pk }}">
                     <input type="hidden" name="version" value="{{ card.version }}">
+                    <input type="hidden" name="field" value="{{ kanban_field }}">
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     {% for target in kanban_columns %}{% if target.key != column.key %}
                       <button type="submit" class="v-board-move-option" name="value" value="{{ target.key }}">{{ target.label }}</button>

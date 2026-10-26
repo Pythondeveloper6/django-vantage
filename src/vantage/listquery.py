@@ -38,7 +38,7 @@ __all__ = [
 #: opening the trash, asking for the flat view, requesting facet counts and choosing a
 #: list view (``?view=table``) all leave the row *set* alone, so none of them should
 #: switch a hierarchy off.
-TREE_NEUTRAL_PARAMS = frozenset({"page", "trash", "flat", "_facets", "view"})
+TREE_NEUTRAL_PARAMS = frozenset({"page", "trash", "flat", "_facets", "view", "by"})
 
 
 class ListQuery(NamedTuple):
