@@ -36,6 +36,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
 from vantage import inlines
+from vantage.sensitive import is_hashed, safe_str, set_password_url
 from vantage.views import PanelView
 from vantage.widgets import FieldKind, build_form_class, classify, infer_form_fields, layout
 
@@ -125,7 +126,12 @@ def form_field_names(panel) -> list[str]:
 def form_editable_names(panel) -> list[str]:
     """The names a write may actually set. Everything else is not in the form at all."""
     readonly = set(panel.readonly_fields or ())
-    return [name for name in form_field_names(panel) if name not in readonly]
+    secret = panel.get_sensitive_fields()
+    return [
+        name
+        for name in form_field_names(panel)
+        if name not in readonly and not (name in secret and is_hashed(panel.model, name))
+    ]
 
 
 def save_form(
@@ -418,6 +424,9 @@ class PanelFormView(PanelView):
             "label": str(getattr(model_field, "verbose_name", name)).capitalize(),
             "value": render_cell(self.panel, self.object, name),
             "help_text": str(getattr(model_field, "help_text", "") or ""),
+            # A password hash is shown masked and never edited as text; this is the
+            # page that changes it instead.
+            "set_password_url": set_password_url(self.panel, self.object, name),
         }
 
     def get_success_url(self, obj) -> str:
@@ -470,7 +479,7 @@ class CreateView(PanelFormView):
     def get_success_message(self, obj) -> str:
         return _("Created %(model)s “%(object)s”.") % {
             "model": self.panel.get_label().lower(),
-            "object": obj,
+            "object": safe_str(obj),
         }
 
 
@@ -519,14 +528,14 @@ class UpdateView(RecordView, PanelFormView):
     @property
     def page_title(self) -> str:
         if self.object:
-            return _("Edit %(object)s") % {"object": self.object}
+            return _("Edit %(object)s") % {"object": safe_str(self.object)}
         return _("Edit")
 
     def get_breadcrumbs(self):
         detail = self.get_detail_url(self.object) if self.object else None
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.object), detail),
+            (safe_str(self.object), detail),
             (_("Edit"), None),
         ]
 
@@ -536,7 +545,7 @@ class UpdateView(RecordView, PanelFormView):
     def get_success_message(self, obj) -> str:
         return _("Saved changes to %(model)s “%(object)s”.") % {
             "model": self.panel.get_label().lower(),
-            "object": obj,
+            "object": safe_str(obj),
         }
 
 
@@ -697,14 +706,14 @@ class DeleteView(RecordView):
     @property
     def page_title(self) -> str:
         if self.object:
-            return _("Delete %(object)s") % {"object": self.object}
+            return _("Delete %(object)s") % {"object": safe_str(self.object)}
         return _("Delete")
 
     def get_breadcrumbs(self):
         detail = self.get_detail_url(self.object) if self.object else None
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.object), detail),
+            (safe_str(self.object), detail),
             (_("Delete"), None),
         ]
 
@@ -752,7 +761,7 @@ class DeleteView(RecordView):
             # No cascade check: nothing is being destroyed, so nothing downstream can
             # be orphaned or protected. Checking anyway would refuse a soft delete for
             # a PROTECT reference that a soft delete does not violate.
-            label = str(self.object)
+            label = safe_str(self.object)
             from vantage import audit
 
             audit.log_delete(request, self.object, soft=True)
@@ -768,7 +777,7 @@ class DeleteView(RecordView):
             messages.error(request, cascade.blocked_by)
             return self.render_to_response(self.get_context_data(cascade=cascade), status=409)
 
-        label = str(self.object)
+        label = safe_str(self.object)
         # Before the delete: Model.delete() blanks the pk, so an entry written
         # afterwards would snapshot a record with no identity.
         from vantage import audit
@@ -876,7 +885,7 @@ class RestoreView(RecordView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         pattern = self.panel.get_patterns().soft_delete
-        label = str(self.object)
+        label = safe_str(self.object)
 
         from vantage import audit
 

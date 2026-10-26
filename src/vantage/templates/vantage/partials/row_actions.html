@@ -30,7 +30,7 @@
       <a class="v-btn v-btn-ghost v-btn-sm v-btn-icon{% if act.destructive %} v-row-action-destructive{% endif %}"
          href="{{ act.url }}" tabindex="-1"
          title="{{ act.label }}"
-         aria-label="{% blocktranslate with label=act.label obj=object %}{{ label }} {{ obj }}{% endblocktranslate %}">
+         aria-label="{% blocktranslate with label=act.label obj=object|record_label %}{{ label }} {{ obj }}{% endblocktranslate %}">
         {% if act.icon %}{% icon act.icon %}{% else %}<span aria-hidden="true">{{ act.label|first }}</span>{% endif %}
       </a>
     {% else %}
@@ -38,7 +38,7 @@
               name="action" value="{{ act.name }}" tabindex="-1"
               class="v-btn v-btn-ghost v-btn-sm v-btn-icon{% if act.destructive %} v-row-action-destructive{% endif %}"
               title="{{ act.label }}"
-              aria-label="{% blocktranslate with label=act.label obj=object %}{{ label }} {{ obj }}{% endblocktranslate %}">
+              aria-label="{% blocktranslate with label=act.label obj=object|record_label %}{{ label }} {{ obj }}{% endblocktranslate %}">
         {% if act.icon %}{% icon act.icon %}{% else %}<span aria-hidden="true">{{ act.label|first }}</span>{% endif %}
       </button>
     {% endif %}
