@@ -397,6 +397,16 @@ class InlineWriteView(InlinePanelView):
         if not rows:
             return JsonResponse({"ok": True, "saved": 0, "rows": []})
 
+        from vantage import undo
+
+        undo.arm(request, self.panel)
+        self.capture = (
+            undo.FieldCapture(
+                self.panel.model, get_config(self.panel, request).names, strategy="instances"
+            )
+            if undo.enabled_for(self.panel)
+            else None
+        )
         try:
             saved = self.commit(rows)
         except Rejected as exc:
@@ -410,13 +420,17 @@ class InlineWriteView(InlinePanelView):
         for obj, form in saved:
             audit.log_form_save(request, obj, form, change=True)
 
-        return JsonResponse(
-            {
-                "ok": True,
-                "saved": len(saved),
-                "rows": [self.row_result(obj) for obj, _ in saved],
-            }
-        )
+        body: dict[str, Any] = {
+            "ok": True,
+            "saved": len(saved),
+            "rows": [self.row_result(obj) for obj, _ in saved],
+        }
+        if self.capture is not None:
+            plan = self.capture.plan(self.panel, verb="change", what="inline", origin="inline")
+            offered = undo.offer(request, self.panel, plan)
+            if offered is not None:
+                body["undo"] = offered.as_json(plan.summary if plan else "")
+        return JsonResponse(body)
 
     # ── reading the payload ─────────────────────────────────────────────────
 
@@ -468,8 +482,13 @@ class InlineWriteView(InlinePanelView):
         saved: list[tuple[Any, forms.ModelForm]] = []
 
         with transaction.atomic(using=router.db_for_write(self.panel.model)):
+            capture = getattr(self, "capture", None)
             for row in rows:
                 obj = self.get_row(row["pk"])
+                if capture is not None:
+                    # Before the form is bound: validating it writes the new values
+                    # onto ``obj``, and the "before" would already be the "after".
+                    capture.note(obj, [obj._meta.get_field(name).attname for name in row["fields"]])
                 form = self.build_form(obj, row["fields"])
                 if not form.is_valid():
                     errors.append({"pk": str(obj.pk), "fields": form_errors(form)})
@@ -480,6 +499,8 @@ class InlineWriteView(InlinePanelView):
                     conflicts.append(self.conflict(stale, row["fields"]))
                     continue
                 saved.append((self.save_row(obj, form), form))
+                if capture is not None:
+                    capture.read_row(obj)
 
             if conflicts or errors:
                 # Raised inside the block on purpose: this is what rolls back the rows

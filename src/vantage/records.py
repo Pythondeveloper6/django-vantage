@@ -462,7 +462,7 @@ def bulk_edit_payload(post, names: list[str]) -> dict[str, list[str]]:
     return data
 
 
-def apply_bulk_edit(request, panel, obj, data, names: list[str]):
+def apply_bulk_edit(request, panel, obj, data, names: list[str], *, on_saved=None):
     """Write the ticked fields onto one record. Returns the bound form.
 
     One record at a time and through a real ``ModelForm``, not ``queryset.update()``.
@@ -485,6 +485,9 @@ def apply_bulk_edit(request, panel, obj, data, names: list[str]):
         else:
             instance.save()
         form.save_m2m()
+        if on_saved is not None:
+            # Inside the transaction: the undo records what *this* save stored.
+            on_saved(instance)
 
     from vantage import audit
 
@@ -594,7 +597,7 @@ def bulk_edit_strategy(panel, names: list[str]) -> tuple[str, str]:
     return "sql", ""
 
 
-def run_bulk_edit(request, panel, queryset, form, names: list[str], *, since=None):
+def run_bulk_edit(request, panel, queryset, form, names: list[str], *, since=None, capture=None):
     """Write the ticked fields across ``queryset``. Returns a :class:`BulkEditOutcome`.
 
     ``form`` is a *validated* bulk form — one form for the whole edit, because the values
@@ -635,9 +638,12 @@ def run_bulk_edit(request, panel, queryset, form, names: list[str], *, since=Non
         )
 
     guarded = _guard_by_version(queryset, column, since)
+    if capture is not None:
+        # Restored the way the edit was written: one UPDATE, or a save() per row.
+        capture.strategy = strategy
     if strategy == "sql":
-        return _bulk_edit_sql(request, panel, guarded, form, names, column, matched)
-    return _bulk_edit_instances(request, panel, guarded, form, names, matched, reason)
+        return _bulk_edit_sql(request, panel, guarded, form, names, column, matched, capture)
+    return _bulk_edit_instances(request, panel, guarded, form, names, matched, reason, capture)
 
 
 def _guard_by_version(queryset, column, since):
@@ -652,7 +658,7 @@ def _guard_by_version(queryset, column, since):
     return queryset.filter(**{f"{column.name}__lte": since})
 
 
-def _bulk_edit_sql(request, panel, queryset, form, names, column, matched: int):
+def _bulk_edit_sql(request, panel, queryset, form, names, column, matched: int, capture=None):
     values = {name: form.cleaned_data[name] for name in names}
     if column is not None:
         # Advancing the lock is part of the same statement, not a second write: a
@@ -664,7 +670,13 @@ def _bulk_edit_sql(request, panel, queryset, form, names, column, matched: int):
     with transaction.atomic(using=router.db_for_write(panel.model)):
         # ``order_by()`` because a bulk edit inherits the list page's sort and an
         # ORDER BY on an UPDATE is at best ignored and at worst rejected.
+        if capture is not None:
+            # Pinned to the rows it locked and recorded, so what is undone later is
+            # exactly what this statement changed.
+            queryset = capture.lock(queryset)
         updated = queryset.order_by().update(**values)
+        if capture is not None:
+            capture.read_after()
 
     from vantage import audit
 
@@ -690,7 +702,9 @@ def _loggable(value):
     return _jsonify(value)
 
 
-def _bulk_edit_instances(request, panel, queryset, form, names, matched: int, reason: str):
+def _bulk_edit_instances(
+    request, panel, queryset, form, names, matched: int, reason: str, capture=None
+):
     """One ``save()`` per row, each taking the row's lock first.
 
     The per-row :func:`~vantage.concurrency.claim` is not redundant with the ``since``
@@ -713,8 +727,19 @@ def _bulk_edit_instances(request, panel, queryset, form, names, matched: int, re
         except StaleWrite:
             skipped += 1
             continue
-        bound = apply_bulk_edit(request, panel, obj, data, names)
+        if capture is not None:
+            capture.note(obj)
+        bound = apply_bulk_edit(
+            request,
+            panel,
+            obj,
+            data,
+            names,
+            on_saved=capture.read_row if capture is not None else None,
+        )
         if bound.errors:
+            if capture is not None:
+                capture.forget(obj)
             failed += 1
             if len(errors) < 20:
                 errors.append(f"{obj}: {'; '.join(_flatten_errors(bound))}")

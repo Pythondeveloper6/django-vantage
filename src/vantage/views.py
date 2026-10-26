@@ -11,6 +11,7 @@ from functools import cached_property
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, HttpResponseRedirect
+from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import (
     get_language,
@@ -20,6 +21,7 @@ from django.utils.translation import (
 from django.utils.translation import (
     gettext_lazy as _,
 )
+from django.views.decorators.csrf import csrf_protect
 from django.views.generic import TemplateView
 
 from vantage import listprefs, listquery
@@ -247,14 +249,21 @@ class ListView(PanelView):
                 )
             return redirect(job.get_absolute_url())
 
+        from vantage import undo
+
+        # Armed only here, on the in-request path: a job has no toast to put a button
+        # in, and building a snapshot nobody can redeem is pure cost.
+        undo.arm(request, self.panel)
         result = chosen.run(self.panel, request, queryset)
         audit.log_action(request, self.panel.model, chosen, count)
+        offered = undo.offer(request, self.panel, result.undo)
         # Report the scope that was actually resolved. Django's own admin once let
         # select-across silently fall back to page one on a destructive action.
         getattr(messages, result.level, messages.info)(
             request,
             _("%(message)s (%(scope)s)")
             % {"message": result.message, "scope": selection.describe(count)},
+            extra_tags=offered.tag if offered else "",
         )
         return redirect(result.redirect or request.get_full_path())
 
@@ -806,6 +815,49 @@ class ImpersonateView(SiteView):
             messages.error(request, str(exc))
 
         return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class UndoView(SiteView):
+    """Redeem an undo token from a toast. POST only, and CSRF-checked.
+
+    ``csrf_protect`` explicitly rather than trusting the project's middleware list: a
+    token is a capability, and redeeming one must not be something a forged form on
+    another site can do even where ``CsrfViewMiddleware`` was left out.
+
+    Answers JSON to a script that asks for it — the inline grid, which has no page to
+    reload — and otherwise sets a message and redirects back, so the button is a plain
+    form underneath. All the deciding happens in :func:`vantage.undo.redeem`.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from django.http import JsonResponse
+
+        from vantage import undo
+
+        outcome = undo.redeem(request, self.site, request.POST.get("token", ""), self.permissions)
+        if "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse(outcome.as_json(), status=outcome.status)
+        getattr(messages, outcome.level, messages.info)(request, outcome.message)
+        return HttpResponseRedirect(self.next_url(request, outcome))
+
+    def next_url(self, request, outcome) -> str:
+        from django.urls import NoReverseMatch, reverse
+
+        target = request.POST.get("next", "")
+        if target and url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return target
+        if outcome.resource_key:
+            try:
+                return reverse(f"vantage:{outcome.resource_key.replace('.', '-')}-list")
+            except NoReverseMatch:
+                pass
+        return reverse("vantage:dashboard")
 
 
 class ThemeView(SiteView):
