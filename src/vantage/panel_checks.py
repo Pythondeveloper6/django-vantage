@@ -45,6 +45,7 @@ class ModelPanelChecks:
             *self._check_layout(panel),
             *self._check_list_select_related(panel),
             *self._check_related_tabs(panel),
+            *self._check_undo(panel),
             *self._check_removed(panel),
         ]
 
@@ -241,6 +242,20 @@ class ModelPanelChecks:
                 hint="None lets the panel decide from how many relations there are.",
                 obj=type(panel),
                 id="vantage.E019",
+            )
+        ]
+
+    def _check_undo(self, panel: ModelPanel) -> list[Error]:
+        """``undo`` is tri-state like ``related_tabs``; anything else is a typo."""
+        value = getattr(panel, "undo", None)
+        if value is None or isinstance(value, bool):
+            return []
+        return [
+            Error(
+                f"'undo' must be True, False or None; got {value!r}.",
+                hint="None follows VANTAGE['UNDO_WINDOW']; False turns undo off for this model.",
+                obj=type(panel),
+                id="vantage.E070",
             )
         ]
 

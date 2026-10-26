@@ -83,6 +83,10 @@ class ModelPanel:
     # by ``vantage.E050`` rather than ignored.
     actions: list[Any] | None = None
     row_actions: list[Any] | None = None
+    #: Whether deletes and edits on this model offer "Undo" in their toast. ``None``
+    #: follows ``VANTAGE["UNDO_WINDOW"]``; ``False`` switches it off for this model —
+    #: for one whose rows must never come back once deleted, say.
+    undo: bool | None = None
 
     #: Accepting ``search_fields`` as an alias keeps muscle memory from
     #: ``django.contrib.admin`` intact.
