@@ -159,6 +159,19 @@ add by hand to a Django admin — so inference does it for you.
 
 Details: [Lists](lists.md).
 
+## List views
+
+| Attribute | Type | Default | Effect |
+|---|---|---|---|
+| `list_views` | `list[str]` | inferred | Views the switcher offers, first is the default. `["table"]` switches the others off |
+| `kanban_field` | `str` | inferred | Choices or boolean field the board has one column per value of |
+| `calendar_field` | `str` | inferred | Date or datetime field the calendar places records by |
+| `gallery_field` | `str` | inferred | Image (or picture-named file) field a gallery card leads with |
+| `map_fields` | `str` or `(str, str)` | inferred | A `PointField`, or a `("latitude", "longitude")` pair |
+| `card_fields` | `list[str]` | inferred | Fields under a card's title on the board and in the gallery |
+
+Details: [List views](list-views.md).
+
 ## List analytics
 
 | Attribute | Type | Default | Effect |
@@ -447,6 +460,13 @@ defaults are skipped.
 | `vantage.E018` | `list_select_related` names something that is not a field path, or crosses a multi-valued relation `select_related` cannot follow |
 | `vantage.E019` | `related_tabs` is set to something other than `True`, `False` or `None` |
 | `vantage.E020` | A [removed attribute](#removed-attributes) — currently only `permissions` — is still set |
+| `vantage.E070` | `list_views` is not a non-empty list, or names a view that does not exist |
+| `vantage.E071` | `list_views` names a view the model has no field for |
+| `vantage.E072` | `kanban_field` is not a local field with 2–12 choices, or a `BooleanField` |
+| `vantage.E073` | `calendar_field` is not a `DateField` or `DateTimeField` |
+| `vantage.E074` | `gallery_field` is not an `ImageField` or `FileField` |
+| `vantage.E075` | `map_fields` is neither a `PointField` nor a pair of `FloatField`/`DecimalField`s |
+| `vantage.E076` | `card_fields` names something that is not a field, a model attribute or a panel method |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different
