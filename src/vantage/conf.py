@@ -28,6 +28,15 @@ DEFAULTS: dict[str, Any] = {
     "BRAND_RADIUS": "0.5rem",
     "THEME": "system",
     "THEME_TOGGLE": True,
+    # The look, as opposed to THEME's light/dark: "vantage" (the original), "shadcn",
+    # "slate", ... or a name registered in UI_THEMES. See vantage.presets.
+    "UI_THEME": "vantage",
+    # {"name": {"light": {...}, "dark": {...}, "primary": "#hex", "radius": ...}}.
+    # Anything omitted is inherited from the "vantage" preset.
+    "UI_THEMES": {},
+    # Lets each person pick a preset for themselves, like THEME_TOGGLE does for
+    # light/dark.
+    "UI_THEME_TOGGLE": True,
     "CUSTOM_CSS": None,
     "LOGIN_IMAGE": None,
     # ── discovery ───────────────────────────────────────────────────────────
@@ -230,6 +239,14 @@ class VantageSettings:
                 f"or None; got {tiles!r}."
             )
 
+        from vantage.presets import validate_ui_themes
+
+        problems = validate_ui_themes(
+            user.get("UI_THEMES", DEFAULTS["UI_THEMES"]), user.get("UI_THEME", DEFAULTS["UI_THEME"])
+        )
+        if problems:
+            raise ImproperlyConfigured("Invalid UI theme settings:\n  " + "\n  ".join(problems))
+
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
 
@@ -239,7 +256,12 @@ class VantageSettings:
         # module is imported before the app registry is populated.
         from vantage.siteconfig import database_overrides
 
-        resolved.update(database_overrides())
+        overrides = database_overrides()
+        resolved.update(overrides)
+        # Remembered because "BRAND_COLOR is #6366f1" cannot tell an owner who chose it
+        # from one who never chose anything, and a UI theme preset may only supply its
+        # own primary in the second case.
+        resolved["_explicit"] = frozenset(user) | frozenset(overrides)
 
         # Derived values. Each is computed only when the user left it unset, so an
         # explicit value always wins.
@@ -256,8 +278,12 @@ class VantageSettings:
             raise AttributeError(f"{name!r} is not a Vantage setting.")
         return self._resolve()[name]
 
+    def is_explicit(self, name: str) -> bool:
+        """Whether the owner set ``name`` (in ``VANTAGE`` or the settings screen)."""
+        return name in self._resolve()["_explicit"]
+
     def as_dict(self) -> dict[str, Any]:
-        return dict(self._resolve())
+        return {k: v for k, v in self._resolve().items() if not k.startswith("_")}
 
     def reset(self) -> None:
         self._cache = None

@@ -215,7 +215,7 @@
   inline-size: 1.25rem;
   block-size: 1.25rem;
   line-height: 1;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--muted-foreground);
@@ -287,7 +287,7 @@
   text-align: start;
   background: var(--popover);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }

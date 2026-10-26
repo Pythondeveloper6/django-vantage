@@ -82,7 +82,7 @@ SECTIONS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
         "appearance",
         "Appearance",
         "One colour drives the whole palette. Everything else is derived from it.",
-        ("brand_color", "brand_radius", "theme", "theme_toggle"),
+        ("brand_color", "brand_radius", "theme", "theme_toggle", "ui_theme", "ui_theme_toggle"),
     ),
     (
         "behaviour",
@@ -123,6 +123,8 @@ _LABELS = {
     "brand_radius": _("Corner radius"),
     "theme": _("Default theme"),
     "theme_toggle": _("Theme toggle"),
+    "ui_theme": _("Look"),
+    "ui_theme_toggle": _("Look picker"),
     "environment": _("Environment banner"),
     "default_per_page": _("Rows per page"),
     "command_palette": _("Command palette"),
@@ -135,6 +137,8 @@ _HELP = {
     "brand_color": _("A hex colour. Every button, link and focus ring is derived from it."),
     "brand_radius": _("A CSS length: 0.5rem, 8px, or 0 for square corners."),
     "theme_toggle": _("Lets each person choose light or dark for themselves."),
+    "ui_theme": _("A whole look: neutrals, corners and shadows. Your brand colour still wins."),
+    "ui_theme_toggle": _("Lets each person choose a look for themselves."),
     "environment": _("A banner across the top of every page. Empty hides it."),
     "read_only": _("Hides every create, edit and delete control for everyone."),
 }
@@ -146,6 +150,7 @@ _OFF = pgettext_lazy("toggle state", "Off")
 
 _BOOLEAN_LABELS = {
     "theme_toggle": (_ON, _OFF),
+    "ui_theme_toggle": (_ON, _OFF),
     "command_palette": (_ON, _OFF),
     "read_only": (_("On — nothing can be created, changed or deleted"), _OFF),
 }
@@ -270,6 +275,9 @@ class SiteSettingsForm(forms.ModelForm):
         labels = _LABELS
         help_texts = _HELP
 
+    def clean_ui_theme(self):
+        return _clean_ui_theme(self.cleaned_data.get("ui_theme"))
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         inherited = code_defaults()
@@ -304,6 +312,17 @@ class SiteSettingsForm(forms.ModelForm):
                 field.widget.attrs["class"] = "v-select"
                 continue
 
+            if name == "ui_theme":
+                from vantage.presets import get_presets
+
+                inherited_label = _("Use the code default (%(value)s)") % {"value": fallback}
+                field.widget = forms.Select(
+                    choices=[("", inherited_label)]
+                    + [(key, preset.label) for key, preset in get_presets().items()],
+                    attrs={"class": "v-select"},
+                )
+                continue
+
             widget = field.widget
             if isinstance(widget, forms.ClearableFileInput):
                 widget.attrs["class"] = "v-file"
@@ -319,6 +338,15 @@ class SiteSettingsForm(forms.ModelForm):
         self.fields["brand_color"].widget.attrs.update(
             {"data-vantage-brand": "", "spellcheck": "false", "autocomplete": "off"}
         )
+
+
+def _clean_ui_theme(value):
+    """A preset name that exists, or nothing. Checked against the live registry."""
+    from vantage.presets import get_presets
+
+    if value and value not in get_presets():
+        raise forms.ValidationError(_("Choose one of the available looks."), code="invalid")
+    return value
 
 
 def _setting_key(field_name: str) -> str:

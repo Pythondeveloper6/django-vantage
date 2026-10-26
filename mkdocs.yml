@@ -114,6 +114,7 @@ nav:
       - Forms: forms.md
       - Pages and dashboards: pages-and-dashboards.md
       - Theming: theming.md
+      - UI theme presets: ui-themes.md
   - Platform:
       - Permissions: permissions.md
       - Roles: roles.md

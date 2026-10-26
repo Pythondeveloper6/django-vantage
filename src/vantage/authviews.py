@@ -34,7 +34,7 @@ from django.utils.translation import get_language, get_language_bidi
 from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
-from vantage.nav import build_nav, resolve_theme
+from vantage.nav import build_nav, resolve_theme, resolve_ui_theme
 from vantage.theme import no_flash_script, render_theme_css
 
 __all__ = [
@@ -60,10 +60,12 @@ def branding_context(request) -> dict:
     ``BRAND_COLOR`` — in settings or from the settings screen — restyles the sign-in
     page along with everything else instead of leaving one stale screen behind.
     """
+    ui_theme = resolve_ui_theme(request)
     return {
         "settings": vantage_settings,
         "theme": resolve_theme(request),
-        "theme_css": render_theme_css(),
+        "ui_theme": ui_theme,
+        "theme_css": render_theme_css(preset=ui_theme),
         "no_flash_script": no_flash_script(),
         "language_code": get_language() or "en",
         "is_rtl": get_language_bidi(),

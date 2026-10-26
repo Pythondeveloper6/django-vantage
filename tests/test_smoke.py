@@ -134,6 +134,8 @@ def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
                     unresolved.append(param)
             elif param == "user" and route.startswith("_/roles/") and user is not None:
                 kwargs["user"] = user.pk
+            elif param == "name" and route.startswith("_/ui-theme/"):
+                kwargs["name"] = "shadcn"
             elif param == "token":
                 # The import wizard's session token. Deliberately not a real one: an
                 # expired/unknown token is a supported, non-crashing outcome (a

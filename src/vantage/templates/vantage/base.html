@@ -1,5 +1,5 @@
 {% load static vantage i18n %}<!doctype html>
-<html lang="{{ language_code }}"{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<html lang="{{ language_code }}"{% if ui_theme %} data-ui-theme="{{ ui_theme }}"{% endif %}{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +9,11 @@
 {# Blocking and inline on purpose: a deferred script paints light first and flips. #}
 <script{{ csp_nonce_attr }}>{{ no_flash_script|safe }}</script>
 
+{% comment %}
+  Keep this the first <style> in <head>: the look picker swaps its text in place
+  (vantage.js finds it as `head > style`; an id would break the exact
+  `<style nonce="...">` the CSP tests and projects' own checks look for).
+{% endcomment %}
 <style{{ csp_nonce_attr }}>{{ theme_css|safe }}</style>
 <link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
 <link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">

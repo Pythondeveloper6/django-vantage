@@ -336,7 +336,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   margin-block-start: -0.25rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-lg);
   background: color-mix(in oklab, var(--card) 92%, transparent);
   backdrop-filter: blur(8px);
@@ -382,7 +382,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.4375rem 0.625rem;
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--muted);
 }

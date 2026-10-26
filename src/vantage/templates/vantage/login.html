@@ -9,7 +9,7 @@
   No skip link here on purpose. WCAG 2.4.1 is about bypassing *repeated* blocks; this
   page has one landmark and the first tab stop is already the username field.
 {% endcomment %}
-<html lang="{{ language_code|default:"en" }}"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<html lang="{{ language_code|default:"en" }}"{% if ui_theme %} data-ui-theme="{{ ui_theme }}"{% endif %}{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
