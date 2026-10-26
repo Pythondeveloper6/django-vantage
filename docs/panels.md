@@ -242,6 +242,7 @@ Details: [Forms](forms.md).
 |---|---|---|---|
 | `actions` | `list[str \| Action]` | `None` | Bulk actions offered on the list page |
 | `row_actions` | `list[str]` | `None` | Which actions appear in the menu on each list row — see below |
+| `undo` | `bool \| None` | `None` | Whether deletes and edits offer **Undo** in their toast. `None` follows `UNDO_WINDOW`; `False` turns it off for this model — see [Undo](undo.md) |
 | `checks_class` | `type` | `ModelPanelChecks` | Subclass it to extend validation for your own panel base class |
 
 When `actions` is left unset, every method on the panel decorated with `@action` is
@@ -467,6 +468,7 @@ defaults are skipped.
 | `vantage.E074` | `gallery_field` is not an `ImageField` or `FileField` |
 | `vantage.E075` | `map_fields` is neither a `PointField` nor a pair of `FloatField`/`DecimalField`s |
 | `vantage.E076` | `card_fields` names something that is not a field, a model attribute or a panel method |
+| `vantage.E077` | `undo` is set to something other than `True`, `False` or `None` |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different

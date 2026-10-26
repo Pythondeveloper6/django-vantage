@@ -740,8 +740,18 @@ class DeleteView(RecordView):
         """
         from django.utils import timezone
 
+        from vantage import undo
+
         value = True if pattern.kind == "boolean" else timezone.now()
-        self.panel.model._base_manager.filter(pk=self.object.pk).update(**{pattern.field: value})
+        # Through vantage.undo, which is the same UPDATE plus a record of exactly what
+        # it wrote — the condition the toast's Undo checks before un-trashing.
+        _count, step = undo.soft_delete(
+            self.panel,
+            self.panel.model._base_manager.filter(pk=self.object.pk),
+            capture=undo.armed(self.request),
+            value=value,
+        )
+        self._undo_steps = [step] if step is not None else []
         setattr(self.object, pattern.field, value)
 
     def post(self, request, *args, **kwargs):
@@ -753,12 +763,18 @@ class DeleteView(RecordView):
             # be orphaned or protected. Checking anyway would refuse a soft delete for
             # a PROTECT reference that a soft delete does not violate.
             label = str(self.object)
-            from vantage import audit
+            from vantage import audit, undo
 
+            undo.arm(request, self.panel)
             audit.log_delete(request, self.object, soft=True)
             with transaction.atomic(using=router.db_for_write(self.panel.model)):
                 self.soft_delete(pattern)
-            messages.success(request, self.get_trashed_message(label))
+            offered = self.offer_undo(label)
+            messages.success(
+                request,
+                self.get_trashed_message(label),
+                extra_tags=offered.tag if offered else "",
+            )
             return HttpResponseRedirect(reverse(self.panel.list_url_name))
 
         cascade = collect_cascade(self.object)
@@ -771,13 +787,35 @@ class DeleteView(RecordView):
         label = str(self.object)
         # Before the delete: Model.delete() blanks the pk, so an entry written
         # afterwards would snapshot a record with no identity.
-        from vantage import audit
+        from vantage import audit, undo
 
+        undo.arm(request, self.panel)
         audit.log_delete(request, self.object)
         with transaction.atomic(using=router.db_for_write(self.panel.model)):
-            self.object.delete()
-        messages.success(request, self.get_success_message(label, cascade))
+            # ``self.object.delete()`` exactly, unless an undo snapshot can be taken
+            # safely — see vantage.undo for every case in which it cannot.
+            outcome = undo.delete(self.panel, self.object, request=request)
+        self._undo_steps = [outcome.step] if outcome.step is not None else []
+        offered = self.offer_undo(label)
+        messages.success(
+            request,
+            self.get_success_message(label, cascade),
+            extra_tags=offered.tag if offered else "",
+        )
         return HttpResponseRedirect(reverse(self.panel.list_url_name))
+
+    def offer_undo(self, label: str):
+        """Store the undo for what was just deleted, or return ``None``."""
+        from vantage import undo
+
+        steps = getattr(self, "_undo_steps", None)
+        if not steps:
+            return None
+        summary, done = undo.describe(self.panel, 1, "delete", obj=label)
+        plan = undo.UndoPlan(
+            model=self.panel.model, verb="delete", summary=summary, done=done, steps=steps
+        )
+        return undo.offer(self.request, self.panel, plan)
 
     def get_trashed_message(self, label: str) -> str:
         return _("Moved %(model)s “%(object)s” to the trash.") % {

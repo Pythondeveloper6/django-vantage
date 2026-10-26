@@ -216,14 +216,17 @@ class RowActionView(ListView):
                 )
             )
 
-        from vantage import audit
+        from vantage import audit, undo
 
         queryset = self.scoped_queryset(request).filter(pk=obj.pk)
+        undo.arm(request, self.panel)
         result = chosen.run(self.panel, request, queryset)
         audit.log_action(request, self.panel.model, chosen, 1)
+        offered = undo.offer(request, self.panel, result.undo)
         getattr(messages, result.level, messages.info)(
             request,
             _("%(message)s (%(object)s)") % {"message": result.message, "object": obj},
+            extra_tags=offered.tag if offered else "",
         )
         return HttpResponseRedirect(result.redirect or self.back_url())
 
@@ -331,6 +334,12 @@ class BulkEditView(PanelView):
         if not form.is_valid():
             return self.render_picker(request, selection, count, available, bound=True)
 
+        from vantage import undo
+
+        undo.arm(request, self.panel)
+        capture = (
+            undo.FieldCapture(self.panel.model, names) if undo.enabled_for(self.panel) else None
+        )
         outcome = records.run_bulk_edit(
             request,
             self.panel,
@@ -338,8 +347,18 @@ class BulkEditView(PanelView):
             form,
             names,
             since=parse_datetime(request.POST.get("since") or "") or None,
+            capture=capture,
         )
-        getattr(messages, outcome.level, messages.info)(request, outcome.message)
+        offered = None
+        if capture is not None and not outcome.refused:
+            offered = undo.offer(
+                request,
+                self.panel,
+                capture.plan(self.panel, verb="change", what="bulk_edit"),
+            )
+        getattr(messages, outcome.level, messages.info)(
+            request, outcome.message, extra_tags=offered.tag if offered else ""
+        )
         for detail in outcome.errors:
             messages.error(request, detail)
         if outcome.refused:

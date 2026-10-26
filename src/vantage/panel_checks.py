@@ -46,6 +46,7 @@ class ModelPanelChecks:
             *self._check_list_select_related(panel),
             *self._check_related_tabs(panel),
             *self._check_data_quality(panel),
+            *self._check_undo(panel),
             *self._check_removed(panel),
             *self._check_list_views(panel),
         ]
@@ -275,6 +276,20 @@ class ModelPanelChecks:
                 hint="False leaves the model out of the audit; a list skips those checks.",
                 obj=type(panel),
                 id="vantage.E063",
+            )
+        ]
+
+    def _check_undo(self, panel: ModelPanel) -> list[Error]:
+        """``undo`` is tri-state like ``related_tabs``; anything else is a typo."""
+        value = getattr(panel, "undo", None)
+        if value is None or isinstance(value, bool):
+            return []
+        return [
+            Error(
+                f"'undo' must be True, False or None; got {value!r}.",
+                hint="None follows VANTAGE['UNDO_WINDOW']; False turns undo off for this model.",
+                obj=type(panel),
+                id="vantage.E077",
             )
         ]
 

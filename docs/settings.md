@@ -257,6 +257,19 @@ retry behaviour, and the backends it is tried against.
 | `JOB_RETENTION_DAYS` | `30` | How long a finished job's row is kept before it is swept |
 | `JOB_QUEUE` | `"default"` | Queue name passed to `django.tasks` or RQ. Celery uses its own routing instead |
 
+## Undo
+
+After a delete or an edit, the toast offers **Undo** for a few seconds — see
+[Undo](undo.md) for what can be undone, and the cases in which the toast deliberately
+has no button.
+
+| Key | Default | Effect |
+|---|---|---|
+| `UNDO_WINDOW` | `10` | Seconds the Undo button stays redeemable. `0` turns undo off everywhere |
+| `UNDO_MAX_ROWS` | `1000` | Most rows one undo may carry, cascade included. Larger changes still happen, without Undo |
+
+`ModelPanel.undo = False` turns it off for one model.
+
 ## Scale
 
 What a list page does once the table outgrows the sample data. Everything is fast at
@@ -319,6 +332,8 @@ TENANT_SCOPE  TENANT_EXEMPT  TENANT_UNSCOPED
 
 JOBS  JOB_THRESHOLD_SECONDS  JOB_CHUNK_SIZE
 JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
+
+UNDO_WINDOW  UNDO_MAX_ROWS
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS

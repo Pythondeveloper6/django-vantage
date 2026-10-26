@@ -154,6 +154,13 @@ DEFAULTS: dict[str, Any] = {
     "JOB_RETENTION_DAYS": 30,
     # Queue name for django.tasks / RQ. Celery uses its own routing.
     "JOB_QUEUE": "default",
+    # ── undo ────────────────────────────────────────────────────────────────
+    # Seconds the "Undo" button on a delete or edit toast stays redeemable. 0 turns
+    # undo off everywhere; ModelPanel.undo = False turns it off for one model.
+    "UNDO_WINDOW": 10,
+    # The most rows one undo may carry, cascades included. Past it the change still
+    # happens, it just is not offered for undo: the snapshot would be the problem.
+    "UNDO_MAX_ROWS": 1000,
     # ── data quality ────────────────────────────────────────────────────────
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
@@ -194,6 +201,14 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "NAV_UNLISTED": ("append", "hide"),
     "TENANT_UNSCOPED": ("deny", "allow"),
     "RELATION_PICKER": ("always", "threshold"),
+}
+
+#: Values that must be a whole number of at least this much. Checked rather than
+#: coerced: ``"10"`` in a settings file is a typo for ``10``, and an undo window that
+#: silently became zero would be an undo that silently stopped existing.
+MINIMUMS: dict[str, int] = {
+    "UNDO_WINDOW": 0,
+    "UNDO_MAX_ROWS": 1,
 }
 
 
@@ -246,6 +261,13 @@ class VantageSettings:
         )
         if problems:
             raise ImproperlyConfigured("Invalid UI theme settings:\n  " + "\n  ".join(problems))
+
+        for key, floor in MINIMUMS.items():
+            value = user.get(key, DEFAULTS[key])
+            if isinstance(value, bool) or not isinstance(value, int) or value < floor:
+                raise ImproperlyConfigured(
+                    f"VANTAGE['{key}'] must be a whole number of at least {floor}; got {value!r}."
+                )
 
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
