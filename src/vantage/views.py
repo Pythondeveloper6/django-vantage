@@ -609,12 +609,12 @@ class DetailView(PanelView):
     template_name = "vantage/detail.html"
 
     def get_object(self):
-        from django.shortcuts import get_object_or_404
+        from vantage.formviews import get_by_pk_or_404
 
         queryset = self.permissions.filter_queryset(
             self.request, self.panel.get_queryset(self.request), "view"
         )
-        return get_object_or_404(queryset, pk=self.kwargs["pk"])
+        return get_by_pk_or_404(queryset, self.kwargs["pk"])
 
     def get_breadcrumbs(self):
         from django.urls import reverse
