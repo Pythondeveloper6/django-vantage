@@ -172,6 +172,7 @@ strictness, so an item that cannot be shown is omitted.
 | `PERMISSIONS` | `None` | — | Dotted path to a `PanelPermissions` subclass |
 | `SETTINGS_PERMISSION` | `None` | — | Who may open the settings screen. `None` means superusers only |
 | `LIST_PREFS_PERMISSION` | `None` | — | Who may save a list's preferences **for everyone**. `None` means superusers only |
+| `ROLES_PERMISSION` | `None` | — | Who may open the [roles & permissions screen](roles.md). `None` means superusers only |
 | `READ_ONLY` | `False` | ✓ | `True`, or a string that doubles as the explanation shown to users |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
@@ -186,7 +187,7 @@ with their defaults in [Security](security.md#installing-the-middleware) — see
 [Two settings layers](security.md#two-settings-layers) for why their defaults live
 there.
 
-`SETTINGS_PERMISSION` and `LIST_PREFS_PERMISSION` each accept a permission string or a
+`SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION` and `ROLES_PERMISSION` each accept a permission string or a
 callable taking the request:
 
 ```python
@@ -196,8 +197,8 @@ VANTAGE = {
 }
 ```
 
-Neither is editable from the UI. `SETTINGS_PERMISSION` in particular would be a
-self-grant.
+None is editable from the UI. `SETTINGS_PERMISSION` and `ROLES_PERMISSION` in
+particular would be self-grants.
 
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
@@ -294,7 +295,7 @@ AUTO_REGISTER  EXCLUDE  INCLUDE_ONLY
 NAV  NAV_UNLISTED  DASHBOARD
 PLUGINS  PLUGINS_EXCLUDE
 
-PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION
+PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION  ROLES_PERMISSION
 READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE
 DEFAULT_PER_PAGE  RELATION_PICKER
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
