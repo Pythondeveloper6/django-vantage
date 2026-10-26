@@ -44,6 +44,7 @@ from django.utils.translation import gettext_lazy as _
 from vantage import listprefs, records
 from vantage.actions import Selection
 from vantage.formviews import PanelFormView, _control_class
+from vantage.sensitive import safe_str
 from vantage.views import ListView, PanelView
 from vantage.widgets import FieldKind, classify
 
@@ -78,7 +79,7 @@ class DuplicateView(PanelFormView):
     @property
     def page_title(self) -> str:
         if self.source is not None:
-            return _("Duplicate %(object)s") % {"object": self.source}
+            return _("Duplicate %(object)s") % {"object": safe_str(self.source)}
         return _("Duplicate")
 
     def get_source(self):
@@ -159,7 +160,7 @@ class DuplicateView(PanelFormView):
     def get_breadcrumbs(self):
         return [
             (self.panel.get_label_plural(), reverse(self.panel.list_url_name)),
-            (str(self.source), self.get_cancel_url()),
+            (safe_str(self.source), self.get_cancel_url()),
             (_("Duplicate"), None),
         ]
 
@@ -209,7 +210,7 @@ class RowActionView(ListView):
                 self.get_context_data(
                     confirming=chosen,
                     confirm_count=1,
-                    confirm_scope=str(obj),
+                    confirm_scope=safe_str(obj),
                     confirm_text=chosen.confirmation_text(1),
                     confirm_selection=None,
                     confirm_object=obj,

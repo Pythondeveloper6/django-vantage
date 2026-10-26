@@ -254,7 +254,15 @@ def options(panel, request=None) -> Options:
         search_fields = tuple(dict.fromkeys(panel.get_list_search(request)))
         per_page = panel.get_per_page(request)
 
-    measures = tuple(name for name in columns if isinstance(_local_field(model, name), NUMERIC))
+    from vantage.sensitive import is_sensitive_path
+
+    # A sensitive column is never a measure or a breakdown: a stat card's min, max or
+    # group label is a value from it.
+    measures = tuple(
+        name
+        for name in columns
+        if isinstance(_local_field(model, name), NUMERIC) and not is_sensitive_path(panel, name)
+    )
     # Dates and groups are drawn from the filters as well as the columns: a panel that
     # offers a date filter has declared that date as something worth slicing by, and a
     # chart of it is the same declaration read the other way round.
@@ -264,7 +272,9 @@ def options(panel, request=None) -> Options:
         if isinstance(_local_field(model, name), DateField)
     )
     groups = tuple(
-        name for name in dict.fromkeys(filter_fields + columns) if _has_labels(model, name)
+        name
+        for name in dict.fromkeys(filter_fields + columns)
+        if _has_labels(model, name) and not is_sensitive_path(panel, name)
     )
     return Options(
         columns=columns,

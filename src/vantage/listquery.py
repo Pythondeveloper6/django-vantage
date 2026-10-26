@@ -111,8 +111,13 @@ def search_q(panel, query: str, request=None) -> Q:
     accepted on ``search_fields`` so an adopted ``ModelAdmin`` keeps working. They are
     stripped rather than honoured here, which is the pre-existing behaviour.
     """
+    from vantage.sensitive import strip_sensitive
+
     combined = Q()
-    for path in panel.get_list_search(request):
+    # get_list_search already drops sensitive paths; asked again here because this is
+    # the line that builds the SQL, and a subclass overriding the getter should not be
+    # able to turn the search box into a guessing oracle by accident.
+    for path in strip_sensitive(panel, panel.get_list_search(request)):
         combined |= Q(**{f"{path.lstrip('^=@')}__icontains": query})
     return combined
 
@@ -142,6 +147,13 @@ def resolve_sort(panel, request, allowed: list[str] | None = None) -> dict | Non
 
     hops = resolve_path(panel.model, path)
     if not hops or any(hop.is_multivalued for hop in hops):
+        return None
+
+    from vantage.sensitive import is_sensitive_path
+
+    if is_sensitive_path(panel, path):
+        # Sorting is an oracle: the row order of a page sorted by a masked column, plus
+        # one known value, bisects every other one. A masked column is never sortable.
         return None
 
     prefix = "-" if descending else ""

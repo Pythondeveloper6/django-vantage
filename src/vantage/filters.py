@@ -470,7 +470,9 @@ class RelatedFilter(Filter):
             # would carry one CASE WHEN per row of the related table.
             self.cost = FacetCost.COSTLY
             objects = list(queryset.filter(pk__in=self.values)) if self.values else []
-        return [(str(obj.pk), str(obj)) for obj in objects] + self._empty_option()
+        from vantage.sensitive import safe_str
+
+        return [(str(obj.pk), safe_str(obj)) for obj in objects] + self._empty_option()
 
     def facet_pairs(self) -> list[tuple[str, Q]] | None:
         if self.cost is not FacetCost.CHEAP:
