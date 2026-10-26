@@ -7,6 +7,9 @@ masked on every surface the panel has — list cells, the detail page, exports, 
 API, search, the audit log — and a person with the right permission can reveal one
 value at a time, which is logged.
 
+![An API token masked with a Reveal button](assets/screenshots/masked-light.webp){ .dv-shot .dv-only-light }
+![An API token masked with a Reveal button](assets/screenshots/masked-dark.webp){ .dv-shot .dv-only-dark }
+
 ```python
 @register(Customer)
 class CustomerPanel(ModelPanel):

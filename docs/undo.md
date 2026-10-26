@@ -8,6 +8,9 @@ It stays for `VANTAGE["UNDO_WINDOW"]` seconds (10 by default), and pressing it �
 <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> while you are not typing in a field — puts the
 records back. There is nothing to configure: every panel gets it.
 
+![The Undo toast after deleting a review](assets/screenshots/undo-light.webp){ .dv-shot .dv-only-light }
+![The Undo toast after deleting a review](assets/screenshots/undo-dark.webp){ .dv-shot .dv-only-dark }
+
 ```python
 VANTAGE = {
     "UNDO_WINDOW": 10,      # seconds; 0 turns undo off everywhere

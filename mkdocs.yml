@@ -103,6 +103,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Features at a glance: features.md
   - Guide:
       - Getting started: getting-started.md
       - How configuration resolves: configuration.md
