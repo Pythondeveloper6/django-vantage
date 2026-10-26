@@ -60,6 +60,7 @@ from vantage.permissions import get_permissions
 from vantage.views import SiteView
 
 __all__ = [
+    "LIST_VIEW_KEY",
     "OVERRIDE_PARAM",
     "STATE_VERSION",
     "VIEW_PARAM",
@@ -93,6 +94,20 @@ STATE_VERSION = 1
 #: because a saved view without its search term or its sort is only half a view.
 SEARCH_PARAM = "q"
 SORT_PARAM = "sort"
+
+#: The stored state's key for the list view (``"kanban"``…). In the URL it shares
+#: ``?view=`` with the saved view's own primary key — digits are a saved view, a name
+#: is a list view; see :mod:`vantage.listviews`.
+LIST_VIEW_KEY = "list_view"
+
+
+def _list_view_param(params) -> str:
+    """The list-view half of ``?view=``: the first value that is not all digits."""
+    for value in params.getlist(VIEW_PARAM):
+        value = (value or "").strip()
+        if value and not value.isdigit():
+            return value
+    return ""
 
 
 def enabled() -> bool:
@@ -157,8 +172,9 @@ def capture(panel, params) -> dict[str, Any]:
     """The current query string, reduced to what a view is allowed to remember.
 
     An allowlist, not a copy: only parameters the panel's own filters own, plus the
-    search term and the sort. Everything else in the URL — the page number, the export
-    flag, the facet opt-in, ``view`` and ``f`` themselves — is about this visit rather
+    search term, the sort and the list view (table, board, …). Everything else in the
+    URL — the page number, the export flag, the facet opt-in, the saved view's own pk
+    and ``f`` — is about this visit rather
     than about this view, and storing it would make "reload my saved view" reopen page
     seven of a CSV download.
     """
@@ -168,12 +184,19 @@ def capture(panel, params) -> dict[str, Any]:
         values = [value for value in params.getlist(name) if value != ""]
         if values:
             filters[name] = values
-    return {
+    state = {
         "version": STATE_VERSION,
         "filters": filters,
         SEARCH_PARAM: params.get(SEARCH_PARAM, "").strip(),
         SORT_PARAM: params.get(SORT_PARAM, "").strip(),
     }
+    # How the rows were being looked at is part of the view: "Open orders, as a
+    # board" is a different thing to save than the same filter as a table. Only a
+    # mode this panel offers is kept, so a hand-made URL cannot store nonsense.
+    list_view = _list_view_param(params)
+    if list_view and list_view in panel.get_list_views():
+        state[LIST_VIEW_KEY] = list_view
+    return state
 
 
 def hydrate(panel, state: dict | None) -> Hydrated:
@@ -215,6 +238,21 @@ def hydrate(panel, state: dict | None) -> Hydrated:
                         "so the saved ordering was not applied."
                     )
                     % {"column": sort.lstrip("-")},
+                    widens=False,
+                )
+            )
+
+    list_view = str(state.get(LIST_VIEW_KEY) or "").strip()
+    if list_view:
+        if list_view in panel.get_list_views() and not list_view.isdigit():
+            pairs.append((VIEW_PARAM, list_view))
+        else:
+            broken.append(
+                BrokenReference(
+                    VIEW_PARAM,
+                    [list_view],
+                    _("The “%(view)s” view is no longer offered here, so the table is shown.")
+                    % {"view": list_view},
                     widens=False,
                 )
             )
@@ -263,6 +301,7 @@ def _normalise(state: dict | None) -> tuple:
         filters,
         str(state.get(SEARCH_PARAM) or "").strip(),
         str(state.get(SORT_PARAM) or "").strip(),
+        str(state.get(LIST_VIEW_KEY) or "").strip(),
     )
 
 
@@ -500,10 +539,17 @@ def list_context(request, panel) -> dict[str, Any]:
 
 
 def _current_view(request, views: list[SavedView]) -> SavedView | None:
-    raw = (request.GET.get(VIEW_PARAM) or "").strip()
-    if not raw.isdigit():
-        return None
-    return next((item for item in views if item.pk == int(raw)), None)
+    """The saved view named by the digit half of ``?view=``, if any.
+
+    Every value is scanned rather than ``.get()``, which returns the *last* one:
+    ``?view=42&view=kanban`` is saved view 42 shown as a board, and reading only the
+    last value would lose the saved view to the list view sharing its parameter.
+    """
+    for raw in request.GET.getlist(VIEW_PARAM):
+        raw = (raw or "").strip()
+        if raw.isdigit():
+            return next((item for item in views if item.pk == int(raw)), None)
+    return None
 
 
 def apply_url(view: SavedView) -> str:
@@ -733,14 +779,20 @@ def _with_view(target: str, pk: int) -> str:
     path, _sep, query = target.partition("?")
     params = QueryDict(query, mutable=True)
     params.pop(OVERRIDE_PARAM, None)
-    params[VIEW_PARAM] = str(pk)
+    # The saved view's pk replaces any other pk; a list-view name sharing the
+    # parameter stays, so saving from the board lands back on the board.
+    names = [value for value in params.getlist(VIEW_PARAM) if not value.strip().isdigit()]
+    params.setlist(VIEW_PARAM, [str(pk), *names])
     return f"{path}?{params.urlencode()}"
 
 
 def _without_view(target: str) -> str:
     path, _sep, query = target.partition("?")
     params = QueryDict(query, mutable=True)
+    names = [value for value in params.getlist(VIEW_PARAM) if not value.strip().isdigit()]
     params.pop(VIEW_PARAM, None)
+    if names:
+        params.setlist(VIEW_PARAM, names)
     params.pop(OVERRIDE_PARAM, None)
     encoded = params.urlencode()
     return f"{path}?{encoded}" if encoded else path
