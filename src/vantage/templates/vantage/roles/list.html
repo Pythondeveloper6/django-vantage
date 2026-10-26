@@ -1,0 +1,81 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% if can_add %}
+  <form class="v-card v-roles-create" method="post" action="{% url 'vantage:role-create' %}">
+    {% csrf_token %}
+    <label class="v-roles-create-field">
+      <span class="v-roles-label">{% translate "New role" %}</span>
+      <input class="v-input" type="text" name="name" required maxlength="{{ name_limit }}"
+             autocomplete="off" placeholder="{% translate 'e.g. Support agents' %}">
+    </label>
+    <button class="v-btn v-btn-primary">{% icon "plus" %}<span>{% translate "Create role" %}</span></button>
+  </form>
+{% endif %}
+
+<div class="v-table-wrap">
+  {% if roles %}
+    <table class="v-table v-roles-list">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Role" %}</th>
+          {% if membership %}<th scope="col" class="v-roles-num">{% translate "Members" %}</th>{% endif %}
+          <th scope="col" class="v-roles-num">{% translate "Permissions" %}</th>
+          <th scope="col" class="v-roles-actions-col"><span class="v-sr-only">{% translate "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for role in roles %}
+          <tr>
+            <th scope="row">
+              <a class="v-cell-link" href="{% url 'vantage:role-edit' role.pk %}">{{ role.name }}</a>
+            </th>
+            {% if membership %}
+              <td class="v-roles-num">
+                <a href="{% url 'vantage:role-members' role.pk %}"
+                   aria-label="{% blocktranslate count counter=role.member_count with name=role.name %}{{ name }}: {{ counter }} member{% plural %}{{ name }}: {{ counter }} members{% endblocktranslate %}">{{ role.member_count }}</a>
+              </td>
+            {% endif %}
+            <td class="v-roles-num">{{ role.permission_count }}</td>
+            <td class="v-roles-row-actions">
+              <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:role-edit' role.pk %}">{% icon "pencil" %}<span>{% translate "Edit" %}</span></a>
+              {% if can_add %}
+                <form method="post" action="{% url 'vantage:role-duplicate' role.pk %}">
+                  {% csrf_token %}
+                  <button class="v-btn v-btn-ghost v-btn-sm"
+                          aria-label="{% blocktranslate with name=role.name %}Duplicate {{ name }}{% endblocktranslate %}">{% icon "file-text" %}<span>{% translate "Duplicate" %}</span></button>
+                </form>
+              {% endif %}
+              {% if can_delete %}
+                <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:role-delete' role.pk %}"
+                   aria-label="{% blocktranslate with name=role.name %}Delete {{ name }}{% endblocktranslate %}">{% icon "trash" %}<span>{% translate "Delete" %}</span></a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      {% icon "shield" class="v-empty-icon" %}
+      <p class="v-empty-title">{% translate "No roles yet." %}</p>
+      <p class="v-empty-body">
+        {% blocktranslate trimmed %}
+          A role bundles permissions under a name — “Support”, “Editors” — so you grant
+          the bundle to people instead of ticking the same boxes for each of them.
+        {% endblocktranslate %}
+      </p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

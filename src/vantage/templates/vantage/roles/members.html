@@ -1,0 +1,88 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+{% include "vantage/roles/_header.html" %}
+
+{% if can_change and within_reach %}
+  <form class="v-card v-roles-add" method="post" action="{% url 'vantage:role-members' group.pk %}">
+    {% csrf_token %}
+    <label class="v-roles-label" for="v-roles-add">{% translate "Add people" %}</label>
+    {% comment %} The select is the control; combobox.js puts a type-to-search box in front of it, and without script it is a short list of the first few people. {% endcomment %}
+    <div class="v-combo" data-vantage-combobox data-url="{{ search_url }}" data-model="{{ user_model_label }}"
+         data-placeholder="{% translate 'Search by name, username or email…' %}">
+      <select id="v-roles-add" name="add" multiple class="v-select">
+        {% for user in candidates %}<option value="{{ user.pk }}">{{ user.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="v-btn v-btn-primary v-btn-sm">{% icon "plus" %}<span>{% translate "Add to role" %}</span></button>
+  </form>
+{% endif %}
+
+<form class="v-toolbar v-roles-member-search" method="get" role="search" aria-label="{% translate 'Search members' %}">
+  <label>
+    <span class="v-sr-only">{% translate "Search members" %}</span>
+    <input class="v-input v-input-sm" type="search" name="q" value="{{ term }}" placeholder="{% translate 'Search members…' %}">
+  </label>
+  <button class="v-btn v-btn-secondary v-btn-sm">{% icon "search" %}<span>{% translate "Search" %}</span></button>
+  {% if term %}<a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>{% endif %}
+  <span class="v-muted v-roles-member-total">
+    {% blocktranslate count counter=members_total %}{{ counter }} member{% plural %}{{ counter }} members{% endblocktranslate %}
+  </span>
+</form>
+
+<div class="v-table-wrap">
+  {% if members %}
+    <table class="v-table v-roles-members">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "User" %}</th>
+          <th scope="col">{% translate "Name" %}</th>
+          <th scope="col">{% translate "Email" %}</th>
+          <th scope="col" class="v-roles-actions-col"><span class="v-sr-only">{% translate "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for member in members %}
+          <tr>
+            <th scope="row">
+              {{ member.username }}
+              {% if not member.active %}<span class="v-badge" data-tone="warning">{% translate "inactive" %}</span>{% endif %}
+            </th>
+            <td>{{ member.name|default:"—" }}</td>
+            <td>{{ member.email|default:"—" }}</td>
+            <td class="v-roles-row-actions">
+              <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:role-user' member.pk %}">{% icon "shield" %}<span>{% translate "Effective permissions" %}</span></a>
+              {% if can_change and within_reach %}
+                <form method="post" action="{% url 'vantage:role-members' group.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="remove" value="{{ member.pk }}">
+                  <button class="v-btn v-btn-ghost v-btn-sm"
+                          aria-label="{% blocktranslate with user=member.username role=group.name %}Remove {{ user }} from {{ role }}{% endblocktranslate %}">{% icon "x" %}<span>{% translate "Remove" %}</span></button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if members_more %}
+      <p class="v-muted v-roles-more">{% translate "Showing the first 200. Search to find someone specific." %}</p>
+    {% endif %}
+  {% else %}
+    <div class="v-empty">
+      {% icon "users" class="v-empty-icon" %}
+      {% if term %}
+        <p class="v-empty-title">{% translate "No member matches that search." %}</p>
+      {% else %}
+        <p class="v-empty-title">{% translate "Nobody holds this role yet." %}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'vantage/combobox.js' %}" defer></script>{% endblock %}
