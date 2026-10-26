@@ -64,6 +64,19 @@ class ModelPanel:
     list_charts: list[Any] | None = None
     list_aggregates: dict[str, Any] | None = None
 
+    # ── alternative list views ──────────────────────────────────────────────
+    #
+    # ``list_views = ["table", "kanban"]`` picks which views the switcher offers, in
+    # order; the first is the default. ``["table"]`` switches the others off. Each
+    # field below is inferred independently, see :mod:`vantage.listviews.inference`.
+    list_views: list[str] | None = None
+    kanban_field: str | None = None
+    calendar_field: str | None = None
+    gallery_field: str | None = None
+    #: A ``PointField`` name, or a ``("latitude", "longitude")`` pair.
+    map_fields: str | tuple[str, str] | None = None
+    card_fields: list[str] | None = None
+
     # ── detail page ─────────────────────────────────────────────────────────
     fields: list[str] | None = None
     exclude: list[str] | None = None
@@ -261,6 +274,64 @@ class ModelPanel:
         if self.list_per_page is not None:
             return self.list_per_page
         return vantage_settings.DEFAULT_PER_PAGE
+
+    # ── alternative list views ──────────────────────────────────────────────
+
+    def get_list_views(self, request=None) -> list[str]:
+        """The views the switcher offers, first one the default.
+
+        A declared list is filtered down to the views this model can actually draw,
+        so a panel naming ``"map"`` on a model with no coordinates loses the button
+        rather than rendering an empty plot — ``vantage.E071`` reports the mistake.
+        """
+        from vantage.listviews import supported
+
+        if self.list_views is None:
+            from vantage.listviews.inference import infer_list_views
+
+            declared = infer_list_views(self.model)
+        else:
+            declared = list(self.list_views)
+        return [name for name in declared if supported(self, name)] or ["table"]
+
+    def get_kanban_field(self, request=None) -> str | None:
+        if self.kanban_field is not None:
+            return self.kanban_field
+        from vantage.listviews.inference import infer_kanban_field
+
+        return infer_kanban_field(self.model)
+
+    def get_calendar_field(self, request=None) -> str | None:
+        if self.calendar_field is not None:
+            return self.calendar_field
+        from vantage.listviews.inference import infer_calendar_field
+
+        return infer_calendar_field(self.model)
+
+    def get_gallery_field(self, request=None) -> str | None:
+        if self.gallery_field is not None:
+            return self.gallery_field
+        from vantage.listviews.inference import infer_gallery_field
+
+        return infer_gallery_field(self.model)
+
+    def get_map_fields(self, request=None) -> str | tuple[str, str] | None:
+        if self.map_fields is not None:
+            fields = self.map_fields
+            return fields if isinstance(fields, str) else tuple(fields)
+        from vantage.listviews.inference import infer_map_fields
+
+        return infer_map_fields(self.model)
+
+    def get_card_fields(self, request=None, exclude: tuple[str, ...] = ()) -> list[str]:
+        """What a card shows under its title. ``exclude`` is the view's own field."""
+        if self.card_fields is not None:
+            return list(self.card_fields)
+        from vantage.listviews.inference import infer_card_fields
+
+        return infer_card_fields(
+            self.model, self.get_list_display(request), exclude, self.get_list_link(request)
+        )
 
     # ── overridable hooks ───────────────────────────────────────────────────
 
