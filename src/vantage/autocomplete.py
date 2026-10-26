@@ -20,7 +20,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.utils.translation import gettext_lazy as _
 
-__all__ = ["AutocompleteView", "build_urls"]
+__all__ = ["AutocompleteView", "build_urls", "options_response"]
 
 #: Options per response. Enough to scroll, few enough that the payload stays small
 #: and the user is nudged towards typing rather than browsing.
@@ -64,20 +64,7 @@ class AutocompleteView:
         term = request.GET.get("q", "").strip()
         if term:
             queryset = queryset.filter(self._search_q(panel, term))
-
-        # One extra row answers "is there more" without a COUNT over a table that may
-        # be enormous, which is the thing this endpoint exists to avoid touching.
-        rows = list(queryset[: PAGE_SIZE + 1])
-        more = len(rows) > PAGE_SIZE
-
-        return JsonResponse(
-            {
-                "results": [{"id": str(obj.pk), "text": str(obj)} for obj in rows[:PAGE_SIZE]],
-                "more": more,
-                "term": term,
-            },
-            headers={"Cache-Control": "no-store"},
-        )
+        return options_response(queryset, term)
 
     # ── resolution ──────────────────────────────────────────────────────────
 
@@ -113,6 +100,26 @@ class AutocompleteView:
 
             combined = Q(**{f"{infer_list_link(panel.model)}__icontains": term})
         return combined
+
+
+def options_response(queryset, term: str, *, label=str) -> JsonResponse:
+    """One page of picker options in the shape ``combobox.js`` reads.
+
+    Shared with any other endpoint that feeds the same widget — the roles screen's
+    member picker is one — so the shape cannot drift between them.
+    """
+    # One extra row answers "is there more" without a COUNT over a table that may be
+    # enormous, which is the thing this endpoint exists to avoid touching.
+    rows = list(queryset[: PAGE_SIZE + 1])
+    more = len(rows) > PAGE_SIZE
+    return JsonResponse(
+        {
+            "results": [{"id": str(obj.pk), "text": label(obj)} for obj in rows[:PAGE_SIZE]],
+            "more": more,
+            "term": term,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 def build_urls(site) -> list:
