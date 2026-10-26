@@ -78,6 +78,80 @@
     });
   }
 
+  /* The look picker on the account page.
+   *
+   * The page carries only the active preset's tokens. Trying another means fetching its
+   * stylesheet (a few kB, from the card's own data-css-url) and swapping it into the
+   * token <style> in place: no reload, no second copy of any rule, and the page is
+   * never between two looks. The cookie is posted afterwards, which is what the server
+   * reads on the next navigation - so the next page arrives already in the new look and
+   * there is nothing for a script to correct (no flash). Without a script the cards are
+   * ordinary submit buttons and the endpoint redirects back.
+   */
+  function initUiThemePicker() {
+    var picker = document.querySelector("[data-ui-theme-picker]");
+    var tokens = document.head.querySelector("style");
+    if (!picker || !tokens) return;
+    var status = picker.querySelector("[data-ui-theme-status]");
+    var cache = {};
+    var pending = 0;
+
+    function mark(name) {
+      picker.querySelectorAll("[data-ui-theme-choice]").forEach(function (card) {
+        card.setAttribute(
+          "aria-pressed",
+          card.getAttribute("data-ui-theme-choice") === name ? "true" : "false"
+        );
+      });
+    }
+
+    function load(card) {
+      var url = card.getAttribute("data-css-url");
+      if (cache[url]) return Promise.resolve(cache[url]);
+      return fetch(url, { credentials: "same-origin" }).then(function (response) {
+        if (!response.ok) throw new Error(response.status);
+        return response.text();
+      }).then(function (css) {
+        cache[url] = css;
+        return css;
+      });
+    }
+
+    picker.querySelectorAll("[data-ui-theme-choice]").forEach(function (card) {
+      card.addEventListener("click", function (event) {
+        event.preventDefault();
+        var name = card.getAttribute("data-ui-theme-choice");
+        var ticket = ++pending;
+        load(card).then(function (css) {
+          if (ticket !== pending) return; /* a later click superseded this one */
+          tokens.textContent = css;
+          document.documentElement.setAttribute("data-ui-theme", name);
+          mark(name);
+          if (status) {
+            status.textContent = interpolate(gettext("Look changed to %s"), [
+              card.querySelector(".v-uitheme-name").textContent,
+            ]);
+          }
+          var body = new FormData();
+          body.append("ui_theme", name);
+          var token = picker.querySelector("input[name=csrfmiddlewaretoken]");
+          fetch(card.form.getAttribute("action"), {
+            method: "POST",
+            body: body,
+            credentials: "same-origin",
+            headers: token ? { "X-CSRFToken": token.value } : {},
+          }).catch(function () {
+            /* Applied for this page; the cookie is what carries it to the next. */
+          });
+        }).catch(function () {
+          /* Could not fetch the preview, so fall back to the plain form post. */
+          if (card.form.requestSubmit) card.form.requestSubmit(card);
+          else card.form.submit();
+        });
+      });
+    });
+  }
+
   /* Move focus to the error summary a failed save just rendered.
    *
    * The server does its half correctly: the summary is role="alert", it has real text,
@@ -135,6 +209,7 @@
     if (system.addEventListener) system.addEventListener("change", paintTheme);
     else if (system.addListener) system.addListener(paintTheme);
 
+    initUiThemePicker();
     initSidebar();
     initUserMenu();
 

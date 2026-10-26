@@ -34,6 +34,11 @@ def build(site) -> list:
         path("", views.DashboardView.as_view(site=site), name="dashboard"),
         path("_/theme/", views.ThemeView.as_view(site=site), name="theme"),
         path(
+            "_/ui-theme/<slug:name>.css",
+            views.UIThemeCssView.as_view(site=site),
+            name="ui_theme_css",
+        ),
+        path(
             "_/jsi18n/",
             # `packages` scopes this to vantage's own catalogue — never the whole
             # project's, which is a project's own view to add if it wants one.

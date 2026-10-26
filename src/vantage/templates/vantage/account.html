@@ -103,5 +103,42 @@
       </form>
     </section>
   {% endif %}
+
+  {% if settings.UI_THEME_TOGGLE and ui_presets %}
+    <section class="v-card v-account-card v-uitheme" data-ui-theme-picker>
+      <style{{ csp_nonce_attr }}>{{ ui_swatch_css|safe }}</style>
+      <div class="v-card-head">
+        <h2 class="v-card-title">{% translate "Look" %}</h2>
+      </div>
+      <p class="v-muted v-account-blurb">
+        {% translate "Pick a look for yourself. It changes colours, corners and shadows, never your data, and nothing for anyone else." %}
+      </p>
+      {% comment %}
+        Real submit buttons, like the light/dark ones above: with no script they post and
+        the endpoint redirects back; with one, vantage.js swaps the token stylesheet in
+        place and posts in the background. Each carries the URL of its own stylesheet.
+      {% endcomment %}
+      <form class="v-uitheme-grid" method="post" action="{% url 'vantage:theme' %}"
+            role="group" aria-label="{% translate 'Look' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% for preset in ui_presets %}
+          <button class="v-uitheme-card" type="submit" name="ui_theme" value="{{ preset.name }}"
+                  data-ui-theme-choice="{{ preset.name }}"
+                  data-css-url="{% url 'vantage:ui_theme_css' name=preset.name %}"
+                  aria-pressed="{% if ui_theme == preset.name %}true{% else %}false{% endif %}">
+            <span class="v-uitheme-sample" aria-hidden="true">
+              <span class="v-uitheme-card-bar"></span>
+              <span class="v-uitheme-lines"><i></i><i></i></span>
+              <span class="v-uitheme-btn"></span>
+            </span>
+            <span class="v-uitheme-name">{{ preset.label }}</span>
+            {% if preset.description %}<span class="v-uitheme-desc v-muted">{{ preset.description }}</span>{% endif %}
+          </button>
+        {% endfor %}
+      </form>
+      <p class="v-sr-only" role="status" aria-live="polite" data-ui-theme-status></p>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}

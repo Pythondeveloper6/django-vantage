@@ -66,6 +66,9 @@ The **UI** column below says which ones can.
 | `BRAND_RADIUS` | `"0.5rem"` | ✓ | `--radius`. Validated as a CSS length |
 | `THEME` | `"system"` | ✓ | `"light"`, `"dark"` or `"system"` |
 | `THEME_TOGGLE` | `True` | ✓ | Whether users may switch theme. `False` pins everyone to `THEME` |
+| `UI_THEME` | `"vantage"` | ✓ | The look: a preset name. See [UI theme presets](ui-themes.md) |
+| `UI_THEMES` | `{}` |  | Custom presets; omitted keys inherit from `vantage` |
+| `UI_THEME_TOGGLE` | `True` | ✓ | Whether each person may choose their own preset |
 | `CUSTOM_CSS` | `None` | — | A stylesheet loaded after Vantage's own |
 | `LOGIN_IMAGE` | `None` | ✓ | Image beside the sign-in form, when you mount [Vantage's auth views](getting-started.md#signing-in) |
 
@@ -288,6 +291,7 @@ if the two drift apart:
 ```
 SITE_TITLE   SITE_ACRONYM   LOGO   LOGO_DARK   FAVICON
 BRAND_COLOR  BRAND_RADIUS   THEME  THEME_TOGGLE
+UI_THEME  UI_THEMES  UI_THEME_TOGGLE
 CUSTOM_CSS   LOGIN_IMAGE
 
 AUTO_REGISTER  EXCLUDE  INCLUDE_ONLY

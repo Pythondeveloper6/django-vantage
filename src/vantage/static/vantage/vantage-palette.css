@@ -32,7 +32,7 @@
   line-height: 1.4;
   color: var(--muted-foreground);
   background: var(--muted);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   pointer-events: none;
 }
@@ -85,7 +85,7 @@
   max-block-size: min(30rem, 70vh);
   background: var(--popover);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
@@ -128,7 +128,7 @@
   font-size: 0.6875rem;
   color: var(--muted-foreground);
   background: var(--muted);
-  border: 1px solid var(--border);
+  border: var(--border-width, 1px) solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
