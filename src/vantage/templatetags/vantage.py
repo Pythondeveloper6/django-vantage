@@ -137,3 +137,15 @@ def undo_offer(message):
     from vantage.undo import offer_from_message
 
     return offer_from_message(message)
+
+
+@register.filter(name="record_label")
+def record_label(obj) -> str:
+    """``str(obj)``, unless it would print one of the record's sensitive values.
+
+    For templates that name a record in a heading, a confirmation sentence or an
+    ``aria-label``. See :func:`vantage.sensitive.safe_str`.
+    """
+    from vantage.sensitive import safe_str
+
+    return safe_str(obj)

@@ -218,6 +218,7 @@ column is averaged, and an identifier is left alone. Details:
 | `readonly_fields` | `list[str]` | `None` | Shown but not editable, and *removed from the form entirely* |
 | `inlines` | `list[type[Inline]]` | `None` | Child records editable on the parent's own form — see [Editable inlines](forms.md#editable-inlines) |
 | `related_tabs` | `bool \| None` | `None` | Group the detail page's related-record blocks into a tab strip. `None` decides by count (two or more); `True`/`False` assert it either way — see [The record page](forms.md#the-record-page) |
+| `sensitive_fields` | `list[str]` | inferred | Fields masked on every surface, revealable one at a time. A list replaces inference; `[]` switches masking off — see [Sensitive fields](sensitive-fields.md) |
 
 `readonly_fields` is a security boundary rather than a UI affordance. A readonly field
 is not rendered as a control **and** is not in the form's field list, so a hand-crafted
@@ -333,6 +334,8 @@ one takes `request`, so the answer can depend on who is asking.
 | `get_icon()` | `str` | |
 | `get_patterns()` | `ModelPatterns` | The [conventions](#detected-conventions) detected on this model |
 | `get_trash_queryset(request)` | `QuerySet` | Soft-deleted rows, or an empty queryset |
+| `get_sensitive_fields()` | `frozenset[str]` | The masked field names — `sensitive_fields`, or inference |
+| `can_reveal(request, obj, field_name)` | `bool` | Whether this request may reveal one value. Default: superusers and `vantage.reveal_sensitive` — see [Revealing a value](sensitive-fields.md#revealing-a-value) |
 
 `get_list_queryset` derives its optimisation from what the page actually renders — every
 column and every search path — so a column added to `list_display` cannot reintroduce
@@ -469,6 +472,8 @@ defaults are skipped.
 | `vantage.E075` | `map_fields` is neither a `PointField` nor a pair of `FloatField`/`DecimalField`s |
 | `vantage.E076` | `card_fields` names something that is not a field, a model attribute or a panel method |
 | `vantage.E077` | `undo` is set to something other than `True`, `False` or `None` |
+| `vantage.E090` | `sensitive_fields` is not a list, or names something that is not a field or attribute |
+| `vantage.W090` | `list_search`/`search_fields`, `list_filter` or `ordering` explicitly names a [sensitive field](sensitive-fields.md); it is dropped at request time |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different

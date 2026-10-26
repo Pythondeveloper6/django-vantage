@@ -29,6 +29,7 @@ __all__ = [
     "infer_list_link",
     "infer_list_search",
     "infer_ordering",
+    "infer_sensitive_fields",
 ]
 
 #: Columns beyond this are noise; the rest are one click away on the detail page.
@@ -39,8 +40,10 @@ MAX_LIST_SEARCH = 5
 #: Names that strongly suggest the human-readable label for a record.
 DISPLAY_NAMES = ("name", "title", "label", "headline", "subject", "display_name")
 
-#: Names whose values must never be rendered in a list, searched, or filtered on.
-#: Matched as whole words against the field name.
+#: The original sensitive-name pattern, kept importable for code written against it.
+#: The live rule is :func:`vantage.sensitive.field_is_sensitive`, which adds the
+#: settings-extensible vocabulary, the type rules and encrypted field classes; nothing in
+#: Vantage reads this regex any more.
 SENSITIVE = re.compile(
     r"(^|_)(password|passwd|secret|token|api_key|apikey|private_key|salt|hash|"
     r"signature|otp|pin|cvv|ssn)($|_)",
@@ -76,7 +79,16 @@ SEARCHABLE = (
 
 
 def _is_sensitive(field: models.Field) -> bool:
-    return bool(SENSITIVE.search(field.name))
+    """Never a column, a filter, a search path or the record's link. See vantage.sensitive.
+
+    Wider than what is masked: a field whose *name* matches is kept out of inferred
+    configuration even when its type means it is not masked (``secret_token`` with
+    ``choices``). Inference is a guess, and leaving a secret-sounding column out of a
+    default filter costs nothing; masking it would hide a value nobody asked to hide.
+    """
+    from vantage.sensitive import field_is_sensitive, name_is_sensitive
+
+    return field_is_sensitive(field) or name_is_sensitive(field.name)
 
 
 def _column_score(field: models.Field) -> int | None:
@@ -283,4 +295,12 @@ def infer_all(model: type[models.Model]) -> dict[str, Any]:
         "list_filter": infer_list_filter(model),
         "list_search": infer_list_search(model),
         "ordering": infer_ordering(model),
+        "sensitive_fields": infer_sensitive_fields(model),
     }
+
+
+def infer_sensitive_fields(model: type[models.Model]) -> list[str]:
+    """The fields masked by default. Delegates to :mod:`vantage.sensitive`."""
+    from vantage.sensitive import infer_sensitive_fields as infer
+
+    return infer(model)

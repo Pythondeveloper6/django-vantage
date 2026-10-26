@@ -71,6 +71,7 @@ from vantage.pagination import (
     with_total_ordering,
 )
 from vantage.permissions import get_permissions
+from vantage.sensitive import safe_str
 from vantage.serialize import (
     field_schema,
     filter_payload,
@@ -289,7 +290,7 @@ def _record_payload(panel, obj) -> dict[str, Any]:
     """One record, fully — the shape both retrieve and every write echo back."""
     return {
         "pk": json_value(obj.pk),
-        "display": str(obj),
+        "display": safe_str(obj, panel.site),
         "version": concurrency.token_for(obj),
         "url": _detail_url(panel, obj),
         "html_url": _html_detail_url(panel, obj),
@@ -481,7 +482,7 @@ class ListCreateView(ModelApiView):
         which walked it with ``resolve_path`` — and ``resolve_path`` knows about
         Django's ``_meta`` graph, not about this panel's registry or its permissions.
         So the parameter reached anything the ORM could join to: a field the
-        ``SENSITIVE`` name filter deliberately hides on the detail endpoint, or a
+        sensitive-field rule deliberately masks on the detail endpoint, or a
         ``__``-chain into a related model the panel never registered and the caller has
         no permission for. ``?fields=number,customer__api_token`` returned the token.
 
@@ -603,7 +604,14 @@ class RecordDetailView(ModelApiView):
         # same narrowing for the same reason: a partial write must not demand a value
         # for a required field nobody is touching.
         names = list(submitted) if partial else editable
-        values = submitted if partial else {name: submitted.get(name) for name in editable}
+        # A PUT that leaves a sensitive field out keeps it: the client was never sent the
+        # value, so it cannot be expected to send it back. Only an explicit null clears.
+        secret = self.panel.get_sensitive_fields()
+        values = (
+            submitted
+            if partial
+            else {name: submitted.get(name, "" if name in secret else None) for name in editable}
+        )
 
         form_class = build_form_class(self.panel, names)
         form = form_class(data=json_to_form_data(form_class, values), instance=obj)
@@ -626,8 +634,10 @@ class RecordDetailView(ModelApiView):
                 conflict={
                     "pk": json_value(stale.obj.pk),
                     "version": stale.token,
-                    "label": str(stale.obj),
-                    "fields": concurrency.field_diff(stale.obj, submitted),
+                    "label": safe_str(stale.obj, self.panel.site),
+                    "fields": concurrency.field_diff(
+                        stale.obj, submitted, sensitive=self.panel.get_sensitive_fields()
+                    ),
                 },
             )
         return json_response(_record_payload(self.panel, saved))
@@ -659,6 +669,7 @@ class SchemaView(ApiView):
         editable = set(formviews.form_editable_names(panel))
         form_class = build_form_class(panel, sorted(editable)) if editable else None
         bound = form_class.base_fields if form_class is not None else {}
+        secret = panel.get_sensitive_fields()
 
         fields = [
             field_schema(
@@ -670,6 +681,12 @@ class SchemaView(ApiView):
             )
             for field in record_fields(panel.model)
         ]
+        for entry in fields:
+            # A client building a form needs to know the field will never be read back:
+            # render it empty, and send nothing (or omit it) to keep the stored value.
+            entry["sensitive"] = entry["name"] in secret
+            if entry["sensitive"]:
+                entry.pop("initial", None)
 
         return {
             "model": panel.opts.label_lower,

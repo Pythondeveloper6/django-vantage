@@ -278,7 +278,7 @@
                 {% if actions or "change" in allowed %}
                   <td class="v-select-cell">
                     <input type="checkbox" name="selected" value="{{ row.pk }}" tabindex="-1"
-                           data-select-row aria-label="{% blocktranslate with obj=row.obj %}Select {{ obj }}{% endblocktranslate %}">
+                           data-select-row aria-label="{% blocktranslate with obj=row.obj|record_label %}Select {{ obj }}{% endblocktranslate %}">
                   </td>
                 {% endif %}
                 {% for cell in row.cells %}

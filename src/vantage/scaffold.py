@@ -54,7 +54,17 @@ def render_panel_class(model: type[Model]) -> str:
         f"class {name}(ModelPanel):",
     ]
 
-    for attr in ("list_display", "list_link", "list_filter", "list_search", "ordering"):
+    # ``sensitive_fields`` last, and only when inference found some: it is the line a
+    # reviewer most needs to see, and printing ``sensitive_fields = []`` for every model
+    # would read as switching masking *off* — which is what an empty list means.
+    for attr in (
+        "list_display",
+        "list_link",
+        "list_filter",
+        "list_search",
+        "ordering",
+        "sensitive_fields",
+    ):
         value = inferred[attr]
         if not value:
             continue

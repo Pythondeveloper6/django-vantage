@@ -19,10 +19,11 @@
 <link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">
 {# Carries the skip link and the auth chrome; every panel screen needs the first. #}
 <link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-sensitive.css' %}">
 {% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
 {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if may_reveal %} data-vantage-reveal="{{ reveal_seconds }}"{% endif %}>
 {% comment %}
   WCAG 2.4.1. First element in the body and therefore the first tab stop, ahead of
   the banners: a skip link placed after the thing it skips is decoration. The target
@@ -194,6 +195,12 @@
 <script src="{% url 'vantage:jsi18n' %}"></script>
 <script src="{% static 'vantage/vantage-i18n-fallback.js' %}"></script>
 <script src="{% static 'vantage/vantage.js' %}" defer></script>
+{% if may_reveal %}
+  {% comment %} The reveal endpoint is a POST, so the page needs a CSRF token even when
+     nothing else on it is a form. Masked values stay plain bullets without it. {% endcomment %}
+  <div hidden data-vantage-reveal-csrf>{% csrf_token %}</div>
+  <script src="{% static 'vantage/vantage-sensitive.js' %}" defer></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

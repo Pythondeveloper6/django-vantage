@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.core.checks import Error
+from django.core.checks import Error, Warning
 
 from vantage.introspection import resolve_path
 
@@ -49,6 +49,8 @@ class ModelPanelChecks:
             *self._check_undo(panel),
             *self._check_removed(panel),
             *self._check_list_views(panel),
+            *self._check_sensitive_fields(panel),
+            *self._check_sensitive_lookups(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -404,6 +406,77 @@ class ModelPanelChecks:
                     f"Set '{_FIELD_ATTR.get(name, name)}' on the panel, or remove {name!r}.",
                 )
         return errors
+
+    # ── sensitive values ────────────────────────────────────────────────────
+
+    def _check_sensitive_fields(self, panel: ModelPanel) -> list[Error]:
+        """``sensitive_fields`` must be a list of names the model actually has.
+
+        A typo here is the worst kind of silent: the field the author meant to mask is
+        printed in full, and nothing on the page says the declaration did nothing.
+        """
+        declared = panel.sensitive_fields
+        if declared is None:
+            return []
+        if isinstance(declared, str) or not isinstance(declared, list | tuple | set | frozenset):
+            return [
+                Error(
+                    f"'sensitive_fields' must be a list of field names; got {declared!r}.",
+                    hint="Use [] to switch masking off for this model.",
+                    obj=type(panel),
+                    id="vantage.E090",
+                )
+            ]
+        return [
+            Error(
+                f"'sensitive_fields' refers to {name!r}, which is not a field or "
+                f"attribute of {panel.opts.label}.",
+                hint="An unknown name masks nothing, so the field you meant is shown.",
+                obj=type(panel),
+                id="vantage.E090",
+            )
+            for name in declared
+            if not (resolve_path(panel.model, str(name)) or hasattr(panel.model, str(name)))
+        ]
+
+    def _check_sensitive_lookups(self, panel: ModelPanel) -> list[Warning]:
+        """A sensitive field the panel *explicitly* asked to search, filter or sort by.
+
+        Vantage drops it at request time either way — a search box over a secret is a
+        guessing oracle, a filter's row count is one, and so is a sort order — so this
+        is a warning that the declaration does nothing, not a vulnerability report.
+        Inferred configuration never includes one, which is why only declared
+        attributes are checked.
+        """
+        from vantage.sensitive import is_sensitive_path
+
+        declared = {
+            "list_search": panel.list_search,
+            "list_filter": panel.list_filter,
+            "ordering": panel.ordering,
+        }
+        if panel.search_fields is not None and panel.search_fields is panel.list_search:
+            declared["search_fields"] = declared.pop("list_search")
+
+        warnings: list[Warning] = []
+        for attr, entries in declared.items():
+            for entry in entries or ():
+                path = str(entry).lstrip("-^=@")
+                if path == "?" or not resolve_path(panel.model, path):
+                    continue
+                if is_sensitive_path(panel, path):
+                    warnings.append(
+                        Warning(
+                            f"{attr!r} lists {entry!r}, which is a sensitive field on "
+                            f"{panel.opts.label}; it is ignored there.",
+                            hint="Searching, filtering or sorting by a masked value would "
+                            "reveal it a guess at a time. Remove it, or take it out of "
+                            "masking with sensitive_fields if it is not actually secret.",
+                            obj=type(panel),
+                            id="vantage.W090",
+                        )
+                    )
+        return warnings
 
 
 #: The attribute that tells each view which field to use, for E071's hint.
