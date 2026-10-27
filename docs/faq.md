@@ -4,7 +4,7 @@
 
 ## How finished is this?
 
-**Alpha.** The version is `0.2.0a1`, the second published pre-release, and the PyPI
+**Alpha.** The version is `0.2.0a2`, the second published pre-release, and the PyPI
 classifier is `Development Status :: 3 - Alpha`.
 
 What that means in practice:
@@ -14,7 +14,7 @@ What that means in practice:
   query-count assertions, a hue sweep proving the contrast guarantee, and a round-trip
   test asserting that what the exporter writes the importer can read.
 - **The API may still move.** Attribute names, method signatures and settings keys are
-  not frozen. Pin an exact version (`django-vantage==0.2.0a1`) if you depend on it.
+  not frozen. Pin an exact version (`django-vantage==0.2.0a2`) if you depend on it.
 - **Several features are declared but not wired up.** They are listed below rather than
   glossed over.
 - **There is no upgrade path guarantee** and no deprecation cycle yet.
