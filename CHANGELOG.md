@@ -11,6 +11,17 @@ word *breaking*, so the log is useful either way.
 
 ## [Unreleased]
 
+## [0.2.0a2] — 2026-10-27
+
+Everything in 0.2.0a1, which was tagged but never published to PyPI, plus:
+
+### Fixed
+
+- The deployment guide no longer says Vantage emits no CSP nonce and has no background
+  worker. It now matches the security page (both inline blocks are nonced through
+  `vantage.security.csp_context`) and the background-jobs docs (large bulk actions run
+  as chunked jobs on Django Tasks, Celery or RQ).
+
 ## [0.2.0a1] — 2026-10-26
 
 Six features, each built on its own branch and merged into `release/0.2.0a1`. Five
@@ -478,6 +489,7 @@ Read these before deploying an alpha anywhere it matters.
 - Sensitive field names are excluded from columns, filters, search, exports and audit
   diffs.
 
-[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a1...HEAD
+[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a2...HEAD
+[0.2.0a2]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a1...v0.2.0a2
 [0.2.0a1]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.1.0a1...v0.2.0a1
 [0.1.0a1]: https://github.com/Pythondeveloper6/django-vantage/releases/tag/v0.1.0a1
