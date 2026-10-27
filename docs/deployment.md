@@ -47,7 +47,7 @@ A real run against the demo:
 [ok  ] Background tasks   Django Tasks configured.
 [ok  ] Media storage      /path/to/media
 [warn] Debug mode         DEBUG is on.
-[info] Versions           Vantage 0.2.0a1 · Django 6.1 · Python 3.13.12
+[info] Versions           Vantage 0.2.0a2 · Django 6.1 · Python 3.13.12
 ```
 
 ## Read-only mode
@@ -100,10 +100,12 @@ Two things are **not** static files, on purpose:
 - **The no-flash script is inline and blocking**, in `<head>`, before the stylesheet. A
   deferred script paints light first and then flips.
 
-That means a strict `Content-Security-Policy` needs to allow those two inline blocks.
-Vantage does not currently emit a nonce for them, so a policy without
-`'unsafe-inline'` for `style-src` and `script-src` will break the theme. If you have a
-hard CSP requirement, that is a gap worth knowing about before you commit.
+Both blocks carry a nonce, so a strict `Content-Security-Policy` without
+`'unsafe-inline'` works. Add `vantage.security.csp_context` to your template context
+processors and generate the policy with Django's `SECURE_CSP` or django-csp;
+`vantage.W056` warns if a policy is configured without the context processor. The
+exact policy, directive by directive, is in
+[Security → Content-Security-Policy](security.md#content-security-policy).
 
 Charts are inline SVG rendered on the server. There is no charting library to load and
 nothing fetches data after page load.
@@ -231,22 +233,28 @@ Set `LIST_COUNT_ESTIMATES = False` to switch step 2 off entirely and always show
 Vantage's analytics layer never counts rows at all: its row budget is compared against
 an estimate the caller supplies, precisely to avoid this.
 
-## Bulk actions run in the request
+## Large bulk actions become background jobs
 
-There is no background worker. An action over a few thousand rows is fine; an action
-over a million will time out.
+A bulk action whose estimated cost is above `JOB_THRESHOLD_SECONDS` (2 seconds by
+default) is turned into a job: it runs in chunks, reports progress at `/admin/_/jobs/`,
+and lists exactly which rows failed. Smaller actions still run in the request.
 
-Guard it explicitly:
+No queue is required. Vantage uses the first of these it finds: Django Tasks (`TASKS`
+naming a real backend), Celery with a broker, or RQ via `django_rq`. With none of them,
+the job runs **in the web request** — you still get the job row and the failure report,
+but a very large action can hit your gateway timeout. The system page shows which
+backend is in use, and says "None configured." when it is the in-process fallback.
+
+For production, configure one of the three, and cap actions you know are heavy:
 
 ```python
-@action("Reprice", max_rows=5000)
+@action("Reprice", max_rows=5000, bulk_strategy="instances")
 def reprice(self, request, queryset):
     ...
 ```
 
-The system page reports whether a task backend is available, and says plainly:
-
-> Bulk actions run in the request. Fine below a few thousand rows.
+Details: [Background jobs](lists.md#background-jobs) ·
+[settings](settings.md#background-jobs).
 
 ## Exports stream; imports are capped
 
