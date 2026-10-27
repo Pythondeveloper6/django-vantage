@@ -28,7 +28,7 @@ Zero config to start. One line to override anything.
   <img alt="The Orders list in django-vantage: stat cards with trends, a revenue chart, a status breakdown, filters and a data grid" src="docs/assets/screenshots/orders-light.webp">
 </picture>
 
-> **Alpha (`0.2.0a1`).** Working and heavily tested — more than 4,500 tests — but the
+> **Alpha (`0.2.0a2`).** Working and heavily tested — more than 4,500 tests — but the
 > API may still move. See the
 > [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/#how-finished-is-this)
 > for an honest account of what is and is not done. Use it on an internal tool, and
