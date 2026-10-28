@@ -31,6 +31,12 @@ one, not a hash of either. The answer comes from the panel, as on every other su
 and it is the answer *now*: a field declared sensitive after an entry was written is
 masked in that entry too.
 
+**Field permissions apply as they do on the edit page.** A field hidden from the reader
+is not part of the record here at all — no value, no label, no "not recorded" note —
+and a field they may only read is shown but never offered for restore. Both are asked of
+:mod:`vantage.fieldperms` for the person looking, and asked again when the restore is
+posted, because the page that offered the checkbox is not the boundary.
+
 **A restore is an edit.** It goes through the panel's ``ModelForm``, its validation,
 its ``save_model`` hook, its tenancy guard and its audit diff — :func:`vantage.formviews.
 save_form`, the function the edit page and the JSON API write through — with the
@@ -308,7 +314,7 @@ def _events(entries, position: Position) -> dict[str, tuple[list[_Event], list[_
     return out
 
 
-def _tracked_fields(panel) -> tuple[list[models.Field], list[str]]:
+def _tracked_fields(panel, request=None) -> tuple[list[models.Field], list[str]]:
     """``(fields, unrecorded_labels)``: what can appear in a diff, and what cannot.
 
     A diff only ever names a field the change form wrote, so a field that is not an
@@ -317,14 +323,18 @@ def _tracked_fields(panel) -> tuple[list[models.Field], list[str]]:
     listed, by label, so the page can say so instead of showing their current value as
     if it were the old one.
     """
+    from vantage.fieldperms import hidden_names
     from vantage.formviews import form_editable_names
     from vantage.introspection import concrete_fields, m2m_fields
 
     model = panel.model
+    # Without the request on purpose: a field this reader may only read is still one
+    # the form writes, so it still has a history worth showing them.
     on_form = set(form_editable_names(panel))
+    hidden = hidden_names(request, panel)
     tracked, unrecorded = [], []
     for model_field in [*concrete_fields(model), *m2m_fields(model)]:
-        if model_field.primary_key:
+        if model_field.primary_key or model_field.name in hidden:
             continue
         if model_field.name in on_form and model_field.editable:
             tracked.append(model_field)
@@ -405,8 +415,12 @@ def _display(model_field, value) -> str:
     return display(model_field, parsed)
 
 
-def reconstruct(panel, obj, position: Position, *, entries=None) -> Reconstruction:
-    """``obj`` as the audit log says it was at ``position``. See the module docstring."""
+def reconstruct(panel, obj, position: Position, *, entries=None, request=None) -> Reconstruction:
+    """``obj`` as the audit log says it was at ``position``. See the module docstring.
+
+    ``request`` is the reader, whose field permissions decide what is left out and what
+    may be restored. Without one, nothing is restricted.
+    """
     if entries is None:
         entries, truncated = _record_entries(obj)
     else:
@@ -437,7 +451,10 @@ def reconstruct(panel, obj, position: Position, *, entries=None) -> Reconstructi
         else:
             every_field = True
 
-    tracked, result.unrecorded = _tracked_fields(panel)
+    from vantage.fieldperms import access
+
+    tracked, result.unrecorded = _tracked_fields(panel, request)
+    rules = access(request, panel)
     sensitive = panel.get_sensitive_fields()
     events = _events(entries, position)
 
@@ -508,6 +525,12 @@ def reconstruct(panel, obj, position: Position, *, entries=None) -> Reconstructi
             continue
 
         state.known = True
+        if not rules.can_change(name):
+            # Shown, because the reader may see it; not restorable, because a restore
+            # is a write and this field is read-only for them.
+            if state.changed:
+                state.reason = str(_("You can see this field but not change it."))
+            continue
         # Every tracked field is one the edit form writes, so a known, changed value
         # can go back through that form. Who may press the button is the view's call.
         state.restorable = state.changed and restore_allowed(panel)

@@ -221,17 +221,23 @@ def record_fields(model: type[models.Model]) -> list[Any]:
     return [*displayable_fields(model), *m2m_fields(model)]
 
 
-def object_fields(panel, obj) -> dict[str, dict[str, Any]]:
+def object_fields(panel, obj, *, hidden: frozenset[str] = frozenset()) -> dict[str, dict[str, Any]]:
     """Every field of one record, keyed by name.
 
     Forward relations are read through ``attname`` (``author_id``), so a record with
     twelve foreign keys costs no queries at all. A many-to-many costs one each, which is
     why the caller is expected to have prefetched them.
+
+    ``hidden`` is the reader's hidden fields (:mod:`vantage.fieldperms`). They are left
+    out of the payload rather than nulled: a key with a null value says the field
+    exists.
     """
     fields: dict[str, dict[str, Any]] = {}
     secret = panel.get_sensitive_fields()
 
     for field in record_fields(panel.model):
+        if field.name in hidden:
+            continue
         if field.name in secret:
             fields[field.name] = {
                 "label": _label(field),

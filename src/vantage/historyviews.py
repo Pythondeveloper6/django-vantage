@@ -109,7 +109,7 @@ class HistoryView(PanelView):
         entries, truncated = history.timeline(self.object)
         position = history.position_from(request.GET, entries)
         reconstruction = (
-            history.reconstruct(self.panel, self.object, position, entries=entries)
+            history.reconstruct(self.panel, self.object, position, entries=entries, request=request)
             if position is not None
             else None
         )
@@ -127,6 +127,7 @@ class HistoryView(PanelView):
 
     def get_context_data(self, **kwargs):
         from vantage.concurrency import token_for
+        from vantage.fieldperms import hide_entry_fields
 
         context = super().get_context_data(**kwargs)
         entries = kwargs.get("entries") or []
@@ -145,7 +146,7 @@ class HistoryView(PanelView):
                     "url": f"{self.request.path}?{urlencode({'entry': entry.pk})}",
                     "current": position is not None and position.entry_id == entry.pk,
                 }
-                for entry in reversed(entries)
+                for entry in reversed(hide_entry_fields(self.request, entries))
             ],
             at_value=_local_input(position.at) if position is not None else "",
             may_restore=may_restore,
@@ -180,7 +181,9 @@ class HistoryView(PanelView):
             return HttpResponseRedirect(request.path)
         back = self.position_url(position)
 
-        reconstruction = history.reconstruct(self.panel, obj, position, entries=entries)
+        reconstruction = history.reconstruct(
+            self.panel, obj, position, entries=entries, request=request
+        )
         if reconstruction.status != "ok":
             messages.error(request, _("There is nothing to restore from that point."))
             return HttpResponseRedirect(back)
@@ -194,7 +197,13 @@ class HistoryView(PanelView):
             )
             return HttpResponseRedirect(back)
 
-        restorable = {state.name for state in reconstruction.restorable}
+        from vantage.fieldperms import editable_fields
+
+        # ``restorable`` already leaves out what this person may only read; intersected
+        # again with the live answer, because this is the line that decides the write.
+        restorable = set(
+            editable_fields(request, self.panel, [s.name for s in reconstruction.restorable])
+        )
         names = [name for name in request.POST.getlist("fields") if name in restorable]
         names = list(dict.fromkeys(names))
         if not names:
