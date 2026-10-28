@@ -51,6 +51,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # one is a capability bound to a user and a session. A CRUD form would print
         # the first and route around the second.
         "vantage.undoentry",
+        # Two-factor secrets and recovery-code hashes. A CRUD form would print the one
+        # and let anyone with "change" on the table switch someone else's off.
+        "vantage.twofactordevice",
+        "vantage.twofactorrecoverycode",
     }
 )
 

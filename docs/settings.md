@@ -209,6 +209,24 @@ particular would be self-grants.
 write path including ones added later — and it is checked **before** the superuser
 bypass. See [Read-only mode](permissions.md#read-only-mode).
 
+## Two-factor sign-in
+
+On offer to everyone, required of nobody, until you say otherwise — see
+[Two-factor sign-in](two-factor.md).
+
+| Key | Default | UI | Effect |
+|---|---|---|---|
+| `TWO_FACTOR` | `True` | — | Offer authenticator-app codes on the account page and ask for them at sign-in. `False` removes the feature, and stops asking anyone who had set it up |
+| `TWO_FACTOR_REQUIRED_SUPERUSERS` | `False` | — | Superusers may not use the panel until they have set it up |
+| `TWO_FACTOR_REQUIRED_ROLES` | `[]` | — | Role (`auth.Group`) names whose members must use it, e.g. `["Finance"]` |
+| `TWO_FACTOR_ISSUER` | `None` | — | The name an authenticator app files the code under. `None` means `SITE_TITLE`. No colons |
+| `TWO_FACTOR_MAX_ATTEMPTS` | `5` | — | Wrong codes in a row before the account's second step locks |
+| `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | — | How long that lock lasts |
+
+None is editable from the UI: a requirement the people it binds could switch off is not
+a requirement. A bad value is an error at `manage.py check` (`vantage.E095`, `E096`) and
+at the first page render.
+
 ## Multi-tenancy
 
 Off by default. Setting `TENANT_MODEL` is the only thing that turns any of it on — see
@@ -327,6 +345,9 @@ LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES
 IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
+
+TWO_FACTOR  TWO_FACTOR_REQUIRED_SUPERUSERS  TWO_FACTOR_REQUIRED_ROLES
+TWO_FACTOR_ISSUER  TWO_FACTOR_MAX_ATTEMPTS  TWO_FACTOR_LOCKOUT_SECONDS
 
 TENANT_MODEL  TENANT_RESOLVER  TENANT_FIELD
 TENANT_SCOPE  TENANT_EXEMPT  TENANT_UNSCOPED

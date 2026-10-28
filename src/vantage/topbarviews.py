@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
 from vantage.presets import get_presets
+from vantage.safety import impersonating
 from vantage.settingsview import may_edit_settings
 from vantage.templatetags.vantage import ICONS
 from vantage.theme import swatch_css
@@ -44,6 +45,8 @@ from vantage.topbar import (
     save_layout,
     stored_layout,
 )
+from vantage.twofactor import device_for
+from vantage.twofactor import enabled as two_factor_enabled
 from vantage.views import SiteView
 
 __all__ = ["AccountView", "TopbarSettingsView", "build_urls"]
@@ -66,6 +69,11 @@ class AccountView(SiteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["may_arrange_topbar"] = may_edit_settings(self.request)
+        if two_factor_enabled() and not impersonating(self.request):
+            context["two_factor"] = {
+                "enabled": device_for(self.request.user) is not None,
+                "may_reset": self.request.user.is_superuser,
+            }
         if vantage_settings.UI_THEME_TOGGLE:
             presets = get_presets()
             context["ui_presets"] = list(presets.values())

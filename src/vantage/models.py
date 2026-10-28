@@ -97,6 +97,8 @@ __all__ = [
     "SavedViewGrant",
     "SavedViewUserState",
     "SiteConfiguration",
+    "TwoFactorDevice",
+    "TwoFactorRecoveryCode",
     "UndoEntry",
     "VantageJob",
     "VantageLogEntry",
@@ -1344,3 +1346,69 @@ class UndoEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.summary} · {self.resource_key}"
+
+
+class TwoFactorDevice(models.Model):
+    """One person's authenticator app: the shared TOTP secret and its bookkeeping.
+
+    One row per person, and a *new* row per enrolment rather than an edit of the old
+    one: :attr:`tag` is random per row, and a session's proof that it passed the second
+    step names the tag it passed against. Re-enrolling therefore invalidates every
+    session verified against the previous authenticator without having to find them.
+
+    The secret is stored sealed (see :func:`vantage.twofactor.seal`), never shown
+    again once :attr:`confirmed_at` is set, and the table is excluded from the panel's
+    own CRUD screens — the only ways in are the account page and the reset screen.
+    """
+
+    user = models.OneToOneField(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    #: The 20-byte secret, encrypted with a key derived from ``SECRET_KEY``.
+    secret = models.CharField(max_length=200)
+    #: Random, not secret. What a verified session remembers it was verified against.
+    tag = models.CharField(max_length=32, unique=True)
+    #: ``NULL`` while enrolment is in progress: the code has been shown but nobody has
+    #: yet proved, by typing a code, that an app really holds it.
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    #: The highest 30-second step a code has been accepted for. A code is only good
+    #: for a step above this, which is what makes one code good for one sign-in.
+    last_step = models.BigIntegerField(default=0)
+    #: Consecutive wrong codes since the last right one or the last lockout.
+    failed_attempts = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("two-factor device")
+        verbose_name_plural = _("two-factor devices")
+
+    def __str__(self) -> str:
+        # Never the secret, and not even its length.
+        state = "confirmed" if self.confirmed_at else "pending"
+        return f"two-factor device for user {self.user_id} ({state})"
+
+
+class TwoFactorRecoveryCode(models.Model):
+    """One single-use recovery code, stored only as its SHA-256.
+
+    A fast hash is enough here, unlike for a password, because the code is not chosen
+    by a person: it carries 80 random bits, which no amount of hashing speed brings
+    within reach of guessing. A fast, unsalted hash is also what lets a code be found
+    with one indexed lookup instead of being compared against every row.
+    """
+
+    device = models.ForeignKey(TwoFactorDevice, on_delete=models.CASCADE, related_name="codes")
+    code_hash = models.CharField(max_length=64)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("two-factor recovery code")
+        verbose_name_plural = _("two-factor recovery codes")
+        constraints = [
+            models.UniqueConstraint(fields=["device", "code_hash"], name="vantage_2fa_code_unique")
+        ]
+
+    def __str__(self) -> str:
+        return f"recovery code for device {self.device_id}"

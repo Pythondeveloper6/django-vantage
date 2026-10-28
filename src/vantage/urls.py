@@ -27,6 +27,8 @@ from vantage import (
     savedviews,
     settingsview,
     topbarviews,
+    twofactor,
+    twofactorviews,
     views,
 )
 from vantage.palette import build_urls
@@ -74,6 +76,9 @@ def build(site) -> list:
     # The account page and the top-bar arrangement screen. Before the page loop for
     # the same reason as the block above: both live under the reserved "_/" prefix.
     urlpatterns += topbarviews.build_urls(site)
+    # Two-factor set-up and the second step for sessions signed in elsewhere. Under
+    # "_/account/", so before the page loop for the same reason.
+    urlpatterns += twofactorviews.build_urls(site)
 
     # The roles screens hang off the roles page's path, and only exist while it does.
     urlpatterns += rolesviews.build_urls(site)
@@ -168,4 +173,6 @@ def build(site) -> list:
     # panel, so where it is appended relative to the per-panel loop above does not
     # matter the way the "_prefs"/"_inline" routes' ordering does - see api.build_urls.
     urlpatterns += api.build_urls(site)
-    return urlpatterns
+    # Last, and over everything: every route above, and any a later change adds, is
+    # behind the two-factor gate unless its view says otherwise. See vantage.twofactor.
+    return twofactor.guard_patterns(urlpatterns)

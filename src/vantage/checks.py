@@ -114,6 +114,54 @@ def _check_brand(user: dict) -> list[Error]:
     return errors
 
 
+def check_two_factor(app_configs, **kwargs) -> list[Error]:
+    """The two-factor settings, and the one piece of the stack the feature cannot lack.
+
+    ``E095`` and ``E096`` are the same validation :mod:`vantage.conf` applies, reported
+    with an id so each can be found and fixed separately. ``E097`` is the session: the
+    half-signed-in state and the proof of the second step both live in it, so without
+    ``SessionMiddleware`` there is nothing to hold either — and a requirement that
+    cannot be enforced must not look as if it were.
+    """
+    from django.conf import settings as django_settings
+
+    from vantage.conf import two_factor_problem
+
+    user = getattr(django_settings, "VANTAGE", None) or {}
+    if not isinstance(user, dict):
+        return []  # E001 has already said so
+    errors: list[Error] = []
+    requirement = {
+        key: user[key]
+        for key in ("TWO_FACTOR_REQUIRED_SUPERUSERS", "TWO_FACTOR_REQUIRED_ROLES")
+        if key in user
+    }
+    problem = two_factor_problem(requirement)
+    if problem:
+        errors.append(Error(problem, id="vantage.E095"))
+    if "TWO_FACTOR_ISSUER" in user:
+        problem = two_factor_problem({"TWO_FACTOR_ISSUER": user["TWO_FACTOR_ISSUER"]})
+        if problem:
+            errors.append(Error(problem, id="vantage.E096"))
+
+    if (
+        user.get("TWO_FACTOR", DEFAULTS["TWO_FACTOR"])
+        and panel_is_mounted()
+        and not any(entry.rsplit(".", 1)[-1] == "SessionMiddleware" for entry in _middleware())
+    ):
+        errors.append(
+            Error(
+                "Two-factor sign-in is on, but no SessionMiddleware is installed.",
+                hint=(
+                    "Add 'django.contrib.sessions.middleware.SessionMiddleware' to "
+                    "MIDDLEWARE, or set VANTAGE['TWO_FACTOR'] = False."
+                ),
+                id="vantage.E097",
+            )
+        )
+    return errors
+
+
 def check_panels(app_configs, **kwargs) -> list[Error]:
     """Validate every registered panel on every live site.
 
