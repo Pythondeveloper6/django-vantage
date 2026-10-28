@@ -258,6 +258,22 @@ retry behaviour, and the backends it is tried against.
 | `JOB_RETENTION_DAYS` | `30` | How long a finished job's row is kept before it is swept |
 | `JOB_QUEUE` | `"default"` | Queue name passed to `django.tasks` or RQ. Celery uses its own routing instead |
 
+## Webhooks
+
+A POST to a URL you choose when a record is created, changed or deleted — see
+[Webhooks](webhooks.md) for the payload, the signature and the retry rules. A malformed
+value is `vantage.E100` (a switch that is not `True`/`False`) or `vantage.E101` (a limit
+that is not a number above zero).
+
+| Key | Default | Effect |
+|---|---|---|
+| `WEBHOOKS` | `True` | `False` fires nothing and hides the page. Stored webhooks are kept |
+| `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` | `False` | Lets webhooks call loopback, private, link-local and other non-public addresses. Code-only, never editable in the panel |
+| `WEBHOOKS_TIMEOUT` | `5` | Seconds a receiver may take per socket operation. The in-process fallback caps it at 3 |
+| `WEBHOOKS_MAX_ATTEMPTS` | `6` | Attempts before a delivery is marked failed, the first included |
+| `WEBHOOKS_BACKOFF_SECONDS` | `30` | Wait before the first retry; each later wait doubles, up to a day |
+| `WEBHOOKS_RETENTION_DAYS` | `30` | How long a finished delivery is kept before `manage.py vantage_webhooks` removes it |
+
 ## Undo
 
 After a delete or an edit, the toast offers **Undo** for a few seconds — see
@@ -334,6 +350,9 @@ TENANT_SCOPE  TENANT_EXEMPT  TENANT_UNSCOPED
 JOBS  JOB_THRESHOLD_SECONDS  JOB_CHUNK_SIZE
 JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
 
+WEBHOOKS  WEBHOOKS_ALLOW_PRIVATE_NETWORKS  WEBHOOKS_TIMEOUT
+WEBHOOKS_MAX_ATTEMPTS  WEBHOOKS_BACKOFF_SECONDS  WEBHOOKS_RETENTION_DAYS
+
 UNDO_WINDOW  UNDO_MAX_ROWS
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
@@ -377,4 +396,5 @@ works as expected in tests.
 - [Permissions](permissions.md) — `PERMISSIONS`, `READ_ONLY`, `AUDIT_LOG`
 - [Multi-tenancy](tenancy.md) — the `TENANT_*` family in full
 - [Lists](lists.md#background-jobs) — the `JOB_*` family, and what triggers an offload
+- [Webhooks](webhooks.md) — the `WEBHOOKS_*` family in full
 - [Deployment](deployment.md) — which of these to check before going live
