@@ -45,7 +45,7 @@ from django.urls import NoReverseMatch, get_resolver, reverse
 from django.urls.resolvers import URLResolver
 from model_bakery import baker
 
-from vantage.models import SavedView, VantageJob
+from vantage.models import SavedView, VantageJob, Webhook, WebhookDelivery
 from vantage.sites import site as vantage_site
 
 #: The seven URL names ``vantage.urls.build()`` mints for every registered panel,
@@ -84,7 +84,9 @@ def _prefix_pk_map(panels, instances) -> dict[str, object]:
     return {f"{p.opts.app_label}/{p.opts.model_name}/": instances[p.model].pk for p in panels}
 
 
-def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
+def _iter_requests(
+    panels, instances, job, saved_view, role=None, user=None, webhook=None, delivery=None
+):
     """Every request this test will make: ``(description, url_name, kwargs)``.
 
     Walks the mounted resolver rather than naming routes, so a route added after this
@@ -130,6 +132,10 @@ def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
                     kwargs["pk"] = saved_view.pk
                 elif route.startswith("_/roles/") and role is not None:
                     kwargs["pk"] = role.pk
+                elif route.startswith("_/webhooks/deliveries/") and delivery is not None:
+                    kwargs["pk"] = delivery.pk
+                elif route.startswith("_/webhooks/") and webhook is not None:
+                    kwargs["pk"] = webhook.pk
                 else:
                     unresolved.append(param)
             elif param == "user" and route.startswith("_/roles/") and user is not None:
@@ -230,6 +236,8 @@ def world(db):
         edit_scope=SavedView.EditScope.EVERYONE,
     )
 
+    webhook = Webhook.objects.create(name="Smoke hook", url="https://hooks.example.com/in")
+
     return {
         "panels": panels,
         "instances": instances,
@@ -239,6 +247,8 @@ def world(db):
         "saved_view": saved_view,
         # The roles screens take a group's pk, and the per-user screen a user's.
         "role": Group.objects.create(name="Smoke role"),
+        "webhook": webhook,
+        "delivery": WebhookDelivery.objects.create(webhook=webhook, event="updated"),
     }
 
 
@@ -289,6 +299,8 @@ class TestFullRouteWalk:
                 world["saved_view"],
                 role=world["role"],
                 user=world["staff"],
+                webhook=world["webhook"],
+                delivery=world["delivery"],
             )
         )
         failures: list[str] = []
@@ -311,6 +323,8 @@ class TestFullRouteWalk:
                 world["saved_view"],
                 role=world["role"],
                 user=world["staff"],
+                webhook=world["webhook"],
+                delivery=world["delivery"],
             )
         )
         failures: list[str] = []
