@@ -145,7 +145,8 @@ The URL is typed into a form and the *server* connects to it, so:
 
 * **Private addresses are refused by default**: loopback, private ranges, link-local
   (including the cloud metadata address `169.254.169.254`), carrier-grade NAT, multicast
-  and reserved ranges, and IPv6 forms that embed them. The check runs **at send time**
+  and reserved ranges, and IPv6 forms that embed them (IPv4-mapped, IPv4-compatible,
+  NAT64, 6to4, SIIT, and the old site-local `fec0::/10`). The check runs **at send time**
   on every address the host name resolves to — one bad record refuses the lot — and the
   connection is made to the address that was checked, not to the name, so DNS cannot
   change its answer in between. `WEBHOOKS_ALLOW_PRIVATE_NETWORKS = True` lifts it, for a

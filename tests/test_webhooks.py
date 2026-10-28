@@ -525,6 +525,15 @@ class TestAddressSafety:
             "::ffff:127.0.0.1",
             "64:ff9b::7f00:1",
             "2002:7f00:1::1",
+            "::7f00:1",
+            "::a9fe:a9fe",
+            "::ffff:0:a9fe:a9fe",
+            "::ffff:0:7f00:1",
+            "fec0::1",
+            "feff::1",
+            "64:ff9b:1::1",
+            "64:ff9b:1:ffff::a9fe:a9fe",
+            "::808:808",
         ],
     )
     def test_a_name_that_resolves_to_a_private_address_is_refused_before_connecting(
@@ -587,6 +596,25 @@ class TestAddressSafety:
     )
     def test_only_plain_http_urls_without_credentials_are_accepted(self, url):
         assert webhooks.url_problem(url)
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "[::7f00:1]",
+            "[::a9fe:a9fe]",
+            "[::ffff:0:a9fe:a9fe]",
+            "[fec0::1]",
+            "[64:ff9b:1::1]",
+            "[::ffff:127.0.0.1]",
+            "[64:ff9b::a9fe:a9fe]",
+        ],
+    )
+    def test_an_ipv6_literal_that_wraps_a_private_address_is_refused_at_save_time(self, host):
+        assert webhooks.url_problem(f"http://{host}/") is not None
+
+    @pytest.mark.parametrize("host", ["[2606:4700:4700::1111]", "[64:ff9b::808:808]"])
+    def test_a_public_ipv6_literal_is_fine(self, host):
+        assert webhooks.url_problem(f"http://{host}/") is None
 
     def test_a_public_url_is_fine(self):
         assert webhooks.url_problem("https://hooks.example.com/in") is None
