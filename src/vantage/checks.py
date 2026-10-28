@@ -80,6 +80,7 @@ def check_vantage_settings(app_configs, **kwargs) -> list[Error]:
 
     errors.extend(_check_brand(user))
     errors.extend(_check_webhooks(user))
+    errors.extend(_check_reports(user))
     return errors
 
 
@@ -111,6 +112,43 @@ def _check_webhooks(user: dict) -> list[Error]:
                     id="vantage.E101",
                 )
             )
+    return errors
+
+
+def _check_reports(user: dict) -> list[Error]:
+    """The scheduled-report switch and limits: a wrong type would fail in the cron job,
+    where nobody is looking."""
+    errors: list[Error] = []
+    if "REPORTS" in user and not isinstance(user["REPORTS"], bool):
+        errors.append(
+            Error(
+                f"VANTAGE['REPORTS'] must be True or False; got {user['REPORTS']!r}.",
+                id="vantage.E115",
+            )
+        )
+    for key in ("REPORTS_MAX_ATTACHMENT_MB", "REPORTS_MAX_PER_USER", "REPORTS_RETENTION_DAYS"):
+        value = user.get(key)
+        if key in user and (
+            isinstance(value, bool) or not isinstance(value, int | float) or value <= 0
+        ):
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] must be a number greater than zero; got {value!r}.",
+                    id="vantage.E116",
+                )
+            )
+    base = user.get("REPORTS_BASE_URL")
+    if "REPORTS_BASE_URL" in user and (
+        not isinstance(base, str) or (base and not base.startswith(("http://", "https://")))
+    ):
+        errors.append(
+            Error(
+                f"VANTAGE['REPORTS_BASE_URL'] must be empty or start with http:// or https://; "
+                f"got {base!r}.",
+                hint="For example 'https://panel.example.com'.",
+                id="vantage.E117",
+            )
+        )
     return errors
 
 

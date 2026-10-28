@@ -1,4 +1,4 @@
-{% load vantage i18n %}
+{% load static vantage i18n %}
 {% comment %}
   The saved-views strip. Rendered only when `saved_view_write_url` is in the context,
   so a page whose view did not opt in costs nothing.
@@ -139,6 +139,61 @@
         <button class="v-btn v-btn-primary v-btn-sm">{% translate "Save view" %}</button>
       </form>
     </details>
+
+    {% if saved_view and report_subscribe_url %}
+      {% comment %}
+        Scheduled reports: this view, mailed as a CSV. Built from the same form as the
+        edit screen. What the file contains is decided when it is sent, from the
+        subscriber's permissions at that moment, so nothing here can widen access.
+      {% endcomment %}
+      <link rel="stylesheet" href="{% static 'vantage/vantage-reports.css' %}">
+      <details class="v-views-menu">
+        <summary class="v-btn v-btn-secondary v-btn-sm">{% icon "mail" %}<span>{% translate "Subscribe" %}</span></summary>
+        <form method="post" action="{{ report_subscribe_url }}" class="v-views-panel">
+          {% csrf_token %}
+          <input type="hidden" name="view" value="{{ saved_view.pk }}">
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          {% if report_existing %}
+            <p class="v-reports-hint">
+              {% blocktranslate trimmed %}You already get this view. <a href="{{ report_home_url }}">See your reports</a>.{% endblocktranslate %}
+            </p>
+          {% endif %}
+          <div class="v-reports-fields">
+            <div class="v-reports-wide">
+              <label class="v-views-label" for="{{ report_form.frequency.id_for_label }}">{{ report_form.frequency.label }}</label>
+              {{ report_form.frequency }}
+            </div>
+            <div>
+              <label class="v-views-label" for="{{ report_form.weekday.id_for_label }}">{{ report_form.weekday.label }}</label>
+              {{ report_form.weekday }}
+            </div>
+            <div>
+              <label class="v-views-label" for="{{ report_form.day_of_month.id_for_label }}">{{ report_form.day_of_month.label }}</label>
+              {{ report_form.day_of_month }}
+            </div>
+            <div class="v-reports-wide">
+              <label class="v-views-label" for="{{ report_form.send_time.id_for_label }}">{{ report_form.send_time.label }}</label>
+              {{ report_form.send_time }}
+            </div>
+            <label class="v-reports-check v-reports-wide">{{ report_form.to_self }} <span>{{ report_form.to_self.label }}</span></label>
+            {% if report_form.recipients %}
+              <div class="v-reports-wide">
+                <label class="v-views-label" for="{{ report_form.recipients.id_for_label }}">{{ report_form.recipients.label }}</label>
+                {{ report_form.recipients }}
+              </div>
+            {% endif %}
+          </div>
+          <p class="v-reports-hint">
+            {% blocktranslate trimmed %}
+              Weekday applies to weekly reports and day of the month to monthly ones. The
+              time is in the site's time zone. The file is built with your permissions at
+              the moment it is sent.
+            {% endblocktranslate %}
+          </p>
+          <button class="v-btn v-btn-primary v-btn-sm">{% translate "Subscribe" %}</button>
+        </form>
+      </details>
+    {% endif %}
 
     {% if saved_view %}
       <details class="v-views-menu">

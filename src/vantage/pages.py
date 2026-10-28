@@ -28,7 +28,9 @@ from django.utils.translation import gettext_lazy as _
 __all__ = [
     "DataQualityPage",
     "HealthPage",
+    "MyReportsPage",
     "Page",
+    "ReportsPage",
     "RolesPage",
     "SchemaPage",
     "WebhooksPage",
@@ -308,3 +310,57 @@ class WebhooksPage(Page):
         from vantage.webhookviews import list_context
 
         return list_context(request)
+
+
+def _may_see_reports(request) -> bool:
+    from vantage import reports
+
+    return reports.enabled()
+
+
+def _may_manage_reports(request) -> bool:
+    from vantage import reports
+
+    return reports.enabled() and reports.may_manage(request)
+
+
+class MyReportsPage(Page):
+    """The scheduled reports you subscribed to, and what became of each send.
+
+    Open to anyone who can reach the panel: what a report contains is decided by its
+    owner's own permissions when it is sent, so listing your own reveals nothing.
+    ``VANTAGE["REPORTS"] = False`` removes it. The routes that act on a report hang off
+    the same path; see :mod:`vantage.reportviews`.
+    """
+
+    title = _("My reports")
+    description = _("Saved views emailed to you as a CSV, and what became of each send.")
+    icon = "mail"
+    group = _("System")
+    order = 98
+    path = "_/reports/"
+    template_name = "vantage/reports/list.html"
+    permission = staticmethod(_may_see_reports)
+
+    def get_context(self, request):
+        from vantage.reportviews import list_context
+
+        return list_context(request, everyone=False)
+
+
+class ReportsPage(Page):
+    """Every scheduled report, for the people who run the panel."""
+
+    title = _("Scheduled reports")
+    description = _("Everyone's scheduled reports: pause, resume, delete or send one now.")
+    icon = "mail"
+    group = _("System")
+    order = 99
+    path = "_/reports/all/"
+    template_name = "vantage/reports/list.html"
+    permission = staticmethod(_may_manage_reports)
+
+    def get_context(self, request):
+        from vantage.reportviews import list_context
+
+        return list_context(request, everyone=True)

@@ -552,7 +552,10 @@ def list_context(request, panel) -> dict[str, Any]:
         or _normalise(capture(panel, request.GET)) != _normalise(current.state)
     )
 
+    from vantage.reportviews import subscribe_context
+
     return {
+        **subscribe_context(request, panel, current),
         "saved_views": [
             {
                 "view": item,

@@ -22,6 +22,7 @@ from vantage import (
     listprefsview,
     listviews,
     recordviews,
+    reportviews,
     revealviews,
     rolesviews,
     savedviews,
@@ -86,6 +87,9 @@ def build(site) -> list:
 
     # Likewise the webhook screens, which hang off the webhooks page's path.
     urlpatterns += webhookviews.build_urls(site)
+
+    # Scheduled reports: subscribe, edit, pause, send and the unsubscribe link.
+    urlpatterns += reportviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.
