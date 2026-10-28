@@ -47,6 +47,25 @@ else in the panel: every other page, the JSON API and autocomplete refuse until 
 The requirement takes effect on sessions that are already signed in, not only at the
 next sign-in.
 
+**Whoever enrols first owns it.** Setting it up needs only a signed-in session, so for an
+account that has not enrolled yet, the password is still enough to enrol — and whoever
+does it first holds the account's second factor from then on, its owner included. When
+you switch a requirement on, an attacker who already has someone's password can race the
+owner to the set-up page. To keep that visible and undoable:
+
+- Every step is in the [audit log](permissions.md#the-audit-log) against the account:
+  `two_factor.started`, `two_factor.enabled`, `two_factor.disabled`, `two_factor.codes`,
+  `two_factor.recovery_used` and `two_factor.reset`, with the address and browser of the
+  request that did it.
+- **Two-factor sign-in for everyone** shows when each person's authenticator was last
+  set up. If someone does not recognise theirs, or cannot sign in because "their"
+  authenticator is not on their phone, a superuser resets it and they set it up again.
+- Ask people to enrol *before* you require it, and confirm on that screen that everyone
+  you expect is there.
+
+The requirement covers the panel. If `django.contrib.admin` is mounted too, see
+[Django's admin](#djangos-admin) — its own sign-in asks for the password only.
+
 | Key | Default | Effect |
 |---|---|---|
 | `TWO_FACTOR` | `True` | `False` removes the feature entirely, including for people who had set it up |
@@ -57,6 +76,42 @@ next sign-in.
 | `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | How long the lock lasts |
 
 None of these is editable from the settings screen.
+
+## Django's admin
+
+`django.contrib.admin` has its own sign-in page and its own pages, and neither is the
+panel's. Someone who signs in at `/admin/login/` (or wherever your admin is mounted)
+gets a fully signed-in session that has never answered a code. The panel notices and
+sends that session to its second step before showing anything — but Django's admin does
+not ask, and lets it in.
+
+To hold the admin to the same requirement, add the middleware after
+`AuthenticationMiddleware`:
+
+```python
+MIDDLEWARE = [
+    # ...
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "vantage.twofactor.AdminTwoFactorMiddleware",
+    # ...
+]
+```
+
+Every admin page then asks what the panel asks, of the same person. A session that owes
+a code is sent to the panel's second step (`<panel>/_/account/two-factor/verify/`), and
+one that owes an enrolment to the panel's set-up page, each with the admin page as
+`next`; form posts get a 403, and the admin's autocomplete a JSON 403. The admin's
+sign-in and sign-out pages stay open. Admin pages are recognised by the marks
+`AdminSite` and `ModelAdmin` put on their views, so a renamed or second admin site is
+covered wherever it is mounted.
+
+It is opt-in because it changes a page this package does not own. `manage.py check
+--deploy` warns (`vantage.W095`) when two-factor sign-in is required of anyone, the
+panel is mounted, Django's admin is mounted in the root URLconf, and the middleware is
+not installed.
+
+Other login views of your own — a custom one, an API token endpoint — are yours to
+gate: a session they sign in is sent to the second step by the panel, and by nothing else.
 
 ## When someone loses their phone
 
@@ -85,12 +140,14 @@ who got the password right, so nothing in the project — not only the panel —
 them as signed in. The note is void if the password changes, the account is deactivated
 or the authenticator is removed in the meantime.
 
-**Every panel route is behind the gate.** It wraps every URL a site builds, so new pages,
-plugin pages, dashboards and the API are covered without opting in. That also catches a
-session signed in through a *different* login view, such as `django.contrib.admin`'s:
-it is sent to a second-step page before the panel shows it anything. Pages are redirected;
-form posts get a 403; the API and autocomplete get a JSON 403 with `"two_factor": "verify"`
-or `"enrol"`.
+**Every panel route is behind the gate.** It wraps every URL a site builds — routes
+grouped under an `include()` as well, all the way down — so new pages, plugin pages,
+dashboards and the API are covered without opting in. A session signed in through a
+*different* login view, such as `django.contrib.admin`'s, is sent to a second-step page
+before the *panel* shows it anything; that other view's own pages are not covered unless
+you install [`AdminTwoFactorMiddleware`](#djangos-admin) (for Django's admin) or gate them
+yourself. Pages are redirected; form posts get a 403; the API and autocomplete get a JSON
+403 with `"two_factor": "verify"` or `"enrol"`.
 
 **The session key rotates** when the password is accepted and again when the code is,
 so a session id planted beforehand never ends up signed in.
@@ -104,17 +161,26 @@ time.
 **Wrong codes count against the account, not the session.** Five in a row (by default)
 lock the second step for five minutes — the right code and recovery codes included — and
 throw away the half-signed-in note, so carrying on means typing the password again.
-Opening fresh sessions buys an attacker nothing. A wrong password on the "switch it off"
-form counts toward the same lock. The password step keeps its own
+Opening fresh sessions buys an attacker nothing, and neither does sending guesses in
+parallel: each attempt is counted, by one conditional `UPDATE`, *before* its answer is
+compared, so however the requests interleave no more than five answers are looked at per
+lockout. App codes, recovery codes and the password on the "switch it off" form all go
+through that same count. The password step keeps its own
 [throttle](security.md#loginthrottlemiddleware).
 
 **The secret is sealed and shown only once.** It is encrypted at rest with a key derived
 from `SECRET_KEY` (HMAC-SHA256 in counter mode, then a separate HMAC-SHA256 tag, so a
-tampered row is refused rather than decrypted to something else). A copy of the database
-alone does not reproduce anyone's codes. After a code has confirmed it, nothing renders
-it again. Rotate `SECRET_KEY` the [documented way](https://docs.djangoproject.com/en/stable/ref/settings/#secret-key-fallbacks)
+tampered row is refused rather than decrypted to something else). The tag also covers
+whose secret it is and which enrolment, so someone who can write to the table but not
+read `SECRET_KEY` cannot copy their own sealed secret over a colleague's and answer for
+them with their own phone. A copy of the database alone does not reproduce anyone's
+codes. After a code has confirmed it, nothing renders it again. Rotate `SECRET_KEY` the
+[documented way](https://docs.djangoproject.com/en/stable/ref/settings/#secret-key-fallbacks)
 — with the old key in `SECRET_KEY_FALLBACKS` — or every enrolled person will need a
-recovery code or a reset. Recovery codes are unaffected by the key: they are 80 random
+recovery code or a reset. Each person's secret is sealed again under the new key the
+next time they sign in with a code, so once everyone has, the fallback can go; anyone
+who has not by then needs a recovery code or a reset. Values written before the binding
+existed (`v1$…`) are still read, and are rewritten the same way. Recovery codes are unaffected by the key: they are 80 random
 bits each, stored only as their SHA-256.
 
 **Neither table is ever a panel model.** `TwoFactorDevice` and `TwoFactorRecoveryCode` are
@@ -129,13 +195,14 @@ recovery codes are sent with `Cache-Control: no-store`.
 the account being impersonated, and a superuser's proof survives starting and stopping
 impersonation. The set-up and reset screens refuse while impersonating.
 
-## The `manage.py check` errors
+## The `manage.py check` messages
 
 | Id | Meaning |
 |---|---|
 | `vantage.E095` | `TWO_FACTOR_REQUIRED_SUPERUSERS` is not a bool, or `TWO_FACTOR_REQUIRED_ROLES` is not a list of role names |
 | `vantage.E096` | `TWO_FACTOR_ISSUER` is empty, not a string, or contains a colon |
 | `vantage.E097` | Two-factor sign-in is on and the panel is mounted, but no `SessionMiddleware` is installed |
+| `vantage.W095` | `--deploy` only. Two-factor sign-in is required of someone, and `django.contrib.admin` is mounted without [`AdminTwoFactorMiddleware`](#djangos-admin) |
 
 ## Limitations
 
@@ -146,9 +213,10 @@ impersonation. The set-up and reset screens refuse while impersonating.
   minute — and at once when the requirement settings change — so the gate costs no
   queries on an ordinary request. A reset or a new role membership reaches a live session
   within that minute.
-- **Only the panel is gated.** A session signed in through another login view can still
-  use the rest of your project before it answers; the panel's own sign-in, by contrast,
-  signs nobody in until the code is in.
+- **Only the panel is gated, unless you say otherwise.** A session signed in through
+  another login view can still use the rest of your project before it answers — Django's
+  admin included, until [`AdminTwoFactorMiddleware`](#djangos-admin) is installed. The
+  panel's own sign-in, by contrast, signs nobody in until the code is in.
 - **TOTP only.** No SMS (deliberately: it is phishable and SIM-swappable), no WebAuthn
   security keys yet.
 

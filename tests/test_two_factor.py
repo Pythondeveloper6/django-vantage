@@ -12,16 +12,19 @@ the thing under test and it needs ``vantage.authviews`` mounted beside the panel
 import hashlib
 import json
 import time
+from datetime import UTC
 
 import pytest
+from django.contrib import admin as django_admin
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
+from django.http import HttpResponse
 from django.test import Client, override_settings
 from django.urls import include, path, reverse
 
 from vantage import qr, site, twofactor
-from vantage.checks import check_two_factor
+from vantage.checks import check_deploy_two_factor_admin, check_two_factor
 from vantage.conf import vantage_settings
 from vantage.models import TwoFactorDevice, TwoFactorRecoveryCode, VantageLogEntry
 from vantage.registry import DEFAULT_EXCLUDE
@@ -57,6 +60,21 @@ def enrol(user):
     device.confirmed_at = timezone.now()
     device.save()
     return device, twofactor._issue_codes(device)
+
+
+def seal_v1(plaintext: bytes) -> str:
+    """A value in the first sealed format, which bound it to nothing."""
+    import base64
+    import hmac
+    import secrets
+
+    from django.conf import settings
+
+    nonce = secrets.token_bytes(16)
+    encrypt, sign = twofactor._seal_keys(settings.SECRET_KEY)
+    ciphertext = twofactor._xor(plaintext, twofactor._keystream(encrypt, nonce, len(plaintext)))
+    tag = hmac.new(sign, b"v1" + nonce + ciphertext, hashlib.sha256).digest()
+    return "v1$" + base64.urlsafe_b64encode(nonce + ciphertext + tag).decode("ascii")
 
 
 def code_for(device, steps_ahead: int = 0) -> str:
@@ -193,7 +211,7 @@ class TestSealing:
         sealed = twofactor.seal(twofactor.new_secret())
         body = bytearray(__import__("base64").urlsafe_b64decode(sealed[3:]))
         body[20] ^= 1
-        forged = "v1$" + __import__("base64").urlsafe_b64encode(bytes(body)).decode()
+        forged = sealed[:3] + __import__("base64").urlsafe_b64encode(bytes(body)).decode()
         with pytest.raises(ValueError):
             twofactor.unseal(forged)
 
@@ -211,7 +229,7 @@ class TestSealing:
         settings.SECRET_KEY_FALLBACKS = [old]
         assert twofactor.unseal(sealed) == secret
 
-    @pytest.mark.parametrize("junk", ["", "v2$abc", "v1$", "v1$!!!", "plain"])
+    @pytest.mark.parametrize("junk", ["", "v2$abc", "v3$abc", "v1$", "v2$", "v1$!!!", "plain"])
     def test_junk_is_refused(self, junk):
         with pytest.raises(ValueError):
             twofactor.unseal(junk)
@@ -220,7 +238,57 @@ class TestSealing:
         device, _ = enrol(boss)
         key = twofactor.device_key(device)
         assert twofactor.b32(key) not in device.secret
-        assert device.secret.startswith("v1$")
+        assert device.secret.startswith("v2$")
+
+    def test_a_value_opens_only_in_its_own_context(self):
+        secret = twofactor.new_secret()
+        sealed = twofactor.seal(secret, "row-1")
+        assert twofactor.unseal(sealed, "row-1") == secret
+        for other in ("row-2", "", "row-1 "):
+            with pytest.raises(ValueError):
+                twofactor.unseal(sealed, other)
+
+    def test_a_secret_copied_to_another_device_fails_closed(self, boss, clerk):
+        """Someone who can write the table but not read SECRET_KEY copies their own
+        sealed secret over a colleague's, then signs in as them with their own phone.
+        The value is bound to its owner and enrolment, so it no longer opens there."""
+        mine, _ = enrol(clerk)
+        theirs, _ = enrol(boss)
+        TwoFactorDevice.objects.filter(pk=theirs.pk).update(secret=mine.secret)
+        my_code = code_for(mine)
+        assert twofactor.device_key(TwoFactorDevice.objects.get(pk=theirs.pk)) is None
+        assert not twofactor.verify(TwoFactorDevice.objects.get(pk=theirs.pk), my_code)
+        # The tag is part of the binding too: a re-enrolment's row is a different row.
+        TwoFactorDevice.objects.filter(pk=mine.pk).update(tag="0" * 32)
+        assert twofactor.device_key(TwoFactorDevice.objects.get(pk=mine.pk)) is None
+
+    def test_a_v1_value_still_verifies_and_is_sealed_again_as_v2(self, boss):
+        device, _ = enrol(boss)
+        key = twofactor.device_key(device)
+        TwoFactorDevice.objects.filter(pk=device.pk).update(secret=seal_v1(key))
+        assert twofactor.verify(device, code_for(device))
+        device.refresh_from_db()
+        assert device.secret.startswith("v2$")
+        assert twofactor.device_key(device) == key
+
+    def test_a_value_only_a_fallback_key_opens_is_sealed_again(self, boss, settings):
+        device, _ = enrol(boss)
+        key = twofactor.device_key(device)
+        old = settings.SECRET_KEY
+        settings.SECRET_KEY = "the-new-key"
+        settings.SECRET_KEY_FALLBACKS = [old]
+        assert twofactor.verify(device, code_for(device))
+        # Dropping the fallback, as the rotation's last step, no longer locks them out.
+        settings.SECRET_KEY_FALLBACKS = []
+        device.refresh_from_db()
+        assert twofactor.device_key(device) == key
+
+    def test_a_current_value_is_left_alone(self, boss):
+        device, _ = enrol(boss)
+        before = device.secret
+        assert twofactor.verify(device, code_for(device))
+        device.refresh_from_db()
+        assert device.secret == before
 
 
 # ── the QR code ─────────────────────────────────────────────────────────────
@@ -337,9 +405,58 @@ class TestVerify:
         device, _ = enrol(boss)
         twofactor.verify(device, "000000")
         twofactor.verify(device, "000000")
+        # The third attempt reaches the limit, so the lock goes on before the code is
+        # compared; a right code lifts it again.
         assert twofactor.verify(device, code_for(device))
         device.refresh_from_db()
         assert device.failed_attempts == 0
+        assert device.locked_until is None
+
+    @pytest.mark.parametrize("kind", ["app code", "recovery code", "password"])
+    def test_a_burst_compares_no_more_than_the_limit(self, boss, settings, monkeypatch, kind):
+        """However requests interleave, at most MAX_ATTEMPTS answers are compared.
+
+        Each comparison starts the next request before it finishes, which is the worst
+        case for a check-then-count lockout: every request is past the "is it locked?"
+        question before any failure has been counted. The attempt is counted first, so
+        the chain stops at the limit, and the rest of the burst is refused unread.
+        """
+        settings.VANTAGE = {"TWO_FACTOR_MAX_ATTEMPTS": 5, "TWO_FACTOR_LOCKOUT_SECONDS": 600}
+        device, _ = enrol(boss)
+
+        def fresh():
+            return TwoFactorDevice.objects.get(pk=device.pk)
+
+        owner, name, again = {
+            "app code": (twofactor, "device_key", lambda: twofactor.verify(fresh(), "000000")),
+            "recovery code": (
+                twofactor,
+                "hash_recovery_code",
+                lambda: twofactor.verify(fresh(), "aaaa-aaaa-aaaa-aaaa"),
+            ),
+            "password": (
+                User,
+                "check_password",
+                lambda: twofactor.verify_password(fresh(), boss, "wrong"),
+            ),
+        }[kind]
+        real = getattr(owner, name)
+        burst = {"sent": 1, "compared": 0}
+
+        def compare(*args, **kwargs):
+            burst["compared"] += 1
+            if burst["sent"] < 40:
+                burst["sent"] += 1
+                again()
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(owner, name, compare)
+        again()
+        while burst["sent"] < 40:
+            burst["sent"] += 1
+            assert again().reason == "locked"
+        assert burst["compared"] == 5
+        assert fresh().locked_until is not None
 
     def test_a_secret_that_cannot_be_unsealed_fails_closed(self, boss, settings):
         device, _ = enrol(boss)
@@ -427,6 +544,15 @@ class TestSignIn:
         second.post(reverse("login_two_factor"), {"code": codes[0]})
         assert signed_in_user_id(second) is None
 
+    def test_spending_a_recovery_code_is_audited(self, client, boss):
+        _, codes = enrol(boss)
+        sign_in(client, boss)
+        client.post(reverse("login_two_factor"), {"code": codes[0]})
+        entry = VantageLogEntry.objects.get(action_name="two_factor.recovery_used")
+        assert entry.object_id == str(boss.pk)
+        assert "9 left" in json.dumps(entry.changes)
+        assert codes[0] not in json.dumps(entry.changes)
+
     def test_lockout_follows_the_account_not_the_session(self, boss, settings):
         """Fresh sessions do not buy fresh guesses."""
         settings.VANTAGE = {"TWO_FACTOR_MAX_ATTEMPTS": 3}
@@ -513,6 +639,41 @@ class TestGate:
             response = client.get(url, {"model": "testapp.Author"})
             assert response.status_code == 403
             assert json.loads(response.content)["two_factor"] == "verify"
+
+    def test_routes_inside_an_include_are_behind_it(self):
+        def inner(request):
+            return HttpResponse("data")
+
+        patterns = [path("x/", include([path("y/", include([path("z/", inner)]))]))]
+        twofactor.guard_patterns(patterns)
+        assert patterns[0].url_patterns[0].url_patterns[0].callback.two_factor_gated
+
+    def test_a_site_whose_urls_add_an_include_is_gated_all_the_way_down(
+        self, client, boss, settings
+    ):
+        """A subclass appending its own routes after super()'s, grouped under an
+        include(), is gated like the rest — not open because of how it is arranged."""
+        from types import ModuleType
+
+        from vantage.sites import VantageSite
+
+        def secret_page(request):
+            return HttpResponse("rows of data")
+
+        class GroupingSite(VantageSite):
+            def get_urls(self):
+                extra = include([path("deeper/", include([path("page/", secret_page)]))])
+                return [*super().get_urls(), path("extra/", extra)]
+
+        urlconf = ModuleType("grouped_urls")
+        urlconf.urlpatterns = [path("grouped/", GroupingSite(name="grouped").urls)]
+        settings.ROOT_URLCONF = urlconf
+        enrol(boss)
+        client.force_login(boss)
+        response = client.get("/grouped/extra/deeper/page/")
+        assert response.status_code == 302
+        assert "two-factor/verify" in response["Location"]
+        assert b"rows of data" not in response.content
 
     def test_a_post_is_refused_not_redirected(self, client, boss):
         enrol(boss)
@@ -703,6 +864,23 @@ class TestEnrolment:
         client.post(reverse("vantage:two_factor"), {"action": "confirm", "code": code_for(device)})
         assert VantageLogEntry.objects.filter(action_name="two_factor.enabled").exists()
 
+    def test_every_step_of_it_is_audited_under_the_person(self, client, boss):
+        """Starting, confirming, and switching off: whoever enrols an account first
+        owns its second factor, so each step leaves a trail with a name on it."""
+        client.force_login(boss)
+        client.post(reverse("vantage:two_factor"), {"action": "start"})
+        device = TwoFactorDevice.objects.get(user=boss)
+        client.post(reverse("vantage:two_factor"), {"action": "confirm", "code": code_for(device)})
+        client.post(reverse("vantage:two_factor"), {"action": "disable", "password": PASSWORD})
+        entries = VantageLogEntry.objects.filter(action_name__startswith="two_factor.")
+        assert [e.action_name for e in entries.order_by("pk")] == [
+            "two_factor.started",
+            "two_factor.enabled",
+            "two_factor.disabled",
+        ]
+        assert {e.actor for e in entries} == {boss}
+        assert {e.object_id for e in entries} == {str(boss.pk)}
+
     def test_cancelling_throws_the_secret_away(self, client, boss):
         client.force_login(boss)
         client.post(reverse("vantage:two_factor"), {"action": "start"})
@@ -774,6 +952,20 @@ class TestReset:
         assert entry.actor == boss
         assert entry.object_id == str(clerk.pk)
 
+    def test_the_screen_shows_when_each_was_last_set_up(self, client, boss, clerk):
+        """Enrolling needs only the password, so the first person to do it owns the
+        account's second factor. The set-up time is how a superuser spots one the
+        owner does not remember doing."""
+        from datetime import datetime
+
+        device, _ = enrol(clerk)
+        when = datetime(2026, 3, 4, 12, 0, tzinfo=UTC)
+        TwoFactorDevice.objects.filter(pk=device.pk).update(confirmed_at=when)
+        client.force_login(boss)
+        page = client.get(reverse("vantage:two_factor_users")).content.decode()
+        assert "Set up" in page
+        assert 'datetime="2026-03-04T' in page
+
     def test_not_your_own(self, client, boss):
         device, _ = enrol(boss)
         client.force_login(boss)
@@ -794,6 +986,141 @@ class TestReset:
         assert twofactor.device_for(clerk) is None
         assert "now off" in capsys.readouterr().out
         assert VantageLogEntry.objects.get(action_name="two_factor.reset").actor is None
+
+
+# ── django.contrib.admin beside the panel ─────────────────────────────────
+
+
+class StubAdminSite(django_admin.AdminSite):
+    """Django's admin, with the two pages these tests open answered without templates:
+    ``django.contrib.admin`` is not installed here, so its templates are not either."""
+
+    def index(self, request, extra_context=None):
+        return HttpResponse("admin index")
+
+    def logout(self, request, extra_context=None):
+        return HttpResponse("signed out")
+
+
+ADMIN_MIDDLEWARE = "vantage.twofactor.AdminTwoFactorMiddleware"
+
+
+@pytest.fixture
+def beside_admin(settings):
+    """The panel and Django's admin, both mounted: the setup the bypass lives in."""
+    from types import ModuleType
+
+    from tests.testapp.models import Author
+
+    admin_site = StubAdminSite(name="djadmin")
+    admin_site.register(Author)
+    urlconf = ModuleType("beside_admin_urls")
+    urlconf.urlpatterns = [
+        path("accounts/", include("vantage.authviews")),
+        path("admin/", site.urls),
+        path("djadmin/", admin_site.urls),
+    ]
+    settings.ROOT_URLCONF = urlconf
+    return admin_site
+
+
+class TestDjangoAdmin:
+    def test_without_the_middleware_a_password_is_enough_for_the_admin(
+        self, client, boss, beside_admin
+    ):
+        """The gap the middleware and W095 exist for: the panel is gated, the admin is
+        not, and a session signed in at the admin's login has only the password."""
+        enrol(boss)
+        client.force_login(boss)
+        assert client.get("/djadmin/").content == b"admin index"
+        assert client.get(reverse("vantage:dashboard")).status_code == 302
+
+    def test_with_it_the_admin_asks_for_the_code(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        device, _ = enrol(boss)
+        client.force_login(boss)
+        response = client.get("/djadmin/")
+        assert response.status_code == 302
+        assert response["Location"].startswith(reverse("vantage:two_factor_verify"))
+        assert "next=%2Fdjadmin%2F" in response["Location"]
+        answered = client.post(
+            response["Location"], {"code": code_for(device), "next": "/djadmin/"}
+        )
+        assert answered["Location"] == "/djadmin/"
+        assert client.get("/djadmin/").content == b"admin index"
+
+    def test_a_model_admins_pages_are_covered_too(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        enrol(boss)
+        client.force_login(boss)
+        assert client.get("/djadmin/testapp/author/").status_code == 302
+        assert client.post("/djadmin/testapp/author/add/", {"name": "x"}).status_code == 403
+
+    def test_a_required_enrolment_is_asked_for_first(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_SUPERUSERS": True}
+        client.force_login(boss)
+        response = client.get("/djadmin/")
+        assert response["Location"].startswith(reverse("vantage:two_factor") + "?")
+
+    def test_signing_out_and_signing_in_stay_open(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        enrol(boss)
+        client.force_login(boss)
+        assert client.post("/djadmin/logout/").content == b"signed out"
+        assert twofactor.admin_site_of(beside_admin.login) is None
+
+    def test_nobody_owing_anything_passes_straight_through(
+        self, client, clerk, beside_admin, settings
+    ):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        client.force_login(clerk)
+        assert client.get("/djadmin/").content == b"admin index"
+
+    def test_it_leaves_everything_else_alone(self, rf, boss):
+        """Only views the admin marked as its own; anything else is not its business."""
+        middleware = twofactor.AdminTwoFactorMiddleware(lambda request: HttpResponse())
+        request = rf.get("/")
+        assert middleware.process_view(request, lambda request: None, (), {}) is None
+
+
+class TestAdminCheck:
+    """``vantage.W095``: a requirement with Django's admin mounted beside it, unheld."""
+
+    @pytest.fixture
+    def required(self, settings):
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_ROLES": ["Finance"]}
+        return settings
+
+    def test_it_fires_and_says_where(self, beside_admin, required):
+        warnings = check_deploy_two_factor_admin(None)
+        assert [w.id for w in warnings] == ["vantage.W095"]
+        assert "/djadmin/" in warnings[0].msg
+        assert ADMIN_MIDDLEWARE in warnings[0].hint
+
+    def test_superusers_alone_are_a_requirement_too(self, beside_admin, settings):
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_SUPERUSERS": True}
+        assert [w.id for w in check_deploy_two_factor_admin(None)] == ["vantage.W095"]
+
+    def test_the_middleware_silences_it(self, beside_admin, required):
+        required.MIDDLEWARE = [*required.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_silent_when_nobody_is_required(self, beside_admin):
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_silent_when_two_factor_is_off(self, beside_admin, settings):
+        settings.VANTAGE = {"TWO_FACTOR": False, "TWO_FACTOR_REQUIRED_SUPERUSERS": True}
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_silent_without_the_admin(self, required):
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_it_runs_only_under_deploy(self):
+        from django.core.checks.registry import registry
+
+        assert check_deploy_two_factor_admin in registry.get_checks(include_deployment_checks=True)
+        assert check_deploy_two_factor_admin not in registry.get_checks()
 
 
 class TestCsrf:

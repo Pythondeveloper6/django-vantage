@@ -926,6 +926,88 @@ def check_deploy_login_throttle(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_two_factor_admin(app_configs, **kwargs) -> list[Warning]:
+    """Two-factor is required, and ``django.contrib.admin`` is mounted without it.
+    (``vantage.W095``)
+
+    The panel's gate covers the panel. Django's admin has its own sign-in, which asks
+    for the password and nothing else, and its own pages, which the gate never sees —
+    so a requirement that looks enforced has a door beside it that skips it. Silent
+    once :class:`vantage.twofactor.AdminTwoFactorMiddleware` is installed, and when
+    nobody is required to use two-factor sign-in, because then the panel does not
+    promise anything the admin breaks.
+
+    Registered on its own rather than in :data:`DEPLOYMENT_CHECKS`: two-factor owns
+    ids 095 to 099 in every family, and this is one of them.
+    """
+    from vantage import twofactor
+
+    if not panel_is_mounted():
+        return []
+    try:
+        required = twofactor.enabled() and (
+            twofactor.setting("TWO_FACTOR_REQUIRED_SUPERUSERS")
+            or bool(twofactor.setting("TWO_FACTOR_REQUIRED_ROLES"))
+        )
+    except Exception:  # an invalid value is E095's to report
+        return []
+    if not required:
+        return []
+    if any(m.rsplit(".", 1)[-1] == "AdminTwoFactorMiddleware" for m in _middleware()):
+        return []
+    mounted = _django_admin_mounts()
+    if not mounted:
+        return []
+    where = ", ".join(f"/{prefix}" for prefix in mounted)
+    return [
+        Warning(
+            f"Two-factor sign-in is required, but django.contrib.admin is mounted at "
+            f"{where} and does not ask for it.",
+            hint=(
+                "A session signed in at the admin's own login page has the password and "
+                "nothing else, and the admin lets it in. Add "
+                "'vantage.twofactor.AdminTwoFactorMiddleware' after "
+                "AuthenticationMiddleware to hold the admin to the same requirement, or "
+                "unmount the admin. See docs/two-factor.md."
+            ),
+            id="vantage.W095",
+        )
+    ]
+
+
+def _django_admin_mounts() -> list[str]:
+    """Where in the root URLconf a ``django.contrib.admin`` site is mounted.
+
+    Found by the marks the admin puts on its own views (see
+    :func:`vantage.twofactor.admin_site_of`), not by the ``admin`` namespace, so a
+    renamed or second site is found too. Never raises, for the same reason as
+    :func:`panel_is_mounted`.
+    """
+    from django.urls import get_resolver
+
+    from vantage.twofactor import admin_site_of
+
+    found: list[str] = []
+
+    def walk(patterns, prefix: str) -> None:
+        for pattern in patterns:
+            nested = getattr(pattern, "url_patterns", None)
+            if nested is not None:
+                walk(nested, prefix + str(pattern.pattern))
+                continue
+            # The site's own views, not a ModelAdmin's: those are one include deeper.
+            callback = getattr(pattern, "callback", None)
+            if hasattr(callback, "admin_site") and admin_site_of(callback) is not None:
+                if prefix not in found:
+                    found.append(prefix)
+
+    try:
+        walk(get_resolver().url_patterns, "")
+    except Exception:  # a urlconf that raises is reported by Django's own checks
+        return []
+    return found
+
+
 #: Every deployment check, so ``apps.py`` registers them in one loop and adding one
 #: here is not also an edit there.
 DEPLOYMENT_CHECKS = (
