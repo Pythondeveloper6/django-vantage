@@ -61,7 +61,7 @@ from django.middleware.csrf import get_token
 from django.urls import NoReverseMatch, path, reverse
 from django.views import View
 
-from vantage import concurrency, formviews, listquery
+from vantage import concurrency, fieldperms, formviews, listquery
 from vantage.inline import form_errors, json_to_form_data
 from vantage.optimizer import plan_related
 from vantage.pagination import (
@@ -286,15 +286,18 @@ def _html_detail_url(panel, obj) -> str | None:
         return None
 
 
-def _record_payload(panel, obj) -> dict[str, Any]:
-    """One record, fully — the shape both retrieve and every write echo back."""
+def _record_payload(panel, obj, request=None) -> dict[str, Any]:
+    """One record, fully — the shape both retrieve and every write echo back.
+
+    Fields hidden from the caller are not in it, on a read or on a write's echo.
+    """
     return {
         "pk": json_value(obj.pk),
-        "display": safe_str(obj, panel.site),
+        "display": fieldperms.safe_label(request, obj, panel.site),
         "version": concurrency.token_for(obj),
         "url": _detail_url(panel, obj),
         "html_url": _html_detail_url(panel, obj),
-        "fields": object_fields(panel, obj),
+        "fields": object_fields(panel, obj, hidden=fieldperms.hidden_names(request, panel)),
     }
 
 
@@ -429,7 +432,7 @@ class ListCreateView(ModelApiView):
         resolved = listquery.build(self.panel, request, self.permissions, allow_tree=False)
         queryset = resolved.queryset
 
-        columns = self._requested_fields(request)
+        columns = fieldperms.strip_hidden(request, self.panel, self._requested_fields(request))
         select, prefetch = plan_related(self.panel.model, columns)
         if select:
             queryset = queryset.select_related(*sorted(select))
@@ -499,9 +502,10 @@ class ListCreateView(ModelApiView):
             return self.panel.get_list_display(request)
 
         wanted = [name.strip() for name in raw.split(",") if name.strip()]
+        hidden = fieldperms.hidden_names(request, self.panel)
         allowed = {
             *self.panel.get_list_display(request),
-            *(field.name for field in record_fields(self.panel.model)),
+            *(field.name for field in record_fields(self.panel.model) if field.name not in hidden),
         }
         unknown = [name for name in wanted if name not in allowed]
         if unknown:
@@ -531,10 +535,14 @@ class ListCreateView(ModelApiView):
         if not isinstance(submitted, dict):
             raise BadRequest("The request body must include a 'fields' object.")
 
-        editable = formviews.form_editable_names(self.panel)
+        editable = formviews.form_editable_names(self.panel, request)
         unknown = sorted(set(submitted) - set(editable))
         if unknown:
             raise ApiError(400, f"Unknown or read-only field(s): {', '.join(unknown)}.")
+
+        refusal = fieldperms.unfillable_message(request, self.panel)
+        if refusal:
+            raise ApiError(422, refusal)
 
         form_class = build_form_class(self.panel, editable)
         filled = _with_field_defaults(form_class, editable, submitted)
@@ -543,7 +551,7 @@ class ListCreateView(ModelApiView):
             return error_response(422, "Validation failed.", errors=form_errors(form))
 
         obj = formviews.save_form(request, self.panel, form, change=False)
-        return json_response(_record_payload(self.panel, obj), status=201)
+        return json_response(_record_payload(self.panel, obj, request), status=201)
 
 
 # ── one record ───────────────────────────────────────────────────────────────
@@ -554,7 +562,7 @@ class RecordDetailView(ModelApiView):
 
     def get(self, request, *args, **kwargs):
         obj = formviews.get_record(request, self.panel, self.permissions, self.kwargs["pk"], "view")
-        return json_response(_record_payload(self.panel, obj))
+        return json_response(_record_payload(self.panel, obj, request))
 
     def put(self, request, *args, **kwargs):
         return self._write(request, partial=False)
@@ -594,7 +602,10 @@ class RecordDetailView(ModelApiView):
         if not isinstance(submitted, dict):
             raise BadRequest("The request body must include a 'fields' object.")
 
-        editable = formviews.form_editable_names(self.panel)
+        # Per caller: a field they may only read is "read-only" here exactly as it is on
+        # the edit page, and one hidden from them is "unknown" — the same answer as a
+        # name that does not exist, so the error cannot be used to discover it.
+        editable = formviews.form_editable_names(self.panel, request)
         unknown = sorted(set(submitted) - set(editable))
         if unknown:
             raise ApiError(400, f"Unknown or read-only field(s): {', '.join(unknown)}.")
@@ -635,12 +646,14 @@ class RecordDetailView(ModelApiView):
                     "pk": json_value(stale.obj.pk),
                     "version": stale.token,
                     "label": safe_str(stale.obj, self.panel.site),
+                    # ``submitted`` was checked against the editable names above, so
+                    # nothing hidden from this caller can be in the diff.
                     "fields": concurrency.field_diff(
                         stale.obj, submitted, sensitive=self.panel.get_sensitive_fields()
                     ),
                 },
             )
-        return json_response(_record_payload(self.panel, saved))
+        return json_response(_record_payload(self.panel, saved, request))
 
 
 # ── schema ───────────────────────────────────────────────────────────────────
@@ -666,10 +679,11 @@ class SchemaView(ApiView):
         self.permissions = get_permissions()
 
     def _model_schema(self, request, panel) -> dict[str, Any]:
-        editable = set(formviews.form_editable_names(panel))
+        editable = set(formviews.form_editable_names(panel, request))
         form_class = build_form_class(panel, sorted(editable)) if editable else None
         bound = form_class.base_fields if form_class is not None else {}
         secret = panel.get_sensitive_fields()
+        hidden = fieldperms.hidden_names(request, panel)
 
         fields = [
             field_schema(
@@ -680,6 +694,7 @@ class SchemaView(ApiView):
                 options_url=self._options_url(field),
             )
             for field in record_fields(panel.model)
+            if field.name not in hidden
         ]
         for entry in fields:
             # A client building a form needs to know the field will never be read back:
