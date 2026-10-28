@@ -12,6 +12,7 @@ the thing under test and it needs ``vantage.authviews`` mounted beside the panel
 import hashlib
 import json
 import time
+from datetime import UTC
 
 import pytest
 from django.contrib import admin as django_admin
@@ -543,6 +544,15 @@ class TestSignIn:
         second.post(reverse("login_two_factor"), {"code": codes[0]})
         assert signed_in_user_id(second) is None
 
+    def test_spending_a_recovery_code_is_audited(self, client, boss):
+        _, codes = enrol(boss)
+        sign_in(client, boss)
+        client.post(reverse("login_two_factor"), {"code": codes[0]})
+        entry = VantageLogEntry.objects.get(action_name="two_factor.recovery_used")
+        assert entry.object_id == str(boss.pk)
+        assert "9 left" in json.dumps(entry.changes)
+        assert codes[0] not in json.dumps(entry.changes)
+
     def test_lockout_follows_the_account_not_the_session(self, boss, settings):
         """Fresh sessions do not buy fresh guesses."""
         settings.VANTAGE = {"TWO_FACTOR_MAX_ATTEMPTS": 3}
@@ -854,6 +864,23 @@ class TestEnrolment:
         client.post(reverse("vantage:two_factor"), {"action": "confirm", "code": code_for(device)})
         assert VantageLogEntry.objects.filter(action_name="two_factor.enabled").exists()
 
+    def test_every_step_of_it_is_audited_under_the_person(self, client, boss):
+        """Starting, confirming, and switching off: whoever enrols an account first
+        owns its second factor, so each step leaves a trail with a name on it."""
+        client.force_login(boss)
+        client.post(reverse("vantage:two_factor"), {"action": "start"})
+        device = TwoFactorDevice.objects.get(user=boss)
+        client.post(reverse("vantage:two_factor"), {"action": "confirm", "code": code_for(device)})
+        client.post(reverse("vantage:two_factor"), {"action": "disable", "password": PASSWORD})
+        entries = VantageLogEntry.objects.filter(action_name__startswith="two_factor.")
+        assert [e.action_name for e in entries.order_by("pk")] == [
+            "two_factor.started",
+            "two_factor.enabled",
+            "two_factor.disabled",
+        ]
+        assert {e.actor for e in entries} == {boss}
+        assert {e.object_id for e in entries} == {str(boss.pk)}
+
     def test_cancelling_throws_the_secret_away(self, client, boss):
         client.force_login(boss)
         client.post(reverse("vantage:two_factor"), {"action": "start"})
@@ -924,6 +951,20 @@ class TestReset:
         entry = VantageLogEntry.objects.get(action_name="two_factor.reset")
         assert entry.actor == boss
         assert entry.object_id == str(clerk.pk)
+
+    def test_the_screen_shows_when_each_was_last_set_up(self, client, boss, clerk):
+        """Enrolling needs only the password, so the first person to do it owns the
+        account's second factor. The set-up time is how a superuser spots one the
+        owner does not remember doing."""
+        from datetime import datetime
+
+        device, _ = enrol(clerk)
+        when = datetime(2026, 3, 4, 12, 0, tzinfo=UTC)
+        TwoFactorDevice.objects.filter(pk=device.pk).update(confirmed_at=when)
+        client.force_login(boss)
+        page = client.get(reverse("vantage:two_factor_users")).content.decode()
+        assert "Set up" in page
+        assert 'datetime="2026-03-04T' in page
 
     def test_not_your_own(self, client, boss):
         device, _ = enrol(boss)
