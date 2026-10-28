@@ -41,6 +41,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import logging
+import math
 import time
 from dataclasses import dataclass
 
@@ -85,6 +86,10 @@ STALE_PENDING_SECONDS = 300
 
 #: A run still "running" after this long lost its worker, and is closed as failed.
 STALE_RUNNING_SECONDS = 3600
+
+#: Least gap between two "Send now" clicks on one subscription: each one mails every
+#: recipient, so an unthrottled button is a way to flood an inbox.
+MANUAL_COOLDOWN_SECONDS = 60
 
 #: Addresses one subscription may name besides the subscriber.
 MAX_RECIPIENTS = 20
@@ -296,6 +301,21 @@ def enqueue(sub: ReportSubscription, *, trigger: str = "manual") -> ReportRun:
     return run
 
 
+def manual_wait(sub: ReportSubscription, *, now: dt.datetime | None = None) -> int:
+    """Seconds until "Send now" may be used again on ``sub``; zero when it may."""
+    now = now or timezone.now()
+    latest = (
+        sub.runs.filter(trigger=ReportRun.Trigger.MANUAL)
+        .order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+    if latest is None:
+        return 0
+    left = MANUAL_COOLDOWN_SECONDS - (now - latest).total_seconds()
+    return max(math.ceil(left), 0)
+
+
 def _queue(run_id: int) -> None:
     transaction.on_commit(lambda: _submit(run_id))
 
@@ -395,7 +415,7 @@ def run_report(run_id: int) -> ReportRun | None:
     run = ReportRun.objects.select_related("subscription__view").get(pk=run_id)
     began = time.monotonic()
     try:
-        outcome = _execute(run.subscription)
+        outcome = _execute(run.subscription, run.trigger)
     except Skip as exc:
         outcome = Outcome(ReportRun.Status.SKIPPED, reason=str(exc))
     # A worker must never die on one report: a raise here would leave the row "running"
@@ -423,11 +443,17 @@ def run_report(run_id: int) -> ReportRun | None:
     return run
 
 
-def _execute(sub: ReportSubscription) -> Outcome:
+def _execute(sub: ReportSubscription, trigger: str = "schedule") -> Outcome:
+    from vantage import twofactor
     from vantage.jobs import JobRequest, _panel_for, _site_for
     from vantage.permissions import get_permissions
     from vantage.savedviews import can_use, hydrate
     from vantage.tenancy import restore as tenancy_restore
+
+    # A scheduled run can sit in a queue past an unsubscribe or a pause. Send now is
+    # an owner or manager asking for one send, so it may still go out while paused.
+    if trigger == ReportRun.Trigger.SCHEDULE and not sub.active:
+        raise Skip(_("The report was paused or unsubscribed after this send was queued."))
 
     # Loaded again, here, and never taken from the subscription: the account as the
     # database has it at this moment is the only one whose rights count.
@@ -436,6 +462,11 @@ def _execute(sub: ReportSubscription) -> Outcome:
         raise Skip(_("The account that subscribed is inactive or gone."))
     if not user.is_staff:
         raise Skip(_("The account that subscribed can no longer sign in to the panel."))
+
+    # The panel would make this person enrol before showing them anything; a file
+    # mailed on their behalf must not be the way around that.
+    if twofactor.enabled() and twofactor.is_required(user) and twofactor.device_for(user) is None:
+        raise Skip(_("Two-factor sign-in is required for this account and is not set up."))
 
     view = sub.view
     panel = _panel_for(view.model_label)

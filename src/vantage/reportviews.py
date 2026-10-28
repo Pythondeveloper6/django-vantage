@@ -42,7 +42,7 @@ from django.utils import timezone
 from django.utils.dates import WEEKDAYS
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.utils.translation import gettext
+from django.utils.translation import gettext, ngettext
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.cache import never_cache
@@ -363,11 +363,23 @@ class ReportStateView(ReportView):
         self.require_owner_or_manager()
         sub = self.sub
         back = _safe_next(request, self.home_url())
+        self.require_writable()
         if self.action == "send":
+            wait = reports.manual_wait(sub)
+            if wait:
+                messages.error(
+                    request,
+                    ngettext(
+                        "This report was sent a moment ago. Try again in %(count)s second.",
+                        "This report was sent a moment ago. Try again in %(count)s seconds.",
+                        wait,
+                    )
+                    % {"count": wait},
+                )
+                return HttpResponseRedirect(back)
             reports.enqueue(sub, trigger=ReportRun.Trigger.MANUAL)
             messages.success(request, gettext("Queued. The result will appear in the log."))
             return HttpResponseRedirect(back)
-        self.require_writable()
         if self.action == "pause":
             sub.active = False
             sub.next_run_at = None
