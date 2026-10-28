@@ -97,11 +97,15 @@ class RolesView(SiteView):
 
     @cached_property
     def reach(self) -> roles.Reach:
-        return roles.reach_for(self.request.user)
+        return roles.reach_for(self.request.user, self.request)
 
     @cached_property
     def group_permissions(self) -> list:
         return list(self.group.permissions.select_related("content_type"))
+
+    @cached_property
+    def field_rules(self) -> dict:
+        return roles.current_field_rules(self.group)
 
     @cached_property
     def within_reach(self) -> bool:
@@ -143,7 +147,7 @@ class RolesView(SiteView):
 
     def role_context(self, tab: str) -> dict:
         group = self.group
-        token = roles.fingerprint(group, {p.pk for p in self.group_permissions})
+        token = roles.fingerprint(group, {p.pk for p in self.group_permissions}, self.field_rules)
         return {
             "group": group,
             "tab": tab,
@@ -186,12 +190,24 @@ class RoleEditView(RolesView):
         current = {p.pk for p in self.group_permissions}
         catalogue = kwargs.get("catalogue") or roles.load_catalogue()
         displayed = kwargs.get("displayed", current)
+        base_rules = self.field_rules
         context.update(self.role_context("permissions"))
         context.update(
             page_title=self.group.name,
             page_description=_("Tick what this role may do. Nothing is saved until you review it."),
-            sections=roles.build_matrix(self.site, catalogue, displayed, self.reach),
+            sections=roles.build_matrix(
+                self.site,
+                catalogue,
+                displayed,
+                self.reach,
+                group=self.group,
+                rules=kwargs.get("displayed_rules", base_rules),
+                base_rules=base_rules,
+            ),
             base_ids=",".join(str(pk) for pk in sorted(current)),
+            base_rules=",".join(
+                f"{ct}:{name}:{level}" for (ct, name), level in sorted(base_rules.items())
+            ),
             base=current,
             actions=roles.ACTIONS,
             partial_reach=not self.reach.everything,
@@ -206,6 +222,7 @@ class RoleEditView(RolesView):
         group = self.group
         catalogue = roles.load_catalogue()
         add, remove = self._intent(request)
+        fields = self._field_intent(request)
         try:
             change = roles.save_permissions(
                 group,
@@ -214,12 +231,14 @@ class RoleEditView(RolesView):
                 remove=remove,
                 reach=self.reach,
                 catalogue=catalogue,
+                fields=fields,
+                site=self.site,
             )
         except Group.DoesNotExist:
             messages.error(request, _("That role was deleted by someone else."))
             return HttpResponseRedirect(self.list_url())
         except roles.RoleConflict as conflict:
-            return self._conflict(request, conflict, catalogue, add, remove)
+            return self._conflict(request, conflict, catalogue, add, remove, fields)
 
         roles.audit_permissions(request, group, change)
         if change:
@@ -228,6 +247,16 @@ class RoleEditView(RolesView):
                 _("Saved “%(name)s”: %(added)d added, %(removed)d removed.")
                 % {"name": group.name, "added": len(change.added), "removed": len(change.removed)},
             )
+            if change.fields:
+                messages.success(
+                    request,
+                    ngettext(
+                        "%(count)d field rule changed.",
+                        "%(count)d field rules changed.",
+                        len(change.fields),
+                    )
+                    % {"count": len(change.fields)},
+                )
         else:
             messages.info(request, _("Nothing to save — the role already matched."))
         if change.ignored:
@@ -263,7 +292,22 @@ class RoleEditView(RolesView):
         ticked = roles.parse_ids(request.POST.getlist("perm"))
         return ticked - base, base - ticked
 
-    def _conflict(self, request, conflict, catalogue, add, remove):
+    @staticmethod
+    def _field_intent(request) -> dict:
+        """The field rules the actor changed, as ``{(content type id, field): level}``.
+
+        Same two shapes as :meth:`_intent`. The enhanced page posts only the rules that
+        moved, in ``fields``. Without JavaScript every rule's ``<select>`` arrives as a
+        ``field`` value, and the diff is taken against ``field_base`` — the rules as the
+        page was rendered, not as the database holds them now.
+        """
+        if request.POST.get("mode") == "diff":
+            return roles.parse_field_rules(request.POST.getlist("fields"))
+        submitted = roles.parse_field_rules(request.POST.getlist("field"))
+        base = roles.parse_field_rules(request.POST.getlist("field_base"))
+        return {key: level for key, level in submitted.items() if base.get(key, "") != level}
+
+    def _conflict(self, request, conflict, catalogue, add, remove, fields=None):
         """409, with the other person's change shown and this person's re-applied.
 
         Rendered rather than redirected, because the actor's pending edits live only
@@ -272,6 +316,7 @@ class RoleEditView(RolesView):
         self.group = conflict.group
         current = conflict.permission_ids
         self.group_permissions = [catalogue.by_id[pk] for pk in current if pk in catalogue.by_id]
+        self.field_rules = conflict.rules
         base = roles.parse_ids(request.POST.getlist("base"))
 
         def labels(ids):
@@ -289,9 +334,19 @@ class RoleEditView(RolesView):
             if permission is not None and self.reach.covers(permission):
                 displayed.discard(pk)
 
+        # The actor's field changes re-applied on top of theirs, within reach, exactly
+        # like the permission ids above.
+        displayed_rules = dict(conflict.rules)
+        for key, level in roles._valid_field_rules(fields or {}, self.site, self.reach).items():
+            if level:
+                displayed_rules[key] = level
+            else:
+                displayed_rules.pop(key, None)
+
         context = self.get_context_data(
             catalogue=catalogue,
             displayed=displayed,
+            displayed_rules=displayed_rules,
             conflict={
                 "added": labels(current - base),
                 "removed": labels(base - current),
@@ -564,6 +619,7 @@ class UserPermissionsView(RolesView):
             target_roles=groups,
             effective=rows,
             effective_count=sum(len(items) for _label, items in rows),
+            field_restrictions=roles.effective_field_rules(target, self.site),
             # Only a superuser is told that the target is one: see _user_row.
             target_is_superuser=bool(
                 getattr(self.request.user, "is_superuser", False)
