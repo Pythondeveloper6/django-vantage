@@ -1,0 +1,40 @@
+{% load i18n vantage %}{% comment %}
+  One request as a card: whose record, who asked and when, the fields, the note, and —
+  once decided — who decided and why. Cards rather than table rows so the queue reads
+  the same on a phone as at a desk.
+{% endcomment %}
+<article class="v-card v-approval-card" data-status="{{ entry.request.status }}">
+  <header class="v-approval-card-head">
+    <div>
+      <p class="v-approval-model">{{ entry.panel.get_label }}</p>
+      <h3 class="v-approval-record">
+        {% if entry.record_url %}<a class="v-cell-link" href="{{ entry.record_url }}">{{ entry.request.object_repr }}</a>{% else %}{{ entry.request.object_repr }}{% endif %}
+      </h3>
+    </div>
+    <span class="v-approval-status" data-status="{{ entry.request.status }}">{{ entry.request.get_status_display }}</span>
+  </header>
+  <p class="v-approval-meta">
+    {% translate "Someone" as unknown_actor %}
+    {% blocktranslate with who=entry.request.requested_by_repr|default:unknown_actor when=entry.request.requested_at|date:"Y-m-d H:i" trimmed %}
+      Asked by {{ who }}, {{ when }}.
+    {% endblocktranslate %}
+    {% if not entry.record_url and entry.request.is_pending %}
+      {% translate "The record is no longer available to you." %}
+    {% endif %}
+  </p>
+  {% include "vantage/approvals/_diff.html" with rows=entry.rows %}
+  {% if entry.request.note %}<p class="v-approval-note">{{ entry.request.note }}</p>{% endif %}
+  {% if not entry.request.is_pending and entry.request.decided_at %}
+    <p class="v-approval-meta">
+      {% blocktranslate with who=entry.request.decided_by_repr|default:unknown_actor when=entry.request.decided_at|date:"Y-m-d H:i" status=entry.request.get_status_display trimmed %}
+        {{ status }} by {{ who }}, {{ when }}.
+      {% endblocktranslate %}
+    </p>
+    {% if entry.request.reason %}<p class="v-approval-note" data-tone="reason">{{ entry.request.reason }}</p>{% endif %}
+  {% endif %}
+  {% if entry.may_decide or entry.may_withdraw %}
+    <div class="v-approval-actions">
+      <a class="v-btn v-btn-secondary v-btn-sm" href="{{ entry.review_url }}">{% if entry.may_decide %}{% translate "Review" %}{% else %}{% translate "Open" %}{% endif %}</a>
+    </div>
+  {% endif %}
+</article>

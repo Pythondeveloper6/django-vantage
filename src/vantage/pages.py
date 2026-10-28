@@ -26,6 +26,7 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 
 __all__ = [
+    "ApprovalsPage",
     "DataQualityPage",
     "HealthPage",
     "Page",
@@ -112,6 +113,14 @@ class Page:
     def get_context(self, request) -> dict:
         """Everything the page needs. Override this; it is the whole point."""
         return {}
+
+    def get_badge(self, request) -> str | None:
+        """A count shown beside the page in the navigation, or ``None`` for none.
+
+        Asked once per page load for every page the user can see, so it has to be cheap
+        — a count, not a computation.
+        """
+        return None
 
     def get_template_names(self) -> list[str]:
         if self.template_name:
@@ -308,3 +317,37 @@ class WebhooksPage(Page):
         from vantage.webhookviews import list_context
 
         return list_context(request)
+
+
+class ApprovalsPage(Page):
+    """Changes to ``requires_approval`` fields, waiting for someone to approve them.
+
+    In the navigation for anyone who can view a model that has such fields: approvers
+    work the queue, and everyone else finds their own requests there. The count beside
+    it is what is waiting for *you*. The review screen hangs off this page's path; see
+    :mod:`vantage.approvalviews`.
+    """
+
+    title = _("Approvals")
+    description = _("Changes that wait for a second pair of eyes before they are saved.")
+    icon = "check"
+    group = _("System")
+    order = 94
+    path = "_/approvals/"
+    template_name = "vantage/approvals/list.html"
+
+    def has_permission(self, request) -> bool:
+        from vantage.approvalviews import may_use
+
+        return self.site is not None and may_use(self.site, request)
+
+    def get_badge(self, request) -> str | None:
+        from vantage.approvalviews import waiting_count
+
+        count = waiting_count(self.site, request)
+        return str(count) if count else None
+
+    def get_context(self, request):
+        from vantage.approvalviews import list_context
+
+        return list_context(self.site, request)

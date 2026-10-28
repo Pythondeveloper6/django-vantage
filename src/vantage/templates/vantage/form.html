@@ -4,6 +4,7 @@
 {% block head %}
 <link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
 {% if inlines %}<link rel="stylesheet" href="{% static 'vantage/vantage-inlines.css' %}">{% endif %}
+{% if approval_banner %}<link rel="stylesheet" href="{% static 'vantage/vantage-approvals.css' %}">{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -34,6 +35,8 @@
       {% endfor %}
     </ul>
   {% endif %}
+
+  {% include "vantage/partials/approval_banner.html" with editing=True %}
 
   {% if form.errors %}
     <div class="v-form-alert" data-tone="error" role="alert" tabindex="-1" id="v-form-summary">
