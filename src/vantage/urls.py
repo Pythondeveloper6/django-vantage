@@ -12,6 +12,7 @@ from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
     api,
+    approvalviews,
     auditviews,
     autocomplete,
     formviews,
@@ -86,6 +87,8 @@ def build(site) -> list:
 
     # Likewise the webhook screens, which hang off the webhooks page's path.
     urlpatterns += webhookviews.build_urls(site)
+    # And the review screen for one change request, under the approvals page.
+    urlpatterns += approvalviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.

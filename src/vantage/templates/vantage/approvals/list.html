@@ -1,0 +1,60 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-approvals.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% if is_approver %}
+  <section class="v-approval-section" aria-labelledby="v-approvals-waiting">
+    <h2 class="v-approval-heading" id="v-approvals-waiting">
+      {% translate "Waiting for you" %}
+      {% if waiting %}<span class="v-badge">{{ waiting|length }}</span>{% endif %}
+    </h2>
+    {% if waiting %}
+      <div class="v-approval-list">
+        {% for entry in waiting %}{% include "vantage/approvals/_request.html" %}{% endfor %}
+      </div>
+    {% else %}
+      <div class="v-empty">
+        {% icon "check" class="v-empty-icon" %}
+        <p class="v-empty-title">{% translate "Nothing is waiting for your approval." %}</p>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+<section class="v-approval-section" aria-labelledby="v-approvals-mine">
+  <h2 class="v-approval-heading" id="v-approvals-mine">{% translate "Your requests" %}</h2>
+  {% if mine %}
+    <div class="v-approval-list">
+      {% for entry in mine %}{% include "vantage/approvals/_request.html" %}{% endfor %}
+    </div>
+  {% else %}
+    <div class="v-empty">
+      <p class="v-empty-title">{% translate "You have not asked for any changes." %}</p>
+      <p class="v-empty-body">
+        {% blocktranslate trimmed %}
+          Some fields need a second pair of eyes. When you change one, the rest of the
+          record saves as usual and that change waits here until someone approves it.
+        {% endblocktranslate %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% if recent %}
+  <section class="v-approval-section" aria-labelledby="v-approvals-recent">
+    <h2 class="v-approval-heading" id="v-approvals-recent">{% translate "Recently decided" %}</h2>
+    <div class="v-approval-list">
+      {% for entry in recent %}{% include "vantage/approvals/_request.html" %}{% endfor %}
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

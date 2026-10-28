@@ -51,6 +51,13 @@ class SimpleVantageConfig(AppConfig):
         post_migrate.connect(
             ensure_reveal_permission, sender=self, dispatch_uid="vantage_reveal_permission"
         )
+        # <app>.approve_<model> for every panel with requires_approval, for the same
+        # reason: a project's own models get the permission without a migration.
+        from vantage.approvals import ensure_permissions
+
+        post_migrate.connect(
+            ensure_permissions, sender=self, dispatch_uid="vantage_approve_permissions"
+        )
         # Primes the two-factor answer for a fresh session at sign-in, so the panel's
         # first page does not have to query for it. Any login view, not only ours.
         from django.contrib.auth.signals import user_logged_in
@@ -72,7 +79,14 @@ class VantageConfig(SimpleVantageConfig):
 
     def ready(self) -> None:
         super().ready()
-        from vantage.pages import DataQualityPage, HealthPage, RolesPage, SchemaPage, WebhooksPage
+        from vantage.pages import (
+            ApprovalsPage,
+            DataQualityPage,
+            HealthPage,
+            RolesPage,
+            SchemaPage,
+            WebhooksPage,
+        )
         from vantage.plugins import load_plugins
         from vantage.sites import site
 
@@ -82,6 +96,8 @@ class VantageConfig(SimpleVantageConfig):
         site.register_page(HealthPage)
         site.register_page(DataQualityPage)
         site.register_page(WebhooksPage)
+        # Only in the navigation of someone who can view a model with requires_approval.
+        site.register_page(ApprovalsPage)
         # Groups are a contrib.auth table, and a project without it has no roles.
         if django_apps.is_installed("django.contrib.auth"):
             site.register_page(RolesPage)

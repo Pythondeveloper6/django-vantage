@@ -490,6 +490,12 @@ class PanelFormView(PanelView):
             cancel_url=self.get_cancel_url(),
             submit_label=self.submit_label,
         )
+        if self.change and self.object is not None:
+            from vantage.approvalviews import banner_context
+
+            # Which fields here will wait for approval, said before anything is typed,
+            # and what is already waiting on this record.
+            context.update(banner_context(self.request, self.panel, self.object))
         return context
 
     def get_cancel_url(self) -> str:
