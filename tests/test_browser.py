@@ -551,7 +551,9 @@ class TestColumnPinningUnderRTL:
         context = pw.new_context()
         context.add_cookies([{**staff_cookie, "url": live_server.url}])
         pg = context.new_page()
-        pg.set_viewport_size({"width": 480, "height": 720})
+        # Narrow, but above the phone breakpoint (40rem): a phone shows cards, which
+        # have no columns to pin.
+        pg.set_viewport_size({"width": 700, "height": 720})
         pg.goto(live_server.url + reverse("vantage:testapp-order-list"))
         pg.wait_for_load_state("networkidle")
 
