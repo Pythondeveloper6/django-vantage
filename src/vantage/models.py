@@ -1625,7 +1625,8 @@ class TwoFactorDevice(models.Model):
     #: The highest 30-second step a code has been accepted for. A code is only good
     #: for a step above this, which is what makes one code good for one sign-in.
     last_step = models.BigIntegerField(default=0)
-    #: Consecutive wrong codes since the last right one or the last lockout.
+    #: Attempts since the last right answer or the last lockout. Each is counted
+    #: before its answer is compared, so parallel requests cannot outrun the lock.
     failed_attempts = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

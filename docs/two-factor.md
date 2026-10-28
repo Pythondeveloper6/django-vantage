@@ -104,8 +104,11 @@ time.
 **Wrong codes count against the account, not the session.** Five in a row (by default)
 lock the second step for five minutes — the right code and recovery codes included — and
 throw away the half-signed-in note, so carrying on means typing the password again.
-Opening fresh sessions buys an attacker nothing. A wrong password on the "switch it off"
-form counts toward the same lock. The password step keeps its own
+Opening fresh sessions buys an attacker nothing, and neither does sending guesses in
+parallel: each attempt is counted, by one conditional `UPDATE`, *before* its answer is
+compared, so however the requests interleave no more than five answers are looked at per
+lockout. App codes, recovery codes and the password on the "switch it off" form all go
+through that same count. The password step keeps its own
 [throttle](security.md#loginthrottlemiddleware).
 
 **The secret is sealed and shown only once.** It is encrypted at rest with a key derived

@@ -273,14 +273,7 @@ class TwoFactorView(SiteView):
         if code:
             outcome = twofactor.verify(device, code)
         elif password:
-            device.refresh_from_db()
-            wait = twofactor._locked_for(device)
-            if wait:
-                outcome = twofactor.Outcome(False, "locked", wait)
-            elif request.user.check_password(password):
-                outcome = twofactor.Outcome(True, "password")
-            else:
-                outcome = twofactor.record_failure(device)
+            outcome = twofactor.verify_password(device, request.user, password)
         else:
             form.add_error(None, gettext("Enter a current code or your password."))
             return False
