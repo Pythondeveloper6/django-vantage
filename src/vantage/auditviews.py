@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 
 from vantage.audit import may_view_audit
 from vantage.conf import vantage_settings
+from vantage.fieldperms import hide_entry_fields
 from vantage.models import VantageLogEntry
 from vantage.views import SiteView
 
@@ -110,7 +111,7 @@ class AuditLogView(SiteView):
         start, end = self._window()
 
         context.update(
-            entries=[_row(entry) for entry in page.object_list],
+            entries=[_row(entry) for entry in hide_entry_fields(self.request, page.object_list)],
             page=page,
             paginator=paginator,
             actors=self._actor_options(),

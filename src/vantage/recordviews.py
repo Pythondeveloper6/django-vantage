@@ -311,7 +311,9 @@ class BulkEditView(PanelView):
             messages.warning(request, _("Those records no longer match."))
             return HttpResponseRedirect(self.back_url())
 
-        available = records.bulk_edit_fields(self.panel)
+        # Per person: what they may only read is not on offer, and since the ticked
+        # list is intersected with this, a forged tick for it writes nothing.
+        available = records.bulk_edit_fields(self.panel, request)
         if not available:
             messages.error(
                 request,

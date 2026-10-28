@@ -221,3 +221,6 @@ that leaves a secret out keeps it), `null` clears it.
 - **Names nobody recognises.** A secret in a column called `notes` is not inferred. Name
   it in `sensitive_fields`, or extend `SENSITIVE_PATTERNS`.
 - **Whether a value is set.** An empty secret displays as empty, by design.
+- **Who may see it at all.** Masking applies to everyone. To keep a field from one role
+  entirely, or to let a role see it without changing it, use
+  [field permissions](field-permissions.md).

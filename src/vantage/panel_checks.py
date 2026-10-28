@@ -53,6 +53,7 @@ class ModelPanelChecks:
             *self._check_sensitive_fields(panel),
             *self._check_sensitive_lookups(panel),
             *self._check_requires_approval(panel),
+            *self._check_field_permissions(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -618,6 +619,77 @@ class ModelPanelChecks:
                         id="vantage.E107",
                     )
                 )
+        return errors
+
+    def _check_field_permissions(self, panel: ModelPanel) -> list[Error]:
+        """``field_permissions``: role name to ``{field: level}`` (E110 to E114).
+
+        At request time a malformed entry is skipped rather than raised on, so one typo
+        cannot take every page down — which means a rule that names a misspelt field
+        restricts nothing, and the field it meant to protect is shown. Hence errors.
+        Whether the role exists is the database's business and is not checked here.
+        """
+        from vantage.fieldperms import normalise_level, rule_fields
+
+        declared = getattr(panel, "field_permissions", None)
+        if declared is None:
+            return []
+        if not isinstance(declared, dict):
+            return [
+                Error(
+                    f"'field_permissions' must be a dict of role name to rules; got {declared!r}.",
+                    hint='For example {"Support": {"price": "readonly"}}.',
+                    obj=type(panel),
+                    id="vantage.E110",
+                )
+            ]
+        errors: list[Error] = []
+        names = {f.name for f in rule_fields(panel.model)}
+        pk = panel.opts.pk.name
+        for role, rules in declared.items():
+            if not isinstance(role, str) or not isinstance(rules, dict):
+                errors.append(
+                    Error(
+                        f"'field_permissions' entry {role!r} must map a role name to a dict "
+                        f"of field name to level; got {rules!r}.",
+                        obj=type(panel),
+                        id="vantage.E111",
+                    )
+                )
+                continue
+            for name, level in rules.items():
+                if name == pk:
+                    errors.append(
+                        Error(
+                            f"'field_permissions' for {role!r} restricts the primary key "
+                            f"{name!r} of {panel.opts.label}.",
+                            hint="Every link and row is built from it, so it cannot be hidden "
+                            "or made read-only. Restrict the record with permissions instead.",
+                            obj=type(panel),
+                            id="vantage.E114",
+                        )
+                    )
+                elif name not in names:
+                    errors.append(
+                        Error(
+                            f"'field_permissions' for {role!r} refers to {name!r}, which is "
+                            f"not a field of {panel.opts.label}.",
+                            hint="An unknown name restricts nothing, so the field you meant "
+                            "is shown and writable.",
+                            obj=type(panel),
+                            id="vantage.E112",
+                        )
+                    )
+                if normalise_level(level) is None:
+                    errors.append(
+                        Error(
+                            f"'field_permissions' for {role!r} sets {name!r} to {level!r}, "
+                            "which is not a level.",
+                            hint='Use "hidden" or "readonly" (or "read-only").',
+                            obj=type(panel),
+                            id="vantage.E113",
+                        )
+                    )
         return errors
 
 

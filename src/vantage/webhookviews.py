@@ -251,12 +251,38 @@ class DeliveryView(WebhookView):
         context = super().get_context_data(**kwargs)
         context.update(
             delivery=self.delivery,
-            body=json.dumps(self.delivery.payload, indent=2, sort_keys=True),
+            body=json.dumps(
+                _visible_payload(self.request, self.delivery.payload), indent=2, sort_keys=True
+            ),
             page_title=_("Delivery"),
             page_description=self.delivery.webhook.name,
             list_url=self.list_url(),
         )
         return context
+
+
+def _visible_payload(request, payload):
+    """The stored body minus the changes to fields hidden from the person reading it.
+
+    The body *sent* is not filtered — a webhook is not acting for anyone, and the
+    receiver was chosen by whoever manages hooks (see ``docs/field-permissions.md``).
+    But the delivery log is a page a person reads, and it follows that person's rules.
+    """
+    from django.apps import apps as django_apps
+
+    from vantage.fieldperms import hidden_names
+
+    if not isinstance(payload, dict) or not isinstance(payload.get("changes"), dict):
+        return payload
+    try:
+        model = django_apps.get_model(str(payload.get("model", "")))
+    except (LookupError, ValueError):
+        return payload
+    hidden = hidden_names(request, model)
+    if not hidden:
+        return payload
+    changes = {k: v for k, v in payload["changes"].items() if k not in hidden}
+    return {**payload, "changes": changes}
 
 
 class RedeliverView(WebhookView):

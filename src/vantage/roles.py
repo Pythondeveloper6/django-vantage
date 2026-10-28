@@ -1,7 +1,10 @@
 """Roles: Django's ``auth.Group``, managed as named bundles of permissions.
 
-A group *is* a role in every project that uses them, so this module adds no model and
-no migration — it is a set of careful operations over the tables Django already has.
+A group *is* a role in every project that uses them, so this module adds no model of
+its own for the role — it is a set of careful operations over the tables Django already
+has. The one table it adds hangs off the group: the role's field rules
+(:class:`~vantage.models.FieldPermission`), edited in the same matrix, saved in the same
+transaction and covered by the same conflict token as its permissions.
 The views in :mod:`vantage.rolesviews` are thin; everything that decides who may do
 what, and what actually changes, lives here so it can be tested without HTTP.
 
@@ -15,9 +18,11 @@ they hold themselves, and may only rename, duplicate, delete or change the membe
 role whose every permission they hold. Without the second half, "add myself to Admins"
 would be a one-click escalation that never touched a checkbox.
 
-**The client is never trusted with a permission id.** Every id arriving from the
+**The client is never trusted with a permission id, or a field rule.** Every id arriving from the
 browser is checked against the catalogue loaded from the database and against the
-actor's reach. Unknown ids, and ids the actor may not touch, are dropped rather than
+actor's reach; a field rule must name a field of a model this panel registers, and the
+actor must hold ``change`` on that model and be unrestricted on that field themselves.
+Unknown ids, and ids the actor may not touch, are dropped rather than
 rejected with an error: the honest outcome of a stale tab or a hand-edited form is
 "nothing you were not allowed to do happened", and that is also what the audit log
 records.
@@ -63,6 +68,8 @@ __all__ = [
     "Cell",
     "DeleteImpact",
     "EffectiveRow",
+    "FieldCell",
+    "FieldRestriction",
     "ModelRow",
     "PermissionChange",
     "Reach",
@@ -73,15 +80,18 @@ __all__ = [
     "change_members",
     "clean_role_name",
     "create_role",
+    "current_field_rules",
     "current_permission_ids",
     "delete_impact",
     "delete_role",
     "duplicate_role",
+    "effective_field_rules",
     "effective_permissions",
     "fingerprint",
     "load_catalogue",
     "may_manage_roles",
     "members_of",
+    "parse_field_rules",
     "parse_ids",
     "perm_label",
     "reach_for",
@@ -146,6 +156,8 @@ class Reach:
 
     everything: bool
     held: frozenset[str] = frozenset()
+    #: The actor's request, for their own field rules. See :meth:`covers_field`.
+    request: Any = field(default=None, compare=False)
 
     def covers(self, permission: Permission) -> bool:
         return self.everything or perm_label(permission) in self.held
@@ -153,13 +165,32 @@ class Reach:
     def covers_all(self, permissions: Iterable[Permission]) -> bool:
         return self.everything or all(self.covers(p) for p in permissions)
 
+    def covers_field(self, model: type[models.Model], name: str) -> bool:
+        """Whether the actor may set a field rule on ``model.name`` for a role.
 
-def reach_for(user) -> Reach:
+        Two conditions, mirroring the rule for permissions. They must hold ``change`` on
+        the model — a rule decides what others may change there — and must be
+        unrestricted on the field themselves: someone who cannot see ``cost`` lifting
+        Support's rule on it is the same escalation as granting a permission they lack.
+        """
+        if self.everything:
+            return True
+        from django.contrib.auth import get_permission_codename
+
+        opts = model._meta
+        if f"{opts.app_label}.{get_permission_codename('change', opts)}" not in self.held:
+            return False
+        from vantage.fieldperms import access
+
+        return access(self.request, model).can_change(name)
+
+
+def reach_for(user, request=None) -> Reach:
     if user is not None and user.is_active and getattr(user, "is_superuser", False):
-        return Reach(everything=True)
+        return Reach(everything=True, request=request)
     if user is None or not user.is_authenticated:
-        return Reach(everything=False)
-    return Reach(everything=False, held=frozenset(user.get_all_permissions()))
+        return Reach(everything=False, request=request)
+    return Reach(everything=False, held=frozenset(user.get_all_permissions()), request=request)
 
 
 # ── the permission catalogue ────────────────────────────────────────────────
@@ -189,18 +220,64 @@ def current_permission_ids(group: Group) -> set[int]:
     return set(group.permissions.values_list("pk", flat=True))
 
 
-def fingerprint(group: Group, permission_ids: Iterable[int]) -> str:
-    """The optimistic-concurrency token for a role: its name and its permission set.
+def current_field_rules(group: Group) -> dict[tuple[int, str], str]:
+    """The role's stored field rules, as ``{(content_type_id, field): level}``."""
+    from vantage.models import FieldPermission
+
+    return {
+        (ct_id, name): level
+        for ct_id, name, level in FieldPermission.objects.filter(group=group).values_list(
+            "content_type_id", "field_name", "level"
+        )
+    }
+
+
+def fingerprint(
+    group: Group,
+    permission_ids: Iterable[int],
+    rules: dict[tuple[int, str], str] | None = None,
+) -> str:
+    """The optimistic-concurrency token for a role: its name, permissions and field rules.
 
     Membership is deliberately left out. Adding and removing members are idempotent
     deltas — "add Ada" means the same thing whatever else changed — so they cannot
     clobber anything, and folding them in would make the matrix report a conflict
     every time a colleague onboarded someone.
+
+    ``rules`` are read from the database when not given. A role with none has the
+    token it had before field rules existed, so a page open across an upgrade does
+    not conflict with itself.
     """
-    payload = "\x1f".join(
-        [str(group.pk), group.name, ",".join(str(i) for i in sorted(permission_ids))]
-    )
+    if rules is None:
+        rules = current_field_rules(group) if group.pk is not None else {}
+    parts = [str(group.pk), group.name, ",".join(str(i) for i in sorted(permission_ids))]
+    if rules:
+        entries = sorted(rules.items())
+        parts.append(",".join(f"{ct}:{name}:{level}" for (ct, name), level in entries))
+    payload = "\x1f".join(parts)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
+
+
+def parse_field_rules(values: Iterable[str]) -> dict[tuple[int, str], str]:
+    """``"12:price:readonly"`` entries, one per value or comma-separated, as a dict.
+
+    The level is ``""`` (full access), ``"readonly"`` or ``"hidden"``. Anything else —
+    a bad content type id, a field name that is not an identifier, an unknown level —
+    is dropped without comment, for the reason :func:`parse_ids` gives. Whether the
+    model and field exist, and whether the actor may touch them, is
+    :func:`save_permissions`'s check, against the database and the registry.
+    """
+    from vantage.fieldperms import LEVELS
+
+    rules: dict[tuple[int, str], str] = {}
+    for value in values:
+        for part in str(value).split(","):
+            ct, _sep, rest = part.strip().partition(":")
+            name, _sep2, level = rest.partition(":")
+            if not ct.isdigit() or not name.isidentifier() or (level and level not in LEVELS):
+                continue
+            rules[(int(ct), name)] = level
+    return rules
 
 
 def parse_ids(values: Iterable[str]) -> set[int]:
@@ -231,6 +308,23 @@ class Cell:
 
 
 @dataclass
+class FieldCell:
+    """One field's rule in the matrix: the stored level and what is shown now."""
+
+    #: ``"<content type id>:<field name>"`` — the prefix of every value it posts.
+    key: str
+    name: str
+    label: str
+    #: The level as rendered: stored, or re-applied from a conflicting save.
+    level: str
+    #: The level stored when the page was built. The diff is taken against this.
+    base: str
+    #: The level ``field_permissions`` in code sets for this role: the floor.
+    floor: str
+    locked: bool
+
+
+@dataclass
 class ModelRow:
     key: str
     label: str
@@ -238,6 +332,13 @@ class ModelRow:
     registered: bool
     cells: dict[str, Cell | None] = field(default_factory=dict)
     other: list[Cell] = field(default_factory=list)
+    #: Field rules, for a model this panel registers. Empty otherwise.
+    fields: list[FieldCell] = field(default_factory=list)
+
+    @property
+    def restricted(self) -> int:
+        """How many fields carry a rule, stored or from code: the summary's count."""
+        return sum(1 for f in self.fields if f.level or f.floor)
 
     @property
     def columns(self) -> list[tuple[str, Cell | None]]:
@@ -270,7 +371,16 @@ class AppSection:
         return sum(1 for r in self.rows for c in r.all_cells if c.checked)
 
 
-def build_matrix(site, catalogue: Catalogue, checked: set[int], reach: Reach) -> list[AppSection]:
+def build_matrix(
+    site,
+    catalogue: Catalogue,
+    checked: set[int],
+    reach: Reach,
+    *,
+    group: Group | None = None,
+    rules: dict[tuple[int, str], str] | None = None,
+    base_rules: dict[tuple[int, str], str] | None = None,
+) -> list[AppSection]:
     """Rows of models grouped by app, standard verbs in columns, the rest in "other".
 
     A model this panel registers sits under its app. Everything else — framework
@@ -278,8 +388,15 @@ def build_matrix(site, catalogue: Catalogue, checked: set[int], reach: Reach) ->
     deleted — goes into one trailing "Other models" section, because those permissions
     are real and grantable even though nobody can use them *here*, and hiding them
     would make the matrix lie about what a role holds.
+
+    A registered model's row also carries its field rules: ``rules`` as displayed,
+    ``base_rules`` as stored (they differ only after a conflict, when the actor's own
+    changes are re-applied on top). Unregistered models get none — no page here would
+    honour them.
     """
     rows: dict[tuple[str, str], ModelRow] = {}
+    rules = rules or {}
+    base_rules = rules if base_rules is None else base_rules
     for permission in catalogue.permissions:
         ct = permission.content_type
         key = (ct.app_label, ct.model)
@@ -296,6 +413,8 @@ def build_matrix(site, catalogue: Catalogue, checked: set[int], reach: Reach) ->
                 app_label=ct.app_label,
                 registered=registered,
             )
+            if registered:
+                row.fields = _field_cells(site, model, ct.pk, group, rules, base_rules, reach)
         cell = Cell(
             id=permission.pk,
             codename=permission.codename,
@@ -333,6 +452,24 @@ def build_matrix(site, catalogue: Catalogue, checked: set[int], reach: Reach) ->
     return ordered
 
 
+def _field_cells(site, model, ct_id, group, rules, base_rules, reach) -> list[FieldCell]:
+    from vantage.fieldperms import code_rules, rule_fields
+
+    floor = code_rules(site.get_panel(model)).get(group.name, {}) if group is not None else {}
+    return [
+        FieldCell(
+            key=f"{ct_id}:{f.name}",
+            name=f.name,
+            label=str(getattr(f, "verbose_name", f.name)).capitalize(),
+            level=rules.get((ct_id, f.name), ""),
+            base=base_rules.get((ct_id, f.name), ""),
+            floor=floor.get(f.name, ""),
+            locked=not reach.covers_field(model, f.name),
+        )
+        for f in rule_fields(model)
+    ]
+
+
 def _app_label(app_label: str) -> str:
     try:
         return str(django_apps.get_app_config(app_label).verbose_name)
@@ -351,11 +488,17 @@ class RoleConflict(Exception):
     is lost and nothing the other person did is overwritten.
     """
 
-    def __init__(self, group: Group, permission_ids: set[int]) -> None:
+    def __init__(
+        self,
+        group: Group,
+        permission_ids: set[int],
+        rules: dict[tuple[int, str], str] | None = None,
+    ) -> None:
         super().__init__(f"Role {group.pk} was changed by someone else.")
         self.group = group
         self.permission_ids = permission_ids
-        self.token = fingerprint(group, permission_ids)
+        self.rules = current_field_rules(group) if rules is None else rules
+        self.token = fingerprint(group, permission_ids, self.rules)
 
 
 @dataclass
@@ -365,9 +508,11 @@ class PermissionChange:
     #: Ids that arrived but were unknown or out of the actor's reach.
     ignored: int
     token: str
+    #: ``(model label, field, from level, to level)`` per rule that moved.
+    fields: list[tuple[str, str, str, str]] = field(default_factory=list)
 
     def __bool__(self) -> bool:
-        return bool(self.added or self.removed)
+        return bool(self.added or self.removed or self.fields)
 
 
 def _lock(group: Group) -> Group:
@@ -389,10 +534,17 @@ def save_permissions(
     remove: set[int],
     reach: Reach,
     catalogue: Catalogue,
+    fields: dict[tuple[int, str], str] | None = None,
+    site=None,
 ) -> PermissionChange:
     """Apply one reviewed diff to a role, atomically, or raise :class:`RoleConflict`.
 
     An id in both ``add`` and ``remove`` is contradictory and is dropped from both.
+
+    ``fields`` are the field rules the actor set, ``{(content type id, field): level}``
+    with ``""`` meaning full access. Each is checked against ``site``'s registry (the
+    model must be one this panel shows, the field one a rule may name) and the actor's
+    reach; whatever fails is counted in ``ignored``, like an out-of-reach permission.
     """
     contradictory = add & remove
     add, remove = add - contradictory, remove - contradictory
@@ -401,13 +553,20 @@ def save_permissions(
         permission = catalogue.get(pk)
         return permission is not None and reach.covers(permission)
 
-    ignored = len(contradictory) + sum(1 for pk in add | remove if not allowed(pk))
+    wanted = _valid_field_rules(fields or {}, site, reach)
+    ignored = (
+        len(contradictory)
+        + sum(1 for pk in add | remove if not allowed(pk))
+        + len(fields or {})
+        - len(wanted)
+    )
 
     with transaction.atomic():
         locked = _lock(group)
         current = current_permission_ids(locked)
-        if fingerprint(locked, current) != token:
-            raise RoleConflict(locked, current)
+        rules = current_field_rules(locked)
+        if fingerprint(locked, current, rules) != token:
+            raise RoleConflict(locked, current, rules)
         to_add = {pk for pk in add if allowed(pk)} - current
         to_remove = {pk for pk in remove if allowed(pk)} & current
         if to_add:
@@ -415,14 +574,81 @@ def save_permissions(
         if to_remove:
             locked.permissions.remove(*to_remove)
         final = (current | to_add) - to_remove
+        moved = {key: level for key, level in wanted.items() if rules.get(key, "") != level}
+        _write_field_rules(locked, moved)
+        final_rules = {k: v for k, v in {**rules, **moved}.items() if v}
 
     group.name = locked.name
     return PermissionChange(
         added=sorted((catalogue.by_id[pk] for pk in to_add), key=perm_label),
         removed=sorted((catalogue.by_id[pk] for pk in to_remove), key=perm_label),
         ignored=ignored,
-        token=fingerprint(locked, final),
+        token=fingerprint(locked, final, final_rules),
+        fields=sorted(
+            (_model_label(ct), name, rules.get((ct, name), ""), level)
+            for (ct, name), level in moved.items()
+        ),
     )
+
+
+def _valid_field_rules(fields, site, reach: Reach) -> dict[tuple[int, str], str]:
+    """The submitted rules that name a real field of a registered model, within reach."""
+    from django.contrib.contenttypes.models import ContentType
+
+    from vantage.fieldperms import LEVELS, rule_fields
+
+    if not fields or site is None:
+        return {}
+    valid: dict[tuple[int, str], str] = {}
+    names_for: dict[int, set[str] | None] = {}
+    models_for: dict[int, Any] = {}
+    for (ct_id, name), level in fields.items():
+        if level and level not in LEVELS:
+            continue
+        if ct_id not in names_for:
+            try:
+                model = ContentType.objects.get_for_id(ct_id).model_class()
+            except ContentType.DoesNotExist:
+                model = None
+            registered = model is not None and site.is_registered(model)
+            names_for[ct_id] = {f.name for f in rule_fields(model)} if registered else None
+            models_for[ct_id] = model
+        names = names_for[ct_id]
+        if names is None or name not in names:
+            continue
+        if not reach.covers_field(models_for[ct_id], name):
+            continue
+        valid[(ct_id, name)] = level
+    return valid
+
+
+def _write_field_rules(group: Group, moved: dict[tuple[int, str], str]) -> None:
+    """Two statements however many rules moved: clear the keys, insert the restrictions."""
+    from django.db.models import Q
+
+    from vantage.models import FieldPermission
+
+    if not moved:
+        return
+    keys = Q()
+    for ct_id, name in moved:
+        keys |= Q(content_type_id=ct_id, field_name=name)
+    FieldPermission.objects.filter(keys, group=group).delete()
+    FieldPermission.objects.bulk_create(
+        FieldPermission(group=group, content_type_id=ct_id, field_name=name, level=level)
+        for (ct_id, name), level in moved.items()
+        if level
+    )
+
+
+def _model_label(ct_id: int) -> str:
+    from django.contrib.contenttypes.models import ContentType
+
+    try:
+        ct = ContentType.objects.get_for_id(ct_id)
+    except ContentType.DoesNotExist:  # pragma: no cover - validated before this runs
+        return str(ct_id)
+    return f"{ct.app_label}.{ct.model}"
 
 
 # ── creating, renaming, duplicating, deleting ───────────────────────────────
@@ -493,11 +719,19 @@ def duplicate_role(group: Group) -> tuple[Group, list[int]]:
     people, and silently granting the copy to everyone who held the original would be
     a grant nobody reviewed.
     """
+    from vantage.models import FieldPermission
+
     with transaction.atomic():
         ids = sorted(current_permission_ids(group))
         copy = Group.objects.create(name=unique_copy_name(group.name))
         if ids:
             copy.permissions.add(*ids)
+        # Field rules are part of the bundle: a copy of Support that could suddenly
+        # change prices would be a grant nobody reviewed.
+        FieldPermission.objects.bulk_create(
+            FieldPermission(group=copy, content_type_id=ct, field_name=name, level=level)
+            for (ct, name), level in current_field_rules(group).items()
+        )
     return copy, ids
 
 
@@ -691,6 +925,46 @@ def effective_permissions(user) -> list[tuple[str, list[EffectiveRow]]]:
     return sorted(grouped.items(), key=lambda item: item[0].lower())
 
 
+@dataclass
+class FieldRestriction:
+    """One model's restrictions for one user, for the effective-permissions page."""
+
+    label: str
+    hidden: list[str]
+    readonly: list[str]
+
+
+def effective_field_rules(user, site) -> list[FieldRestriction]:
+    """What a user's roles hide and make read-only, per model this panel registers.
+
+    The same resolution every page uses (:func:`vantage.fieldperms.resolve`), so the
+    page cannot describe a rule the panel does not apply. Superusers have none: the
+    bypass is the permission layer's, and the page says so in words.
+    """
+    from vantage import fieldperms
+
+    if site is None or getattr(user, "is_superuser", False):
+        return []
+    rules = fieldperms._load(user)
+    out: list[FieldRestriction] = []
+    for panel in site.panels():
+        answer = fieldperms.resolve(user, panel.model, panel=panel, rules=rules)
+        if not answer:
+            continue
+        labels = {
+            f.name: str(getattr(f, "verbose_name", f.name)).capitalize()
+            for f in fieldperms.rule_fields(panel.model)
+        }
+        out.append(
+            FieldRestriction(
+                label=panel.get_label_plural(),
+                hidden=sorted(labels.get(n, n) for n in answer.hidden),
+                readonly=sorted(labels.get(n, n) for n in answer.readonly),
+            )
+        )
+    return sorted(out, key=lambda item: str(item.label).lower())
+
+
 # ── what a delete would do ──────────────────────────────────────────────────
 
 
@@ -762,6 +1036,12 @@ def _labels(permissions: Iterable[Permission]) -> str:
     return ", ".join(perm_label(p) for p in permissions)
 
 
+def _rule_labels(rules) -> str:
+    """``shop.order.price: read-only, shop.order.cost: full access`` — greppable, plain."""
+    words = {"": "full access", "readonly": "read-only", "hidden": "hidden"}
+    return ", ".join(f"{label}.{name}: {words.get(level, level)}" for label, name, level in rules)
+
+
 def audit_permissions(request, group: Group, change: PermissionChange) -> None:
     """One entry per save, naming every permission that moved in either direction.
 
@@ -779,6 +1059,11 @@ def audit_permissions(request, group: Group, change: PermissionChange) -> None:
         changes[gettext("Permissions added")] = {"to": _labels(change.added)}
     if change.removed:
         changes[gettext("Permissions removed")] = {"from": _labels(change.removed)}
+    if change.fields:
+        changes[gettext("Field access")] = {
+            "from": _rule_labels((label, name, before) for label, name, before, _ in change.fields),
+            "to": _rule_labels((label, name, after) for label, name, _, after in change.fields),
+        }
     record(
         request,
         VantageLogEntry.Action.UPDATE,
