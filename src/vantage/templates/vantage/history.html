@@ -74,7 +74,7 @@
           <input type="hidden" name="version" value="{{ version }}">
           <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
           <div class="v-table-wrap">
-            <table class="v-table v-history-table">
+            <table class="v-table v-table-flow v-history-table">
               <thead>
                 <tr>
                   <th scope="col">{% translate "Field" %}</th>
@@ -104,7 +104,7 @@
                         {% if state.restorable %}
                           <label>
                             <input type="checkbox" name="fields" value="{{ state.name }}">
-                            {% blocktranslate with name=state.label %}Restore {{ name }}{% endblocktranslate %}
+                            <span class="v-history-pick-text">{% blocktranslate with name=state.label %}Restore {{ name }}{% endblocktranslate %}</span>
                           </label>
                         {% endif %}
                       </td>
