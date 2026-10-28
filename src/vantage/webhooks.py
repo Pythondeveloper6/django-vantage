@@ -524,9 +524,19 @@ def url_problem(url: str) -> str | None:
     return None
 
 
+#: Ranges refused whole, because nothing legitimate lives there or because the address
+#: only means something once translated: IPv4-compatible (``::/96``), SIIT
+#: (``::ffff:0:0:0/96``), deprecated site-local (``fec0::/10``) and NAT64 local-use.
+_REFUSED_V6 = tuple(
+    ipaddress.ip_network(n) for n in ("::/96", "::ffff:0:0:0/96", "fec0::/10", "64:ff9b:1::/48")
+)
+
+
 def _blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     """Anything that is not an ordinary public unicast address."""
     if isinstance(ip, ipaddress.IPv6Address):
+        if any(ip in net for net in _REFUSED_V6):
+            return True
         raw = ip.packed
         embedded = None
         if ip.ipv4_mapped is not None:
