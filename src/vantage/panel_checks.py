@@ -47,6 +47,7 @@ class ModelPanelChecks:
             *self._check_related_tabs(panel),
             *self._check_data_quality(panel),
             *self._check_undo(panel),
+            *self._check_history(panel),
             *self._check_removed(panel),
             *self._check_list_views(panel),
             *self._check_sensitive_fields(panel),
@@ -294,6 +295,40 @@ class ModelPanelChecks:
                 id="vantage.E077",
             )
         ]
+
+    def _check_history(self, panel: ModelPanel) -> list[Error]:
+        """``history`` is ``None``, ``True``, ``False`` or ``"view"``.
+
+        ``True`` while the audit log is off is a contradiction rather than a typo: the
+        page replays the log, and with no log there is nothing to replay. Said at
+        ``check`` time instead of a page that silently 404s.
+        """
+        from vantage.conf import vantage_settings
+
+        value = getattr(panel, "history", None)
+        if not (value is None or isinstance(value, bool) or value == "view"):
+            return [
+                Error(
+                    f"'history' must be True, False, \"view\" or None; got {value!r}.",
+                    hint=(
+                        'None follows VANTAGE["AUDIT_LOG"]; "view" shows history without '
+                        "restore; False removes the page."
+                    ),
+                    obj=type(panel),
+                    id="vantage.E091",
+                )
+            ]
+        if value is True and not vantage_settings.AUDIT_LOG:
+            return [
+                Error(
+                    f"{type(panel).__name__} sets history = True, but VANTAGE['AUDIT_LOG'] "
+                    "is off, so there is no history to show.",
+                    hint="Turn the audit log on, or leave 'history' unset.",
+                    obj=type(panel),
+                    id="vantage.E092",
+                )
+            ]
+        return []
 
     def _check_removed(self, panel: ModelPanel) -> list[Error]:
         """Fail loudly on an attribute that no longer exists.

@@ -156,17 +156,23 @@ def _content_type(model) -> ContentType | None:
     return ContentType.objects.get_for_model(model)
 
 
-def log_form_save(request, obj, form, change: bool) -> VantageLogEntry | None:
+def log_form_save(
+    request, obj, form, change: bool, *, action_name: str = ""
+) -> VantageLogEntry | None:
     """The one call the create and edit views make. ``change`` is what they already know.
 
     An edit whose form changed nothing writes no entry: a log full of "opened the form
     and pressed Save" is a log nobody reads, and the entries that matter drown in it.
+
+    ``action_name`` says where an edit came from when it was not typed — a restore from
+    the record's history is an ordinary update with the same diff, named so the log
+    can tell the two apart.
     """
     changes = diff_from_form(form)
     if change and not changes:
         return None
     action = VantageLogEntry.Action.UPDATE if change else VantageLogEntry.Action.CREATE
-    return record(request, action, obj=obj, changes=changes)
+    return record(request, action, obj=obj, changes=changes, action_name=action_name)
 
 
 def log_delete(request, obj, *, soft: bool = False) -> VantageLogEntry | None:

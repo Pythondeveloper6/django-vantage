@@ -388,3 +388,59 @@
 .v-views-broken-why {
   color: var(--muted-foreground);
 }
+
+/* ── a record's history page ──────────────────────────────────────────────── */
+
+/* The detail page's panel links here; pushed to the end of its header. */
+.v-history-open {
+  margin-inline-start: auto;
+}
+
+.v-history-picker {
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+/* The verdict is written out, never only implied by a colour. */
+.v-history-reason {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-history-row.is-changed > th {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+[dir="rtl"] .v-history-row.is-changed > th {
+  box-shadow: inset -3px 0 0 var(--primary);
+}
+
+.v-history-pick label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.v-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.v-history-warning,
+.v-history-errors {
+  border-inline-start: 3px solid var(--warning);
+  background: color-mix(in oklab, var(--warning) 10%, transparent);
+}
+
+.v-history-errors {
+  border-inline-start-color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+
+.v-history-item.is-current {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}

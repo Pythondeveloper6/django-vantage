@@ -568,6 +568,24 @@ class VantageLogEntry(models.Model):
             return ""
         return name.removeprefix("revealed ").removesuffix(" on")
 
+    @property
+    def restored_as_of(self):
+        """The moment a "restored as of <when>" entry restored to, else ``None``.
+
+        Parsed rather than shown as stored, so the page can format it the way it
+        formats every other timestamp.
+        """
+        from django.utils.dateparse import parse_datetime
+
+        name = self.action_name or ""
+        prefix = "restored as of "
+        if self.action != self.Action.UPDATE or not name.startswith(prefix):
+            return None
+        try:
+            return parse_datetime(name.removeprefix(prefix))
+        except ValueError:
+            return None
+
     def _sensitive_now(self) -> frozenset[str]:
         if not self.content_type_id or not self.changes:
             return frozenset()

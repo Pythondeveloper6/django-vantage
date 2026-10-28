@@ -92,7 +92,9 @@
               <span class="v-audit-verb" data-action="{{ row.entry.action }}">
                 {{ row.entry.get_action_display }}
               </span>
-              {% if row.entry.action_name %}
+              {% if row.entry.restored_as_of %}
+                <span class="v-audit-name">{% blocktranslate with when=row.entry.restored_as_of|date:"Y-m-d H:i" %}restored as of {{ when }}{% endblocktranslate %}</span>
+              {% elif row.entry.action_name %}
                 <code class="v-audit-name">{{ row.entry.action_name }}</code>
               {% endif %}
             </td>
