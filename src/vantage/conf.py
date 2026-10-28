@@ -115,6 +115,20 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMIT_CACHE": None,
     "RATE_LIMITS": None,
     "UPLOAD_MAX_BYTES": None,
+    # ── two-factor sign-in ──────────────────────────────────────────────────
+    # Offered to everyone from the account page. False removes the feature: no
+    # enrolment, no second step, and any codes already set up stop being asked for.
+    "TWO_FACTOR": True,
+    # Who may not use the panel without it. Code-only, like the permission settings:
+    # a requirement the people it binds could switch off is not a requirement.
+    "TWO_FACTOR_REQUIRED_SUPERUSERS": False,
+    # Role (auth.Group) names whose members must use it, e.g. ["Finance"].
+    "TWO_FACTOR_REQUIRED_ROLES": [],
+    # The name an authenticator app files the code under. None means SITE_TITLE.
+    "TWO_FACTOR_ISSUER": None,
+    # Wrong codes in a row before the account's second step locks, and for how long.
+    "TWO_FACTOR_MAX_ATTEMPTS": 5,
+    "TWO_FACTOR_LOCKOUT_SECONDS": 300,
     "DEFAULT_PER_PAGE": 50,
     # ── list views ──────────────────────────────────────────────────────────
     # A raster tile URL template for the map view, e.g.
@@ -214,6 +228,8 @@ CHOICES: dict[str, tuple[str, ...]] = {
 MINIMUMS: dict[str, int] = {
     "UNDO_WINDOW": 0,
     "UNDO_MAX_ROWS": 1,
+    "TWO_FACTOR_MAX_ATTEMPTS": 1,
+    "TWO_FACTOR_LOCKOUT_SECONDS": 1,
 }
 
 
@@ -275,6 +291,9 @@ class VantageSettings:
                 )
 
         _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
+        problem = two_factor_problem(user)
+        if problem:
+            raise ImproperlyConfigured(problem)
 
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
@@ -355,6 +374,35 @@ def _validate_sensitive_patterns(value: Any) -> None:
             "VANTAGE['SENSITIVE_PATTERNS'] must be a list of field-name words, optionally "
             f'including "..." to keep the built-in ones; got {value!r}.'
         )
+
+
+def two_factor_problem(user: dict) -> str | None:
+    """What is wrong with the two-factor requirement settings, or ``None``.
+
+    Shared with the system check, so ``manage.py check`` and the first page render
+    say the same thing. Strict for the same reason as ``SENSITIVE_PATTERNS``: a bare
+    string here would be iterated a letter at a time, and a requirement that silently
+    matched no role is a requirement that silently does not exist.
+    """
+    superusers = user.get("TWO_FACTOR_REQUIRED_SUPERUSERS", False)
+    if not isinstance(superusers, bool):
+        return (
+            f"VANTAGE['TWO_FACTOR_REQUIRED_SUPERUSERS'] must be True or False; got {superusers!r}."
+        )
+    roles = user.get("TWO_FACTOR_REQUIRED_ROLES", [])
+    if not isinstance(roles, list | tuple) or any(
+        not (isinstance(role, str) and role.strip()) for role in roles
+    ):
+        return f"VANTAGE['TWO_FACTOR_REQUIRED_ROLES'] must be a list of role names; got {roles!r}."
+    issuer = user.get("TWO_FACTOR_ISSUER")
+    if issuer is not None and (not isinstance(issuer, str) or not issuer.strip() or ":" in issuer):
+        # The colon is the separator between issuer and account in an otpauth:// label;
+        # an issuer containing one is filed by some apps under the wrong name.
+        return (
+            "VANTAGE['TWO_FACTOR_ISSUER'] must be a non-empty name without a colon, or "
+            f"None; got {issuer!r}."
+        )
+    return None
 
 
 def _unknown_key_message(unknown: list[str]) -> str:
