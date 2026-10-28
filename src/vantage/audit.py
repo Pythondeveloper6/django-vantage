@@ -231,8 +231,13 @@ def diff_from_form(form) -> dict[str, dict[str, Any]]:
     moved", so the diff cannot disagree with what was saved.
     """
     sensitive = _form_sensitive(form)
+    # Fields held back for approval (see vantage.approvals.withhold) were put back
+    # before the write: the row did not change there, so neither does the diff.
+    withheld = getattr(form, "vantage_withheld", frozenset())
     changes: dict[str, dict[str, Any]] = {}
     for name in getattr(form, "changed_data", ()):
+        if name in withheld:
+            continue
         if name in sensitive:
             # Recorded as having changed, never with its value. "Someone rotated the
             # API token at 14:02" is the useful half; the token is the dangerous half.
