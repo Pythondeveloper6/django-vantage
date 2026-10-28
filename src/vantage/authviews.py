@@ -25,13 +25,19 @@ from django.http import (
     HttpResponse,
     HttpResponseForbidden,
     HttpResponseNotFound,
+    HttpResponseRedirect,
     HttpResponseServerError,
 )
 from django.template import loader
-from django.urls import path, reverse_lazy
+from django.urls import path, reverse, reverse_lazy
+from django.utils.decorators import method_decorator
 from django.utils.functional import Promise
 from django.utils.translation import get_language, get_language_bidi
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.debug import sensitive_post_parameters
+from django.views.generic import TemplateView
 
 from vantage.conf import vantage_settings
 from vantage.nav import build_nav, resolve_theme, resolve_ui_theme
@@ -41,6 +47,7 @@ __all__ = [
     "LoginView",
     "LogoutView",
     "PasswordChangeView",
+    "TwoFactorLoginView",
     "branding_context",
     "page_not_found",
     "permission_denied",
@@ -196,6 +203,89 @@ class LoginView(auth_views.LoginView):
         context.update(branding_context(self.request))
         return context
 
+    def form_valid(self, form):
+        """Stop after the password for anyone with an authenticator, and ask for a code.
+
+        ``login()`` is *not* called here for them: the session stays anonymous, holding
+        only a short-lived note of who got the password right, so nothing in the project
+        treats them as signed in until the code is in. See :mod:`vantage.twofactor`.
+        """
+        from vantage import twofactor
+        from vantage.middleware import clear_login_failures
+
+        user = form.get_user()
+        if not twofactor.enabled() or twofactor.device_for(user) is None:
+            return super().form_valid(form)
+        # The password was right, so its failure count is spent — exactly as a plain
+        # sign-in would have cleared it. Wrong codes have a counter of their own.
+        clear_login_failures(self.request)
+        twofactor.begin_pending(self.request, user, self.get_success_url())
+        return HttpResponseRedirect(reverse("login_two_factor"))
+
+
+@method_decorator([csrf_protect, never_cache, sensitive_post_parameters("code")], name="dispatch")
+class TwoFactorLoginView(TemplateView):
+    """The sign-in's second step: the code, after the password, before ``login()``.
+
+    Reachable only with a live pending note from :class:`LoginView`; anything else is
+    sent back to the password. Too many wrong codes lock the *account's* second step
+    and also throw the note away, so carrying on means typing the password again.
+    """
+
+    template_name = "vantage/two_factor_verify.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        from vantage import twofactor
+
+        if not twofactor.enabled():
+            return HttpResponseRedirect(reverse("login"))
+        self.person, self.pending = twofactor.pending_user(request)
+        self.device = twofactor.device_for(self.person) if self.person else None
+        if self.device is None:
+            twofactor.clear_pending(request)
+            return HttpResponseRedirect(reverse("login"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        from vantage.twofactorviews import CodeForm
+
+        context = super().get_context_data(**kwargs)
+        context.update(branding_context(self.request))
+        context.setdefault("form", _style_form(CodeForm()))
+        context["login_url"] = reverse("login")
+        return context
+
+    def _next(self) -> str:
+        """Where the password step was going. Validated there, and again here."""
+        from django.conf import settings
+        from django.shortcuts import resolve_url
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        target = self.pending.get("next") or ""
+        if url_has_allowed_host_and_scheme(
+            target, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()
+        ):
+            return target
+        return resolve_url(settings.LOGIN_REDIRECT_URL)
+
+    def post(self, request, *args, **kwargs):
+        from vantage import twofactor
+        from vantage.twofactorviews import CodeForm
+
+        form = CodeForm(request.POST)
+        if form.is_valid():
+            outcome = twofactor.verify(self.device, form.cleaned_data["code"])
+            if outcome:
+                twofactor.complete_login(request, self.person, self.device, self.pending["backend"])
+                return HttpResponseRedirect(self._next())
+            if outcome.reason == "locked":
+                twofactor.clear_pending(request)
+                return self.render_to_response(
+                    self.get_context_data(locked=outcome.message, form=None)
+                )
+            form.add_error("code", outcome.message)
+        return self.render_to_response(self.get_context_data(form=_style_form(form)))
+
 
 class LogoutView(auth_views.LogoutView):
     """Signed-out confirmation, rather than a bounce to an anonymous panel URL.
@@ -254,6 +344,7 @@ class PasswordChangeView(auth_views.PasswordChangeView):
 #: because these names are Django's and every project already reverses them unqualified.
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
+    path("login/verify/", TwoFactorLoginView.as_view(), name="login_two_factor"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("password_change/", PasswordChangeView.as_view(), name="password_change"),
 ]

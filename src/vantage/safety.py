@@ -111,8 +111,14 @@ def start_impersonation(request, target) -> None:
         target.pk,
     )
 
+    from vantage.twofactor import carry, restore
+
+    # The person at the keyboard is unchanged, so their second-step proof survives the
+    # flush; see vantage.twofactor.carry.
+    proof = carry(request)
     login(request, target, backend="django.contrib.auth.backends.ModelBackend")
     # Written after login() because login flushes the session.
+    restore(request, proof)
     request.session[IMPERSONATE_SESSION_KEY] = target.pk
     request.session[IMPERSONATOR_SESSION_KEY] = actor.pk
 
@@ -138,7 +144,11 @@ def stop_impersonation(request):
         request.user.get_username(),
     )
 
+    from vantage.twofactor import carry, restore
+
+    proof = carry(request)
     login(request, actor, backend="django.contrib.auth.backends.ModelBackend")
+    restore(request, proof)
     request.session.pop(IMPERSONATE_SESSION_KEY, None)
     request.session.pop(IMPERSONATOR_SESSION_KEY, None)
     return actor

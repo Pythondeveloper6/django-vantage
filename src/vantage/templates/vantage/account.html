@@ -69,6 +69,31 @@
     </div>
   </section>
 
+  {% if two_factor %}
+    <section class="v-card v-account-card">
+      <div class="v-card-head">
+        <h2 class="v-card-title">{% translate "Two-factor sign-in" %}</h2>
+      </div>
+      <p class="v-muted v-account-blurb">
+        {% if two_factor.enabled %}
+          {% translate "On. Signing in asks for a code from your authenticator app after your password." %}
+        {% else %}
+          {% translate "Off. Add a code from an app on your phone, so a leaked password is not enough on its own." %}
+        {% endif %}
+      </p>
+      <div class="v-account-actions">
+        <a class="v-btn v-btn-secondary v-btn-sm" href="{% url 'vantage:two_factor' %}">
+          {% if two_factor.enabled %}{% translate "Manage two-factor sign-in" %}{% else %}{% translate "Set up two-factor sign-in" %}{% endif %}
+        </a>
+        {% if two_factor.may_reset %}
+          <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:two_factor_users' %}">
+            {% translate "Two-factor sign-in for everyone" %}
+          </a>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
   {% if settings.THEME_TOGGLE %}
     <section class="v-card v-account-card">
       <div class="v-card-head">

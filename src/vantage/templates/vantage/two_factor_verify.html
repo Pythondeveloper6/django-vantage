@@ -1,0 +1,94 @@
+{% load static vantage i18n %}<!doctype html>
+{% comment %}
+  The second sign-in step. One template for both ways of arriving:
+
+  * from the panel's own sign-in, after the password and before login() — the session
+    is still anonymous, and "start again" goes back to the password;
+  * from the gate, for a session signed in through some other login view — the
+    session is signed in but may not see the panel, and the way out is to sign out.
+
+  Standalone, like the sign-in page, because a sidebar here would be a column of links
+  that all lead straight back to this form.
+{% endcomment %}
+<html lang="{{ language_code|default:"en" }}"{% if ui_theme %} data-ui-theme="{{ ui_theme }}"{% endif %}{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="same-origin">
+<title>{% blocktranslate with site_title=settings.SITE_TITLE %}Authentication code · {{ site_title }}{% endblocktranslate %}</title>
+{% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
+<script{{ csp_nonce_attr }}>{{ no_flash_script|safe }}</script>
+<style{{ csp_nonce_attr }}>{{ theme_css|safe }}</style>
+<link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
+{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
+</head>
+<body>
+<div class="v-auth">
+  <main class="v-auth-main">
+    <div class="v-auth-inner">
+      <div class="v-auth-brand">
+        {% include "vantage/partials/brand.html" with mark_class="v-auth-mark" %}
+      </div>
+
+      <div class="v-card">
+        <div class="v-card-head">
+          <h1 class="v-card-title">{% translate "Two-factor sign-in" %}</h1>
+        </div>
+        <div class="v-card-body">
+          {% if locked %}
+            <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
+              <span class="v-auth-alert-label">{% translate "Sign-in paused." %}</span>
+              <span>{{ locked }}</span>
+            </div>
+          {% elif form %}
+            <p class="v-auth-help v-2fa-lede">
+              {% translate "Open the authenticator app on your phone and enter the code it shows for this site." %}
+            </p>
+            {% if form.non_field_errors %}
+              <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
+                {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+              </div>
+            {% endif %}
+            <form method="post" novalidate>
+              {% csrf_token %}
+              {% for field in form %}
+                <div class="v-auth-field">
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}
+                    <p class="v-auth-help" id="{{ field.auto_id }}_help">{{ field.help_text }}</p>
+                  {% endif %}
+                  {% if field.errors %}
+                    <p class="v-auth-error" id="{{ field.auto_id }}_error" role="alert">
+                      <span class="v-sr-only">{{ field.label }}:</span>
+                      {% for error in field.errors %}{{ error }} {% endfor %}
+                    </p>
+                  {% endif %}
+                </div>
+              {% endfor %}
+              {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+              <button class="v-btn v-btn-primary v-auth-submit" type="submit">{% translate "Verify" %}</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <p class="v-auth-foot v-muted">
+        {% if signed_in %}
+          {% url 'logout' as logout_url %}
+          {% if logout_url %}
+            <form method="post" action="{{ logout_url }}" class="v-2fa-inline">
+              {% csrf_token %}
+              <button class="v-btn v-btn-ghost v-btn-sm" type="submit">{% translate "Sign out" %}</button>
+            </form>
+          {% endif %}
+        {% else %}
+          <a href="{{ login_url }}">{% translate "Start again with your password" %}</a>
+        {% endif %}
+      </p>
+    </div>
+  </main>
+</div>
+</body>
+</html>
