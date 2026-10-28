@@ -173,6 +173,22 @@ DEFAULTS: dict[str, Any] = {
     "JOB_RETENTION_DAYS": 30,
     # Queue name for django.tasks / RQ. Celery uses its own routing.
     "JOB_QUEUE": "default",
+    # ── webhooks ────────────────────────────────────────────────────────────
+    # Off, no hook fires and the page is hidden. Existing rows are kept.
+    "WEBHOOKS": True,
+    # Webhooks refuse to call loopback, private, link-local and other non-public
+    # addresses, checked against what the host name resolves to at send time. True
+    # lifts that, for a receiver on your own network. Code-only: editable from the
+    # panel, it would be a way for a webhook manager to reach your internal services.
+    "WEBHOOKS_ALLOW_PRIVATE_NETWORKS": False,
+    # Seconds one delivery may wait on the receiver, per socket operation.
+    "WEBHOOKS_TIMEOUT": 5,
+    # Attempts before a delivery is marked failed, the first one included.
+    "WEBHOOKS_MAX_ATTEMPTS": 6,
+    # Seconds before the first retry; each later wait doubles it (capped at a day).
+    "WEBHOOKS_BACKOFF_SECONDS": 30,
+    # Finished deliveries older than this are removed by `manage.py vantage_webhooks`.
+    "WEBHOOKS_RETENTION_DAYS": 30,
     # ── undo ────────────────────────────────────────────────────────────────
     # Seconds the "Undo" button on a delete or edit toast stays redeemable. 0 turns
     # undo off everywhere; ModelPanel.undo = False turns it off for one model.

@@ -1,0 +1,55 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-webhooks.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+<form class="v-form" method="post" novalidate>
+  {% csrf_token %}
+  <section class="v-card v-form-card">
+    <div class="v-card-body">
+      {% if form.non_field_errors %}
+        <ul class="v-form-errors">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      {% for field in form %}
+        <div class="v-form-field{% if field.field.widget.input_type == 'checkbox' and not field.field.choices %} v-form-field-check{% endif %}">
+          {% if field.field.choices %}
+            <fieldset class="v-webhooks-choices">
+              <legend class="v-form-label">{{ field.label }}</legend>
+              {% for choice in field %}
+                <label class="v-webhooks-choice">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>
+              {% endfor %}
+            </fieldset>
+          {% else %}
+            <label class="v-form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          {% endif %}
+          {% if field.help_text %}<p class="v-form-help">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}
+            <ul class="v-form-errors">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      {% if not hook %}
+        <p class="v-form-help">
+          {% translate "A signing secret is generated when you save, and shown once." %}
+        </p>
+      {% endif %}
+    </div>
+    <div class="v-card-body v-confirm-actions">
+      <a class="v-btn v-btn-secondary" href="{{ list_url }}">{% translate "Cancel" %}</a>
+      <button class="v-btn v-btn-primary" type="submit">{% translate "Save" %}</button>
+    </div>
+  </section>
+</form>
+{% endblock %}

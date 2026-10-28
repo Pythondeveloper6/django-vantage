@@ -79,6 +79,38 @@ def check_vantage_settings(app_configs, **kwargs) -> list[Error]:
             )
 
     errors.extend(_check_brand(user))
+    errors.extend(_check_webhooks(user))
+    return errors
+
+
+def _check_webhooks(user: dict) -> list[Error]:
+    """The webhook switches and limits: wrong types here would fail at send time, in a
+    worker, where nobody is looking."""
+    errors: list[Error] = []
+    for key in ("WEBHOOKS", "WEBHOOKS_ALLOW_PRIVATE_NETWORKS"):
+        if key in user and not isinstance(user[key], bool):
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] must be True or False; got {user[key]!r}.",
+                    id="vantage.E100",
+                )
+            )
+    for key in (
+        "WEBHOOKS_TIMEOUT",
+        "WEBHOOKS_MAX_ATTEMPTS",
+        "WEBHOOKS_BACKOFF_SECONDS",
+        "WEBHOOKS_RETENTION_DAYS",
+    ):
+        value = user.get(key)
+        if key in user and (
+            isinstance(value, bool) or not isinstance(value, int | float) or value <= 0
+        ):
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] must be a number greater than zero; got {value!r}.",
+                    id="vantage.E101",
+                )
+            )
     return errors
 
 
