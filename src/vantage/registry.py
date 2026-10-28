@@ -59,6 +59,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # who may see the log. A CRUD form would print one and route around the other.
         "vantage.webhook",
         "vantage.webhookdelivery",
+        # Subscriptions run as another person and the log names their recipients; the
+        # reports pages decide who may see which, and a CRUD form would not.
+        "vantage.reportsubscription",
+        "vantage.reportrun",
     }
 )
 

@@ -189,6 +189,20 @@ DEFAULTS: dict[str, Any] = {
     "WEBHOOKS_BACKOFF_SECONDS": 30,
     # Finished deliveries older than this are removed by `manage.py vantage_webhooks`.
     "WEBHOOKS_RETENTION_DAYS": 30,
+    # ── scheduled reports ───────────────────────────────────────────────────
+    # Off, nothing is sent and the pages and the Subscribe control are hidden.
+    # Existing subscriptions are kept.
+    "REPORTS": True,
+    # Largest CSV attached to an email, in megabytes of file. A bigger report is sent
+    # as a short note saying so, with no attachment.
+    "REPORTS_MAX_ATTACHMENT_MB": 10,
+    # Subscriptions one person may hold.
+    "REPORTS_MAX_PER_USER": 25,
+    # Finished sends older than this are removed by `manage.py vantage_reports`.
+    "REPORTS_RETENTION_DAYS": 90,
+    # Where links in report emails point, e.g. "https://panel.example.com". Empty uses
+    # the address the subscription was made from.
+    "REPORTS_BASE_URL": "",
     # ── undo ────────────────────────────────────────────────────────────────
     # Seconds the "Undo" button on a delete or edit toast stays redeemable. 0 turns
     # undo off everywhere; ModelPanel.undo = False turns it off for one model.
