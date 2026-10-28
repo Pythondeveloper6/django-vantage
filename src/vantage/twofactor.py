@@ -928,8 +928,17 @@ def guard_patterns(patterns: list) -> list:
     ``functools.wraps`` carries the view's attributes across — ``view_class``,
     ``csrf_exempt`` — so the login throttle, CSRF and anything else reading them
     sees exactly what it saw before.
+
+    An ``include()`` is followed all the way down, so a site, a plugin or a subclass
+    that groups its routes under one is gated route by route like everything else.
+    Skipping it would have been the opposite of failing closed: a whole subtree open
+    because of how its ``urls.py`` happened to be arranged.
     """
     for pattern in patterns:
+        nested = getattr(pattern, "url_patterns", None)
+        if nested is not None:
+            guard_patterns(nested)
+            continue
         callback = getattr(pattern, "callback", None)
         if callback is None or getattr(callback, "two_factor_gated", False):
             continue
