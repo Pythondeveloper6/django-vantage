@@ -1,0 +1,49 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-webhooks.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  <div class="v-page-actions">
+    <form method="post" action="{% url 'vantage:webhook-redeliver' delivery.pk %}">
+      {% csrf_token %}
+      <button class="v-btn v-btn-secondary">{% icon "rotate-ccw" %}<span>{% translate "Redeliver" %}</span></button>
+    </form>
+  </div>
+</div>
+
+<section class="v-card v-form-card">
+  <div class="v-card-body">
+    <dl class="v-webhooks-facts">
+      <div><dt>{% translate "Status" %}</dt><dd><span class="v-webhooks-status" data-status="{{ delivery.status }}">{{ delivery.get_status_display }}</span></dd></div>
+      <div><dt>{% translate "Event" %}</dt><dd>{{ delivery.event }}</dd></div>
+      <div><dt>{% translate "Response code" %}</dt><dd>{{ delivery.response_code|default:"—" }}</dd></div>
+      <div><dt>{% translate "Attempts" %}</dt><dd>{{ delivery.attempts }}</dd></div>
+      <div><dt>{% translate "Duration" %}</dt><dd>{% if delivery.duration_ms is not None %}{{ delivery.duration_ms }} ms{% else %}—{% endif %}</dd></div>
+      <div><dt>{% translate "Created" %}</dt><dd>{{ delivery.created_at|date:"Y-m-d H:i:s" }}</dd></div>
+      <div><dt>{% translate "Last attempt" %}</dt><dd>{{ delivery.last_attempt_at|date:"Y-m-d H:i:s"|default:"—" }}</dd></div>
+      {% if delivery.next_attempt_at %}<div><dt>{% translate "Next attempt" %}</dt><dd>{{ delivery.next_attempt_at|date:"Y-m-d H:i:s" }}</dd></div>{% endif %}
+      <div><dt>{% translate "Delivery id" %}</dt><dd><code class="v-mono">{{ delivery.uuid }}</code></dd></div>
+    </dl>
+    {% if delivery.error %}<p class="v-webhooks-error">{{ delivery.error }}</p>{% endif %}
+
+    <h2 class="v-webhooks-heading">{% translate "Sent" %}</h2>
+    <pre class="v-webhooks-pre v-mono">{{ body }}</pre>
+
+    <h2 class="v-webhooks-heading">{% translate "Response" %}</h2>
+    {% if delivery.response_body %}
+      <pre class="v-webhooks-pre v-mono">{{ delivery.response_body }}</pre>
+    {% else %}
+      <p class="v-muted">{% translate "Nothing was received." %}</p>
+    {% endif %}
+  </div>
+  <div class="v-card-body v-confirm-actions">
+    <a class="v-btn v-btn-secondary" href="{{ list_url }}?webhook={{ delivery.webhook_id }}">{% translate "Back to the log" %}</a>
+  </div>
+</section>
+{% endblock %}

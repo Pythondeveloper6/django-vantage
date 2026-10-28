@@ -27,6 +27,7 @@ from vantage import (
     settingsview,
     topbarviews,
     views,
+    webhookviews,
 )
 from vantage.palette import build_urls
 
@@ -76,6 +77,9 @@ def build(site) -> list:
 
     # The roles screens hang off the roles page's path, and only exist while it does.
     urlpatterns += rolesviews.build_urls(site)
+
+    # Likewise the webhook screens, which hang off the webhooks page's path.
+    urlpatterns += webhookviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.
