@@ -91,6 +91,7 @@ __all__ = [
     "ALLOWED_UPLOAD_SUFFIXES",
     "MAX_UPLOAD_BYTES",
     "SETTING_COLUMNS",
+    "ChangeRequest",
     "DashboardLayout",
     "ListPreference",
     "NavConfiguration",
@@ -1523,3 +1524,89 @@ class TwoFactorRecoveryCode(models.Model):
 
     def __str__(self) -> str:
         return f"recovery code for device {self.device_id}"
+
+
+# ── changes waiting for approval ────────────────────────────────────────────
+
+
+class ChangeRequest(models.Model):
+    """A change to fields a panel lists in ``requires_approval``, held until approved.
+
+    The record keeps its old values while this row is pending; nothing about it is
+    written to the record until someone allowed to approve does so. See
+    :mod:`vantage.approvals`.
+
+    The record is named the way :class:`VantageJob` and :class:`Webhook` name a model —
+    ``resource_key`` is ``Options.label_lower`` and ``object_id`` is the primary key as
+    text — rather than with a foreign key, so a request survives its record being
+    deleted, and can still be read (and rejected) afterwards.
+
+    ``changes`` holds, per field, the value the requester saw (``from``) and the value
+    they asked for (``to``), both as ``Field.value_to_string`` gives them. ``from`` is
+    the concurrency check: approving compares it with the record as it stands, and a
+    field that has moved since makes the request stale rather than silently reverting
+    whatever moved it. The ``*_display`` strings are what the queue shows, captured when
+    the request was made; a sensitive field never has one.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Waiting for approval")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+        WITHDRAWN = "withdrawn", _("Withdrawn")
+
+    resource_key = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=255)
+    #: The record's label when the request was made, for the queue and for a request
+    #: whose record has since been deleted.
+    object_repr = models.CharField(max_length=200, blank=True)
+    changes = models.JSONField(default=dict)
+    #: Optional, from the person asking: why the change is wanted.
+    note = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+
+    #: ``SET_NULL`` for the reason the audit log's actor gives, with the username kept
+    #: beside it.
+    requested_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    requested_by_repr = models.CharField(max_length=150, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    decided_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    decided_by_repr = models.CharField(max_length=150, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    #: Why it was rejected. Required to reject; empty otherwise.
+    reason = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = _("change request")
+        verbose_name_plural = _("change requests")
+        ordering = ["-requested_at", "-pk"]
+        indexes = [
+            models.Index(
+                fields=["resource_key", "object_id", "status"], name="vantage_chreq_record_idx"
+            ),
+            models.Index(fields=["status", "-requested_at"], name="vantage_chreq_queue_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.resource_key} #{self.object_id} ({self.status})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == self.Status.PENDING
+
+    @property
+    def field_names(self) -> list[str]:
+        return list(self.changes or {})

@@ -59,6 +59,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # who may see the log. A CRUD form would print one and route around the other.
         "vantage.webhook",
         "vantage.webhookdelivery",
+        # A pending change is decided on the approvals page, which checks who may
+        # approve what. A CRUD form could flip a request to "approved" without applying
+        # it, or print a sensitive value it holds.
+        "vantage.changerequest",
     }
 )
 
