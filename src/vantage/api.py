@@ -724,8 +724,9 @@ class SchemaView(ApiView):
         ]
         from vantage.approvals import guarded_for
 
-        # For this caller: a change to one of these is answered 202 and waits.
-        held = set(guarded_for(request, panel))
+        # For this caller: a change to one of these is answered 202 and waits. Only
+        # among the fields they may write: a read-only one is refused, never held.
+        held = set(guarded_for(request, panel)) & set(editable)
         for entry in fields:
             # A client building a form needs to know the field will never be read back:
             # render it empty, and send nothing (or omit it) to keep the stored value.

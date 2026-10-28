@@ -23,14 +23,14 @@
     {% endif %}
   </p>
   {% include "vantage/approvals/_diff.html" with rows=entry.rows %}
-  {% if entry.request.note %}<p class="v-approval-note">{{ entry.request.note }}</p>{% endif %}
+  {% if entry.request.note and not entry.words_hidden %}<p class="v-approval-note">{{ entry.request.note }}</p>{% endif %}
   {% if not entry.request.is_pending and entry.request.decided_at %}
     <p class="v-approval-meta">
       {% blocktranslate with who=entry.request.decided_by_repr|default:unknown_actor when=entry.request.decided_at|date:"Y-m-d H:i" status=entry.request.get_status_display trimmed %}
         {{ status }} by {{ who }}, {{ when }}.
       {% endblocktranslate %}
     </p>
-    {% if entry.request.reason %}<p class="v-approval-note" data-tone="reason">{{ entry.request.reason }}</p>{% endif %}
+    {% if entry.request.reason and not entry.words_hidden %}<p class="v-approval-note" data-tone="reason">{{ entry.request.reason }}</p>{% endif %}
   {% endif %}
   {% if entry.may_decide or entry.may_withdraw %}
     <div class="v-approval-actions">
