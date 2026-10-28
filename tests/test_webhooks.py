@@ -14,7 +14,9 @@ import datetime as dt
 import hashlib
 import hmac
 import json
+import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
@@ -58,8 +60,10 @@ class Receiver:
         self.answers = list(answers) or [(200, "ok")]
         self.calls = []
 
-    def __call__(self, url, body, headers, *, timeout):
-        self.calls.append({"url": url, "body": body, "headers": headers, "timeout": timeout})
+    def __call__(self, url, body, headers, *, timeout, total=None):
+        self.calls.append(
+            {"url": url, "body": body, "headers": headers, "timeout": timeout, "total": total}
+        )
         answer = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
         if isinstance(answer, Exception):
             raise answer
@@ -83,7 +87,9 @@ def queue(monkeypatch):
         lambda: jobs.Backend("rq", "RQ", True),
     )
     monkeypatch.setattr(
-        webhooks, "_submit", lambda delivery_id, delay: handed.append((delivery_id, delay))
+        webhooks,
+        "_submit",
+        lambda delivery_id, delay, budget=None: handed.append((delivery_id, delay)),
     )
     return handed
 
@@ -525,6 +531,15 @@ class TestAddressSafety:
             "::ffff:127.0.0.1",
             "64:ff9b::7f00:1",
             "2002:7f00:1::1",
+            "::7f00:1",
+            "::a9fe:a9fe",
+            "::ffff:0:a9fe:a9fe",
+            "::ffff:0:7f00:1",
+            "fec0::1",
+            "feff::1",
+            "64:ff9b:1::1",
+            "64:ff9b:1:ffff::a9fe:a9fe",
+            "::808:808",
         ],
     )
     def test_a_name_that_resolves_to_a_private_address_is_refused_before_connecting(
@@ -587,6 +602,25 @@ class TestAddressSafety:
     )
     def test_only_plain_http_urls_without_credentials_are_accepted(self, url):
         assert webhooks.url_problem(url)
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "[::7f00:1]",
+            "[::a9fe:a9fe]",
+            "[::ffff:0:a9fe:a9fe]",
+            "[fec0::1]",
+            "[64:ff9b:1::1]",
+            "[::ffff:127.0.0.1]",
+            "[64:ff9b::a9fe:a9fe]",
+        ],
+    )
+    def test_an_ipv6_literal_that_wraps_a_private_address_is_refused_at_save_time(self, host):
+        assert webhooks.url_problem(f"http://{host}/") is not None
+
+    @pytest.mark.parametrize("host", ["[2606:4700:4700::1111]", "[64:ff9b::808:808]"])
+    def test_a_public_ipv6_literal_is_fine(self, host):
+        assert webhooks.url_problem(f"http://{host}/") is None
 
     def test_a_public_url_is_fine(self):
         assert webhooks.url_problem("https://hooks.example.com/in") is None
@@ -667,6 +701,154 @@ class TestRealClient:
         delivery.refresh_from_db()
         assert delivery.status == "retrying"
         assert delivery.error
+
+
+def _dripping_server(*, drip_headers: bool):
+    """A receiver that answers one byte at a time, every 0.2 s, for as long as it can."""
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    stop = threading.Event()
+
+    def serve():
+        conn, _addr = server.accept()
+        conn.recv(65536)
+        head = b"HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\n"
+        try:
+            if drip_headers:
+                for byte in head:
+                    conn.sendall(bytes([byte]))
+                    if stop.wait(0.2):
+                        return
+            else:
+                conn.sendall(head)
+            while not stop.wait(0.2):
+                conn.sendall(b"x")
+        except OSError:
+            pass
+        finally:
+            conn.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    return server, stop
+
+
+class TestDeadline:
+    @pytest.fixture(autouse=True)
+    def _loopback_allowed(self, settings):
+        settings.VANTAGE = {"WEBHOOKS_ALLOW_PRIVATE_NETWORKS": True}
+
+    @pytest.mark.parametrize("drip_headers", [False, True], ids=["body", "headers"])
+    def test_a_receiver_that_drips_bytes_is_cut_off_at_the_total_deadline(self, drip_headers):
+        server, stop = _dripping_server(drip_headers=drip_headers)
+        started = time.monotonic()
+
+        # Every read returns within the 5 s per-operation timeout, so only the total stops it.
+        with pytest.raises(webhooks._Retryable, match="too long"):
+            webhooks._post(
+                f"http://127.0.0.1:{server.getsockname()[1]}/h",
+                b"{}",
+                {},
+                timeout=5,
+                total=1,
+            )
+
+        stop.set()
+        server.close()
+        assert time.monotonic() - started < 3
+
+    def test_a_name_lookup_that_never_answers_is_cut_off(self, monkeypatch):
+        release = threading.Event()
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **kw: release.wait(10) or [])
+        started = time.monotonic()
+
+        with pytest.raises(webhooks._Retryable, match="too long"):
+            webhooks._post("http://slow-dns.example.com/h", b"{}", {}, timeout=5, total=0.5)
+
+        release.set()
+        assert time.monotonic() - started < 3
+
+    def test_a_connection_that_hangs_is_cut_off_before_the_lookup_is_retried(self, monkeypatch):
+        resolving_to(monkeypatch, "93.184.216.34", "93.184.216.35")
+        calls = []
+
+        def slow_connect(address, timeout, *a, **kw):
+            calls.append(timeout)
+            time.sleep(0.3)
+            raise OSError("closed")
+
+        monkeypatch.setattr(socket, "create_connection", slow_connect)
+
+        with pytest.raises(webhooks._Retryable):
+            webhooks._post("http://two.example.com/h", b"{}", {}, timeout=5, total=0.4)
+
+        assert calls[0] <= 0.4  # the per-socket timeout was clamped to what was left
+
+    def test_a_timed_out_delivery_is_retryable(self, hook, receiver):
+        receiver.answers = [webhooks._Retryable("The receiver took too long.")]
+        delivery = WebhookDelivery.objects.create(webhook=hook, event="updated")
+
+        webhooks.deliver(delivery.pk)
+
+        delivery.refresh_from_db()
+        assert delivery.status == "retrying"
+
+    def test_a_queued_attempt_gets_a_few_timeouts_in_total(self, hook, receiver):
+        delivery = WebhookDelivery.objects.create(webhook=hook, event="updated")
+
+        with override_settings(VANTAGE={"WEBHOOKS_TIMEOUT": 4}):
+            webhooks.run_delivery(delivery.pk)
+
+        assert (receiver.calls[0]["timeout"], receiver.calls[0]["total"]) == (4, 12)
+
+    def test_an_inline_attempt_is_bounded_by_the_inline_timeout(self, hook, receiver):
+        delivery = WebhookDelivery.objects.create(webhook=hook, event="updated")
+
+        with override_settings(VANTAGE={"WEBHOOKS_TIMEOUT": 30}):
+            webhooks.deliver(delivery.pk, inline=True)
+
+        assert (receiver.calls[0]["timeout"], receiver.calls[0]["total"]) == (3.0, 3.0)
+
+
+class TestInlineBudget:
+    def test_one_save_shares_a_single_budget_and_the_rest_waits_for_the_command(
+        self, boss, monkeypatch, django_capture_on_commit_callbacks
+    ):
+        for n in range(3):
+            Webhook.objects.create(
+                name=f"Hook {n}",
+                url=f"https://h{n}.example.com/in",
+                events=["created"],
+                resources=[],
+            )
+        monkeypatch.setattr(webhooks, "INLINE_BUDGET", 0.3)
+        monkeypatch.setattr(jobs, "detect_backend", lambda: jobs.Backend("inline", "None", False))
+
+        class Slow(Receiver):
+            def __call__(self, *args, **kwargs):
+                time.sleep(0.4)  # more than the whole budget
+                return super().__call__(*args, **kwargs)
+
+        fake = Slow((200, "ok"))
+        monkeypatch.setattr(webhooks, "_post", fake)
+
+        with django_capture_on_commit_callbacks(execute=True):
+            add_author(boss)
+
+        assert len(fake.calls) == 1
+        assert fake.calls[0]["total"] <= 0.3
+        states = sorted(WebhookDelivery.objects.values_list("status", "attempts"))
+        assert states == [("pending", 0), ("pending", 0), ("succeeded", 1)]
+
+    def test_what_was_deferred_is_picked_up_by_the_command(self, hook, receiver):
+        old = timezone.now() - dt.timedelta(seconds=webhooks.STALE_PENDING_SECONDS + 5)
+        delivery = WebhookDelivery.objects.create(webhook=hook, event="updated")
+        WebhookDelivery.objects.filter(pk=delivery.pk).update(created_at=old)
+
+        assert webhooks.retry_due() == 1
+
+        delivery.refresh_from_db()
+        assert delivery.status == "succeeded"
 
 
 # ── the page ────────────────────────────────────────────────────────────────

@@ -287,7 +287,7 @@ that is not a number above zero).
 |---|---|---|
 | `WEBHOOKS` | `True` | `False` fires nothing and hides the page. Stored webhooks are kept |
 | `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` | `False` | Lets webhooks call loopback, private, link-local and other non-public addresses. Code-only, never editable in the panel |
-| `WEBHOOKS_TIMEOUT` | `5` | Seconds a receiver may take per socket operation. The in-process fallback caps it at 3 |
+| `WEBHOOKS_TIMEOUT` | `5` | Seconds a receiver may take per socket operation. A whole attempt gets three times this; the in-process fallback caps it at 3 in total |
 | `WEBHOOKS_MAX_ATTEMPTS` | `6` | Attempts before a delivery is marked failed, the first included |
 | `WEBHOOKS_BACKOFF_SECONDS` | `30` | Wait before the first retry; each later wait doubles, up to a day |
 | `WEBHOOKS_RETENTION_DAYS` | `30` | How long a finished delivery is kept before `manage.py vantage_webhooks` removes it |
