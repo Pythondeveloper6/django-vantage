@@ -395,6 +395,14 @@
     min-inline-size: 36rem;
   }
 
+  /* A fieldset and a flex item will not shrink below their content by default, so a wide
+   * table inside the detail page's tab strip would stretch the page instead of
+   * scrolling in its wrapper. */
+  .v-tabstrip,
+  .v-tabstrip-panel {
+    min-inline-size: 0;
+  }
+
   /* History: the field name keeps its words whole, and the restore tick box stays
    * pinned to the edge while the values scroll, so it is always in reach. Its text is
    * still read by a screen reader; only the sighted label is dropped to save width. */
