@@ -1869,6 +1869,9 @@ textarea {
 
 .v-action-bar-spacer { margin-inline-start: auto; }
 
+/* The dismiss button of the phone sheet (vantage-mobile.css shows it there). */
+.v-action-close { display: none; }
+
 .v-action-count {
   font-weight: 550;
   font-variant-numeric: tabular-nums;

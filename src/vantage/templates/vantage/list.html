@@ -152,6 +152,10 @@
       {% translate "Select all matching" %}
     </button>
     <div class="v-action-bar-spacer"></div>
+    {# Shown only on a phone, where the bar is a sheet: the visible way to dismiss it. #}
+    <button type="button" class="v-btn v-btn-ghost v-btn-sm v-action-close" data-action-close>
+      {% translate "Clear selection" %}
+    </button>
     {% if "change" in allowed %}
       {% comment %}
         formaction rather than a link: the selection lives in this form's fields, and a
@@ -194,7 +198,7 @@
         <table class="v-table" role="grid" aria-rowcount="{{ paginator.count }}"
                aria-label="{{ panel.get_label_plural }}">
           <thead>
-            <tr data-grid-row data-grid-head tabindex="-1">
+            <tr role="row" data-grid-row data-grid-head tabindex="-1">
               {% if actions or "change" in allowed %}
                 <th scope="col" class="v-select-cell">
                   <input type="checkbox" data-select-page tabindex="-1"
@@ -272,11 +276,11 @@
               {% if groups %}{% for g in groups %}{% if g.at == forloop.parentloop.counter0 %}
                 <tr class="v-group-row"><td colspan="{{ columns|length|add:1 }}">{{ g.label }}</td></tr>
               {% endif %}{% endfor %}{% endif %}
-              <tr data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}{% inline_row_attrs inline row.obj %}
+              <tr role="row" data-grid-row data-pk="{{ row.pk }}"{% if row.url %} data-url="{{ row.url }}"{% endif %}{% if showing_tree %} data-depth="{{ row.depth }}" style="--v-depth: {{ row.depth }}"{% endif %}{% inline_row_attrs inline row.obj %}
                   aria-rowindex="{{ page.start_index|add:forloop.counter0 }}"
                   tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">
                 {% if actions or "change" in allowed %}
-                  <td class="v-select-cell">
+                  <td role="gridcell" class="v-select-cell">
                     <input type="checkbox" name="selected" value="{{ row.pk }}" tabindex="-1"
                            data-select-row aria-label="{% blocktranslate with obj=row.obj|record_label %}Select {{ obj }}{% endblocktranslate %}">
                   </td>
@@ -290,7 +294,7 @@
                     vantage.inline and is made again, server-side, on every write.
                   {% endcomment %}
                   {% inline_cell inline row.obj columns forloop.counter0 as editor %}
-                  <td data-col-index="{{ forloop.counter0 }}">
+                  <td role="gridcell" data-col-index="{{ forloop.counter0 }}"{% with card_label=card_columns|dict_get:forloop.counter0 %}{% if card_label %} data-card data-label="{{ card_label }}"{% endif %}{% endwith %}>
                     {% if editor %}{{ editor }}
                     {% elif cell.is_link and row.url %}
                       {% include "vantage/partials/cell_link.html" with url=row.url record=row.obj tabindex="-1" %}

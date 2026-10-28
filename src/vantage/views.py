@@ -357,8 +357,10 @@ class ListView(PanelView):
         )
         page = paginator.get_page(request.GET.get("page"))
 
+        headers = [self._column_header(panel, name, sort) for name in columns]
         return {
-            "columns": [self._column_header(panel, name, sort) for name in columns],
+            "columns": headers,
+            "card_columns": self._card_columns(panel, columns, headers),
             "rows": self._rows(panel, page.object_list, columns, link, request),
             "grouping": self.grouping(request),
             "group_options": [
@@ -583,6 +585,24 @@ class ListView(PanelView):
                 guard += 1
             depths[pk] = depth
         return depths
+
+    #: How many columns a phone card shows when the panel does not choose.
+    CARD_COLUMNS = 4
+
+    @classmethod
+    def _card_columns(cls, panel, columns: list[str], headers: list[dict]) -> dict[int, str]:
+        """Column position -> label, for the columns a phone card shows (title first).
+
+        ``card_fields`` is the same one-line choice the gallery and the board read.
+        Names that are not columns of the table are skipped: a card is the table's own
+        row restacked, not a second renderer.
+        """
+        chosen = panel.card_fields
+        if chosen is None:
+            shown = range(min(len(columns), cls.CARD_COLUMNS))
+        else:
+            shown = [i for i, name in enumerate(columns) if i == 0 or name in chosen]
+        return {i: str(headers[i]["label"]) for i in shown}
 
     @staticmethod
     def _row(panel, obj, columns: list[str], link: str) -> dict:
