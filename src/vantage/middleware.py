@@ -60,6 +60,7 @@ from vantage.security import (
 __all__ = [
     "LoginThrottleMiddleware",
     "PanelSecurityMiddleware",
+    "clear_login_failures",
     "is_panel_request",
     "normalise_username",
     "surface_for",
@@ -259,6 +260,16 @@ def _on_login_succeeded(sender, request=None, user=None, **kwargs) -> None:
         throttle_from_settings().clear(username, address)
     except Exception:  # pragma: no cover
         logger.exception("Vantage could not clear a sign-in counter.")
+
+
+def clear_login_failures(request) -> None:
+    """Clear this sign-in's failures by hand, for a login that has not called ``login()``.
+
+    The panel's sign-in stops after a right password to ask for a code, so
+    ``user_logged_in`` fires on a *later* request that carries no username — and the
+    receiver above would never clear the pair. A no-op without the middleware.
+    """
+    _on_login_succeeded(None, request=request)
 
 
 # ── the panel's own requests ────────────────────────────────────────────────
