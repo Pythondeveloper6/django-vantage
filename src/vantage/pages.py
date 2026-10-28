@@ -25,7 +25,15 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-__all__ = ["DataQualityPage", "HealthPage", "Page", "RolesPage", "SchemaPage", "page_slug"]
+__all__ = [
+    "DataQualityPage",
+    "HealthPage",
+    "Page",
+    "RolesPage",
+    "SchemaPage",
+    "WebhooksPage",
+    "page_slug",
+]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -269,5 +277,34 @@ class RolesPage(Page):
 
     def get_context(self, request):
         from vantage.rolesviews import list_context
+
+        return list_context(request)
+
+
+def _may_manage_webhooks(request) -> bool:
+    from vantage import webhooks
+
+    return webhooks.enabled() and webhooks.may_manage(request)
+
+
+class WebhooksPage(Page):
+    """Outbound webhooks and their delivery log.
+
+    Superusers, or anyone holding ``vantage.manage_webhooks``; ``VANTAGE["WEBHOOKS"] =
+    False`` removes the page. The edit, test and redeliver screens hang off this page's
+    path; see :mod:`vantage.webhookviews`.
+    """
+
+    title = _("Webhooks")
+    description = _("Tell another system, with a signed POST, when a record changes.")
+    icon = "send"
+    group = _("System")
+    order = 97
+    path = "_/webhooks/"
+    template_name = "vantage/webhooks/list.html"
+    permission = staticmethod(_may_manage_webhooks)
+
+    def get_context(self, request):
+        from vantage.webhookviews import list_context
 
         return list_context(request)

@@ -55,6 +55,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # and let anyone with "change" on the table switch someone else's off.
         "vantage.twofactordevice",
         "vantage.twofactorrecoverycode",
+        # The signing secret is a column here, and the page that manages hooks decides
+        # who may see the log. A CRUD form would print one and route around the other.
+        "vantage.webhook",
+        "vantage.webhookdelivery",
     }
 )
 
