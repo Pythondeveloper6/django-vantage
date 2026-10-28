@@ -246,6 +246,7 @@ Details: [Forms](forms.md).
 | `actions` | `list[str \| Action]` | `None` | Bulk actions offered on the list page |
 | `row_actions` | `list[str]` | `None` | Which actions appear in the menu on each list row — see below |
 | `undo` | `bool \| None` | `None` | Whether deletes and edits offer **Undo** in their toast. `None` follows `UNDO_WINDOW`; `False` turns it off for this model — see [Undo](undo.md) |
+| `history` | `bool \| "view" \| None` | `None` | The record's [History](history.md) page and restoring from it. `None` follows `AUDIT_LOG`; `"view"` keeps the page without restore; `False` removes it |
 | `checks_class` | `type` | `ModelPanelChecks` | Subclass it to extend validation for your own panel base class |
 
 When `actions` is left unset, every method on the panel decorated with `@action` is
@@ -476,6 +477,8 @@ defaults are skipped.
 | `vantage.E078` | `kanban_fields` is not a list, or names a field a board cannot be grouped by |
 | `vantage.E079` | `calendar_fields` is not a list, or names something that is not a date |
 | `vantage.E077` | `undo` is set to something other than `True`, `False` or `None` |
+| `vantage.E091` | `history` is set to something other than `True`, `False`, `"view"` or `None` |
+| `vantage.E092` | `history = True` while `VANTAGE["AUDIT_LOG"]` is off |
 | `vantage.E090` | `sensitive_fields` is not a list, or names something that is not a field or attribute |
 | `vantage.W090` | `list_search`/`search_fields`, `list_filter` or `ordering` explicitly names a [sensitive field](sensitive-fields.md); it is dropped at request time |
 
