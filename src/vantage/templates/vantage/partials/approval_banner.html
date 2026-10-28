@@ -22,7 +22,7 @@
             {% endblocktranslate %}
           </p>
           {% include "vantage/approvals/_diff.html" with rows=entry.rows %}
-          {% if entry.request.note %}<p class="v-approval-note">{{ entry.request.note }}</p>{% endif %}
+          {% if entry.request.note and not entry.words_hidden %}<p class="v-approval-note">{{ entry.request.note }}</p>{% endif %}
           {% if entry.review_url %}
             <a class="v-btn v-btn-secondary v-btn-sm" href="{{ entry.review_url }}">{% translate "Review" %}</a>
           {% endif %}

@@ -2,10 +2,17 @@
   One request's fields: what was there when it was asked, what was asked for, and —
   when the record has moved since — what is there now. The same .v-diff the history
   panel draws, so a change reads the same wherever it is shown. A sensitive field is
-  masked on every side; see vantage.approvals.rows.
+  masked on every side, and fields hidden from the reader are one unnamed row; see
+  vantage.approvals.rows.
 {% endcomment %}
 <dl class="v-diff v-approval-diff">
   {% for row in rows %}
+    {% if row.hidden %}
+    <div class="v-diff-row" data-hidden>
+      <dt>{{ row.label }}</dt>
+      <dd class="v-muted">{% translate "Not shown: a field permission hides it from you." %}</dd>
+    </div>
+    {% else %}
     <div class="v-diff-row"{% if row.stale %} data-stale{% endif %}>
       <dt>{{ row.label }}</dt>
       <dd>
@@ -18,5 +25,6 @@
         {% endif %}
       </dd>
     </div>
+    {% endif %}
   {% endfor %}
 </dl>
