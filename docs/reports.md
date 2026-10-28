@@ -157,8 +157,9 @@ Superusers hold both.
 * The CSV is built in memory up to the size cap, so a report is bounded by
   `REPORTS_MAX_ATTACHMENT_MB`; the rows are read in chunks and building stops as soon as
   the cap is passed.
-* A cell that begins with `=`, `+`, `-` or `@` is exported as written, exactly as the Export
-  button does. Spreadsheet programs may treat it as a formula.
+* A text cell that begins with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
+  `'`, exactly as in the Export button, so a spreadsheet shows it as text instead of running
+  it as a formula. Numbers, dates and booleans are not changed.
 * A view whose list mode is a board or a map exports the table's columns.
 * Deleting a saved view deletes the subscriptions to it.
 * There is no per-recipient unsubscribe: the link pauses the subscription for everyone it
