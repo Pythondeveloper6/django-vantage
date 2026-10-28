@@ -15,6 +15,7 @@ from vantage import (
     auditviews,
     autocomplete,
     formviews,
+    historyviews,
     importviews,
     inline,
     jobviews,
@@ -100,6 +101,8 @@ def build(site) -> list:
     urlpatterns.extend(listviews.build_urls(site))
     # Same again: 'reveal/<field>' and 'set-password' are record-route suffixes.
     urlpatterns.extend(revealviews.build_urls(site))
+    # And 'history' for a record's timeline and point-in-time restore.
+    urlpatterns.extend(historyviews.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts

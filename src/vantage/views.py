@@ -675,8 +675,12 @@ class DetailView(PanelView):
             object_label=safe_str(obj, panel.site),
         )
         from vantage import audit
+        from vantage.historyviews import history_url
 
         context.update(audit.history_context(self.request, obj))
+        if context.get("history") is not None:
+            # Only beside the panel it extends: the page has the same audit gate.
+            context["history_url"] = history_url(panel, obj)
         return context
 
     #: How many related rows to preview before the panel becomes a link only.
