@@ -166,6 +166,22 @@ The URL is typed into a form and the *server* connects to it, so:
   receiver that sends a byte at a time cannot hold a worker or a request past it.
 * Prefer `https`. The secret signs the body but does not encrypt it.
 
+## Who can see what: hooks are global
+
+Webhooks are not scoped to a tenant, a panel or a user's own permissions.
+
+* A hook receives **every matching change to every model**, for every user and every
+  tenant of the project, including models the person who made the hook cannot view.
+* Anyone holding `vantage.manage_webhooks` (and every superuser) can create such a hook,
+  point it at a URL they control, and **redeliver any logged payload to a new URL** from
+  the delivery log.
+* The payload is already stripped of sensitive fields, but the rest of `changes` and the
+  record's label are sent as they are.
+
+In a multi-tenant project treat `vantage.manage_webhooks` as equivalent to superuser:
+grant it only to people who may read all tenants' data, and give no tenant admin the
+webhooks page. There is no per-tenant filtering of hooks.
+
 ## Known limits
 
 * The secret is stored in the database in the clear, because an HMAC cannot be computed
