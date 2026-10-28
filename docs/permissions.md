@@ -345,6 +345,9 @@ learn a great deal from a list of who has been editing them. It is deliberately 
 registered panel — a generic list page over it would come with an Add button, an edit
 form and a delete action, and an audit log you can edit is not an audit log.
 
+Each record's [History](history.md) page replays its entries to show the record as it
+was at any earlier point, and restores fields from there.
+
 ## Panels a user cannot see
 
 Never rendered. `visible_panels` filters the sidebar, the command palette, global
