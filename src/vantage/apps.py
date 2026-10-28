@@ -63,7 +63,7 @@ class VantageConfig(SimpleVantageConfig):
 
     def ready(self) -> None:
         super().ready()
-        from vantage.pages import DataQualityPage, HealthPage, RolesPage, SchemaPage
+        from vantage.pages import DataQualityPage, HealthPage, RolesPage, SchemaPage, WebhooksPage
         from vantage.plugins import load_plugins
         from vantage.sites import site
 
@@ -72,6 +72,7 @@ class VantageConfig(SimpleVantageConfig):
         site.register_page(SchemaPage)
         site.register_page(HealthPage)
         site.register_page(DataQualityPage)
+        site.register_page(WebhooksPage)
         # Groups are a contrib.auth table, and a project without it has no roles.
         if django_apps.is_installed("django.contrib.auth"):
             site.register_page(RolesPage)
