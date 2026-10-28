@@ -558,11 +558,15 @@ class VantageLogEntry(models.Model):
         per-process cache, so this costs no query per entry.
         """
         hidden = self._sensitive_now()
+        # Set by vantage.fieldperms.hide_entry_fields for the person reading the log:
+        # a field hidden from them is left out altogether, not even "changed".
+        absent = getattr(self, "vantage_hidden_fields", frozenset())
         return [
             {"field": name, "from": None, "to": None}
             if name in hidden
             else {"field": name, "from": delta.get("from"), "to": delta.get("to")}
             for name, delta in sorted((self.changes or {}).items())
+            if name not in absent
         ]
 
     @property
@@ -1523,3 +1527,44 @@ class TwoFactorRecoveryCode(models.Model):
 
     def __str__(self) -> str:
         return f"recovery code for device {self.device_id}"
+
+
+class FieldPermission(models.Model):
+    """One role's rule for one field of one model: hidden, or visible but read-only.
+
+    Keyed to ``auth.Group`` because that is what a role *is* (see :mod:`vantage.roles`):
+    the matrix edits groups, and a rule that lived anywhere else would be a second
+    membership list to keep in step with the first. The model is named by its content
+    type, like a ``Permission`` row, so a rule is dropped along with the model's
+    permissions rather than left pointing at nothing.
+
+    Only restrictions are stored. "No row" is the default — full access — so a project
+    that never opens the field-access controls has an empty table, and granting a
+    restriction can never widen anything. How several roles combine is
+    :mod:`vantage.fieldperms`'s business, not this table's.
+    """
+
+    class Level(models.TextChoices):
+        READONLY = "readonly", _("Read-only")
+        HIDDEN = "hidden", _("Hidden")
+
+    group = models.ForeignKey(
+        "auth.Group", on_delete=models.CASCADE, related_name="vantage_field_permissions"
+    )
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="+")
+    field_name = models.CharField(max_length=255)
+    level = models.CharField(max_length=16, choices=Level.choices)
+
+    class Meta:
+        verbose_name = _("field permission")
+        verbose_name_plural = _("field permissions")
+        # Not an editable table in its own right: the roles matrix is the only way in.
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "content_type", "field_name"], name="vantage_field_perm_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.field_name}: {self.level} for group {self.group_id}"

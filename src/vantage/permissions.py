@@ -130,6 +130,36 @@ class PanelPermissions:
         """
         return queryset
 
+    # ── field level ─────────────────────────────────────────────────────────
+
+    def field_access(self, request, model: type[Model]):
+        """This user's per-field restrictions on ``model``. See :mod:`vantage.fieldperms`.
+
+        A fourth question beside the three above, and asked the same way: once per
+        request and model, cached by :func:`vantage.fieldperms.access`, never per row.
+        Superusers have none. Override to source the rules from somewhere else; return a
+        :class:`~vantage.fieldperms.FieldAccess`.
+        """
+        from vantage import fieldperms
+
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return fieldperms.UNRESTRICTED
+        if self.superuser_bypass and user.is_superuser:
+            return fieldperms.UNRESTRICTED
+        return fieldperms.resolve(user, model, rules=fieldperms.user_rules(request))
+
+    def has_field_perm(self, request, model: type[Model], name: str, action: str) -> bool:
+        """Whether this user may ``"view"`` or ``"change"`` one field of ``model``.
+
+        A convenience over :meth:`field_access`. Says nothing about the model itself:
+        ask :meth:`has_model_perm` for that first, as every caller in the package does.
+        """
+        from vantage import fieldperms
+
+        answer = fieldperms.access(request, model)
+        return answer.can_view(name) if action == "view" else answer.can_change(name)
+
     # ── capability detection ────────────────────────────────────────────────
 
     @cached_property

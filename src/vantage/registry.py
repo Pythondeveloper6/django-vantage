@@ -59,6 +59,9 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # who may see the log. A CRUD form would print one and route around the other.
         "vantage.webhook",
         "vantage.webhookdelivery",
+        # Field rules belong to a role, and the roles matrix is where every escalation
+        # check lives. A CRUD form would let "change" on this table lift a restriction.
+        "vantage.fieldpermission",
     }
 )
 
