@@ -330,6 +330,10 @@ scroll past.
 | `vantage.W059` | [Media served from the panel's own origin](#media-on-a-separate-origin) while at least one registered model has a `FileField` |
 | `vantage.W115` | `REPORTS` is on and `REPORTS_BASE_URL` is unset, so links in [report emails](reports.md#the-email) are built from the `Host` header of the request that created each subscription |
 
+Two-factor sign-in adds one more in its own range, `vantage.W095`: it is required of
+someone while `django.contrib.admin` is mounted without
+[`AdminTwoFactorMiddleware`](two-factor.md#djangos-admin).
+
 Run it:
 
 ```bash

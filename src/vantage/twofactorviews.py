@@ -233,7 +233,7 @@ class TwoFactorView(SiteView):
 
     def _start(self, request):
         try:
-            twofactor.start_enrolment(request.user)
+            twofactor.start_enrolment(request.user, request)
         except ValueError:
             messages.info(request, gettext("Two-factor sign-in is already on."), fail_silently=True)
         return self._back(request)
@@ -271,16 +271,9 @@ class TwoFactorView(SiteView):
         code = form.cleaned_data["code"]
         password = form.cleaned_data["password"]
         if code:
-            outcome = twofactor.verify(device, code)
+            outcome = twofactor.verify(device, code, request=request)
         elif password:
-            device.refresh_from_db()
-            wait = twofactor._locked_for(device)
-            if wait:
-                outcome = twofactor.Outcome(False, "locked", wait)
-            elif request.user.check_password(password):
-                outcome = twofactor.Outcome(True, "password")
-            else:
-                outcome = twofactor.record_failure(device)
+            outcome = twofactor.verify_password(device, request.user, password)
         else:
             form.add_error(None, gettext("Enter a current code or your password."))
             return False
@@ -329,7 +322,9 @@ class TwoFactorVerifyView(TemplateView):
     The panel's own sign-in asks for the code *before* ``login()``. A project that
     signs people in through its own view, or through ``django.contrib.admin``'s, hands
     the panel a fully signed-in session that never answered — and this is where the
-    gate sends it, before any page with data on it.
+    gate sends it, before any panel page with data on it. With
+    :class:`~vantage.twofactor.AdminTwoFactorMiddleware` installed, Django's admin
+    sends it here too.
 
     Standalone rather than inside the shell: every link in a sidebar would lead
     straight back here.
@@ -361,7 +356,7 @@ class TwoFactorVerifyView(TemplateView):
     def post(self, request, *args, **kwargs):
         form = CodeForm(request.POST)
         if form.is_valid():
-            outcome = twofactor.verify(self.device, form.cleaned_data["code"])
+            outcome = twofactor.verify(self.device, form.cleaned_data["code"], request=request)
             if outcome:
                 # Rotated here because this session is changing what it is allowed to
                 # do, which is exactly the moment a fixed session id must stop working.

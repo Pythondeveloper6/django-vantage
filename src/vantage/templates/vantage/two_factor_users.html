@@ -19,13 +19,21 @@
           again, which they will be asked to do at once if their role requires it.
         {% endblocktranslate %}
       </p>
+      <p class="v-muted">
+        {% blocktranslate trimmed %}
+          "Set up" is when each authenticator was last enrolled. Enrolling needs only
+          the password, so if that time does not match when the person remembers
+          setting it up, someone else may have done it first: reset it, and have them
+          set it up again.
+        {% endblocktranslate %}
+      </p>
     </div>
     <table class="v-table v-2fa-table">
       <caption class="v-sr-only">{% translate "People with two-factor sign-in on" %}</caption>
       <thead>
         <tr>
           <th scope="col">{% translate "Person" %}</th>
-          <th scope="col">{% translate "On since" %}</th>
+          <th scope="col">{% translate "Set up" %}</th>
           <th scope="col">{% translate "Last used" %}</th>
           <th scope="col"><span class="v-sr-only">{% translate "Reset" %}</span></th>
         </tr>
@@ -34,7 +42,7 @@
         {% for device in devices %}
           <tr>
             <td>{{ device.user.get_username }}</td>
-            <td>{{ device.confirmed_at|date:"DATETIME_FORMAT" }}</td>
+            <td><time datetime="{{ device.confirmed_at|date:"c" }}">{{ device.confirmed_at|date:"DATETIME_FORMAT" }}</time></td>
             <td>{% if device.last_used_at %}{{ device.last_used_at|date:"DATETIME_FORMAT" }}{% else %}<span class="v-muted">{% translate "Never" %}</span>{% endif %}</td>
             <td>
               {% if device.user_id == request.user.pk %}
