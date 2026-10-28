@@ -12,6 +12,11 @@ tenancy is applied too — so a request about a record you cannot see does not e
 you, on the queue, in the count or by its id. The one exception is your own request
 whose record has since been deleted or moved out of your reach: you can still read it
 and withdraw it, though never approve it.
+
+**A field is as visible as its field permission.** A field hidden from the reader
+(:mod:`vantage.fieldperms`) is never named or shown on any of these screens, and a
+request that touches a field the reader may not change is not waiting *for them*: it is
+left out of "Waiting for you" and the count. See :func:`vantage.approvals.out_of_reach`.
 """
 
 from __future__ import annotations
@@ -135,7 +140,11 @@ def waiting_count(site, request) -> int:
     pending = ChangeRequest.objects.filter(
         status=ChangeRequest.Status.PENDING, resource_key__in=keys
     ).exclude(requested_by=request.user)[:QUEUE_LIMIT]
-    return sum(1 for _item, _panel, obj in _visible(site, request, list(pending)) if obj)
+    return sum(
+        1
+        for item, panel, obj in _visible(site, request, list(pending))
+        if obj is not None and not approvals.out_of_reach(request, panel, item)
+    )
 
 
 # ── the page ────────────────────────────────────────────────────────────────
@@ -148,9 +157,13 @@ def _entry(request, item, panel, obj) -> dict[str, Any]:
         "object": obj,
         "record_url": _record_url(panel, obj),
         "review_url": reverse("vantage:approval-review", args=[item.pk]),
-        "rows": approvals.rows(panel, item, obj),
+        "rows": approvals.rows(panel, item, obj, request),
         "may_decide": approvals.may_decide(request, panel, obj, item),
         "may_withdraw": approvals.may_withdraw(request, item),
+        "out_of_reach": bool(approvals.out_of_reach(request, panel, item)),
+        # The note and the reason are free text about the values, so a reader who
+        # cannot see one of the fields does not read them either.
+        "words_hidden": bool(approvals.unseen_fields(request, panel, item)),
     }
 
 
@@ -174,7 +187,9 @@ def list_context(site, request) -> dict[str, Any]:
         waiting = [
             _entry(request, item, panel, obj)
             for item, panel, obj in _visible(site, request, list(pending))
-            if obj is not None and not approvals.is_own(request, item)
+            if obj is not None
+            and not approvals.is_own(request, item)
+            and not approvals.out_of_reach(request, panel, item)
         ]
 
     mine_qs = ChangeRequest.objects.filter(requested_by=request.user).order_by(
@@ -218,14 +233,19 @@ def banner_context(request, panel, obj) -> dict[str, Any]:
         entries.append(
             {
                 "request": item,
-                "rows": approvals.rows(panel, item, obj),
+                "rows": approvals.rows(panel, item, obj, request),
+                "words_hidden": bool(approvals.unseen_fields(request, panel, item)),
                 "review_url": reverse("vantage:approval-review", args=[item.pk])
                 if approvals.may_decide(request, panel, obj, item)
                 or approvals.may_withdraw(request, item)
                 else None,
             }
         )
-    held = approvals.guarded_for(request, panel, obj)
+    from vantage.fieldperms import editable_fields
+
+    # Only what this person may write at all: a read-only field is "not editable", not
+    # "will wait for approval", and a hidden one is not named.
+    held = editable_fields(request, panel, approvals.guarded_for(request, panel, obj))
     return {
         "approval_banner": {
             "pending": entries,
@@ -337,6 +357,8 @@ class ReviewView(SiteView):
             messages.error(request, gettext("This request has already been decided."))
         elif approvals.is_own(request, item) and approvals.may_approve(request, panel, obj):
             messages.error(request, gettext("You cannot approve or reject your own request."))
+        elif obj is not None and approvals.out_of_reach(request, panel, item):
+            messages.error(request, str(approvals.OUT_OF_REACH))
         else:
             messages.error(request, gettext("You do not have permission to do that."))
         return HttpResponseRedirect(request.path)

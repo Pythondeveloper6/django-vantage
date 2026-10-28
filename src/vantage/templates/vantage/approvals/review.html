@@ -42,6 +42,10 @@
   </div>
 {% endif %}
 
+{% if entry.out_of_reach and entry.request.is_pending and not entry.may_withdraw %}
+  <p class="v-approval-meta">{% translate "This request changes a field you cannot change, so you cannot approve or reject it. Someone who can change every field in it has to decide it." %}</p>
+{% endif %}
+
 {% if entry.may_withdraw %}
   <form method="post" class="v-approval-withdraw">
     {% csrf_token %}

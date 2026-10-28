@@ -39,6 +39,14 @@ reject it, and the author asks again from the record as it now is.
 need approval in the first place, so the rule only bites someone who was given the
 approve permission after asking — and "I asked, then I said yes" is exactly what this
 feature exists to rule out.
+
+**Deciding needs write access to every field asked about.** With
+:mod:`vantage.fieldperms`, an approver may be someone a role hides a field from, or lets
+only read it. Approving *is* changing the field, so a request that touches one such
+field is not theirs to decide: it is not in their queue or their count, and both buttons
+are refused. A request is applied whole or not at all — never with the fields this
+approver may not write quietly dropped. Where they can see the request at all, a field
+hidden from them is shown as "a field you cannot see": not its values, not its name.
 """
 
 from __future__ import annotations
@@ -51,11 +59,12 @@ from typing import Any
 from django.db import models, router, transaction
 from django.utils import timezone
 from django.utils.text import get_text_list
-from django.utils.translation import gettext
+from django.utils.translation import gettext, ngettext
 from django.utils.translation import gettext_lazy as _
 
 __all__ = [
     "NOTE_FIELD",
+    "OUT_OF_REACH",
     "PERMISSION_VERB",
     "AlreadyDecided",
     "ApprovalOutcome",
@@ -67,12 +76,15 @@ __all__ = [
     "guarded_for",
     "is_own",
     "may_approve",
+    "out_of_reach",
     "pending_for",
     "permission_name",
+    "redact_action_name",
     "refusal",
     "reject",
     "rows",
     "stale_fields",
+    "unseen_fields",
     "withdraw",
     "withhold",
 ]
@@ -207,6 +219,18 @@ def guarded_for(request, panel, obj=None) -> tuple[str, ...]:
     if may_approve(request, panel, obj):
         return ()
     return names
+
+
+def out_of_reach(request, panel, change_request) -> list[str]:
+    """The fields in ``change_request`` this person may not write: hidden, or read-only.
+
+    Not empty means they cannot decide it. See the module docstring: approving writes
+    the field, so it needs the access an edit would.
+    """
+    from vantage.fieldperms import access
+
+    locked = access(request, panel).locked
+    return [name for name in change_request.field_names if name in locked]
 
 
 def refusal(request, panel, names) -> str | None:
@@ -406,6 +430,42 @@ def _action_name(verb: str, change_request) -> str:
     return f"{verb} {', '.join(change_request.field_names)} (#{change_request.pk})"
 
 
+#: The verbs :func:`_action_name` is called with, for :func:`redact_action_name`.
+_LOGGED_VERBS = (
+    "requested approval of",
+    "approved change to",
+    "rejected change to",
+    "withdrew request to change",
+)
+
+
+def redact_action_name(name: str, hidden) -> str:
+    """An audit entry's ``action_name`` with the field names in ``hidden`` taken out.
+
+    The entries above name the fields of a request, and the log is read by people some
+    of those fields are hidden from; :func:`vantage.fieldperms.hide_entry_fields` calls
+    this for them. Anything that is not one of these entries comes back unchanged.
+    """
+    if not name or not hidden:
+        return name
+    for verb in _LOGGED_VERBS:
+        prefix = f"{verb} "
+        if not name.startswith(prefix) or not name.endswith(")"):
+            continue
+        listed, sep, tail = name.removeprefix(prefix).rpartition(" (#")
+        if not sep:
+            return name
+        names = listed.split(", ")
+        kept = [field_name for field_name in names if field_name not in hidden]
+        unseen = len(names) - len(kept)
+        if not unseen:
+            return name
+        # Plain English like the rest of the entry: it is a log line, stored untranslated.
+        kept.append("1 hidden field" if unseen == 1 else f"{unseen} hidden fields")
+        return f"{verb} {', '.join(kept)} (#{tail}"
+    return name
+
+
 def pending_message(panel, change_request) -> str:
     """What the person who made the change is told."""
     return gettext(
@@ -457,6 +517,13 @@ def _claim(request, panel, obj, change_request) -> None:
         raise AlreadyDecided()
 
 
+#: Why an approver cannot decide a request. Names no field: one of them may be hidden.
+OUT_OF_REACH = _(
+    "This request changes a field you cannot change, so you cannot approve or reject "
+    "it. Someone who can change every field in it has to decide it."
+)
+
+
 @dataclass
 class ApprovalOutcome:
     """What pressing Approve did."""
@@ -477,12 +544,14 @@ def is_own(request, change_request) -> bool:
 
 
 def may_decide(request, panel, obj, change_request) -> bool:
-    """Approve or reject: the approve permission, on this record, and not your own."""
+    """Approve or reject: the approve permission, on this record, not your own, and
+    write access to every field it asks about (see :func:`out_of_reach`)."""
     return (
         change_request.is_pending
         and obj is not None
         and may_approve(request, panel, obj)
         and not is_own(request, change_request)
+        and not out_of_reach(request, panel, change_request)
     )
 
 
@@ -500,6 +569,11 @@ def approve(request, panel, obj, change_request) -> ApprovalOutcome:
     from vantage.inline import form_errors, json_to_form_data
     from vantage.widgets import build_form_class
 
+    if out_of_reach(request, panel, change_request):
+        # Refused whole. The form below is built from the request's names, not from
+        # what this approver may write, so nothing would be dropped — but applying a
+        # change to a field they may not change is exactly what their role rules out.
+        return ApprovalOutcome(False, str(OUT_OF_REACH))
     names = [name for name in change_request.field_names if _concrete(panel.model, name)]
     if not names:
         return ApprovalOutcome(False, gettext("None of these fields can be changed any more."))
@@ -628,19 +702,36 @@ def pending_for(request, panel, obj) -> list:
     )
 
 
-def rows(panel, change_request, obj=None) -> list[dict[str, Any]]:
+def unseen_fields(request, panel, change_request) -> list[str]:
+    """The fields in ``change_request`` hidden from this person. See :func:`rows`."""
+    if request is None:
+        return []
+    from vantage.fieldperms import hidden_names
+
+    hidden = hidden_names(request, panel)
+    return [name for name in change_request.field_names if name in hidden]
+
+
+def rows(panel, change_request, obj=None, request=None) -> list[dict[str, Any]]:
     """One row per field for a template: label, what it is now, what was asked, masked.
 
     A sensitive field is masked on every side, always. Approving it is still possible —
     an approver who may reveal values does so on the record itself, where the reveal
     is logged — but a queue is read by more people than the records in it.
+
+    With a ``request``, fields hidden from that person (:mod:`vantage.fieldperms`) are
+    not rows at all: one closing row says how many there are, with no name and no
+    value, so the reader knows the request is more than what they see.
     """
     from vantage.sensitive import MASK
 
     secret = panel.get_sensitive_fields()
+    unseen = set(unseen_fields(request, panel, change_request))
     stale = set(stale_fields(panel.model, change_request)) if obj is not None else set()
     out = []
     for name in change_request.field_names:
+        if name in unseen:
+            continue
         change = change_request.changes.get(name) or {}
         masked = name in secret or change.get("to_display") is None
         current = None
@@ -655,6 +746,24 @@ def rows(panel, change_request, obj=None) -> list[dict[str, Any]]:
                 "to": MASK if masked else change.get("to_display", ""),
                 "now": MASK if masked else current,
                 "stale": name in stale,
+            }
+        )
+    if unseen:
+        out.append(
+            {
+                "name": "",
+                "label": ngettext(
+                    "%(count)s field you cannot see",
+                    "%(count)s fields you cannot see",
+                    len(unseen),
+                )
+                % {"count": len(unseen)},
+                "hidden": True,
+                "masked": True,
+                "from": "",
+                "to": "",
+                "now": None,
+                "stale": False,
             }
         )
     return out
