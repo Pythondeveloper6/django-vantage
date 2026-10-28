@@ -139,6 +139,9 @@ Logo, title and theme can also be set from the settings screen. [Theming](themin
 one line, and let each person choose their own from the account page.
 [UI theme presets](ui-themes.md)
 
+**A layout for phones.** Lists become cards, bulk actions a bottom sheet, navigation a
+drawer. [Phones](phones.md)
+
 **Light, dark and system.** With no flash on load. [Light, dark and system](theming.md#light-dark-and-system)
 
 **Right to left and translations.** RTL layouts and English and Arabic catalogues ship
