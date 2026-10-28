@@ -29,7 +29,7 @@
   request that caused it, and retries wait for `manage.py vantage_webhooks`.
 {% endcomment %}
 {% if not backend.deferred %}
-  <p class="v-webhooks-note">
+  <p class="v-note" data-tone="warning">
     {% icon "activity" %}
     <span>
       {% blocktranslate trimmed %}
@@ -42,7 +42,7 @@
 
 <div class="v-table-wrap">
   {% if hooks %}
-    <table class="v-table v-webhooks-table">
+    <table class="v-table v-table-flow v-webhooks-table">
       <thead>
         <tr>
           <th scope="col">{% translate "Name" %}</th>
@@ -67,7 +67,8 @@
             <td class="v-webhooks-num">
               <a href="?webhook={{ hook.pk }}&amp;status=failed">{{ hook.failing }}</a>
             </td>
-            <td class="v-webhooks-actions">
+            <td class="v-cell-actions">
+              <div class="v-webhooks-actions">
               <form method="post" action="{% url 'vantage:webhook-test' hook.pk %}">
                 {% csrf_token %}
                 <button class="v-btn v-btn-ghost v-btn-sm"
@@ -78,6 +79,7 @@
                 <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:webhook-delete' hook.pk %}"
                    aria-label="{% blocktranslate with name=hook.name %}Delete {{ name }}{% endblocktranslate %}">{% icon "trash" %}<span>{% translate "Delete" %}</span></a>
               {% endif %}
+              </div>
             </td>
           </tr>
         {% endfor %}
@@ -123,7 +125,7 @@
 
 <div class="v-table-wrap">
   {% if page_obj.object_list %}
-    <table class="v-table v-webhooks-table">
+    <table class="v-table v-table-flow v-webhooks-table">
       <thead>
         <tr>
           <th scope="col">{% translate "When" %}</th>

@@ -130,6 +130,10 @@ def sample_data(db):
     orders = [
         Order.objects.create(number=f"ORD-{i:04d}", customer=author, total=10 + i) for i in range(6)
     ]
+    # A row for the webhooks table, so the phone layout of a non-list table has cells.
+    from vantage.models import Webhook
+
+    Webhook.objects.create(name="Hook", url="https://example.com/h")
     return SimpleNamespace(
         staff=staff, author=author, category=category, tags=tags, post=post, orders=orders
     )
@@ -786,4 +790,50 @@ class TestDarkLogo:
             "() => document.querySelector('.v-shell').setAttribute('data-collapsed', 'true')"
         )
         assert pg.evaluate(self._VISIBLE) == {"light": False, "dark": False, "mark": True}
+        context.close()
+
+
+# ── the phone layout of the pages that are not model lists ───────────────────────
+
+
+class TestPhonePages:
+    """390px wide: the card restack belongs to the model list only, every other table
+    keeps all its columns, the notes' icons are icon-sized, and the standalone sign-in
+    controls are touch targets.
+    """
+
+    def _open(self, pw, staff_cookie, live_server, name):
+        context = pw.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+        context.add_cookies([{**staff_cookie, "url": live_server.url}])
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse(name))
+        return context, pg
+
+    @pytest.mark.parametrize("name", ["vantage:page-webhooks", "vantage:page-my-reports"])
+    def test_the_note_icon_is_icon_sized(self, name, sample_data, staff_cookie, pw, live_server):
+        context, pg = self._open(pw, staff_cookie, live_server, name)
+        height = pg.eval_on_selector(".v-note svg", "el => el.getBoundingClientRect().height")
+        assert height < 32
+        context.close()
+
+    @pytest.mark.parametrize("name", ["vantage:page-webhooks", "vantage:page-my-reports"])
+    def test_a_table_is_not_restacked_into_cards(
+        self, name, sample_data, staff_cookie, pw, live_server
+    ):
+        context, pg = self._open(pw, staff_cookie, live_server, name)
+        pg.goto(pg.url)
+        if pg.locator(".v-table td").count():
+            assert pg.eval_on_selector(".v-table td", "el => getComputedStyle(el).display") == (
+                "table-cell"
+            )
+            # Wider than the phone, so it scrolls inside its wrapper, not the page.
+            assert pg.eval_on_selector("html", "el => el.scrollWidth <= window.innerWidth")
+        context.close()
+
+    def test_the_sign_in_controls_are_touch_targets(self, pw, live_server):
+        context = pw.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+        pg = context.new_page()
+        pg.goto(live_server.url + reverse("login"))
+        for selector in ("input[name=username]", "input[name=password]", "button[type=submit]"):
+            assert pg.eval_on_selector(selector, "el => el.getBoundingClientRect().height") >= 44
         context.close()

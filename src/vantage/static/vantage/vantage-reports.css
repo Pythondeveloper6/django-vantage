@@ -4,13 +4,10 @@
  * brand palette work without a hue written here.
  */
 
-.v-reports-note {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-block: 0 1rem;
-  font-size: 0.8125rem;
-  color: var(--warning);
+/* The form's fields sit straight in the card body, not in a grid, so they bring their
+ * own spacing: a field and the label of the next one must not touch. */
+.v-form-card > .v-card-body > .v-form-field {
+  margin-block-end: 1rem;
 }
 
 .v-reports-heading {
@@ -32,8 +29,13 @@
 
 .v-reports-when,
 .v-reports-num {
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* The date and the time stay whole; the cell may wrap between them and the status. */
+.v-reports-when time,
+.v-table .v-reports-num {
+  white-space: nowrap;
 }
 
 .v-reports-num {

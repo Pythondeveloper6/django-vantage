@@ -244,6 +244,34 @@
   display: inline;
 }
 
+/* Cancel sits under the steps, in line with the content of the list rather than the
+ * card edge, so it lines up with the Turn on button above it. */
+.v-2fa-steps + .v-2fa-inline {
+  margin-inline-start: 1.25rem;
+}
+
+/* ── phone ──
+ * The standalone pages (sign-in, the two-factor step) do not load vantage-mobile.css,
+ * which is a shell stylesheet, so their touch targets are set here: 44px, and 16px
+ * type so iOS does not zoom the page when a field takes focus. */
+@media (max-width: 40rem) {
+  .v-auth .v-btn,
+  .v-auth input:not([type="checkbox"], [type="radio"], [type="hidden"]) {
+    min-block-size: 2.75rem;
+  }
+
+  .v-auth input:not([type="checkbox"], [type="radio"], [type="hidden"]) {
+    font-size: max(16px, 1rem);
+  }
+
+  .v-auth-foot a,
+  .v-2fa-steps a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+  }
+}
+
 /* ── error pages inside the shell ─────────────────────────────────────────── */
 
 .v-error {
