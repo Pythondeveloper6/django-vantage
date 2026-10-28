@@ -113,11 +113,17 @@ through that same count. The password step keeps its own
 
 **The secret is sealed and shown only once.** It is encrypted at rest with a key derived
 from `SECRET_KEY` (HMAC-SHA256 in counter mode, then a separate HMAC-SHA256 tag, so a
-tampered row is refused rather than decrypted to something else). A copy of the database
-alone does not reproduce anyone's codes. After a code has confirmed it, nothing renders
-it again. Rotate `SECRET_KEY` the [documented way](https://docs.djangoproject.com/en/stable/ref/settings/#secret-key-fallbacks)
+tampered row is refused rather than decrypted to something else). The tag also covers
+whose secret it is and which enrolment, so someone who can write to the table but not
+read `SECRET_KEY` cannot copy their own sealed secret over a colleague's and answer for
+them with their own phone. A copy of the database alone does not reproduce anyone's
+codes. After a code has confirmed it, nothing renders it again. Rotate `SECRET_KEY` the
+[documented way](https://docs.djangoproject.com/en/stable/ref/settings/#secret-key-fallbacks)
 — with the old key in `SECRET_KEY_FALLBACKS` — or every enrolled person will need a
-recovery code or a reset. Recovery codes are unaffected by the key: they are 80 random
+recovery code or a reset. Each person's secret is sealed again under the new key the
+next time they sign in with a code, so once everyone has, the fallback can go; anyone
+who has not by then needs a recovery code or a reset. Values written before the binding
+existed (`v1$…`) are still read, and are rewritten the same way. Recovery codes are unaffected by the key: they are 80 random
 bits each, stored only as their SHA-256.
 
 **Neither table is ever a panel model.** `TwoFactorDevice` and `TwoFactorRecoveryCode` are

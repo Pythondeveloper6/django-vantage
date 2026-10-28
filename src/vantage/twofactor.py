@@ -32,8 +32,10 @@ many in a row locks the second step for a few minutes.
 **The secret is sealed, and shown only until it is confirmed.** It is encrypted with a
 key derived from ``SECRET_KEY`` (HMAC-SHA256 as a stream cipher, then
 encrypt-then-MAC), so a copy of the database alone does not hand out working
-authenticators. ``SECRET_KEY_FALLBACKS`` are tried on the way out, so rotating the key
-the documented way does not lock anybody out.
+authenticators. The tag also covers whose secret it is and which enrolment, so a value
+copied into another row is refused. ``SECRET_KEY_FALLBACKS`` are tried on the way out,
+and a value only a fallback opens is sealed again under the current key at its owner's
+next sign-in, so rotating the key the documented way does not lock anybody out.
 
 **The gate costs no queries on an ordinary request.** Whether the person has an
 authenticator and whether one is required is worked out when they sign in, stored in
@@ -83,12 +85,14 @@ __all__ = [
     "hotp",
     "is_required",
     "matching_step",
+    "open_sealed",
     "pending_user",
     "provisioning_uri",
     "regenerate_codes",
     "requirement",
     "reset",
     "seal",
+    "seal_context",
     "setting",
     "start_enrolment",
     "totp",
@@ -230,7 +234,11 @@ def provisioning_uri(user, key: bytes) -> str:
 
 # ── sealing the secret ──────────────────────────────────────────────────────
 
-_SEAL_VERSION = "v1"
+#: What :func:`seal` writes. ``v2`` binds the value to the row it belongs to;
+#: ``v1`` did not, and is still read so that enrolled people keep signing in — and
+#: re-sealed as ``v2`` the next time one of them does.
+_SEAL_VERSION = "v2"
+_SEAL_VERSIONS = frozenset({"v1", "v2"})
 
 
 def _seal_keys(secret_key: str) -> tuple[bytes, bytes]:
@@ -253,26 +261,50 @@ def _xor(data: bytes, stream: bytes) -> bytes:
     return bytes(a ^ b for a, b in zip(data, stream, strict=True))
 
 
-def seal(plaintext: bytes) -> str:
+def _signed(version: str, context: str, nonce: bytes, ciphertext: bytes) -> bytes:
+    """What the tag covers. From ``v2`` on, the context, length-prefixed."""
+    if version == "v1":
+        return b"v1" + nonce + ciphertext
+    bound = context.encode()
+    return version.encode() + struct.pack(">I", len(bound)) + bound + nonce + ciphertext
+
+
+def seal_context(user_id, tag: str) -> str:
+    """What a device's secret is bound to: whose it is, and which enrolment."""
+    return f"vantage.twofactor.device:{user_id}:{tag}"
+
+
+def seal(plaintext: bytes, context: str = "") -> str:
     """Encrypt-then-MAC with keys derived from ``SECRET_KEY``.
 
     The stream is HMAC-SHA256 over a random 128-bit nonce and a counter — a PRF in
     counter mode, the construction HKDF's expand step is built on — so no cipher
     beyond the standard library is needed, and the tag means a tampered row is
     refused rather than turned into a different secret.
+
+    The tag also covers ``context`` — for a device, :func:`seal_context` — so a value
+    copied into another row is refused too. Without that, someone who can write to the
+    database but not read ``SECRET_KEY`` could copy their own sealed secret over a
+    colleague's and sign in as them with their own phone.
     """
     nonce = secrets.token_bytes(16)
     encrypt, sign = _seal_keys(django_settings.SECRET_KEY)
     ciphertext = _xor(plaintext, _keystream(encrypt, nonce, len(plaintext)))
-    tag = hmac.new(sign, _SEAL_VERSION.encode() + nonce + ciphertext, hashlib.sha256).digest()
+    signed = _signed(_SEAL_VERSION, context, nonce, ciphertext)
+    tag = hmac.new(sign, signed, hashlib.sha256).digest()
     body = base64.urlsafe_b64encode(nonce + ciphertext + tag).decode("ascii")
     return f"{_SEAL_VERSION}${body}"
 
 
-def unseal(token: str) -> bytes:
-    """The plaintext, or :class:`ValueError` if no known key made this token."""
+def open_sealed(token: str, context: str = "") -> tuple[bytes, bool]:
+    """``(plaintext, stale)``, or :class:`ValueError` if no known key made this token.
+
+    ``stale`` means it should be sealed again: it is an older format, or it opened
+    only with one of the ``SECRET_KEY_FALLBACKS`` — which are meant to be dropped once
+    a rotation is over, and would take every value still sealed with them along.
+    """
     version, _, body = (token or "").partition("$")
-    if version != _SEAL_VERSION:
+    if version not in _SEAL_VERSIONS:
         raise ValueError("Unrecognised sealed value.")
     try:
         raw = base64.urlsafe_b64decode(body.encode("ascii"))
@@ -281,15 +313,20 @@ def unseal(token: str) -> bytes:
     if len(raw) < 16 + 32:
         raise ValueError("Malformed sealed value.")
     nonce, ciphertext, tag = raw[:16], raw[16:-32], raw[-32:]
+    signed = _signed(version, context, nonce, ciphertext)
     keys = [django_settings.SECRET_KEY, *getattr(django_settings, "SECRET_KEY_FALLBACKS", [])]
-    for secret_key in keys:
+    for index, secret_key in enumerate(keys):
         encrypt, sign = _seal_keys(secret_key)
-        expected = hmac.new(
-            sign, _SEAL_VERSION.encode() + nonce + ciphertext, hashlib.sha256
-        ).digest()
+        expected = hmac.new(sign, signed, hashlib.sha256).digest()
         if hmac.compare_digest(expected, tag):
-            return _xor(ciphertext, _keystream(encrypt, nonce, len(ciphertext)))
+            plaintext = _xor(ciphertext, _keystream(encrypt, nonce, len(ciphertext)))
+            return plaintext, index > 0 or version != _SEAL_VERSION
     raise ValueError("The sealed value was not made with this SECRET_KEY.")
+
+
+def unseal(token: str, context: str = "") -> bytes:
+    """The plaintext, or :class:`ValueError` if no known key made this token."""
+    return open_sealed(token, context)[0]
 
 
 # ── recovery codes ──────────────────────────────────────────────────────────
@@ -349,27 +386,51 @@ def start_enrolment(user):
         if TwoFactorDevice.objects.filter(user=user, confirmed_at__isnull=False).exists():
             raise ValueError("Two-factor sign-in is already on for this account.")
         TwoFactorDevice.objects.filter(user=user).delete()
+        tag = secrets.token_hex(16)
         return TwoFactorDevice.objects.create(
-            user=user, secret=seal(new_secret()), tag=secrets.token_hex(16)
+            user=user, secret=seal(new_secret(), seal_context(user.pk, tag)), tag=tag
         )
+
+
+def _open_device(device) -> tuple[bytes | None, bool]:
+    try:
+        return open_sealed(device.secret, seal_context(device.user_id, device.tag))
+    except ValueError:
+        logger.error(
+            "Vantage could not unseal the two-factor secret for user id=%s. Was "
+            "SECRET_KEY changed without adding the old key to SECRET_KEY_FALLBACKS, or "
+            "was the stored value copied from another row?",
+            device.user_id,
+        )
+        return None, False
 
 
 def device_key(device) -> bytes | None:
     """The device's secret, or ``None`` if it can no longer be unsealed.
 
     ``None`` rather than an exception, because the caller's honest answer is the same
-    as for a wrong code — and logged loudly, because the only cause is a
-    ``SECRET_KEY`` changed without keeping the old one in ``SECRET_KEY_FALLBACKS``.
+    as for a wrong code — and logged loudly, because the only causes are a
+    ``SECRET_KEY`` changed without keeping the old one in ``SECRET_KEY_FALLBACKS``, and
+    a sealed value moved from the row it was made for.
     """
-    try:
-        return unseal(device.secret)
-    except ValueError:
-        logger.error(
-            "Vantage could not unseal the two-factor secret for user id=%s. Was "
-            "SECRET_KEY changed without adding the old key to SECRET_KEY_FALLBACKS?",
-            device.user_id,
-        )
-        return None
+    return _open_device(device)[0]
+
+
+def _refresh_seal(device) -> None:
+    """Seal the secret again if it is an older format or under a fallback key.
+
+    Done after a right answer, so a value that is about to stop working is replaced
+    by its owner's ordinary use rather than by a migration that needs the key.
+    Conditional on the stored value, so two sign-ins racing write it once.
+    """
+    from vantage.models import TwoFactorDevice
+
+    key, stale = _open_device(device)
+    if key is None or not stale:
+        return
+    TwoFactorDevice.objects.filter(pk=device.pk, secret=device.secret).update(
+        secret=seal(key, seal_context(device.user_id, device.tag))
+    )
 
 
 @dataclass(frozen=True)
@@ -498,6 +559,7 @@ def verify(
             # exactly one updates a row; the other is a replay and is told so.
             now = timezone.now()
             if _succeeded(device, where={"last_step__lt": step}, last_step=step, last_used_at=now):
+                _refresh_seal(device)
                 return Outcome(True, "totp")
             return _failed(attempt, "reused")
     elif allow_recovery and is_recovery_shaped(value):
@@ -506,6 +568,7 @@ def verify(
         ).update(used_at=timezone.now())
         if spent:
             _succeeded(device, last_used_at=timezone.now())
+            _refresh_seal(device)
             return Outcome(True, "recovery")
 
     return _failed(attempt)
