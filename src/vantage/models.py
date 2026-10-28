@@ -66,6 +66,7 @@ Pillow would have done has to be written out — see :func:`validate_branding_up
 from __future__ import annotations
 
 import re
+from datetime import time as dt_time
 from pathlib import Path
 from uuid import uuid4
 
@@ -1285,6 +1286,144 @@ class WebhookDelivery(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event} → {self.webhook_id} ({self.status})"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in self.TERMINAL
+
+
+# ── scheduled reports ───────────────────────────────────────────────────────
+
+
+class ReportSubscription(models.Model):
+    """A saved view, mailed to some addresses as a CSV on a schedule.
+
+    It stores *which* view and *whose* it is, never a result and never a permission
+    snapshot: every send re-runs the view as ``user`` as the database knows them at that
+    moment, so a colleague who has since left, or lost access to the model, receives
+    nothing. See :mod:`vantage.reports`.
+
+    ``next_run_at`` is the whole schedule. The cron command only asks "which active rows
+    are due", and claims one by a conditional update on this column, which is what keeps
+    two overlapping runs from sending it twice. ``NULL`` while paused.
+    """
+
+    class Frequency(models.TextChoices):
+        DAILY = "daily", _("Every day")
+        WEEKLY = "weekly", _("Every week")
+        MONTHLY = "monthly", _("Every month")
+
+    class Status(models.TextChoices):
+        SENT = "sent", _("Sent")
+        SKIPPED = "skipped", _("Skipped")
+        FAILED = "failed", _("Failed")
+
+    #: ``CASCADE``: a subscription to a deleted view has nothing left to run.
+    view = models.ForeignKey(SavedView, on_delete=models.CASCADE, related_name="reports")
+    #: Whose permissions, tenant and column choices the export runs under.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="vantage_reports",
+    )
+    frequency = models.CharField(max_length=10, choices=Frequency.choices, default="weekly")
+    #: 0 is Monday, as in :meth:`datetime.date.weekday`. Used by ``weekly`` only.
+    weekday = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(6)]
+    )
+    #: 1 to 31, clamped to the month's last day. Used by ``monthly`` only.
+    day_of_month = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
+    #: Wall-clock time in the site timezone (``TIME_ZONE``).
+    send_time = models.TimeField(default=dt_time(8, 0))
+    #: Whether the subscriber's own address is a recipient. Their address is read from
+    #: the account at send time, so changing it changes where the report goes.
+    to_self = models.BooleanField(default=True)
+    #: Other addresses, which only a user holding ``vantage.send_reports_to_others`` may set.
+    recipients = models.JSONField(default=list, blank=True)
+    active = models.BooleanField(default=True)
+    #: Why it is paused when something other than the owner's Pause button did it.
+    paused_reason = models.CharField(max_length=200, blank=True)
+    next_run_at = models.DateTimeField(null=True, blank=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(max_length=10, choices=Status.choices, blank=True)
+    #: The tenant the subscription was made under, as :func:`vantage.tenancy.snapshot`
+    #: writes it. Context for the export, not a permission: a worker has no host to
+    #: resolve one from.
+    tenant = models.CharField(max_length=255, blank=True)
+    #: ``https://panel.example.com/``, from the request that created it, so an email can
+    #: link back to the panel without a setting. ``REPORTS_BASE_URL`` wins when set.
+    origin = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("report subscription")
+        verbose_name_plural = _("report subscriptions")
+        ordering = ["view__name", "pk"]
+        permissions = [
+            ("manage_reports", _("Can manage everyone's scheduled reports")),
+            ("send_reports_to_others", _("Can send scheduled reports to other addresses")),
+        ]
+        indexes = [
+            models.Index(fields=["active", "next_run_at"], name="vantage_rep_due_idx"),
+            models.Index(fields=["user"], name="vantage_rep_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.view_id} → {self.user_id} ({self.frequency})"
+
+
+class ReportRun(models.Model):
+    """One attempt to send one subscription, and what became of it.
+
+    ``reason`` carries the skip explanation (the account is inactive, the permission is
+    gone), ``error`` an unexpected failure. They are separate because the first is the
+    system working as designed and the second is somebody's to fix.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Queued")
+        RUNNING = "running", _("Running")
+        SENT = "sent", _("Sent")
+        SKIPPED = "skipped", _("Skipped")
+        FAILED = "failed", _("Failed")
+
+    TERMINAL: frozenset[str] = frozenset({"sent", "skipped", "failed"})
+
+    class Trigger(models.TextChoices):
+        SCHEDULE = "schedule", _("Scheduled")
+        MANUAL = "manual", _("Send now")
+
+    subscription = models.ForeignKey(
+        ReportSubscription, on_delete=models.CASCADE, related_name="runs"
+    )
+    trigger = models.CharField(max_length=10, choices=Trigger.choices, default="schedule")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    rows = models.PositiveIntegerField(null=True, blank=True)
+    #: Whether the CSV went out as an attachment, or the email was the short note.
+    attached = models.BooleanField(default=False)
+    size_bytes = models.PositiveIntegerField(null=True, blank=True)
+    recipients_count = models.PositiveIntegerField(default=0)
+    reason = models.CharField(max_length=300, blank=True)
+    error = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("report run")
+        verbose_name_plural = _("report runs")
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(fields=["subscription", "-created_at"], name="vantage_rrun_sub_idx"),
+            models.Index(fields=["status", "created_at"], name="vantage_rrun_status_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.subscription_id} ({self.status})"
 
     @property
     def is_terminal(self) -> bool:
