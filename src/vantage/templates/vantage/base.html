@@ -2,7 +2,7 @@
 <html lang="{{ language_code }}"{% if ui_theme %} data-ui-theme="{{ ui_theme }}"{% endif %}{% if theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{{ page_title }} · {{ settings.SITE_TITLE }}{% endblock %}</title>
 {% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
 
@@ -20,6 +20,9 @@
 {# Carries the skip link and the auth chrome; every panel screen needs the first. #}
 <link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
 <link rel="stylesheet" href="{% static 'vantage/vantage-sensitive.css' %}">
+{# Phones and the drawer. Last of ours, so it can restack what the files above lay out; #}
+{# the media attribute keeps it off the critical path of every wider screen. #}
+<link rel="stylesheet" href="{% static 'vantage/vantage-mobile.css' %}" media="(max-width: 60rem)">
 {% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
 {% block head %}{% endblock %}
 </head>
