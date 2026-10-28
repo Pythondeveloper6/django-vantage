@@ -292,6 +292,22 @@ that is not a number above zero).
 | `WEBHOOKS_BACKOFF_SECONDS` | `30` | Wait before the first retry; each later wait doubles, up to a day |
 | `WEBHOOKS_RETENTION_DAYS` | `30` | How long a finished delivery is kept before `manage.py vantage_webhooks` removes it |
 
+## Scheduled reports
+
+A saved view mailed as a CSV on a schedule — see [Scheduled reports](reports.md) for who
+the export runs as, the size cap and the cron command. A malformed value is
+`vantage.E115` (a switch that is not `True`/`False`), `vantage.E116` (a limit that is not a
+number above zero) or `vantage.E117` (a base URL that does not start with `http://` or
+`https://`).
+
+| Key | Default | Effect |
+|---|---|---|
+| `REPORTS` | `True` | `False` sends nothing and hides the pages and the Subscribe control. Stored subscriptions are kept |
+| `REPORTS_MAX_ATTACHMENT_MB` | `10` | Largest CSV attached to an email. A bigger report is sent as a short note, without the file |
+| `REPORTS_MAX_PER_USER` | `25` | Subscriptions one person may hold |
+| `REPORTS_RETENTION_DAYS` | `90` | How long a send log is kept before `manage.py vantage_reports` removes it |
+| `REPORTS_BASE_URL` | `""` | Where links in report emails point, e.g. `"https://panel.example.com"`. Empty uses the address the subscription was made from |
+
 ## Undo
 
 After a delete or an edit, the toast offers **Undo** for a few seconds — see
@@ -374,6 +390,9 @@ JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
 WEBHOOKS  WEBHOOKS_ALLOW_PRIVATE_NETWORKS  WEBHOOKS_TIMEOUT
 WEBHOOKS_MAX_ATTEMPTS  WEBHOOKS_BACKOFF_SECONDS  WEBHOOKS_RETENTION_DAYS
 
+REPORTS  REPORTS_MAX_ATTACHMENT_MB  REPORTS_MAX_PER_USER
+REPORTS_RETENTION_DAYS  REPORTS_BASE_URL
+
 UNDO_WINDOW  UNDO_MAX_ROWS
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
@@ -418,4 +437,5 @@ works as expected in tests.
 - [Multi-tenancy](tenancy.md) — the `TENANT_*` family in full
 - [Lists](lists.md#background-jobs) — the `JOB_*` family, and what triggers an offload
 - [Webhooks](webhooks.md) — the `WEBHOOKS_*` family in full
+- [Scheduled reports](reports.md) — the `REPORTS_*` family in full
 - [Deployment](deployment.md) — which of these to check before going live

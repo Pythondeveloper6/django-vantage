@@ -644,7 +644,8 @@ Settings: [`JOBS`, `JOB_THRESHOLD_SECONDS`, `JOB_CHUNK_SIZE`, `JOB_MAX_STORED_ER
 
 ## Export
 
-Every list page exports what it is currently showing.
+Every list page exports what it is currently showing. To get a saved view by email on a
+schedule instead, see [Scheduled reports](reports.md).
 
 ```
 ?export=csv          orders.csv          text/csv
