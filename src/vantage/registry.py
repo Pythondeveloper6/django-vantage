@@ -51,6 +51,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # one is a capability bound to a user and a session. A CRUD form would print
         # the first and route around the second.
         "vantage.undoentry",
+        # The signing secret is a column here, and the page that manages hooks decides
+        # who may see the log. A CRUD form would print one and route around the other.
+        "vantage.webhook",
+        "vantage.webhookdelivery",
     }
 )
 

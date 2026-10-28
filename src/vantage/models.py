@@ -67,6 +67,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from uuid import uuid4
 
 from django.conf import settings as django_settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -100,6 +101,8 @@ __all__ = [
     "UndoEntry",
     "VantageJob",
     "VantageLogEntry",
+    "Webhook",
+    "WebhookDelivery",
     "validate_brand_color",
     "validate_branding_upload",
     "validate_css_length",
@@ -1158,6 +1161,114 @@ class VantageJob(models.Model):
         if getattr(user, "is_superuser", False):
             return True
         return self.actor_id is not None and self.actor_id == user.pk
+
+
+# ── webhooks ────────────────────────────────────────────────────────────────
+
+
+class Webhook(models.Model):
+    """A URL that is told, with a signed POST, when a record is created, changed or deleted.
+
+    The subscription is two lists rather than two relations: ``resources`` holds
+    ``Options.label_lower`` strings (``"shop.order"``) exactly as :class:`VantageJob`'s
+    ``resource_key`` does, so a webhook for a model that has since been unregistered
+    stays listable and editable instead of cascading away. An empty ``resources`` list means
+    every model, and an empty ``events`` list means every event; the form never produces
+    an empty ``events`` list, but a row written by hand still does something sensible.
+
+    ``secret`` is stored in the clear because the HMAC cannot be computed from a hash.
+    That is the same trade every webhook sender makes; the page shows it once, when it is
+    generated, and never prints it again. See :mod:`vantage.webhooks`.
+    """
+
+    name = models.CharField(max_length=100)
+    url = models.URLField(max_length=500)
+    resources = models.JSONField(default=list, blank=True)
+    events = models.JSONField(default=list, blank=True)
+    active = models.BooleanField(default=True)
+    secret = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    #: ``SET_NULL`` for the same reason as the audit log's actor.
+    created_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = _("webhook")
+        verbose_name_plural = _("webhooks")
+        ordering = ["name", "pk"]
+        permissions = [("manage_webhooks", _("Can manage webhooks"))]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def subscribes_to(self, resource_key: str, event: str) -> bool:
+        """Whether a change of ``event`` to a ``resource_key`` record concerns this hook."""
+        if not self.active:
+            return False
+        if self.resources and resource_key not in self.resources:
+            return False
+        return not self.events or event in self.events
+
+
+class WebhookDelivery(models.Model):
+    """One attempt chain to send one event to one webhook, and what happened.
+
+    The body is stored, not rebuilt, so a retry sends what the first attempt sent and a
+    redelivery sends what the original did. ``response_body`` is truncated on the way in:
+    the log exists to answer "what did they say", and a 2 MB error page is not an answer.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Queued")
+        RETRYING = "retrying", _("Waiting to retry")
+        SUCCEEDED = "succeeded", _("Delivered")
+        FAILED = "failed", _("Failed")
+
+    TERMINAL: frozenset[str] = frozenset({"succeeded", "failed"})
+
+    #: ``CASCADE``: deleting a webhook deletes its log, which is what its owner expects.
+    webhook = models.ForeignKey(Webhook, on_delete=models.CASCADE, related_name="deliveries")
+    #: Sent as ``X-Vantage-Delivery``. Unique per chain; a redelivery gets a new one.
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
+    event = models.CharField(max_length=20)
+    resource_key = models.CharField(max_length=100, blank=True)
+    object_id = models.CharField(max_length=255, blank=True)
+    payload = models.JSONField(default=dict)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveIntegerField(default=0)
+    response_code = models.PositiveIntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True)
+    error = models.CharField(max_length=300, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    #: The delivery this one re-sent, if it was a redelivery.
+    redelivery_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = _("webhook delivery")
+        verbose_name_plural = _("webhook deliveries")
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(fields=["webhook", "-created_at"], name="vantage_whd_hook_idx"),
+            models.Index(fields=["status", "next_attempt_at"], name="vantage_whd_due_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.event} → {self.webhook_id} ({self.status})"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in self.TERMINAL
 
 
 # ── the dashboard, as somebody arranged it ──────────────────────────────────
