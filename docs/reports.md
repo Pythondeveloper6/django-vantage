@@ -55,6 +55,9 @@ masking: a sensitive column is exported as bullets, exactly as on the page.
 A report is **skipped** and the reason recorded in the log, never sent, when:
 
 * the account is inactive, or is no longer staff;
+* two-factor sign-in is required of them (see [Two-factor](two-factor.md)) and they have
+  not set it up, since the panel would make them enrol before showing them anything;
+* the subscription was paused or deleted after a scheduled send had already been queued;
 * they may no longer view the model;
 * the saved view is no longer shared with them (or was made private);
 * a filter in the view names a field that no longer exists. The list page shows a banner
@@ -68,6 +71,11 @@ subscriber *still* holds `send_reports_to_others`. If they lost it, the report g
 subscriber alone and the log says the others were left out.
 
 A skipped report keeps its schedule, so it sends again once access is restored.
+
+**Send now** is an explicit request from the owner or a manager, so it still sends a
+*paused* report; every other check above applies to it. It is refused in read-only mode,
+like Pause and Resume, and each report can be sent this way at most once a minute: a
+second click inside that minute is told how long to wait and queues nothing.
 
 ## The email
 
@@ -85,6 +93,12 @@ attachment is encoded.
 The links need the panel's address. `REPORTS_BASE_URL` sets it; without it the address the
 subscription was made from is used. A subscription with neither is skipped rather than
 sent without an unsubscribe link.
+
+**Set `REPORTS_BASE_URL` in production.** The fallback address is read from the `Host`
+header of the request that created the subscription, and a client chooses that header. If
+the proxy in front of Django does not pin it (or `ALLOWED_HOSTS` is loose), whoever
+subscribes can decide where every later email's unsubscribe and panel links point.
+`manage.py check --deploy` warns about this as `vantage.W115`.
 
 ## Unsubscribing
 
@@ -157,8 +171,9 @@ Superusers hold both.
 * The CSV is built in memory up to the size cap, so a report is bounded by
   `REPORTS_MAX_ATTACHMENT_MB`; the rows are read in chunks and building stops as soon as
   the cap is passed.
-* A cell that begins with `=`, `+`, `-` or `@` is exported as written, exactly as the Export
-  button does. Spreadsheet programs may treat it as a formula.
+* A text cell that begins with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
+  `'`, exactly as in the Export button, so a spreadsheet shows it as text instead of running
+  it as a formula. Numbers, dates and booleans are not changed.
 * A view whose list mode is a board or a map exports the table's columns.
 * Deleting a saved view deletes the subscriptions to it.
 * There is no per-recipient unsubscribe: the link pauses the subscription for everyone it
