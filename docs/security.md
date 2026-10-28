@@ -316,6 +316,10 @@ scroll past.
 | `vantage.W058` | No `PanelSecurityMiddleware` — no security headers, no autocomplete/export/import budgets |
 | `vantage.W059` | [Media served from the panel's own origin](#media-on-a-separate-origin) while at least one registered model has a `FileField` |
 
+Two-factor sign-in adds one more in its own range, `vantage.W095`: it is required of
+someone while `django.contrib.admin` is mounted without
+[`AdminTwoFactorMiddleware`](two-factor.md#djangos-admin).
+
 Run it:
 
 ```bash

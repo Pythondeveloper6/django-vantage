@@ -20,6 +20,7 @@ class SimpleVantageConfig(AppConfig):
     def ready(self) -> None:
         from vantage.checks import (
             DEPLOYMENT_CHECKS,
+            check_deploy_two_factor_admin,
             check_panels,
             check_two_factor,
             check_vantage_settings,
@@ -70,6 +71,8 @@ class SimpleVantageConfig(AppConfig):
         # check everybody learns to scroll past.
         for check in DEPLOYMENT_CHECKS:
             checks.register(check, "vantage", deploy=True)
+        # Two-factor's, in its own id range (vantage.W095) rather than the W05x family.
+        checks.register(check_deploy_two_factor_admin, "vantage", deploy=True)
 
 
 class VantageConfig(SimpleVantageConfig):
