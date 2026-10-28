@@ -45,7 +45,14 @@ from django.urls import NoReverseMatch, get_resolver, reverse
 from django.urls.resolvers import URLResolver
 from model_bakery import baker
 
-from vantage.models import ReportSubscription, SavedView, VantageJob, Webhook, WebhookDelivery
+from vantage.models import (
+    ChangeRequest,
+    ReportSubscription,
+    SavedView,
+    VantageJob,
+    Webhook,
+    WebhookDelivery,
+)
 from vantage.sites import site as vantage_site
 
 #: The seven URL names ``vantage.urls.build()`` mints for every registered panel,
@@ -94,6 +101,7 @@ def _iter_requests(
     webhook=None,
     delivery=None,
     report=None,
+    change_request=None,
 ):
     """Every request this test will make: ``(description, url_name, kwargs)``.
 
@@ -146,6 +154,8 @@ def _iter_requests(
                     kwargs["pk"] = delivery.pk
                 elif route.startswith("_/webhooks/") and webhook is not None:
                     kwargs["pk"] = webhook.pk
+                elif route.startswith("_/approvals/") and change_request is not None:
+                    kwargs["pk"] = change_request.pk
                 else:
                     unresolved.append(param)
             elif param == "user" and route.startswith("_/roles/") and user is not None:
@@ -260,6 +270,11 @@ def world(db):
         "webhook": webhook,
         "delivery": WebhookDelivery.objects.create(webhook=webhook, event="updated"),
         "report": ReportSubscription.objects.create(view=saved_view, user=superuser),
+        # A request about a record that is gone: the review screen must 404 for anyone
+        # who is not its author, rather than fall over.
+        "change_request": ChangeRequest.objects.create(
+            resource_key="testapp.post", object_id="0", changes={}
+        ),
     }
 
 
@@ -313,6 +328,7 @@ class TestFullRouteWalk:
                 webhook=world["webhook"],
                 delivery=world["delivery"],
                 report=world["report"],
+                change_request=world["change_request"],
             )
         )
         failures: list[str] = []
@@ -338,6 +354,7 @@ class TestFullRouteWalk:
                 webhook=world["webhook"],
                 delivery=world["delivery"],
                 report=world["report"],
+                change_request=world["change_request"],
             )
         )
         failures: list[str] = []

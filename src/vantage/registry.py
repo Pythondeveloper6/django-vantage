@@ -63,6 +63,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # reports pages decide who may see which, and a CRUD form would not.
         "vantage.reportsubscription",
         "vantage.reportrun",
+        # A pending change is decided on the approvals page, which checks who may
+        # approve what. A CRUD form could flip a request to "approved" without applying
+        # it, or print a sensitive value it holds.
+        "vantage.changerequest",
     }
 )
 

@@ -253,19 +253,29 @@ class HistoryView(PanelView):
             )
             return HttpResponseRedirect(back)
 
-        messages.success(
-            request,
-            ngettext(
-                "Restored %(count)d field of “%(object)s” to its value as of %(when)s.",
-                "Restored %(count)d fields of “%(object)s” to their values as of %(when)s.",
-                len(names),
+        # A restore is an edit like any other: a field that needs approval is put back
+        # and becomes a request, and the count below is only what actually changed.
+        pending = getattr(form, "vantage_pending", None)
+        held = set(pending.field_names) if pending is not None else set()
+        restored = [name for name in names if name not in held]
+        if restored:
+            messages.success(
+                request,
+                ngettext(
+                    "Restored %(count)d field of “%(object)s” to its value as of %(when)s.",
+                    "Restored %(count)d fields of “%(object)s” to their values as of %(when)s.",
+                    len(restored),
+                )
+                % {
+                    "count": len(restored),
+                    "object": safe_str(obj, self.site),
+                    "when": _local_label(position.at),
+                },
             )
-            % {
-                "count": len(names),
-                "object": safe_str(obj, self.site),
-                "when": _local_label(position.at),
-            },
-        )
+        if pending is not None:
+            from vantage.approvals import pending_message
+
+            messages.warning(request, pending_message(self.panel, pending))
         return HttpResponseRedirect(self.detail_url() or back)
 
 

@@ -1,0 +1,52 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-approvals.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-ghost" href="{{ list_url }}">{% translate "Back to approvals" %}</a>
+  </div>
+</div>
+
+{% include "vantage/approvals/_request.html" with entry=entry %}
+
+{% if entry.may_decide %}
+  {% comment %}
+    The review step: the diff above is what is being agreed to, and the two forms below
+    are the only two answers. A stale field (changed since it was asked) is marked in
+    the diff with its current value, and the request cannot be approved as made.
+  {% endcomment %}
+  <div class="v-approval-decide">
+    <form method="post" class="v-card v-approval-form">
+      {% csrf_token %}
+      <input type="hidden" name="decision" value="approve">
+      <p class="v-approval-form-title">{% translate "Approve" %}</p>
+      <p class="v-muted">{% translate "The change is saved to the record now, through the same checks as an edit." %}</p>
+      <button class="v-btn v-btn-primary" type="submit">{% icon "check" %}<span>{% translate "Approve and save" %}</span></button>
+    </form>
+    <form method="post" class="v-card v-approval-form">
+      {% csrf_token %}
+      <input type="hidden" name="decision" value="reject">
+      <label class="v-approval-form-title" for="v-approval-reason">{% translate "Reject" %}</label>
+      <textarea class="v-textarea" id="v-approval-reason" name="reason" rows="2" maxlength="2000" required
+                {% if reason_missing %}aria-invalid="true"{% endif %}
+                placeholder="{% translate "Why, so they know what to change" %}"></textarea>
+      <button class="v-btn v-btn-secondary" type="submit">{% icon "x" %}<span>{% translate "Reject" %}</span></button>
+    </form>
+  </div>
+{% endif %}
+
+{% if entry.may_withdraw %}
+  <form method="post" class="v-approval-withdraw">
+    {% csrf_token %}
+    <input type="hidden" name="decision" value="withdraw">
+    <button class="v-btn v-btn-ghost" type="submit">{% icon "rotate-ccw" %}<span>{% translate "Withdraw this request" %}</span></button>
+  </form>
+{% endif %}
+{% endblock %}

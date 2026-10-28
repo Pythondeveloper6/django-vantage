@@ -12,6 +12,7 @@ from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
     api,
+    approvalviews,
     auditviews,
     autocomplete,
     formviews,
@@ -87,6 +88,8 @@ def build(site) -> list:
 
     # Likewise the webhook screens, which hang off the webhooks page's path.
     urlpatterns += webhookviews.build_urls(site)
+    # And the review screen for one change request, under the approvals page.
+    urlpatterns += approvalviews.build_urls(site)
 
     # Scheduled reports: subscribe, edit, pause, send and the unsubscribe link.
     urlpatterns += reportviews.build_urls(site)

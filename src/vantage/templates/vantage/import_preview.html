@@ -55,7 +55,25 @@
     <span class="v-import-count-n">{{ result.failed }}</span>
     <span class="v-import-count-label">{% if done %}{% translate "failed" %}{% else %}{% translate "would fail" %}{% endif %}</span>
   </div>
+  {% if result.queued %}
+    {% comment %} Only when it happens: most imports touch no field that needs approval,
+       and a fifth card reading 0 on every one of them would be noise. {% endcomment %}
+    <div class="v-card v-import-count" data-tone="update">
+      <span class="v-import-count-n">{{ result.queued }}</span>
+      <span class="v-import-count-label">{% if done %}{% translate "sent for approval" %}{% else %}{% translate "would be sent for approval" %}{% endif %}</span>
+    </div>
+  {% endif %}
 </div>
+
+{% if result.queued and not done %}
+  <div class="v-form-alert" data-tone="warning" role="status">
+    <p>{% blocktranslate trimmed %}
+      Some rows change a field that needs approval. Those changes are not saved by the
+      import: each becomes a request on the approvals page, and the rest of the row is
+      saved as usual.
+    {% endblocktranslate %}</p>
+  </div>
+{% endif %}
 
 {% if mapping.missing_required %}
   <div class="v-form-alert" data-tone="warning" role="status">
@@ -177,7 +195,7 @@
       </span>
       <a class="v-btn v-btn-ghost" href="{{ map_url }}">{% translate "Back" %}</a>
       <button class="v-btn v-btn-primary" type="submit"
-              {% if not result.created and not result.updated %}disabled{% endif %}>
+              {% if not result.created and not result.updated and not result.queued %}disabled{% endif %}>
         {% comment %} The mixed case pluralises on two independent counts at once, which
            gettext cannot express. It is kept as one whole sentence with both numbers as
            placeholders rather than being welded together from two pluralised halves. {% endcomment %}
@@ -187,6 +205,8 @@
           {% blocktranslate count counter=result.updated %}Update {{ counter }} record{% plural %}Update {{ counter }} records{% endblocktranslate %}
         {% elif result.created %}
           {% blocktranslate count counter=result.created %}Create {{ counter }} record{% plural %}Create {{ counter }} records{% endblocktranslate %}
+        {% elif result.queued %}
+          {% blocktranslate count counter=result.queued %}Send {{ counter }} change for approval{% plural %}Send {{ counter }} changes for approval{% endblocktranslate %}
         {% else %}
           {% translate "Nothing to import" %}
         {% endif %}

@@ -171,7 +171,13 @@ def save_form(
     function can arrange.
 
     ``action_name`` is passed to the audit entry; see :func:`vantage.audit.log_form_save`.
+
+    A field the panel lists in ``requires_approval`` that this user may not change
+    directly is put back before the write and becomes a pending request instead — see
+    :func:`vantage.approvals.withhold`. The request is left on the form as
+    ``vantage_pending`` for the caller to tell the user about.
     """
+    from vantage import approvals
     from vantage.tenancy import enforce as enforce_tenant
 
     hook = getattr(panel, "save_model", None)
@@ -183,6 +189,9 @@ def save_form(
             # Raises StaleWrite, rolling back the transaction, if the row moved under
             # us; a no-op if the model has no version column at all.
             concurrency.claim(obj, version)
+        # After the lock and before the hook, so ``save_model`` sees exactly what will
+        # be written and never a value that is still waiting for approval.
+        pending = approvals.withhold(request, panel, obj, form)
         # Before the hook, so the hook sees a complete object. Stamps the tenant on a
         # create and refuses a write that would move the record to another one —
         # scoping the read cannot catch either. A no-op unless tenancy is on.
@@ -199,6 +208,7 @@ def save_form(
     from vantage import audit
 
     audit.log_form_save(request, obj, form, change, action_name=action_name)
+    approvals.announce(request, obj, pending)
     inlines.log(request, inline_groups)
     return obj
 
@@ -324,8 +334,19 @@ class PanelFormView(PanelView):
         groups = inlines.bind(self, form)
         if not inlines.all_valid(groups) or not form_ok:
             return self.render_to_response(self.get_context_data(form=form, inlines=groups))
+        from vantage import approvals
+
+        form.vantage_approval_note = request.POST.get(approvals.NOTE_FIELD, "")
         obj = self.save_form(form, groups)
-        messages.success(request, self.get_success_message(obj))
+        pending = getattr(form, "vantage_pending", None)
+        if pending is None:
+            messages.success(request, self.get_success_message(obj))
+        else:
+            # Said as a warning, not a success: the part they will look for first —
+            # the field they meant to change — has not changed yet.
+            if groups or set(form.changed_data) - set(pending.field_names):
+                messages.success(request, self.get_success_message(obj))
+            messages.warning(request, approvals.pending_message(self.panel, pending))
         return HttpResponseRedirect(self.get_success_url(obj))
 
     def save_form(self, form: forms.ModelForm, inline_groups=()):
@@ -469,6 +490,12 @@ class PanelFormView(PanelView):
             cancel_url=self.get_cancel_url(),
             submit_label=self.submit_label,
         )
+        if self.change and self.object is not None:
+            from vantage.approvalviews import banner_context
+
+            # Which fields here will wait for approval, said before anything is typed,
+            # and what is already waiting on this record.
+            context.update(banner_context(self.request, self.panel, self.object))
         return context
 
     def get_cancel_url(self) -> str:

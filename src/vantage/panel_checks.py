@@ -52,6 +52,7 @@ class ModelPanelChecks:
             *self._check_list_views(panel),
             *self._check_sensitive_fields(panel),
             *self._check_sensitive_lookups(panel),
+            *self._check_requires_approval(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -543,6 +544,81 @@ class ModelPanelChecks:
                         )
                     )
         return warnings
+
+    # ── approval workflows ──────────────────────────────────────────────────
+
+    def _check_requires_approval(self, panel: ModelPanel) -> list[Error]:
+        """``requires_approval`` must name fields a change can actually be held back for.
+
+        Every failure here is silent at runtime by design — the entry is skipped, so the
+        edit page keeps working — which is exactly why it has to be loud at ``check``
+        time: a typo would mean a field the author meant to protect saves directly.
+        """
+        from django.db import models
+
+        from vantage.formviews import form_editable_names
+
+        declared = getattr(panel, "requires_approval", None)
+        if declared is None:
+            return []
+        if isinstance(declared, str) or not isinstance(declared, list | tuple):
+            return [
+                Error(
+                    f"'requires_approval' must be a list of field names; got {declared!r}.",
+                    hint='For example: requires_approval = ["price", "status"].',
+                    obj=type(panel),
+                    id="vantage.E105",
+                )
+            ]
+        editable = set(form_editable_names(panel))
+        errors: list[Error] = []
+        for name in declared:
+            try:
+                field = panel.model._meta.get_field(str(name))
+            except Exception:
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which is not a field of "
+                        f"{panel.opts.label}.",
+                        hint="An unknown name protects nothing: the field you meant saves "
+                        "without approval.",
+                        obj=type(panel),
+                        id="vantage.E106",
+                    )
+                )
+                continue
+            if field.many_to_many or not getattr(field, "concrete", False):
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which is a many-to-many "
+                        "or reverse relation. Those are written after the record, so a "
+                        "change to one cannot be held back for approval.",
+                        obj=type(panel),
+                        id="vantage.E108",
+                    )
+                )
+            elif isinstance(field, models.FileField):
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which is a file field. "
+                        "An upload is stored as it is saved, so it cannot wait for approval.",
+                        obj=type(panel),
+                        id="vantage.E108",
+                    )
+                )
+            elif name not in editable:
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which this panel's form "
+                        "does not let anyone edit.",
+                        hint="It is not editable, or it is in readonly_fields or exclude, "
+                        "or the panel's fields leave it out. Nothing can change it here, so "
+                        "there is nothing to approve.",
+                        obj=type(panel),
+                        id="vantage.E107",
+                    )
+                )
+        return errors
 
 
 #: The attribute that tells each view which field to use, for E071's hint.

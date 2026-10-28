@@ -618,6 +618,8 @@ class RecordDetailView(ModelApiView):
         if not form.is_valid():
             return error_response(422, "Validation failed.", errors=form_errors(form))
 
+        note = payload.get("note")
+        form.vantage_approval_note = note if isinstance(note, str) else ""
         version = payload.get("version")
         try:
             saved = formviews.save_form(
@@ -640,7 +642,31 @@ class RecordDetailView(ModelApiView):
                     ),
                 },
             )
+        pending = getattr(form, "vantage_pending", None)
+        if pending is not None:
+            # 202, not 200: part of what was sent has not been saved yet. The record in
+            # the body is what is stored; ``pending`` says which fields are waiting.
+            body = _record_payload(self.panel, saved)
+            body["pending"] = _pending_payload(self.panel, pending)
+            return json_response(body, status=202)
         return json_response(_record_payload(self.panel, saved))
+
+
+def _pending_payload(panel, change_request) -> dict[str, Any]:
+    """The change request a write became, without any value a sensitive field holds."""
+    from vantage.approvals import pending_message
+
+    secret = panel.get_sensitive_fields()
+    return {
+        "id": change_request.pk,
+        "status": change_request.status,
+        "fields": change_request.field_names,
+        "requested": {
+            name: None if name in secret else change.get("to")
+            for name, change in change_request.changes.items()
+        },
+        "detail": pending_message(panel, change_request),
+    }
 
 
 # ── schema ───────────────────────────────────────────────────────────────────
@@ -681,12 +707,17 @@ class SchemaView(ApiView):
             )
             for field in record_fields(panel.model)
         ]
+        from vantage.approvals import guarded_for
+
+        # For this caller: a change to one of these is answered 202 and waits.
+        held = set(guarded_for(request, panel))
         for entry in fields:
             # A client building a form needs to know the field will never be read back:
             # render it empty, and send nothing (or omit it) to keep the stored value.
             entry["sensitive"] = entry["name"] in secret
             if entry["sensitive"]:
                 entry.pop("initial", None)
+            entry["needs_approval"] = entry["name"] in held
 
         return {
             "model": panel.opts.label_lower,

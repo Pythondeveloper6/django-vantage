@@ -174,6 +174,11 @@ select.v-inline-input {
   color: var(--success);
 }
 
+/* Saved, but part of it is waiting for approval. */
+.v-inline-bar-note[data-tone="warning"] {
+  color: var(--warning);
+}
+
 .v-inline-bar-spacer {
   margin-inline-start: auto;
 }

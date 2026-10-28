@@ -115,6 +115,7 @@ nav:
       - Forms: forms.md
       - Undo: undo.md
       - History: history.md
+      - Approvals: approvals.md
       - Pages and dashboards: pages-and-dashboards.md
       - Theming: theming.md
       - UI theme presets: ui-themes.md
