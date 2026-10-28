@@ -106,6 +106,11 @@ alongside `vantage.jobs`.
 a timeout capped at 3 seconds. This is a fallback, not the design: the request that
 changed the record waits for the receiver. The webhooks page says so while it is true.
 
+The wait is bounded as a whole, not only per socket operation: all the hooks one save
+triggers share a **3 second budget**, and a hook that does not fit is left `pending` for
+`manage.py vantage_webhooks` to send (after a couple of minutes) instead of making the
+request wait longer. With many hooks, or a slow receiver, run a queue.
+
 ## Retries
 
 A delivery succeeds on any `2xx`. Otherwise:
@@ -155,7 +160,10 @@ The URL is typed into a form and the *server* connects to it, so:
 * **Proxy environment variables are ignored**, since a proxy would be connected to
   instead of the address checked.
 * Only `http` and `https`, no credentials in the URL, a timeout on every socket
-  operation, and at most a few kilobytes of any response read.
+  operation, at most a few kilobytes of any response read, and a **total deadline** per
+  attempt covering the name lookup, connect, send, headers and body: three times
+  `WEBHOOKS_TIMEOUT` for a queued attempt, `WEBHOOKS_TIMEOUT` (at most 3 s) in-process. A
+  receiver that sends a byte at a time cannot hold a worker or a request past it.
 * Prefer `https`. The secret signs the body but does not encrypt it.
 
 ## Known limits

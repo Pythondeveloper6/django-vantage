@@ -31,7 +31,8 @@ shared, multicast and reserved ranges are refused unless
 ``VANTAGE["WEBHOOKS_ALLOW_PRIVATE_NETWORKS"]`` is true. Redirects are never followed (a
 public URL that answers ``302 -> http://169.254.169.254/`` would otherwise walk straight
 round the check), proxies from the environment are ignored for the same reason, the
-response is read up to a small cap, and every socket operation has a timeout.
+response is read up to a small cap, and every attempt has a wall-clock deadline as well as
+a timeout on each socket operation.
 
 **Payloads carry no secret.** Sensitive fields, by the answer :mod:`vantage.sensitive`
 gives every other surface, are dropped from ``changes`` altogether — not masked, not
@@ -57,9 +58,11 @@ import json
 import logging
 import secrets
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
+from functools import partial
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -122,6 +125,16 @@ _MAX_RESPONSE_BYTES = 8192
 #: Ceiling for the in-process fallback, whatever ``WEBHOOKS_TIMEOUT`` says: the request
 #: is waiting.
 INLINE_TIMEOUT = 3.0
+
+#: Wall-clock budget for *all* the in-process deliveries one save triggers. Hooks run one
+#: after another in the request, so the sum is what the person waits for; whatever does
+#: not fit is left ``pending`` for ``vantage_webhooks`` rather than sent inline.
+INLINE_BUDGET = 3.0
+
+#: A queued attempt may take this many ``WEBHOOKS_TIMEOUT``s in total (resolve, connect,
+#: send, headers and body each get one), so a receiver that answers a byte at a time
+#: cannot hold a worker for ever.
+_DEADLINE_FACTOR = 3
 
 #: The longest a retry is ever pushed back.
 MAX_BACKOFF_SECONDS = 24 * 3600
@@ -215,9 +228,10 @@ def _notify(request, action: str, obj, changes: dict) -> None:
     payload = build_payload(
         request, event, obj, changes, soft=action == VantageLogEntry.Action.TRASH
     )
+    budget = _Budget(INLINE_BUDGET)  # shared: one save, however many hooks
     for hook in hooks:
         delivery = _create_delivery(hook, payload, event, key, str(obj.pk))
-        enqueue(delivery.pk)
+        enqueue(delivery.pk, budget=budget)
 
 
 def build_payload(request, event: str, obj, changes: dict, *, soft: bool = False) -> dict:
@@ -262,19 +276,20 @@ def _create_delivery(hook, payload, event, resource_key, object_id, **extra) -> 
 # ── queueing ────────────────────────────────────────────────────────────────
 
 
-def enqueue(delivery_id: int, *, delay: float = 0) -> None:
+def enqueue(delivery_id: int, *, delay: float = 0, budget: _Budget | None = None) -> None:
     """Hand a delivery to the job backend once the open transaction commits.
 
     ``on_commit`` is a no-op wrapper outside a transaction, so this is immediate in a
     plain request and deferred under ``ATOMIC_REQUESTS``. The callback swallows its own
     errors: Django would otherwise raise them into the request that has already
     succeeded. A delivery that could not be queued stays ``pending`` and
-    :func:`retry_due` finds it.
+    :func:`retry_due` finds it. ``budget`` is shared by the hooks of one save and only
+    matters when the delivery has to run in-process.
     """
-    transaction.on_commit(lambda: _submit(delivery_id, delay))
+    transaction.on_commit(lambda: _submit(delivery_id, delay, budget))
 
 
-def _submit(delivery_id: int, delay: float) -> None:
+def _submit(delivery_id: int, delay: float, budget: _Budget | None = None) -> None:
     from vantage import jobs
 
     try:
@@ -282,7 +297,10 @@ def _submit(delivery_id: int, delay: float) -> None:
         if not backend.deferred:
             # A retry cannot sleep inside a request. It waits for `vantage_webhooks`.
             if not delay:
-                deliver(delivery_id, inline=True)
+                left = INLINE_TIMEOUT if budget is None else budget.left()
+                # Out of time: the row stays `pending` and the command takes it.
+                if left > 0:
+                    deliver(delivery_id, inline=True, budget=left)
             return
         queue = jobs.setting("JOB_QUEUE", "default")
         if backend.name == jobs.DJANGO_TASKS.name:
@@ -316,13 +334,19 @@ def run_delivery(delivery_id: int) -> None:
 
 
 def deliver(
-    delivery_id: int, *, retry: bool = True, inline: bool = False
+    delivery_id: int,
+    *,
+    retry: bool = True,
+    inline: bool = False,
+    budget: float | None = None,
 ) -> WebhookDelivery | None:
     """Make one attempt at a delivery and record the outcome. Returns the fresh row.
 
     The attempt is *claimed* with a conditional update on the attempt counter, so two
     workers handed the same delivery (a scheduled task and a cron sweep, say) cannot both
     send it. ``retry=False`` is for the test button, where one answer is the point.
+    ``budget`` is the seconds an inline attempt may use in total: what is left of the
+    save's :data:`INLINE_BUDGET`.
     """
     delivery = WebhookDelivery.objects.select_related("webhook").filter(pk=delivery_id).first()
     if delivery is None or delivery.is_terminal:
@@ -348,15 +372,17 @@ def deliver(
         )
 
     timeout = float(_setting("WEBHOOKS_TIMEOUT"))
+    total = timeout * _DEADLINE_FACTOR
     if inline:
         timeout = min(timeout, INLINE_TIMEOUT)
+        total = timeout if budget is None else min(timeout, budget)
     started = time.monotonic()
     code: int | None = None
     body = ""
     error = ""
     permanent = False
     try:
-        code, body = _post(hook.url, *_request_for(delivery), timeout=timeout)
+        code, body = _post(hook.url, *_request_for(delivery), timeout=timeout, total=total)
         if not 200 <= code < 300:
             error = f"HTTP {code}"
             permanent = code < 500 and code not in (408, 425, 429)
@@ -550,14 +576,71 @@ def _blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     return not ip.is_global or ip.is_multicast
 
 
-def _resolve(host: str, port: int) -> list[str]:
+class _Deadline:
+    """One wall-clock limit over a whole attempt.
+
+    Socket timeouts bound each operation, not the sum: a receiver that sends a byte every
+    few seconds never trips them. When the limit passes, a timer shuts the watched sockets
+    down, which wakes whatever is blocked on them — the TLS handshake, a send, the header
+    read, the body read — and :func:`_post` reports the attempt as timed out.
+    """
+
+    def __init__(self, seconds: float):
+        self.at = time.monotonic() + seconds
+        self.expired = False
+        self._socks: list[socket.socket] = []
+        self._timer: threading.Timer | None = None
+
+    def remaining(self) -> float:
+        return self.at - time.monotonic()
+
+    def check(self) -> None:
+        if self.remaining() <= 0:
+            self.expired = True
+            raise _Retryable(str(_("The receiver took too long.")))
+
+    def watch(self, sock: socket.socket) -> None:
+        self._socks.append(sock)
+        if self._timer is None:
+            self._timer = threading.Timer(max(self.remaining(), 0), self._expire)
+            self._timer.daemon = True
+            self._timer.start()
+
+    def _expire(self) -> None:
+        self.expired = True
+        for sock in self._socks:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:  # already closed, or wrapped into a TLS socket
+                pass
+
+    def close(self) -> None:
+        if self._timer is not None:
+            self._timer.cancel()
+
+
+class _Budget:
+    """The in-process time one save has for all its hooks. The clock starts at the first
+    send, not at creation: ``on_commit`` can run long after the hooks were queued."""
+
+    def __init__(self, seconds: float):
+        self.seconds = seconds
+        self._end: float | None = None
+
+    def left(self) -> float:
+        if self._end is None:
+            self._end = time.monotonic() + self.seconds
+        return self._end - time.monotonic()
+
+
+def _resolve(host: str, port: int, deadline: _Deadline | None = None) -> list[str]:
     """Every address ``host`` resolves to, all of which must be allowed.
 
     All, not any: a name with one public and one private record is refused outright,
     because which one the connection uses is not ours to bet on.
     """
     try:
-        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        infos = _getaddrinfo(host, port, deadline)
     except socket.gaierror as exc:
         raise _Retryable(f"Could not resolve {host}: {exc.strerror or exc}") from exc
     addresses = list(dict.fromkeys(info[4][0] for info in infos))
@@ -576,37 +659,92 @@ def _resolve(host: str, port: int) -> list[str]:
     return addresses
 
 
-def _connect(host: str, port: int, timeout: float):
+def _getaddrinfo(host: str, port: int, deadline: _Deadline | None):
+    """``getaddrinfo`` has no timeout of its own, so with a deadline it runs in a helper
+    thread that is abandoned (it is a daemon, and ends when the resolver gives up)."""
+    if deadline is None:
+        return socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    deadline.check()
+    outcome: dict[str, Any] = {}
+
+    def lookup():
+        try:
+            outcome["infos"] = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        except BaseException as exc:  # handed to the caller, which re-raises it
+            outcome["error"] = exc
+
+    worker = threading.Thread(target=lookup, daemon=True)
+    worker.start()
+    worker.join(max(deadline.remaining(), 0))
+    if worker.is_alive():
+        deadline.expired = True
+        raise _Retryable(f"Timed out resolving {host}.")
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome["infos"]
+
+
+def _connect(host: str, port: int, timeout: float, deadline: _Deadline | None = None):
     """A connected socket to one of the *checked* addresses, never to the name."""
     last: OSError | None = None
-    for address in _resolve(host, port):
+    for address in _resolve(host, port, deadline):
+        if deadline is not None:
+            deadline.check()
+            timeout = min(timeout, deadline.remaining())
         try:
-            return socket.create_connection((address, port), timeout)
+            sock = socket.create_connection((address, port), timeout)
         except OSError as exc:
             last = exc
+            continue
+        if deadline is not None:
+            deadline.watch(sock)
+        return sock
     raise _Retryable(f"Could not connect to {host}: {last}")
 
 
 class _GuardedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, *args, deadline: _Deadline | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.deadline = deadline
+
     def connect(self):
-        self.sock = _connect(self.host, self.port, self.timeout)
+        self.sock = _connect(self.host, self.port, self.timeout, self.deadline)
 
 
 class _GuardedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, *args, deadline: _Deadline | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.deadline = deadline
+
     def connect(self):
-        sock = _connect(self.host, self.port, self.timeout)
-        # Certificate and host name are verified against the *name*, as usual.
-        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+        sock = _connect(self.host, self.port, self.timeout, self.deadline)
+        # Certificate and host name are verified against the *name*, as usual. The
+        # handshake is done by hand so the deadline watches the wrapped socket first.
+        wrapped = self._context.wrap_socket(
+            sock, server_hostname=self.host, do_handshake_on_connect=False
+        )
+        self.sock = wrapped
+        if self.deadline is not None:
+            self.deadline.watch(wrapped)
+        wrapped.do_handshake()
 
 
 class _GuardedHTTPHandler(urllib.request.HTTPHandler):
+    def __init__(self, deadline: _Deadline | None = None):
+        super().__init__()
+        self.deadline = deadline
+
     def http_open(self, req):
-        return self.do_open(_GuardedHTTPConnection, req)
+        return self.do_open(partial(_GuardedHTTPConnection, deadline=self.deadline), req)
 
 
 class _GuardedHTTPSHandler(urllib.request.HTTPSHandler):
+    def __init__(self, deadline: _Deadline | None = None):
+        super().__init__()
+        self.deadline = deadline
+
     def https_open(self, req):
-        return self.do_open(_GuardedHTTPSConnection, req)
+        return self.do_open(partial(_GuardedHTTPSConnection, deadline=self.deadline), req)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -616,20 +754,50 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _post(url: str, body: bytes, headers: dict[str, str], *, timeout: float) -> tuple[int, str]:
+def _post(
+    url: str,
+    body: bytes,
+    headers: dict[str, str],
+    *,
+    timeout: float,
+    total: float | None = None,
+) -> tuple[int, str]:
     """POST ``body`` and return ``(status, truncated response text)``.
 
     The one place that touches the network, which is why the tests replace it. Raises
     :class:`UnsafeTarget` for a refused address and :class:`_Retryable` for anything
-    that might work later.
+    that might work later. ``timeout`` bounds each socket operation; ``total`` (default:
+    ``timeout``) bounds the whole attempt, name lookup to last byte.
     """
     problem = url_problem(url)
     if problem:
         raise UnsafeTarget(problem)
+    deadline = _Deadline(timeout if total is None else total)
+    try:
+        result = _exchange(url, body, headers, timeout, deadline)
+    except UnsafeTarget:
+        raise
+    except Exception:
+        if deadline.expired:
+            raise _Retryable(str(_("The receiver took too long."))) from None
+        raise
+    finally:
+        deadline.close()
+    if deadline.expired:  # the answer was cut short by the shutdown
+        raise _Retryable(str(_("The receiver took too long.")))
+    return result
+
+
+def _exchange(
+    url: str, body: bytes, headers: dict[str, str], timeout: float, deadline: _Deadline
+) -> tuple[int, str]:
     # `ProxyHandler({})` ignores HTTP(S)_PROXY: the address checked above is the one
     # connected to, and a proxy would be connected to instead.
     opener = urllib.request.build_opener(
-        urllib.request.ProxyHandler({}), _NoRedirect, _GuardedHTTPHandler, _GuardedHTTPSHandler
+        urllib.request.ProxyHandler({}),
+        _NoRedirect,
+        _GuardedHTTPHandler(deadline),
+        _GuardedHTTPSHandler(deadline),
     )
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
