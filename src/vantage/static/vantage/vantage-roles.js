@@ -23,7 +23,12 @@
  *    "Tick every view permission" after filtering to "shop" must not quietly grant
  *    "view" on the user table.
  *
- * 4. ARROW KEYS MOVE BETWEEN CELLS. Tab still walks every control in order — this is
+ * 4. FIELD RULES RIDE THE SAME DIFF. Each registered model has a <details> of
+ *    per-field <select>s (full access, read-only, hidden). A changed one is counted,
+ *    marked and listed in the review exactly like a ticked box, and goes up in the
+ *    same POST as a "fields" value of "<content type>:<field>:<level>" entries.
+ *
+ * 5. ARROW KEYS MOVE BETWEEN CELLS. Tab still walks every control in order — this is
  *    a table of checkboxes, not an ARIA grid with a roving tabindex — but the arrows
  *    move across and down the way a spreadsheet does, because Tab through 1,200
  *    checkboxes is not a way to reach row 80.
@@ -43,6 +48,7 @@
     document.body.classList.add("v-roles-ready");
 
     var perms = Array.prototype.slice.call(grid.querySelectorAll("input.v-roles-perm"));
+    var selects = Array.prototype.slice.call(grid.querySelectorAll("select.v-roles-field-select"));
     var diffOut = form.querySelector("[data-roles-diff]");
     var resetBtn = form.querySelector("[data-roles-reset]");
     var reviewBtn = form.querySelector("[data-roles-review]");
@@ -68,6 +74,53 @@
 
     function cellOf(input) {
       return input.closest(".v-roles-chip") || input.closest("td");
+    }
+
+    /* ── field rules ───────────────────────────────────────────────────────── */
+
+    var LEVELS = {
+      "": gettext("Full access"),
+      readonly: gettext("Read-only"),
+      hidden: gettext("Hidden")
+    };
+
+    function levelOf(select) {
+      return select.value.split(":")[2] || "";
+    }
+
+    function pendingFields() {
+      return selects.filter(function (select) {
+        return !select.disabled && levelOf(select) !== select.getAttribute("data-base");
+      });
+    }
+
+    function markField(select) {
+      var item = select.closest(".v-roles-field");
+      if (item) {
+        if (!select.disabled && levelOf(select) !== select.getAttribute("data-base")) {
+          item.setAttribute("data-pending", "field");
+        } else {
+          item.removeAttribute("data-pending");
+        }
+      }
+      var details = select.closest("[data-roles-fields]");
+      if (!details) return;
+      var items = details.querySelectorAll(".v-roles-field");
+      var restricted = 0;
+      var moved = false;
+      each(items, function (li) {
+        var own = li.querySelector("select");
+        if ((own && levelOf(own)) || li.hasAttribute("data-floor")) restricted++;
+        if (li.hasAttribute("data-pending")) moved = true;
+      });
+      var label = details.querySelector("[data-roles-fields-label]");
+      if (label) {
+        label.textContent = restricted
+          ? interpolate(ngettext("%(count)s restricted", "%(count)s restricted", restricted), { count: restricted }, true)
+          : gettext("All fields");
+      }
+      if (moved) details.setAttribute("data-pending", "");
+      else details.removeAttribute("data-pending");
     }
 
     /* ── pending diff ──────────────────────────────────────────────────────── */
@@ -97,9 +150,10 @@
       var diff = pending();
       var a = diff.added.length;
       var r = diff.removed.length;
+      var f = pendingFields().length;
       if (diffOut) {
         diffOut.textContent = "";
-        if (!a && !r) {
+        if (!a && !r && !f) {
           diffOut.textContent = gettext("No changes");
         } else {
           var plus = document.createElement("span");
@@ -117,9 +171,16 @@
             " " +
             interpolate(gettext("%(added)s to grant, %(removed)s to revoke"), { added: a, removed: r }, true);
           diffOut.appendChild(sr);
+          if (f) {
+            diffOut.appendChild(
+              document.createTextNode(
+                " · " + interpolate(ngettext("%(count)s field rule", "%(count)s field rules", f), { count: f }, true)
+              )
+            );
+          }
         }
       }
-      if (resetBtn) resetBtn.disabled = !a && !r;
+      if (resetBtn) resetBtn.disabled = !a && !r && !f;
     }
 
     /* ── tri-state headers ─────────────────────────────────────────────────── */
@@ -201,12 +262,25 @@
       });
     });
 
+    selects.forEach(function (select) {
+      markField(select);
+      select.addEventListener("change", function () {
+        markField(select);
+        renderDiff();
+      });
+    });
+
     if (resetBtn) {
       resetBtn.addEventListener("click", function () {
         perms.forEach(function (input) {
           if (!editable(input)) return;
           input.checked = isBase(input);
           markCell(input);
+        });
+        selects.forEach(function (select) {
+          if (select.disabled) return;
+          select.value = select.getAttribute("data-key") + ":" + select.getAttribute("data-base");
+          markField(select);
         });
         refresh();
       });
@@ -365,19 +439,37 @@
       }
     }
 
+    function fieldItems(ul, changed) {
+      ul.textContent = "";
+      changed.forEach(function (select) {
+        var li = document.createElement("li");
+        li.textContent =
+          select.getAttribute("data-name") +
+          ": " +
+          LEVELS[select.getAttribute("data-base")] +
+          " → " +
+          LEVELS[levelOf(select)];
+        var code = document.createElement("code");
+        code.textContent = select.getAttribute("data-label");
+        li.appendChild(code);
+        ul.appendChild(li);
+      });
+    }
+
     function submitDiff(diff) {
       submitting = true;
       var ids = function (inputs) {
         return inputs.map(function (i) { return i.value; }).join(",");
       };
-      [["mode", "diff"], ["add", ids(diff.added)], ["remove", ids(diff.removed)]].forEach(function (pair) {
+      var fields = pendingFields().map(function (select) { return select.value; }).join(",");
+      [["mode", "diff"], ["add", ids(diff.added)], ["remove", ids(diff.removed)], ["fields", fields]].forEach(function (pair) {
         var hidden = document.createElement("input");
         hidden.type = "hidden";
         hidden.name = pair[0];
         hidden.value = pair[1];
         form.appendChild(hidden);
       });
-      each(form.querySelectorAll('[name="perm"]'), function (input) {
+      each(form.querySelectorAll('[name="perm"], [name="field"]'), function (input) {
         input.disabled = true;
       });
       form.submit();
@@ -388,10 +480,17 @@
         if (submitting) return;
         event.preventDefault();
         var diff = pending();
+        var changed = pendingFields();
         // Nothing pending: there is nothing to review, and nothing to send.
-        if (!diff.added.length && !diff.removed.length) return;
+        if (!diff.added.length && !diff.removed.length && !changed.length) return;
         listItems(dialog.querySelector("[data-roles-added]"), diff.added);
         listItems(dialog.querySelector("[data-roles-removed]"), diff.removed);
+        var fieldSection = dialog.querySelector("[data-roles-fields-section]");
+        if (fieldSection) {
+          fieldSection.hidden = !changed.length;
+          fieldItems(dialog.querySelector("[data-roles-fields-changed]"), changed);
+          dialog.querySelector("[data-roles-fields-count]").textContent = "(" + changed.length + ")";
+        }
         dialog.querySelector("[data-roles-added-count]").textContent = "(" + diff.added.length + ")";
         dialog.querySelector("[data-roles-removed-count]").textContent = "(" + diff.removed.length + ")";
         dialog.querySelector("[data-roles-review-summary]").textContent = interpolate(
@@ -415,7 +514,7 @@
     window.addEventListener("beforeunload", function (event) {
       if (submitting) return;
       var diff = pending();
-      if (diff.added.length || diff.removed.length) {
+      if (diff.added.length || diff.removed.length || pendingFields().length) {
         event.preventDefault();
         event.returnValue = "";
       }

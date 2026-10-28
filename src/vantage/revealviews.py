@@ -82,8 +82,11 @@ class RevealView(PanelView):
         name = self.kwargs["field"]
 
         # Before the lookup, so a refused name costs the same as an allowed one and the
-        # endpoint cannot be used to probe which fields exist.
-        if name not in panel.get_sensitive_fields():
+        # endpoint cannot be used to probe which fields exist. A field hidden from this
+        # person gets the same answer as one that is not sensitive at all.
+        from vantage.fieldperms import is_hidden_path
+
+        if name not in panel.get_sensitive_fields() or is_hidden_path(request, panel, name):
             return _json({"error": _("That field cannot be revealed.")}, status=404)
         try:
             field = panel.model._meta.get_field(name)
@@ -164,11 +167,15 @@ class SetPasswordView(PanelView):
     required_action = "change"
 
     def get_object(self):
+        from vantage.fieldperms import access
         from vantage.formviews import get_record
 
         obj = get_record(self.request, self.panel, self.permissions, self.kwargs["pk"], "change")
         if sensitive.set_password_url(self.panel, obj, "password") is None:
             raise Http404(_("This record has no password to set."))
+        if not access(self.request, self.panel).can_change("password"):
+            # Setting a password is a write to the field, whichever form does it.
+            raise PermissionDenied(_("You cannot change this field."))
         return obj
 
     def get_form(self, obj):

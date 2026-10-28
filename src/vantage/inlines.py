@@ -474,7 +474,13 @@ def _bind_one(inline: Inline, parent_model, request, instance, data, files):
     may_delete = may_change and inline.can_delete and inline.allows(request, "delete")
     readonly = not may_change
 
-    names = inline.get_fields(parent_model)
+    from vantage import fieldperms
+
+    # The child model's own field rules: a hidden field is no column, and a read-only
+    # one is a disabled field, which Django fills from the stored value whatever the
+    # POST says — the same server-side refusal as leaving it out, kept on the page.
+    rules = fieldperms.access(request, inline.model)
+    names = [name for name in inline.get_fields(parent_model) if name not in rules.hidden]
     formset_class = _formset_class(
         inline,
         parent_model,
@@ -499,6 +505,11 @@ def _bind_one(inline: Inline, parent_model, request, instance, data, files):
     empty_form = formset.empty_form
 
     _share_choices([*formset.forms, empty_form])
+    if rules.readonly:
+        for child_form in [*formset.forms, empty_form]:
+            for name in rules.readonly:
+                if name in child_form.fields:
+                    child_form.fields[name].disabled = True
     if readonly:
         _disable(formset)
 

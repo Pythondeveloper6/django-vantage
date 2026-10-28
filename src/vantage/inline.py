@@ -201,8 +201,11 @@ def inline_fields(panel, request=None) -> tuple[InlineField, ...]:
     if not declared or _has_custom_clean(panel.model):
         return ()
 
+    from vantage.fieldperms import access
+
     columns = set(panel.get_list_display(request))
     writable = set(_change_form_names(panel))
+    locked = access(request, panel).locked
     entangled = _cross_field_names(panel.model)
     link = panel.get_list_link(request)
 
@@ -224,6 +227,10 @@ def inline_fields(panel, request=None) -> tuple[InlineField, ...]:
         if name in panel.get_sensitive_fields():
             # A cell editor round-trips the value it edits, through the control and
             # back in the save response. A secret has no business in either.
+            continue
+        if name in locked:
+            # Read-only (or hidden) for this person: a plain cell, and the write path
+            # below refuses it because this allowlist is what the write is checked on.
             continue
         kind = classify(field)
         if kind not in INLINE_KINDS or not _is_short(field, kind):

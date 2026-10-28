@@ -67,6 +67,9 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # approve what. A CRUD form could flip a request to "approved" without applying
         # it, or print a sensitive value it holds.
         "vantage.changerequest",
+        # Field rules belong to a role, and the roles matrix is where every escalation
+        # check lives. A CRUD form would let "change" on this table lift a restriction.
+        "vantage.fieldpermission",
     }
 )
 

@@ -403,7 +403,7 @@ BULK_EDIT_PREFIX = "bulk"
 BULK_EDIT_ENABLE = "_bulk_enable"
 
 
-def bulk_edit_fields(panel) -> list[str]:
+def bulk_edit_fields(panel, request=None) -> list[str]:
     """The fields this panel will offer to set on many records at once.
 
     Three exclusions, each of which would otherwise be a guaranteed failure rather
@@ -415,7 +415,8 @@ def bulk_edit_fields(panel) -> list[str]:
       is not what anybody means by bulk edit, and the storage semantics of the
       alternative (forty rows sharing one path) are a trap;
     * **readonly and excluded names** — the panel already said those are not editable,
-      and a bulk screen is not a way around a panel's own configuration.
+      and a bulk screen is not a way around a panel's own configuration. With a
+      ``request``, that includes the fields this person may only read or not see.
     """
     readonly = set(panel.readonly_fields or ())
     excluded = set(panel.exclude or ())
@@ -436,7 +437,11 @@ def bulk_edit_fields(panel) -> list[str]:
         if classify(field) in (FieldKind.FILE, FieldKind.IMAGE):
             continue
         offered.append(name)
-    return offered
+    if request is None:
+        return offered
+    from vantage.fieldperms import editable_fields
+
+    return editable_fields(request, panel, offered)
 
 
 def ticked_fields(post, available: list[str]) -> list[str]:

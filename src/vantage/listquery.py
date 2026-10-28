@@ -118,7 +118,10 @@ def search_q(panel, query: str, request=None) -> Q:
     # get_list_search already drops sensitive paths; asked again here because this is
     # the line that builds the SQL, and a subclass overriding the getter should not be
     # able to turn the search box into a guessing oracle by accident.
-    for path in strip_sensitive(panel, panel.get_list_search(request)):
+    from vantage.fieldperms import strip_hidden
+
+    paths = strip_sensitive(panel, panel.get_list_search(request))
+    for path in strip_hidden(request, panel, paths):
         combined |= Q(**{f"{path.lstrip('^=@')}__icontains": query})
     return combined
 
@@ -155,6 +158,12 @@ def resolve_sort(panel, request, allowed: list[str] | None = None) -> dict | Non
     if is_sensitive_path(panel, path):
         # Sorting is an oracle: the row order of a page sorted by a masked column, plus
         # one known value, bisects every other one. A masked column is never sortable.
+        return None
+
+    from vantage.fieldperms import is_hidden_path
+
+    if is_hidden_path(request, panel, path):
+        # The same oracle, for a field this person may not see at all.
         return None
 
     prefix = "-" if descending else ""

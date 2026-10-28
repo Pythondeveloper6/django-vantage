@@ -128,7 +128,14 @@ class KanbanMode(ListMode):
         field = self.field
         if field is None or not getattr(field, "editable", False):
             return False
-        return field.name in _change_form_names(self.panel)
+        if field.name not in _change_form_names(self.panel):
+            return False
+        # Read-only for this person: the board still groups by it, nobody can drag.
+        from vantage.fieldperms import access
+
+        return access(request if request is not None else self.request, self.panel).can_change(
+            field.name
+        )
 
     def move_url(self) -> str:
         try:

@@ -302,7 +302,12 @@ class ListView(PanelView):
         """
         panel = self.panel
         queryset = self.build_queryset(request)[0]
-        columns = panel.get_list_display(request)
+        from vantage.fieldperms import strip_hidden
+
+        # get_list_display already drops hidden columns; asked again on the line that
+        # writes the file, because a file travels further than the page and a subclass
+        # overriding the getter should not be able to put a hidden field in it.
+        columns = strip_hidden(request, panel, panel.get_list_display(request))
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
         from vantage.sensitive import is_sensitive_path
 
@@ -356,7 +361,9 @@ class ListView(PanelView):
 
     def table_context(self, panel, request, queryset, sort, spec) -> dict:
         """The grid's own context: columns, the page of rows, grouping, the footer."""
-        columns = panel.get_list_display(request)
+        from vantage.fieldperms import strip_hidden
+
+        columns = strip_hidden(request, panel, panel.get_list_display(request))
         link = panel.get_list_link(request)
 
         paginator = CappedPaginator(
@@ -668,10 +675,16 @@ class DetailView(PanelView):
         obj = self.object
         panel = self.panel
 
+        from vantage.fieldperms import access
         from vantage.sensitive import safe_str, set_password_url
+
+        rules = access(self.request, panel)
+        hidden = rules.hidden
 
         def password_url(name):
             url = set_password_url(panel, obj, name)
+            if not rules.can_change(name):
+                return None
             if url and self.permissions.has_object_perm(self.request, panel.model, "change", obj):
                 return url
             return None
@@ -689,6 +702,8 @@ class DetailView(PanelView):
                 "set_password_url": password_url(field.name),
             }
             for field in displayable_fields(panel.model)
+            # Not masked, absent: a hidden field's label alone says it exists.
+            if field.name not in hidden
         ]
 
         related = self._related(obj)

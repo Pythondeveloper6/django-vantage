@@ -33,6 +33,7 @@
   {% csrf_token %}
   <input type="hidden" name="token" value="{{ token }}">
   <input type="hidden" name="base" value="{{ base_ids }}">
+  <input type="hidden" name="field_base" value="{{ base_rules }}">
 
   <div class="v-roles-toolbar">
     <label class="v-roles-filter">
@@ -83,12 +84,13 @@
             </th>
           {% endfor %}
           <th scope="col" class="v-roles-other-col">{% translate "Other" context "custom permissions column" %}</th>
+          <th scope="col" class="v-roles-fields-col">{% translate "Fields" context "field access column" %}</th>
         </tr>
       </thead>
       {% for section in sections %}
         <tbody class="v-roles-app" data-roles-section="{{ section.key }}"{% if section.unregistered %} data-roles-unregistered{% endif %}>
           <tr class="v-roles-app-row">
-            <th scope="colgroup" colspan="6">
+            <th scope="colgroup" colspan="7">
               <div class="v-roles-app-head">
                 <button type="button" class="v-roles-disclose v-roles-js-only" aria-expanded="true"
                         aria-controls="v-roles-rows-{{ forloop.counter }}" data-roles-disclose>
@@ -130,6 +132,9 @@
                   </label>
                 {% endfor %}
               </td>
+              <td class="v-roles-fields-cell">
+                {% if row.fields %}{% include "vantage/roles/_fields.html" %}{% else %}<span class="v-muted" aria-hidden="true">—</span>{% endif %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -151,6 +156,10 @@
         <section>
           <h3 class="v-roles-review-head" data-tone="destructive">{% translate "Revoked" %} <span data-roles-removed-count></span></h3>
           <ul class="v-roles-review-list" data-roles-removed></ul>
+        </section>
+        <section class="v-roles-review-fields" data-roles-fields-section hidden>
+          <h3 class="v-roles-review-head">{% translate "Field access" %} <span data-roles-fields-count></span></h3>
+          <ul class="v-roles-review-list" data-roles-fields-changed></ul>
         </section>
       </div>
       <div class="v-roles-dialog-actions">

@@ -107,31 +107,50 @@ def _model_field(model, name: str):
 # second answer, and only one of the two would get fixed.
 
 
-def form_field_names(panel) -> list[str]:
+def form_field_names(panel, request=None) -> list[str]:
     """Every name the form page shows, editable or not, in layout order.
 
     Readonly names are appended when inference did not already pick them up: the
     canonical example is ``readonly_fields = ["created_at"]`` on an ``auto_now_add``
     column, which is not an editable field at all and would otherwise vanish from a
     page whose whole purpose was to display it.
+
+    With a ``request``, a field hidden from that person is not on the page at all — not
+    as an input, not as text. See :mod:`vantage.fieldperms`.
     """
     names = list(panel.fields) if panel.fields else infer_form_fields(panel.model)
     for name in panel.readonly_fields or ():
         if name not in names:
             names.append(name)
     excluded = set(panel.exclude or ())
-    return [name for name in names if name not in excluded]
+    names = [name for name in names if name not in excluded]
+    if request is None:
+        return names
+    from vantage.fieldperms import without_hidden
+
+    return without_hidden(request, panel, names)
 
 
-def form_editable_names(panel) -> list[str]:
-    """The names a write may actually set. Everything else is not in the form at all."""
+def form_editable_names(panel, request=None) -> list[str]:
+    """The names a write may actually set. Everything else is not in the form at all.
+
+    With a ``request``, a field that person may only read is left out too, which is
+    what makes it read-only on every write path that builds its form from this list:
+    the edit page, the JSON API, duplicate and history restore. Rendering it as text is
+    the affordance; leaving it out of the form is the boundary.
+    """
     readonly = set(panel.readonly_fields or ())
     secret = panel.get_sensitive_fields()
-    return [
+    names = [
         name
-        for name in form_field_names(panel)
+        for name in form_field_names(panel, request)
         if name not in readonly and not (name in secret and is_hashed(panel.model, name))
     ]
+    if request is None:
+        return names
+    from vantage.fieldperms import editable_fields
+
+    return editable_fields(request, panel, names)
 
 
 def save_form(
@@ -291,11 +310,11 @@ class PanelFormView(PanelView):
 
     def get_field_names(self) -> list[str]:
         """Every name the page shows, editable or not, in layout order."""
-        return form_field_names(self.panel)
+        return form_field_names(self.panel, self.request)
 
     def get_editable_field_names(self) -> list[str]:
         """The names this page may actually write. See :func:`form_editable_names`."""
-        return form_editable_names(self.panel)
+        return form_editable_names(self.panel, self.request)
 
     # ── the form ────────────────────────────────────────────────────────────
 
@@ -331,6 +350,13 @@ class PanelFormView(PanelView):
         # and not its children's would be fixed, resubmitted, and refused again for
         # reasons it declined to mention the first time.
         form_ok = form.is_valid()
+        if form_ok and not self.change:
+            from vantage.fieldperms import unfillable_message
+
+            refusal = unfillable_message(self.request, self.panel)
+            if refusal:
+                form.add_error(None, refusal)
+                form_ok = False
         groups = inlines.bind(self, form)
         if not inlines.all_valid(groups) or not form_ok:
             return self.render_to_response(self.get_context_data(form=form, inlines=groups))

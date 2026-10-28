@@ -740,6 +740,8 @@ def _build(panel, request, key: str) -> ListSpec:
             break
 
     spec = _assemble(panel, opts, key, stored, sources)
+    if request is not None and (spec.stats or spec.charts):
+        spec = _without_hidden_analytics(panel, request, spec)
     list_view = getattr(user_row, "list_view", None) if user_row is not None else None
     if list_view:
         spec = replace(spec, list_view=list_view)
@@ -752,6 +754,30 @@ def _build(panel, request, key: str) -> ListSpec:
             },
         )
     return spec
+
+
+def _without_hidden_analytics(panel, request, spec: ListSpec) -> ListSpec:
+    """Drop stat cards and charts that read a field hidden from this person.
+
+    A sum, an average or a breakdown of a field is a statement about its values, so a
+    card over ``price`` goes the way the ``price`` column went. Judged by the fields the
+    expression names; a callable stat cannot be read, and is the panel author's code.
+    """
+    from vantage.fieldperms import hidden_names, is_hidden_path
+    from vantage.stats import _expression_paths
+
+    if not hidden_names(request, panel):
+        return spec
+
+    def reads_hidden(value, *names) -> bool:
+        paths = set(names)
+        if hasattr(value, "resolve_expression"):
+            paths |= _expression_paths(value)
+        return any(path and is_hidden_path(request, panel, path) for path in paths)
+
+    stats = tuple(s for s in spec.stats if not reads_hidden(s.value, s.trend))
+    charts = tuple(c for c in spec.charts if not reads_hidden(c.value, c.date, c.group_by))
+    return replace(spec, stats=stats, charts=charts)
 
 
 #: Every column this layer reads, in the order the sections declare them.

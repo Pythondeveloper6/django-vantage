@@ -386,8 +386,10 @@ def history_context(request, obj) -> dict[str, Any]:
         # Not merely hidden: "who edited this record" is itself information about
         # colleagues, and a panel that leaks it to everyone will be asked not to.
         return {"history": None}
+    from vantage.fieldperms import hide_entry_fields
+
     return {
-        "history": list(entries_for(obj)),
+        "history": hide_entry_fields(request, entries_for(obj)),
         "history_timeline": history_timeline(obj),
         "history_limit": HISTORY_LIMIT,
         # Resolved here rather than with ``{% url %}``: the audit route may not be

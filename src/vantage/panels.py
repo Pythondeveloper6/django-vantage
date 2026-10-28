@@ -97,6 +97,14 @@ class ModelPanel:
     # password hash is masked whatever this says.
     sensitive_fields: list[str] | None = None
 
+    # ── field-level permissions ─────────────────────────────────────────────
+    #
+    # Per role, which fields are ``"hidden"`` or ``"readonly"``:
+    # ``{"Support": {"price": "readonly", "cost": "hidden"}}``. Added to whatever the
+    # roles matrix stores, the stricter of the two winning; superusers are never
+    # restricted. See vantage.fieldperms.
+    field_permissions: dict[str, dict[str, str]] | None = None
+
     # ── behaviour ───────────────────────────────────────────────────────────
     #
     # There is deliberately no ``permissions`` attribute. Access is answered in one
@@ -242,6 +250,14 @@ class ModelPanel:
     # the intelligence. Override a getter for logic that inference cannot express.
 
     def get_list_display(self, request=None) -> list[str]:
+        columns = self._declared_list_display(request)
+        if request is None:
+            return columns
+        # A column whose field is hidden from this person is not a masked column, it
+        # is no column: the header alone would say the field exists.
+        return self._without_hidden(request, columns) or [self.opts.pk.name]
+
+    def _declared_list_display(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_display")
         if stored is not None:
             return list(stored)
@@ -257,6 +273,16 @@ class ModelPanel:
         return inferred
 
     def get_list_link(self, request=None) -> str:
+        link = self._declared_list_link(request)
+        if request is not None and link not in self.get_list_display(request):
+            # A hidden field is no column, so it cannot carry the row's link either.
+            from vantage.fieldperms import is_hidden_path
+
+            if is_hidden_path(request, self, link):
+                return self.get_list_display(request)[0]
+        return link
+
+    def _declared_list_link(self, request=None) -> str:
         if self.list_link is not None:
             return self.list_link
         # An explicit list_display — or a UI override of one — without an explicit
@@ -275,7 +301,9 @@ class ModelPanel:
         # Never a sensitive path, whoever declared it: a filter is an oracle — ticking
         # "pin = 1234" and watching the row count answers the question the mask exists
         # to refuse. ``vantage.W090`` tells the author their declaration was dropped.
-        return self._without_sensitive(self._declared_list_filter(request))
+        # A field hidden from this person is refused for the same reason.
+        paths = self._without_sensitive(self._declared_list_filter(request))
+        return self._without_hidden(request, paths)
 
     def _declared_list_filter(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_filter")
@@ -287,7 +315,8 @@ class ModelPanel:
 
     def get_list_search(self, request=None) -> list[str]:
         # Same reason as get_list_filter: a substring search is a guessing oracle.
-        return self._without_sensitive(self._declared_list_search(request))
+        paths = self._without_sensitive(self._declared_list_search(request))
+        return self._without_hidden(request, paths)
 
     def _declared_list_search(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_search")
@@ -301,6 +330,13 @@ class ModelPanel:
         from vantage.sensitive import strip_sensitive
 
         return strip_sensitive(self, paths)
+
+    def _without_hidden(self, request, paths: list[str]) -> list[str]:
+        if request is None:
+            return paths
+        from vantage.fieldperms import strip_hidden
+
+        return strip_hidden(request, self, paths)
 
     # ── sensitive values ────────────────────────────────────────────────────
 
@@ -347,6 +383,15 @@ class ModelPanel:
         return bool(user.is_superuser) or user.has_perm(REVEAL_PERMISSION)
 
     def get_ordering(self, request=None) -> list[str]:
+        ordering = self._declared_ordering()
+        if request is None or not ordering:
+            return ordering
+        # Ranking rows by a field someone cannot see tells them its order, which is a
+        # bound on every value of it. Falls back to newest-first rather than to the
+        # model's Meta.ordering, which may be the very field being hidden.
+        return self._without_hidden(request, ordering) or ["-pk"]
+
+    def _declared_ordering(self) -> list[str]:
         if self.ordering is not None:
             # A fixed order by a secret still ranks every row by it. Dropped, with
             # vantage.W090 saying so; inference never chooses one.
@@ -394,7 +439,30 @@ class ModelPanel:
             declared = infer_list_views(self.model)
         else:
             declared = list(self.list_views)
-        return [name for name in declared if supported(self, name)] or ["table"]
+        views = [name for name in declared if supported(self, name)]
+        if request is not None:
+            # A board grouped by a field this person cannot see would print its values
+            # as column headings; a map of hidden coordinates is the coordinates.
+            views = [name for name in views if self._view_visible(name, request)]
+        return views or ["table"]
+
+    def _view_visible(self, name: str, request) -> bool:
+        from vantage.fieldperms import hidden_names
+
+        hidden = hidden_names(request, self)
+        if not hidden:
+            return True
+        if name == "kanban":
+            return bool(self.get_kanban_fields(request))
+        if name == "calendar":
+            return bool(self.get_calendar_fields(request))
+        if name == "gallery":
+            return self.get_gallery_field(request) not in hidden
+        if name == "map":
+            fields = self.get_map_fields(request)
+            names = (fields,) if isinstance(fields, str) else tuple(fields or ())
+            return not any(field in hidden for field in names)
+        return True
 
     def get_kanban_field(self, request=None) -> str | None:
         if self.kanban_field is not None:
@@ -415,7 +483,7 @@ class ModelPanel:
         from vantage.listviews.inference import kanban_candidates
 
         return self._view_field_choices(
-            self.get_kanban_field(request), self.kanban_fields, kanban_candidates
+            self.get_kanban_field(request), self.kanban_fields, kanban_candidates, request
         )
 
     def get_calendar_fields(self, request=None) -> list[str]:
@@ -423,20 +491,21 @@ class ModelPanel:
         from vantage.listviews.inference import calendar_candidates
 
         return self._view_field_choices(
-            self.get_calendar_field(request), self.calendar_fields, calendar_candidates
+            self.get_calendar_field(request), self.calendar_fields, calendar_candidates, request
         )
 
-    def _view_field_choices(self, default, declared, infer) -> list[str]:
+    def _view_field_choices(self, default, declared, infer, request=None) -> list[str]:
         """``default`` first, then the declared or inferred rest, never a sensitive one.
 
         A sensitive field is refused even when declared: grouping by a secret prints
-        one column per distinct value, which is the value.
+        one column per distinct value, which is the value. So is a field hidden from
+        this person, for the same reason.
         """
         sensitive = self.get_sensitive_fields()
         rest = infer(self.model) if declared is None else list(declared)
         chosen = [default] if default else []
         chosen.extend(name for name in rest if name not in chosen)
-        return [name for name in chosen if name not in sensitive]
+        return self._without_hidden(request, [name for name in chosen if name not in sensitive])
 
     def get_gallery_field(self, request=None) -> str | None:
         if self.gallery_field is not None:
@@ -456,7 +525,7 @@ class ModelPanel:
     def get_card_fields(self, request=None, exclude: tuple[str, ...] = ()) -> list[str]:
         """What a card shows under its title. ``exclude`` is the view's own field."""
         if self.card_fields is not None:
-            return list(self.card_fields)
+            return self._without_hidden(request, list(self.card_fields))
         from vantage.listviews.inference import infer_card_fields
 
         return infer_card_fields(
