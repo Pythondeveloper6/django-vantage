@@ -1,0 +1,64 @@
+{% extends "vantage/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+<section class="v-card">
+  {% if devices %}
+    <div class="v-card-body">
+      <p class="v-muted">
+        {% blocktranslate trimmed %}
+          A reset switches the person's two-factor sign-in off and is recorded in the
+          audit log. They can sign in with their password alone until they set it up
+          again, which they will be asked to do at once if their role requires it.
+        {% endblocktranslate %}
+      </p>
+    </div>
+    <table class="v-table v-2fa-table">
+      <caption class="v-sr-only">{% translate "People with two-factor sign-in on" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Person" %}</th>
+          <th scope="col">{% translate "On since" %}</th>
+          <th scope="col">{% translate "Last used" %}</th>
+          <th scope="col"><span class="v-sr-only">{% translate "Reset" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for device in devices %}
+          <tr>
+            <td>{{ device.user.get_username }}</td>
+            <td>{{ device.confirmed_at|date:"DATETIME_FORMAT" }}</td>
+            <td>{% if device.last_used_at %}{{ device.last_used_at|date:"DATETIME_FORMAT" }}{% else %}<span class="v-muted">{% translate "Never" %}</span>{% endif %}</td>
+            <td>
+              {% if device.user_id == request.user.pk %}
+                <a href="{% url 'vantage:two_factor' %}">{% translate "Yours" %}</a>
+              {% else %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="user" value="{{ device.user_id }}">
+                  <button class="v-btn v-btn-secondary v-btn-sm" type="submit">
+                    {% blocktranslate trimmed with name=device.user.get_username %}
+                      Reset <span class="v-sr-only">for {{ name }}</span>
+                    {% endblocktranslate %}
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-card-body">
+      <p class="v-muted">{% translate "Nobody has two-factor sign-in on yet." %}</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

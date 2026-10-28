@@ -1,0 +1,188 @@
+{% extends "vantage/base.html" %}
+{% load i18n %}
+
+{% comment %}
+  Four states, one page: newly issued recovery codes; on; being set up; off.
+
+  The secret appears only in the "being set up" state, and only for the account that
+  is setting it up. Once a code has confirmed it, nothing in the panel renders it again
+  — recovering it means switching two-factor sign-in off and setting it up afresh.
+
+  The recovery codes appear only in the response that created them. The page is sent
+  with Cache-Control: no-store, so the back button does not bring them back either.
+{% endcomment %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% if new_codes %}
+  <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-codes-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-2fa-codes-title">{% translate "Save your recovery codes" %}</h2>
+    </div>
+    <div class="v-card-body">
+      {% if just_enabled %}
+        <p role="status">{% translate "Two-factor sign-in is now on." %}</p>
+      {% endif %}
+      <p>
+        {% blocktranslate trimmed %}
+          Each code signs you in once if you lose your phone. Keep them somewhere safe,
+          such as a password manager. They will not be shown again.
+        {% endblocktranslate %}
+      </p>
+      <ul class="v-2fa-codes" aria-label="{% translate 'Recovery codes' %}">
+        {% for code in new_codes %}<li><code>{{ code }}</code></li>{% endfor %}
+      </ul>
+      <a class="v-btn v-btn-primary" href="{% if next %}{{ next }}{% else %}{% url 'vantage:two_factor' %}{% endif %}">
+        {% translate "I have saved them" %}
+      </a>
+    </div>
+  </section>
+
+{% elif device %}
+  <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-on-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-2fa-on-title">{% translate "Two-factor sign-in is on" %}</h2>
+    </div>
+    <div class="v-card-body">
+      <p>
+        {% blocktranslate trimmed with since=device.confirmed_at|date:"DATE_FORMAT" %}
+          On since {{ since }}. After your password, you are asked for a code from your
+          authenticator app.
+        {% endblocktranslate %}
+      </p>
+      <p class="v-muted">
+        {% blocktranslate trimmed count counter=remaining %}
+          {{ counter }} recovery code left.
+        {% plural %}
+          {{ counter }} recovery codes left.
+        {% endblocktranslate %}
+      </p>
+
+      <h3 class="v-2fa-subhead">{% translate "Change it" %}</h3>
+      <p class="v-muted">
+        {% translate "To replace your recovery codes or switch two-factor sign-in off, confirm it is you." %}
+        {% if required %}
+          {% translate "Your role requires two-factor sign-in, so switching it off takes you straight back to setting it up." %}
+        {% endif %}
+      </p>
+      {% if proof_form.non_field_errors %}
+        <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
+          {% for error in proof_form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in proof_form %}
+          <div class="v-auth-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          </div>
+        {% endfor %}
+        <div class="v-account-actions">
+          <button class="v-btn v-btn-secondary" type="submit" name="action" value="codes">
+            {% translate "New recovery codes" %}
+          </button>
+          <button class="v-btn v-btn-destructive" type="submit" name="action" value="disable">
+            {% translate "Switch off" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+{% elif enrol %}
+  <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-setup-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-2fa-setup-title">{% translate "Set up your authenticator app" %}</h2>
+    </div>
+    <div class="v-card-body">
+      <ol class="v-2fa-steps">
+        <li>
+          <p>
+            {% blocktranslate trimmed %}
+              In an authenticator app — Google Authenticator, Microsoft Authenticator,
+              1Password, Bitwarden or any other that supports time-based codes — add an
+              account and scan this code.
+            {% endblocktranslate %}
+          </p>
+          {% if enrol.qr %}<div class="v-2fa-qr">{{ enrol.qr }}</div>{% endif %}
+          <p class="v-muted">
+            {% blocktranslate trimmed with issuer=enrol.issuer %}
+              Cannot scan it? Choose to enter a key instead, name it {{ issuer }}, and type:
+            {% endblocktranslate %}
+          </p>
+          <p><code class="v-2fa-key" translate="no">{{ enrol.key }}</code></p>
+          <p class="v-muted">
+            <a href="{{ enrol.uri }}">{% translate "Or open it in an authenticator app on this device" %}</a>
+          </p>
+        </li>
+        <li>
+          {% if confirm_form.non_field_errors %}
+            <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
+              {% for error in confirm_form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+            </div>
+          {% endif %}
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            {% with field=confirm_form.code %}
+              <div class="v-auth-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                <p class="v-auth-help" id="{{ field.auto_id }}_help">{{ field.help_text }}</p>
+                {% if field.errors %}
+                  <p class="v-auth-error" id="{{ field.auto_id }}_error" role="alert">
+                    <span class="v-sr-only">{{ field.label }}:</span>
+                    {% for error in field.errors %}{{ error }} {% endfor %}
+                  </p>
+                {% endif %}
+              </div>
+            {% endwith %}
+            <button class="v-btn v-btn-primary" type="submit">{% translate "Turn on" %}</button>
+          </form>
+        </li>
+      </ol>
+      <form method="post" class="v-2fa-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="cancel">
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <button class="v-btn v-btn-ghost v-btn-sm" type="submit">{% translate "Cancel" %}</button>
+      </form>
+    </div>
+  </section>
+
+{% else %}
+  <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-off-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-2fa-off-title">{% translate "Two-factor sign-in is off" %}</h2>
+    </div>
+    <div class="v-card-body">
+      {% if required %}
+        <div class="v-auth-alert" role="alert">
+          <span class="v-auth-alert-label">{% translate "Required." %}</span>
+          <span>{% translate "Your role requires two-factor sign-in. Set it up to carry on using the panel." %}</span>
+        </div>
+      {% endif %}
+      <p>
+        {% blocktranslate trimmed %}
+          With it on, signing in takes your password and a code from an app on your
+          phone, so a leaked password is not enough on its own.
+        {% endblocktranslate %}
+      </p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start">
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <button class="v-btn v-btn-primary" type="submit">{% translate "Set it up" %}</button>
+      </form>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

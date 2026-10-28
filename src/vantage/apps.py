@@ -21,6 +21,7 @@ class SimpleVantageConfig(AppConfig):
         from vantage.checks import (
             DEPLOYMENT_CHECKS,
             check_panels,
+            check_two_factor,
             check_vantage_settings,
         )
         from vantage.contrib.django_admin import check_admin_adapter
@@ -30,6 +31,7 @@ class SimpleVantageConfig(AppConfig):
 
         checks.register(check_vantage_settings, "vantage")
         checks.register(check_panels, "vantage")
+        checks.register(check_two_factor, "vantage")
         checks.register(check_nav, "vantage")
         # Tenant scoping fails closed, which is safe and invisible. This is the half
         # that makes it usable: it names every model whose pages would show nothing.
@@ -49,6 +51,13 @@ class SimpleVantageConfig(AppConfig):
         post_migrate.connect(
             ensure_reveal_permission, sender=self, dispatch_uid="vantage_reveal_permission"
         )
+        # Primes the two-factor answer for a fresh session at sign-in, so the panel's
+        # first page does not have to query for it. Any login view, not only ours.
+        from django.contrib.auth.signals import user_logged_in
+
+        from vantage.twofactor import on_logged_in
+
+        user_logged_in.connect(on_logged_in, dispatch_uid="vantage_two_factor_login")
         # deploy=True keeps these out of the everyday `manage.py check`. Every one of
         # them is correct on a laptop, and a check that is wrong in development is a
         # check everybody learns to scroll past.
