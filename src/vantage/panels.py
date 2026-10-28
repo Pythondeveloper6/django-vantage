@@ -112,6 +112,10 @@ class ModelPanel:
     #: follows ``VANTAGE["UNDO_WINDOW"]``; ``False`` switches it off for this model —
     #: for one whose rows must never come back once deleted, say.
     undo: bool | None = None
+    #: The record's history page: its audit timeline, the record as of any point in
+    #: it, and restoring fields from there. ``None`` follows ``VANTAGE["AUDIT_LOG"]``;
+    #: ``"view"`` keeps the page but offers no restore; ``False`` removes it.
+    history: bool | str | None = None
 
     #: The data quality audit: ``None`` runs every check, ``False`` leaves this model
     #: out, a list of check names (``["nulls", "stale"]``) skips just those.

@@ -142,6 +142,7 @@ def save_form(
     change: bool,
     inline_groups=(),
     version: str | None = None,
+    action_name: str = "",
 ):
     """Persist, handing control to the panel's ``save_model`` hook when it has one.
 
@@ -168,6 +169,8 @@ def save_form(
     duplicated in :mod:`vantage.api` because the compare-and-set has to run *inside* the
     save transaction, between ``form.save(commit=False)`` and the write, which only this
     function can arrange.
+
+    ``action_name`` is passed to the audit entry; see :func:`vantage.audit.log_form_save`.
     """
     from vantage.tenancy import enforce as enforce_tenant
 
@@ -195,7 +198,7 @@ def save_form(
     # the write it was recording.
     from vantage import audit
 
-    audit.log_form_save(request, obj, form, change)
+    audit.log_form_save(request, obj, form, change, action_name=action_name)
     inlines.log(request, inline_groups)
     return obj
 

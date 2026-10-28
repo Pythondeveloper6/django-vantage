@@ -59,6 +59,10 @@ can run in the background. [Bulk actions](lists.md#bulk-actions)
 **Undo.** Deletes, bulk edits and inline edits show a toast with an **Undo** button for a
 few seconds. Nothing is ever restored over somebody else's newer change. [Undo](undo.md)
 
+**History.** See any record as it was on a given date, replayed from the audit log, and
+restore some or all of its fields. Fields the log cannot vouch for are labelled, never
+guessed. [History](history.md)
+
 **Export and import.** CSV, TSV and JSON export of exactly what you are looking at, and a
 CSV import wizard that maps, previews and validates before writing anything.
 [Export](lists.md#export) · [Import](lists.md#import)
