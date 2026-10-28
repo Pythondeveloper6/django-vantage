@@ -92,23 +92,28 @@ def record(
     thing the operator can actually see and act on. The failure is logged at
     ``exception`` level so it is loud in the place where loudness is free.
     """
+    entry = None
     try:
-        if not vantage_settings.AUDIT_LOG:
-            return None
-        return VantageLogEntry.objects.create(
-            **_entry_kwargs(
-                request,
-                action,
-                obj=obj,
-                model=model,
-                changes=changes,
-                action_name=action_name,
-                object_repr=object_repr,
+        if vantage_settings.AUDIT_LOG:
+            entry = VantageLogEntry.objects.create(
+                **_entry_kwargs(
+                    request,
+                    action,
+                    obj=obj,
+                    model=model,
+                    changes=changes,
+                    action_name=action_name,
+                    object_repr=object_repr,
+                )
             )
-        )
     except Exception:  # deliberately broad: see the docstring
         logger.exception("Could not write a Vantage audit entry for %r.", action)
-        return None
+    # The same call sites, the same moment. Webhooks fire whether or not the log is on,
+    # and a failure in one is no reason to lose the other; `notify` never raises.
+    from vantage import webhooks
+
+    webhooks.notify(request, action, obj=obj, changes=changes)
+    return entry
 
 
 def _entry_kwargs(
