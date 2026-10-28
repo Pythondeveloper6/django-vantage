@@ -45,7 +45,7 @@ from django.urls import NoReverseMatch, get_resolver, reverse
 from django.urls.resolvers import URLResolver
 from model_bakery import baker
 
-from vantage.models import SavedView, VantageJob, Webhook, WebhookDelivery
+from vantage.models import ReportSubscription, SavedView, VantageJob, Webhook, WebhookDelivery
 from vantage.sites import site as vantage_site
 
 #: The seven URL names ``vantage.urls.build()`` mints for every registered panel,
@@ -85,7 +85,15 @@ def _prefix_pk_map(panels, instances) -> dict[str, object]:
 
 
 def _iter_requests(
-    panels, instances, job, saved_view, role=None, user=None, webhook=None, delivery=None
+    panels,
+    instances,
+    job,
+    saved_view,
+    role=None,
+    user=None,
+    webhook=None,
+    delivery=None,
+    report=None,
 ):
     """Every request this test will make: ``(description, url_name, kwargs)``.
 
@@ -132,6 +140,8 @@ def _iter_requests(
                     kwargs["pk"] = saved_view.pk
                 elif route.startswith("_/roles/") and role is not None:
                     kwargs["pk"] = role.pk
+                elif route.startswith("_/reports/") and report is not None:
+                    kwargs["pk"] = report.pk
                 elif route.startswith("_/webhooks/deliveries/") and delivery is not None:
                     kwargs["pk"] = delivery.pk
                 elif route.startswith("_/webhooks/") and webhook is not None:
@@ -249,6 +259,7 @@ def world(db):
         "role": Group.objects.create(name="Smoke role"),
         "webhook": webhook,
         "delivery": WebhookDelivery.objects.create(webhook=webhook, event="updated"),
+        "report": ReportSubscription.objects.create(view=saved_view, user=superuser),
     }
 
 
@@ -301,6 +312,7 @@ class TestFullRouteWalk:
                 user=world["staff"],
                 webhook=world["webhook"],
                 delivery=world["delivery"],
+                report=world["report"],
             )
         )
         failures: list[str] = []
@@ -325,6 +337,7 @@ class TestFullRouteWalk:
                 user=world["staff"],
                 webhook=world["webhook"],
                 delivery=world["delivery"],
+                report=world["report"],
             )
         )
         failures: list[str] = []
