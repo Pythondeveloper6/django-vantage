@@ -297,7 +297,7 @@ class TestVerify:
         assert twofactor.verify(device, codes[1].upper().replace("-", " "))
 
     def test_recovery_codes_are_stored_only_as_hashes(self, boss):
-        device, codes = enrol(boss)
+        _device, codes = enrol(boss)
         stored = list(TwoFactorRecoveryCode.objects.values_list("code_hash", flat=True))
         assert len(stored) == twofactor.RECOVERY_CODE_COUNT
         for code in codes:
@@ -555,7 +555,9 @@ class TestGate:
         client.force_login(boss)
         assert client.get(reverse("vantage:dashboard")).status_code == 200
 
-    def test_the_gate_costs_no_queries_once_signed_in(self, client, boss, django_assert_num_queries):
+    def test_the_gate_costs_no_queries_once_signed_in(
+        self, client, boss, django_assert_num_queries
+    ):
         """Primed at sign-in: an autocomplete keystroke pays session, user, options."""
         client.force_login(boss)
         with django_assert_num_queries(3):
@@ -641,14 +643,17 @@ class TestEnrolment:
         assert " ".join(key[i : i + 4] for i in range(0, 32, 4)) in body
         assert "otpauth://totp/" in body
         assert "<svg" in body
-        assert response["Cache-Control"].startswith("no-store") or "no-store" in response[
-            "Cache-Control"
-        ]
+        assert (
+            response["Cache-Control"].startswith("no-store")
+            or "no-store" in response["Cache-Control"]
+        )
 
     def test_it_is_not_on_until_a_code_confirms_it(self, client, boss):
         client.force_login(boss)
         client.post(reverse("vantage:two_factor"), {"action": "start"})
-        response = client.post(reverse("vantage:two_factor"), {"action": "confirm", "code": "000000"})
+        response = client.post(
+            reverse("vantage:two_factor"), {"action": "confirm", "code": "000000"}
+        )
         assert "not right" in response.content.decode()
         assert twofactor.device_for(boss) is None
         # Not on, so signing in still takes only the password.
@@ -675,7 +680,7 @@ class TestEnrolment:
         body = response.content.decode()
         assert "Save your recovery codes" in body
         assert "no-store" in response["Cache-Control"]
-        shown = [code for code in body.split("<code>")[1:]]
+        shown = body.split("<code>")[1:]
         assert len(shown) == twofactor.RECOVERY_CODE_COUNT
         # Afterwards: neither the codes nor the secret are on the page again.
         later = client.get(reverse("vantage:two_factor")).content.decode()
