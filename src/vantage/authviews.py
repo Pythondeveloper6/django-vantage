@@ -274,7 +274,7 @@ class TwoFactorLoginView(TemplateView):
 
         form = CodeForm(request.POST)
         if form.is_valid():
-            outcome = twofactor.verify(self.device, form.cleaned_data["code"])
+            outcome = twofactor.verify(self.device, form.cleaned_data["code"], request=request)
             if outcome:
                 twofactor.complete_login(request, self.person, self.device, self.pending["backend"])
                 return HttpResponseRedirect(self._next())

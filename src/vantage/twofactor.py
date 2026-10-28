@@ -379,11 +379,15 @@ def device_for(user, *, confirmed: bool = True):
     return TwoFactorDevice.objects.filter(user=user, confirmed_at__isnull=not confirmed).first()
 
 
-def start_enrolment(user):
+def start_enrolment(user, request=None):
     """A new, unconfirmed device with a fresh secret, replacing any half-finished one.
 
     Refuses while a confirmed one exists: replacing a working authenticator is
     "turn it off, then on again", and turning it off needs proof of who you are.
+
+    Audited, like every later step: the first person to enrol an account owns its
+    second factor, and the trail is how an administrator tells whether that was the
+    account's owner.
     """
     from vantage.models import TwoFactorDevice
 
@@ -392,9 +396,13 @@ def start_enrolment(user):
             raise ValueError("Two-factor sign-in is already on for this account.")
         TwoFactorDevice.objects.filter(user=user).delete()
         tag = secrets.token_hex(16)
-        return TwoFactorDevice.objects.create(
-            user=user, secret=seal(new_secret(), seal_context(user.pk, tag)), tag=tag
+        # By id, so ``device.user`` below is loaded as a model instance even when
+        # ``user`` is ``request.user``'s lazy wrapper, which the audit log cannot name.
+        device = TwoFactorDevice.objects.create(
+            user_id=user.pk, secret=seal(new_secret(), seal_context(user.pk, tag)), tag=tag
         )
+    _audit(request, device.user, "two_factor.started", gettext("off"), gettext("being set up"))
+    return device
 
 
 def _open_device(device) -> tuple[bytes | None, bool]:
@@ -538,13 +546,21 @@ def _succeeded(device, *, where: dict | None = None, **fields) -> int:
 
 
 def verify(
-    device, code: object, *, allow_recovery: bool = True, at: float | None = None
+    device,
+    code: object,
+    *,
+    allow_recovery: bool = True,
+    at: float | None = None,
+    request=None,
 ) -> Outcome:
     """Check one code — an app code, or a recovery code if allowed — and spend it.
 
     The attempt is counted before the code is even looked at (see
     :func:`reserve_attempt`), so the lockout is a lockout and not merely a slower
     oracle — also for a burst of requests sent in parallel.
+
+    A recovery code spent is audited against ``request``: it is the answer someone
+    without the phone gives, which makes it the one worth being able to find again.
     """
     from vantage.models import TwoFactorRecoveryCode
 
@@ -574,6 +590,14 @@ def verify(
         if spent:
             _succeeded(device, last_used_at=timezone.now())
             _refresh_seal(device)
+            _audit(
+                request,
+                device.user,
+                "two_factor.recovery_used",
+                gettext("unused"),
+                gettext("used, %(count)s left") % {"count": remaining_codes(device)},
+                field=gettext("Recovery code"),
+            )
             return Outcome(True, "recovery")
 
     return _failed(attempt)

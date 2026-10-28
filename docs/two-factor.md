@@ -47,6 +47,22 @@ else in the panel: every other page, the JSON API and autocomplete refuse until 
 The requirement takes effect on sessions that are already signed in, not only at the
 next sign-in.
 
+**Whoever enrols first owns it.** Setting it up needs only a signed-in session, so for an
+account that has not enrolled yet, the password is still enough to enrol — and whoever
+does it first holds the account's second factor from then on, its owner included. When
+you switch a requirement on, an attacker who already has someone's password can race the
+owner to the set-up page. To keep that visible and undoable:
+
+- Every step is in the [audit log](permissions.md#the-audit-log) against the account:
+  `two_factor.started`, `two_factor.enabled`, `two_factor.disabled`, `two_factor.codes`,
+  `two_factor.recovery_used` and `two_factor.reset`, with the address and browser of the
+  request that did it.
+- **Two-factor sign-in for everyone** shows when each person's authenticator was last
+  set up. If someone does not recognise theirs, or cannot sign in because "their"
+  authenticator is not on their phone, a superuser resets it and they set it up again.
+- Ask people to enrol *before* you require it, and confirm on that screen that everyone
+  you expect is there.
+
 The requirement covers the panel. If `django.contrib.admin` is mounted too, see
 [Django's admin](#djangos-admin) — its own sign-in asks for the password only.
 
