@@ -779,6 +779,33 @@ def check_deploy_media_origin(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_reports_base_url(app_configs, **kwargs) -> list[Warning]:
+    """Report emails whose links come from a request header. (``vantage.W115``)
+
+    Without ``REPORTS_BASE_URL`` the unsubscribe and "open in the panel" links are built
+    from the address the subscription was made from, and that address is taken from the
+    request's ``Host`` header. Behind a proxy that does not pin the host, or with a
+    permissive ``ALLOWED_HOSTS``, whoever sends that header decides where every later
+    email links. Silent when reports are off or the panel is not mounted.
+    """
+    if not panel_is_mounted():
+        return []
+    if not _vantage_setting("REPORTS") or _vantage_setting("REPORTS_BASE_URL"):
+        return []
+    return [
+        Warning(
+            "Scheduled reports are on and VANTAGE['REPORTS_BASE_URL'] is not set.",
+            hint=(
+                "Links in report emails are then built from the Host header of the "
+                "request that created each subscription, which a client can choose. "
+                "Set REPORTS_BASE_URL to the panel's public address, for example "
+                "'https://panel.example.com'. See docs/reports.md."
+            ),
+            id="vantage.W115",
+        )
+    ]
+
+
 def _models_with_file_fields() -> list[str]:
     """``"app.Model"`` for every registered model that can hold an uploaded file."""
     from django.db import models as django_models
@@ -913,4 +940,5 @@ DEPLOYMENT_CHECKS = (
     check_deploy_login_throttle,
     check_deploy_panel_middleware,
     check_deploy_media_origin,
+    check_deploy_reports_base_url,
 )
