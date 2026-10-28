@@ -59,6 +59,21 @@ def enrol(user):
     return device, twofactor._issue_codes(device)
 
 
+def seal_v1(plaintext: bytes) -> str:
+    """A value in the first sealed format, which bound it to nothing."""
+    import base64
+    import hmac
+    import secrets
+
+    from django.conf import settings
+
+    nonce = secrets.token_bytes(16)
+    encrypt, sign = twofactor._seal_keys(settings.SECRET_KEY)
+    ciphertext = twofactor._xor(plaintext, twofactor._keystream(encrypt, nonce, len(plaintext)))
+    tag = hmac.new(sign, b"v1" + nonce + ciphertext, hashlib.sha256).digest()
+    return "v1$" + base64.urlsafe_b64encode(nonce + ciphertext + tag).decode("ascii")
+
+
 def code_for(device, steps_ahead: int = 0) -> str:
     """A current app code. ``steps_ahead`` reaches the next step, for a second code."""
     key = twofactor.device_key(TwoFactorDevice.objects.get(pk=device.pk))
@@ -193,7 +208,7 @@ class TestSealing:
         sealed = twofactor.seal(twofactor.new_secret())
         body = bytearray(__import__("base64").urlsafe_b64decode(sealed[3:]))
         body[20] ^= 1
-        forged = "v1$" + __import__("base64").urlsafe_b64encode(bytes(body)).decode()
+        forged = sealed[:3] + __import__("base64").urlsafe_b64encode(bytes(body)).decode()
         with pytest.raises(ValueError):
             twofactor.unseal(forged)
 
@@ -211,7 +226,7 @@ class TestSealing:
         settings.SECRET_KEY_FALLBACKS = [old]
         assert twofactor.unseal(sealed) == secret
 
-    @pytest.mark.parametrize("junk", ["", "v2$abc", "v1$", "v1$!!!", "plain"])
+    @pytest.mark.parametrize("junk", ["", "v2$abc", "v3$abc", "v1$", "v2$", "v1$!!!", "plain"])
     def test_junk_is_refused(self, junk):
         with pytest.raises(ValueError):
             twofactor.unseal(junk)
@@ -220,7 +235,57 @@ class TestSealing:
         device, _ = enrol(boss)
         key = twofactor.device_key(device)
         assert twofactor.b32(key) not in device.secret
-        assert device.secret.startswith("v1$")
+        assert device.secret.startswith("v2$")
+
+    def test_a_value_opens_only_in_its_own_context(self):
+        secret = twofactor.new_secret()
+        sealed = twofactor.seal(secret, "row-1")
+        assert twofactor.unseal(sealed, "row-1") == secret
+        for other in ("row-2", "", "row-1 "):
+            with pytest.raises(ValueError):
+                twofactor.unseal(sealed, other)
+
+    def test_a_secret_copied_to_another_device_fails_closed(self, boss, clerk):
+        """Someone who can write the table but not read SECRET_KEY copies their own
+        sealed secret over a colleague's, then signs in as them with their own phone.
+        The value is bound to its owner and enrolment, so it no longer opens there."""
+        mine, _ = enrol(clerk)
+        theirs, _ = enrol(boss)
+        TwoFactorDevice.objects.filter(pk=theirs.pk).update(secret=mine.secret)
+        my_code = code_for(mine)
+        assert twofactor.device_key(TwoFactorDevice.objects.get(pk=theirs.pk)) is None
+        assert not twofactor.verify(TwoFactorDevice.objects.get(pk=theirs.pk), my_code)
+        # The tag is part of the binding too: a re-enrolment's row is a different row.
+        TwoFactorDevice.objects.filter(pk=mine.pk).update(tag="0" * 32)
+        assert twofactor.device_key(TwoFactorDevice.objects.get(pk=mine.pk)) is None
+
+    def test_a_v1_value_still_verifies_and_is_sealed_again_as_v2(self, boss):
+        device, _ = enrol(boss)
+        key = twofactor.device_key(device)
+        TwoFactorDevice.objects.filter(pk=device.pk).update(secret=seal_v1(key))
+        assert twofactor.verify(device, code_for(device))
+        device.refresh_from_db()
+        assert device.secret.startswith("v2$")
+        assert twofactor.device_key(device) == key
+
+    def test_a_value_only_a_fallback_key_opens_is_sealed_again(self, boss, settings):
+        device, _ = enrol(boss)
+        key = twofactor.device_key(device)
+        old = settings.SECRET_KEY
+        settings.SECRET_KEY = "the-new-key"
+        settings.SECRET_KEY_FALLBACKS = [old]
+        assert twofactor.verify(device, code_for(device))
+        # Dropping the fallback, as the rotation's last step, no longer locks them out.
+        settings.SECRET_KEY_FALLBACKS = []
+        device.refresh_from_db()
+        assert twofactor.device_key(device) == key
+
+    def test_a_current_value_is_left_alone(self, boss):
+        device, _ = enrol(boss)
+        before = device.secret
+        assert twofactor.verify(device, code_for(device))
+        device.refresh_from_db()
+        assert device.secret == before
 
 
 # ── the QR code ─────────────────────────────────────────────────────────────
