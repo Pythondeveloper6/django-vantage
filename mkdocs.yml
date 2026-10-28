@@ -117,6 +117,7 @@ nav:
       - Pages and dashboards: pages-and-dashboards.md
       - Theming: theming.md
       - UI theme presets: ui-themes.md
+      - Phones: phones.md
   - Platform:
       - Permissions: permissions.md
       - Roles: roles.md
