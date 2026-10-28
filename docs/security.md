@@ -331,6 +331,7 @@ this page instead.
 
 ## See also
 
+- [Two-factor sign-in](two-factor.md) — authenticator-app codes after the password, and how to require them
 - [Deployment](deployment.md) — the rest of the pre-launch checklist
 - [Permissions](permissions.md) — the model/object/queryset layer these checks sit above
 - [Forms](forms.md#media-and-uploads) — the field-level upload validators, thumbnails, and what they refuse

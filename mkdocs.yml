@@ -120,6 +120,7 @@ nav:
   - Platform:
       - Permissions: permissions.md
       - Roles: roles.md
+      - Two-factor sign-in: two-factor.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
       - Multi-tenancy: tenancy.md
