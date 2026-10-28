@@ -15,7 +15,7 @@
   Said out loud, as the webhooks page does: with no queue configured the cron command
   sends the emails itself, and nothing at all happens until cron runs it.
 {% endcomment %}
-<p class="v-reports-note">
+<p class="v-note" data-tone="warning">
   {% icon "activity" %}
   <span>
     {% if backend.deferred %}
@@ -34,7 +34,7 @@
 
 <div class="v-table-wrap">
   {% if subs %}
-    <table class="v-table v-reports-table">
+    <table class="v-table v-table-flow v-reports-table">
       <thead>
         <tr>
           <th scope="col">{% translate "Saved view" %}</th>
@@ -71,7 +71,8 @@
               {% else %}—{% endif %}
             </td>
             <td class="v-reports-num"><a href="?report={{ sub.pk }}&amp;status=failed">{{ sub.failing }}</a></td>
-            <td class="v-reports-actions">
+            <td class="v-cell-actions">
+              <div class="v-reports-actions">
               {% if sub.can_act %}
                 <form method="post" action="{% url 'vantage:report-send' sub.pk %}">
                   {% csrf_token %}
@@ -92,6 +93,7 @@
                      aria-label="{% blocktranslate with name=sub.view.name %}Delete the report of {{ name }}{% endblocktranslate %}">{% icon "trash" %}<span>{% translate "Delete" %}</span></a>
                 {% endif %}
               {% endif %}
+              </div>
             </td>
           </tr>
         {% endfor %}
@@ -137,7 +139,7 @@
 
 <div class="v-table-wrap">
   {% if page_obj.object_list %}
-    <table class="v-table v-reports-table">
+    <table class="v-table v-table-flow v-reports-table">
       <thead>
         <tr>
           <th scope="col">{% translate "When" %}</th>
@@ -155,7 +157,7 @@
             <td>
               {{ run.subscription.view.name }}
               {% if everyone %}<code class="v-mono v-reports-model">{{ run.subscription.user.get_username }}</code>{% endif %}
-              <span class="v-muted">{{ run.get_trigger_display }}</span>
+              <span class="v-reports-model">{{ run.get_trigger_display }}</span>
             </td>
             <td>
               <span class="v-reports-status" data-status="{{ run.status }}">{{ run.get_status_display }}</span>
