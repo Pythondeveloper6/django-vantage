@@ -337,9 +337,58 @@ class TestVerify:
         device, _ = enrol(boss)
         twofactor.verify(device, "000000")
         twofactor.verify(device, "000000")
+        # The third attempt reaches the limit, so the lock goes on before the code is
+        # compared; a right code lifts it again.
         assert twofactor.verify(device, code_for(device))
         device.refresh_from_db()
         assert device.failed_attempts == 0
+        assert device.locked_until is None
+
+    @pytest.mark.parametrize("kind", ["app code", "recovery code", "password"])
+    def test_a_burst_compares_no_more_than_the_limit(self, boss, settings, monkeypatch, kind):
+        """However requests interleave, at most MAX_ATTEMPTS answers are compared.
+
+        Each comparison starts the next request before it finishes, which is the worst
+        case for a check-then-count lockout: every request is past the "is it locked?"
+        question before any failure has been counted. The attempt is counted first, so
+        the chain stops at the limit, and the rest of the burst is refused unread.
+        """
+        settings.VANTAGE = {"TWO_FACTOR_MAX_ATTEMPTS": 5, "TWO_FACTOR_LOCKOUT_SECONDS": 600}
+        device, _ = enrol(boss)
+
+        def fresh():
+            return TwoFactorDevice.objects.get(pk=device.pk)
+
+        owner, name, again = {
+            "app code": (twofactor, "device_key", lambda: twofactor.verify(fresh(), "000000")),
+            "recovery code": (
+                twofactor,
+                "hash_recovery_code",
+                lambda: twofactor.verify(fresh(), "aaaa-aaaa-aaaa-aaaa"),
+            ),
+            "password": (
+                User,
+                "check_password",
+                lambda: twofactor.verify_password(fresh(), boss, "wrong"),
+            ),
+        }[kind]
+        real = getattr(owner, name)
+        burst = {"sent": 1, "compared": 0}
+
+        def compare(*args, **kwargs):
+            burst["compared"] += 1
+            if burst["sent"] < 40:
+                burst["sent"] += 1
+                again()
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(owner, name, compare)
+        again()
+        while burst["sent"] < 40:
+            burst["sent"] += 1
+            assert again().reason == "locked"
+        assert burst["compared"] == 5
+        assert fresh().locked_until is not None
 
     def test_a_secret_that_cannot_be_unsealed_fails_closed(self, boss, settings):
         device, _ = enrol(boss)

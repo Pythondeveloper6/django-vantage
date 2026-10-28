@@ -24,9 +24,10 @@ the panel will show them anything.
 
 **A code works once.** The step it was accepted for is stored and the next code must be
 for a later step, enforced with a conditional ``UPDATE`` so that two requests racing
-with the same code cannot both win. Wrong codes count against the *account*, not the
+with the same code cannot both win. Attempts count against the *account*, not the
 session, so an attacker who has the password gains nothing by opening fresh sessions;
-too many in a row locks the second step for a few minutes.
+each is counted before its answer is compared, so nor by sending them in parallel; too
+many in a row locks the second step for a few minutes.
 
 **The secret is sealed, and shown only until it is confirmed.** It is encrypted with a
 key derived from ``SECRET_KEY`` (HMAC-SHA256 as a stream cipher, then
@@ -59,7 +60,7 @@ from urllib.parse import quote, urlencode
 from django.conf import settings as django_settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
@@ -93,6 +94,7 @@ __all__ = [
     "totp",
     "unseal",
     "verify",
+    "verify_password",
 ]
 
 logger = logging.getLogger("vantage.security")
@@ -402,29 +404,71 @@ def _locked_for(device) -> int:
     return int(remaining) + 1 if remaining > 0 else 0
 
 
-def record_failure(device) -> Outcome:
-    """Count one wrong answer against the account, and lock it at the limit.
+@dataclass(frozen=True)
+class _Attempt:
+    """A reserved attempt: :func:`reserve_attempt` said yes, and counted it."""
 
-    Two statements, each atomic on its own: the increment cannot lose a racing
-    failure, and the lock only fires for the request that actually crossed the line.
+    #: This attempt used up the last one, so the lock is already on.
+    last: bool
+
+
+def reserve_attempt(device) -> _Attempt | Outcome:
+    """Count one attempt against the account *before* its answer is compared.
+
+    The order is the whole point. Counting only after a wrong answer leaves a window
+    between "is it locked?" and "count this failure", and a burst of parallel requests
+    all fit through it: every one of them is compared before any is counted. Here the
+    check and the count are one conditional ``UPDATE`` — not locked, under the limit,
+    add one — and only a request that changed a row may compare anything. However the
+    requests interleave, at most ``TWO_FACTOR_MAX_ATTEMPTS`` answers are compared per
+    lockout.
+
+    The attempt that reaches the limit switches the lock on at once, before its own
+    answer is known; if that answer is right, :func:`_succeeded` lifts it again. Both
+    statements share a transaction, so a crash between them cannot leave the counter
+    at the limit with no lock to expire it.
+
+    Returns the reservation, or the refusal to show.
     """
     from vantage.models import TwoFactorDevice
 
     limit = setting("TWO_FACTOR_MAX_ATTEMPTS")
-    rows = TwoFactorDevice.objects.filter(pk=device.pk)
-    rows.update(failed_attempts=F("failed_attempts") + 1)
     seconds = setting("TWO_FACTOR_LOCKOUT_SECONDS")
-    locked = rows.filter(failed_attempts__gte=limit).update(
-        failed_attempts=0, locked_until=timezone.now() + timedelta(seconds=seconds)
-    )
-    if locked:
+    now = timezone.now()
+    rows = TwoFactorDevice.objects.filter(pk=device.pk)
+    with transaction.atomic():
+        reserved = rows.filter(
+            Q(locked_until__isnull=True) | Q(locked_until__lte=now),
+            failed_attempts__lt=limit,
+        ).update(failed_attempts=F("failed_attempts") + 1, locked_until=None)
+        if not reserved:
+            device.refresh_from_db(fields=["locked_until", "failed_attempts"])
+            return Outcome(False, "locked", _locked_for(device) or seconds)
+        last = rows.filter(failed_attempts__gte=limit).update(
+            failed_attempts=0, locked_until=now + timedelta(seconds=seconds)
+        )
+    if last:
         logger.warning(
-            "Vantage locked two-factor sign-in for user id=%s after %s wrong codes.",
+            "Vantage locked two-factor sign-in for user id=%s after %s attempts.",
             device.user_id,
             limit,
         )
-        return Outcome(False, "locked", seconds)
-    return Outcome(False, "invalid")
+    return _Attempt(last=bool(last))
+
+
+def _failed(attempt: _Attempt, reason: str = "invalid") -> Outcome:
+    """The answer was wrong. Already counted; all that is left is what to say."""
+    if attempt.last:
+        return Outcome(False, "locked", setting("TWO_FACTOR_LOCKOUT_SECONDS"))
+    return Outcome(False, reason)
+
+
+def _succeeded(device, *, where: dict | None = None, **fields) -> int:
+    """The answer was right: the count starts again and any lock it set is lifted."""
+    from vantage.models import TwoFactorDevice
+
+    rows = TwoFactorDevice.objects.filter(pk=device.pk, **(where or {}))
+    return rows.update(failed_attempts=0, locked_until=None, **fields)
 
 
 def verify(
@@ -432,20 +476,19 @@ def verify(
 ) -> Outcome:
     """Check one code — an app code, or a recovery code if allowed — and spend it.
 
-    A locked device is refused before the code is even looked at, so the lockout is a
-    lockout and not merely a slower oracle.
+    The attempt is counted before the code is even looked at (see
+    :func:`reserve_attempt`), so the lockout is a lockout and not merely a slower
+    oracle — also for a burst of requests sent in parallel.
     """
-    from vantage.models import TwoFactorDevice, TwoFactorRecoveryCode
+    from vantage.models import TwoFactorRecoveryCode
 
+    attempt = reserve_attempt(device)
+    if isinstance(attempt, Outcome):
+        return attempt
     device.refresh_from_db()
-    wait = _locked_for(device)
-    if wait:
-        return Outcome(False, "locked", wait)
 
     at = time.time() if at is None else at
-    now = timezone.now()
     value = normalise_code(code)
-    success = {"failed_attempts": 0, "locked_until": None, "last_used_at": now}
 
     if is_totp_shaped(value):
         key = device_key(device)
@@ -453,22 +496,35 @@ def verify(
         if step is not None:
             # Conditional on the stored step, so of two requests racing with one code,
             # exactly one updates a row; the other is a replay and is told so.
-            won = TwoFactorDevice.objects.filter(pk=device.pk, last_step__lt=step).update(
-                last_step=step, **success
-            )
-            if won:
+            now = timezone.now()
+            if _succeeded(device, where={"last_step__lt": step}, last_step=step, last_used_at=now):
                 return Outcome(True, "totp")
-            record_failure(device)
-            return Outcome(False, "reused")
+            return _failed(attempt, "reused")
     elif allow_recovery and is_recovery_shaped(value):
         spent = TwoFactorRecoveryCode.objects.filter(
             device=device, code_hash=hash_recovery_code(value), used_at__isnull=True
-        ).update(used_at=now)
+        ).update(used_at=timezone.now())
         if spent:
-            TwoFactorDevice.objects.filter(pk=device.pk).update(**success)
+            _succeeded(device, last_used_at=timezone.now())
             return Outcome(True, "recovery")
 
-    return record_failure(device)
+    return _failed(attempt)
+
+
+def verify_password(device, user, password: str) -> Outcome:
+    """The password, as proof for a form that weakens two-factor sign-in.
+
+    Through the same gate as a code: a wrong password counts toward the same lock, and
+    is counted before it is checked. The password is the cheaper thing to guess, and a
+    lockout either could step around is not one.
+    """
+    attempt = reserve_attempt(device)
+    if isinstance(attempt, Outcome):
+        return attempt
+    if user.check_password(password):
+        _succeeded(device)
+        return Outcome(True, "password")
+    return _failed(attempt)
 
 
 def confirm_enrolment(request, device, code: object) -> tuple[Outcome, list[str]]:
