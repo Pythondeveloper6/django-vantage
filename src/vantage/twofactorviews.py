@@ -322,7 +322,9 @@ class TwoFactorVerifyView(TemplateView):
     The panel's own sign-in asks for the code *before* ``login()``. A project that
     signs people in through its own view, or through ``django.contrib.admin``'s, hands
     the panel a fully signed-in session that never answered — and this is where the
-    gate sends it, before any page with data on it.
+    gate sends it, before any panel page with data on it. With
+    :class:`~vantage.twofactor.AdminTwoFactorMiddleware` installed, Django's admin
+    sends it here too.
 
     Standalone rather than inside the shell: every link in a sidebar would lead
     straight back here.

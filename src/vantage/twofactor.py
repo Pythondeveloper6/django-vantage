@@ -18,9 +18,12 @@ the code, which is also what rotates the session key.
 plugin's, a dashboard's, an API endpoint's — is covered without knowing this module
 exists. The few routes that must stay open (the second step itself, enrolment while it
 is required, the translation catalogue) say so with an attribute; forgetting that
-attribute fails closed. This also covers sessions that signed in through some *other*
-login view, such as ``django.contrib.admin``'s: they are sent to the second step before
-the panel will show them anything.
+attribute fails closed. A session that signed in through some *other* login view, such
+as ``django.contrib.admin``'s, is sent to the second step before the panel will show it
+anything — but only the panel. That other login view's own pages are not the panel's,
+and a password-only session can use them: ``django.contrib.admin`` is held to the same
+requirement only if :class:`AdminTwoFactorMiddleware` is installed, and ``check
+--deploy`` says so (``vantage.W095``) when it is mounted beside a requirement without it.
 
 **A code works once.** The step it was accepted for is stored and the next code must be
 for a later step, enforced with a conditional ``UPDATE`` so that two requests racing
@@ -74,7 +77,9 @@ from vantage.conf import vantage_settings
 __all__ = [
     "DIGITS",
     "PERIOD",
+    "AdminTwoFactorMiddleware",
     "Outcome",
+    "admin_site_of",
     "begin_pending",
     "complete_login",
     "confirm_enrolment",
@@ -944,3 +949,55 @@ def guard_patterns(patterns: list) -> list:
             continue
         pattern.callback = gated(callback, getattr(pattern, "name", None))
     return patterns
+
+
+# ── django.contrib.admin, if asked ──────────────────────────────────────────
+
+
+def admin_site_of(view):
+    """The ``django.contrib.admin`` site ``view`` is a page of, or ``None``.
+
+    ``AdminSite.get_urls`` marks its own views with ``admin_site`` and
+    ``ModelAdmin.get_urls`` marks theirs with ``model_admin``; both have done so for
+    as long as the admin has had class-based sites. Its sign-in view is not marked,
+    which is right: it is the one page a signed-out person has to reach.
+    """
+    site = getattr(view, "admin_site", None)
+    if site is None:
+        site = getattr(getattr(view, "model_admin", None), "admin_site", None)
+    if site is None:
+        return None
+    from django.contrib.admin import AdminSite
+
+    return site if isinstance(site, AdminSite) else None
+
+
+class AdminTwoFactorMiddleware:
+    """Hold ``django.contrib.admin`` to the panel's two-factor requirement.
+
+    Opt-in, after ``AuthenticationMiddleware``. Without it, a session signed in at
+    ``/admin/login/`` has the password and nothing else, and Django's admin — whose
+    sign-in this package does not own — lets it in. With it, every admin page asks the
+    same question the panel's gate asks, of the same person, and a session that owes a
+    code (or an enrolment) is sent to the panel's page for it, with the admin page as
+    ``next``; posts and the admin's autocomplete get a 403. Signing out stays open.
+
+    ``process_view`` rather than ``__call__``, so it sees the resolved view and can
+    recognise the admin by what its views are marked with rather than by where it
+    happens to be mounted.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        site = admin_site_of(view_func)
+        if site is None:
+            return None
+        if getattr(view_func, "__wrapped__", None) in (site.logout, site.i18n_javascript):
+            return None
+        needed = requirement(request)
+        return None if needed is None else refusal(request, needed)

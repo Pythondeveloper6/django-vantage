@@ -14,6 +14,7 @@ import json
 import time
 
 import pytest
+from django.contrib import admin as django_admin
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
@@ -22,7 +23,7 @@ from django.test import Client, override_settings
 from django.urls import include, path, reverse
 
 from vantage import qr, site, twofactor
-from vantage.checks import check_two_factor
+from vantage.checks import check_deploy_two_factor_admin, check_two_factor
 from vantage.conf import vantage_settings
 from vantage.models import TwoFactorDevice, TwoFactorRecoveryCode, VantageLogEntry
 from vantage.registry import DEFAULT_EXCLUDE
@@ -944,6 +945,141 @@ class TestReset:
         assert twofactor.device_for(clerk) is None
         assert "now off" in capsys.readouterr().out
         assert VantageLogEntry.objects.get(action_name="two_factor.reset").actor is None
+
+
+# ── django.contrib.admin beside the panel ─────────────────────────────────
+
+
+class StubAdminSite(django_admin.AdminSite):
+    """Django's admin, with the two pages these tests open answered without templates:
+    ``django.contrib.admin`` is not installed here, so its templates are not either."""
+
+    def index(self, request, extra_context=None):
+        return HttpResponse("admin index")
+
+    def logout(self, request, extra_context=None):
+        return HttpResponse("signed out")
+
+
+ADMIN_MIDDLEWARE = "vantage.twofactor.AdminTwoFactorMiddleware"
+
+
+@pytest.fixture
+def beside_admin(settings):
+    """The panel and Django's admin, both mounted: the setup the bypass lives in."""
+    from types import ModuleType
+
+    from tests.testapp.models import Author
+
+    admin_site = StubAdminSite(name="djadmin")
+    admin_site.register(Author)
+    urlconf = ModuleType("beside_admin_urls")
+    urlconf.urlpatterns = [
+        path("accounts/", include("vantage.authviews")),
+        path("admin/", site.urls),
+        path("djadmin/", admin_site.urls),
+    ]
+    settings.ROOT_URLCONF = urlconf
+    return admin_site
+
+
+class TestDjangoAdmin:
+    def test_without_the_middleware_a_password_is_enough_for_the_admin(
+        self, client, boss, beside_admin
+    ):
+        """The gap the middleware and W095 exist for: the panel is gated, the admin is
+        not, and a session signed in at the admin's login has only the password."""
+        enrol(boss)
+        client.force_login(boss)
+        assert client.get("/djadmin/").content == b"admin index"
+        assert client.get(reverse("vantage:dashboard")).status_code == 302
+
+    def test_with_it_the_admin_asks_for_the_code(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        device, _ = enrol(boss)
+        client.force_login(boss)
+        response = client.get("/djadmin/")
+        assert response.status_code == 302
+        assert response["Location"].startswith(reverse("vantage:two_factor_verify"))
+        assert "next=%2Fdjadmin%2F" in response["Location"]
+        answered = client.post(
+            response["Location"], {"code": code_for(device), "next": "/djadmin/"}
+        )
+        assert answered["Location"] == "/djadmin/"
+        assert client.get("/djadmin/").content == b"admin index"
+
+    def test_a_model_admins_pages_are_covered_too(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        enrol(boss)
+        client.force_login(boss)
+        assert client.get("/djadmin/testapp/author/").status_code == 302
+        assert client.post("/djadmin/testapp/author/add/", {"name": "x"}).status_code == 403
+
+    def test_a_required_enrolment_is_asked_for_first(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_SUPERUSERS": True}
+        client.force_login(boss)
+        response = client.get("/djadmin/")
+        assert response["Location"].startswith(reverse("vantage:two_factor") + "?")
+
+    def test_signing_out_and_signing_in_stay_open(self, client, boss, beside_admin, settings):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        enrol(boss)
+        client.force_login(boss)
+        assert client.post("/djadmin/logout/").content == b"signed out"
+        assert twofactor.admin_site_of(beside_admin.login) is None
+
+    def test_nobody_owing_anything_passes_straight_through(
+        self, client, clerk, beside_admin, settings
+    ):
+        settings.MIDDLEWARE = [*settings.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        client.force_login(clerk)
+        assert client.get("/djadmin/").content == b"admin index"
+
+    def test_it_leaves_everything_else_alone(self, rf, boss):
+        """Only views the admin marked as its own; anything else is not its business."""
+        middleware = twofactor.AdminTwoFactorMiddleware(lambda request: HttpResponse())
+        request = rf.get("/")
+        assert middleware.process_view(request, lambda request: None, (), {}) is None
+
+
+class TestAdminCheck:
+    """``vantage.W095``: a requirement with Django's admin mounted beside it, unheld."""
+
+    @pytest.fixture
+    def required(self, settings):
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_ROLES": ["Finance"]}
+        return settings
+
+    def test_it_fires_and_says_where(self, beside_admin, required):
+        warnings = check_deploy_two_factor_admin(None)
+        assert [w.id for w in warnings] == ["vantage.W095"]
+        assert "/djadmin/" in warnings[0].msg
+        assert ADMIN_MIDDLEWARE in warnings[0].hint
+
+    def test_superusers_alone_are_a_requirement_too(self, beside_admin, settings):
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_SUPERUSERS": True}
+        assert [w.id for w in check_deploy_two_factor_admin(None)] == ["vantage.W095"]
+
+    def test_the_middleware_silences_it(self, beside_admin, required):
+        required.MIDDLEWARE = [*required.MIDDLEWARE, ADMIN_MIDDLEWARE]
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_silent_when_nobody_is_required(self, beside_admin):
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_silent_when_two_factor_is_off(self, beside_admin, settings):
+        settings.VANTAGE = {"TWO_FACTOR": False, "TWO_FACTOR_REQUIRED_SUPERUSERS": True}
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_silent_without_the_admin(self, required):
+        assert check_deploy_two_factor_admin(None) == []
+
+    def test_it_runs_only_under_deploy(self):
+        from django.core.checks.registry import registry
+
+        assert check_deploy_two_factor_admin in registry.get_checks(include_deployment_checks=True)
+        assert check_deploy_two_factor_admin not in registry.get_checks()
 
 
 class TestCsrf:
