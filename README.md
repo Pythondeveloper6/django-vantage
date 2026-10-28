@@ -409,6 +409,12 @@ so "why is my `panel.py` being ignored?" has a single, findable answer.
 | **Light, dark and system themes, RTL** | All from day one, with `en` and `ar` catalogues shipped |
 | **Query-count guarantees** | `select_related` and `prefetch_related` are derived from what the page renders, and tests assert the cost does not grow with the row count |
 
+## Roadmap
+
+Next up: record history with point-in-time restore, approval workflows, two-factor
+sign-in, field-level permissions, scheduled reports, webhooks and a layout for phones.
+[Read the roadmap →](https://pythondeveloper6.github.io/django-vantage/roadmap/)
+
 ## Requirements
 
 Python 3.12, 3.13, 3.14 · Django 5.2 LTS, 6.0, 6.1
