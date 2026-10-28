@@ -207,27 +207,31 @@
     grid-column: auto;
   }
 
-  /* ── the list as a stack of cards ── */
+  /* ── the list as a stack of cards ──
+   * Only the model list table, which is the one carrying role="grid" and the
+   * data-label cells this restack reads. Every other table (history, reports,
+   * webhooks, audit, roles ...) keeps its columns and scrolls sideways inside its own
+   * wrapper, below. */
 
-  .v-shell .v-table-wrap {
+  .v-shell .v-table-wrap:has(> .v-table[role="grid"]) {
     border: 0;
     background: none;
     overflow: visible;
   }
 
-  .v-shell .v-table,
-  .v-shell .v-table tbody {
+  .v-shell .v-table[role="grid"],
+  .v-shell .v-table[role="grid"] tbody {
     display: block;
     inline-size: 100%;
   }
 
   /* The header row survives as a strip of sort links, so sorting still works. It
    * scrolls inside itself rather than wrapping into a wall of chips. */
-  .v-shell .v-table thead {
+  .v-shell .v-table[role="grid"] thead {
     display: block;
   }
 
-  .v-shell .v-table thead tr {
+  .v-shell .v-table[role="grid"] thead tr {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -236,7 +240,7 @@
     scrollbar-width: none;
   }
 
-  .v-shell .v-table thead th {
+  .v-shell .v-table[role="grid"] thead th {
     position: static;
     display: flex;
     flex: none;
@@ -247,8 +251,8 @@
     overflow: visible;
   }
 
-  .v-shell .v-table thead th .v-sort,
-  .v-shell .v-table thead th .v-col-head-label {
+  .v-shell .v-table[role="grid"] thead th .v-sort,
+  .v-shell .v-table[role="grid"] thead th .v-col-head-label {
     display: inline-flex;
     align-items: center;
     min-block-size: 2.75rem;
@@ -261,26 +265,26 @@
     font-size: 0.8125rem;
   }
 
-  .v-shell .v-table thead th[aria-sort] .v-sort {
+  .v-shell .v-table[role="grid"] thead th[aria-sort] .v-sort {
     border-color: var(--primary);
     color: var(--primary);
   }
 
-  .v-shell .v-table thead th .v-col-pin,
-  .v-shell .v-table thead th .v-col-resize {
+  .v-shell .v-table[role="grid"] thead th .v-col-pin,
+  .v-shell .v-table[role="grid"] thead th .v-col-resize {
     display: none;
   }
 
-  .v-shell .v-table thead th.v-select-cell {
+  .v-shell .v-table[role="grid"] thead th.v-select-cell {
     min-inline-size: 2.75rem;
     justify-content: center;
   }
 
-  .v-shell .v-table thead th.v-row-actions-cell {
+  .v-shell .v-table[role="grid"] thead th.v-row-actions-cell {
     display: none;
   }
 
-  .v-shell .v-table tbody tr {
+  .v-shell .v-table[role="grid"] tbody tr {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     column-gap: 0.25rem;
@@ -292,11 +296,11 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .v-shell .v-table tbody tr:hover {
+  .v-shell .v-table[role="grid"] tbody tr:hover {
     background: var(--card);
   }
 
-  .v-shell .v-table tbody td {
+  .v-shell .v-table[role="grid"] tbody td {
     display: none;
     padding: 0.25rem 0;
     border: 0;
@@ -309,7 +313,7 @@
     box-shadow: none;
   }
 
-  .v-shell .v-table tbody td[data-card] {
+  .v-shell .v-table[role="grid"] tbody td[data-card] {
     display: grid;
     grid-column: 1 / -1;
     grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr);
@@ -317,7 +321,7 @@
     align-items: baseline;
   }
 
-  .v-shell .v-table tbody td[data-card]::before {
+  .v-shell .v-table[role="grid"] tbody td[data-card]::before {
     content: attr(data-label);
     color: var(--muted-foreground);
     font-size: 0.8125rem;
@@ -325,7 +329,7 @@
   }
 
   /* The title: the first column, set apart from the label/value pairs under it. */
-  .v-shell .v-table tbody td[data-card][data-col-index="0"] {
+  .v-shell .v-table[role="grid"] tbody td[data-card][data-col-index="0"] {
     display: flex;
     grid-column: 2;
     grid-row: 1;
@@ -335,17 +339,17 @@
     font-weight: 600;
   }
 
-  .v-shell .v-table tbody td[data-card][data-col-index="0"]::before {
+  .v-shell .v-table[role="grid"] tbody td[data-card][data-col-index="0"]::before {
     content: none;
   }
 
-  .v-shell .v-table tbody td[data-card][data-col-index="0"] a {
+  .v-shell .v-table[role="grid"] tbody td[data-card][data-col-index="0"] a {
     min-block-size: 2.75rem;
     display: inline-flex;
     align-items: center;
   }
 
-  .v-shell .v-table tbody td.v-select-cell {
+  .v-shell .v-table[role="grid"] tbody td.v-select-cell {
     display: grid;
     grid-column: 1;
     grid-row: 1;
@@ -355,19 +359,19 @@
     padding: 0;
   }
 
-  .v-shell .v-table tbody td.v-row-actions-cell {
+  .v-shell .v-table[role="grid"] tbody td.v-row-actions-cell {
     display: flex;
     grid-column: 1 / -1;
     gap: 0.5rem;
     flex-wrap: wrap;
   }
 
-  .v-shell .v-table tbody td.v-row-actions-cell:not(:has(*)) {
+  .v-shell .v-table[role="grid"] tbody td.v-row-actions-cell:not(:has(*)) {
     display: none;
   }
 
   /* A group heading and the totals strip are table furniture, not records. */
-  .v-shell .v-table tbody tr.v-group-row {
+  .v-shell .v-table[role="grid"] tbody tr.v-group-row {
     display: block;
     padding: 0.25rem 0.25rem 0.5rem;
     border: 0;
@@ -375,13 +379,65 @@
     box-shadow: none;
   }
 
-  .v-shell .v-table tbody tr.v-group-row td {
+  .v-shell .v-table[role="grid"] tbody tr.v-group-row td {
     display: block;
     font-weight: 600;
   }
 
-  .v-shell .v-table tfoot {
+  .v-shell .v-table[role="grid"] tfoot {
     display: none;
+  }
+
+  /* ── every other table: all the columns, scrolling inside the wrapper ──
+   * The wrapper (.v-table-wrap) already has overflow-x: auto, so the table is given a
+   * width it can keep and the wrapper scrolls; the page never does. */
+  .v-shell .v-table:not([role="grid"]) {
+    min-inline-size: 36rem;
+  }
+
+  /* A fieldset and a flex item will not shrink below their content by default, so a wide
+   * table inside the detail page's tab strip would stretch the page instead of
+   * scrolling in its wrapper. */
+  .v-tabstrip,
+  .v-tabstrip-panel {
+    min-inline-size: 0;
+  }
+
+  /* History: the field name keeps its words whole, and the restore tick box stays
+   * pinned to the edge while the values scroll, so it is always in reach. Its text is
+   * still read by a screen reader; only the sighted label is dropped to save width. */
+  .v-history-table th[scope="row"] {
+    min-inline-size: 6rem;
+    overflow-wrap: normal;
+  }
+
+  .v-history-table td.v-history-pick {
+    position: sticky;
+    inset-inline-end: 0;
+    z-index: 1;
+    background: var(--card);
+  }
+
+  .v-history-pick-text {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* A link in a cell is a tap target like any other. */
+  .v-shell .v-table:not([role="grid"]) a:not(.v-btn) {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    min-inline-size: 2.75rem;
+  }
+
+  .v-shell .v-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
   }
 
   /* The form's save bar and the toasts sit on the bottom edge too. */

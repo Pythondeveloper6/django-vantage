@@ -613,6 +613,7 @@ textarea {
 .v-btn svg {
   inline-size: 1rem;
   block-size: 1rem;
+  flex: none; /* a flex item's min-width is 0: in a squeezed cell the icon collapsed to nothing */
 }
 
 .v-btn:disabled {
@@ -761,6 +762,25 @@ textarea {
   border-block-end: 1px solid var(--border);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A table whose cells hold sentences and buttons rather than one-line values: the
+ * columns size to their content and the text wraps instead of being cut off. */
+.v-table-flow {
+  table-layout: auto;
+}
+
+.v-table-flow th,
+.v-table-flow td {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.v-table-flow .v-cell-actions {
+  inline-size: 1%;
   white-space: nowrap;
 }
 
@@ -2108,6 +2128,28 @@ textarea {
 .v-readonly-banner svg {
   inline-size: 0.875rem;
   block-size: 0.875rem;
+}
+
+/* ── note: one line of explanation above a table or form ──────────────────────
+ * The icon is sized here, once. An svg with no width is 100% of its container wide. */
+
+.v-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-note[data-tone="warning"] {
+  color: var(--warning);
+}
+
+.v-note svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex: none;
 }
 
 /* ── health page ──────────────────────────────────────────────────────────── */
