@@ -17,6 +17,7 @@ import pytest
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
+from django.http import HttpResponse
 from django.test import Client, override_settings
 from django.urls import include, path, reverse
 
@@ -627,6 +628,41 @@ class TestGate:
             response = client.get(url, {"model": "testapp.Author"})
             assert response.status_code == 403
             assert json.loads(response.content)["two_factor"] == "verify"
+
+    def test_routes_inside_an_include_are_behind_it(self):
+        def inner(request):
+            return HttpResponse("data")
+
+        patterns = [path("x/", include([path("y/", include([path("z/", inner)]))]))]
+        twofactor.guard_patterns(patterns)
+        assert patterns[0].url_patterns[0].url_patterns[0].callback.two_factor_gated
+
+    def test_a_site_whose_urls_add_an_include_is_gated_all_the_way_down(
+        self, client, boss, settings
+    ):
+        """A subclass appending its own routes after super()'s, grouped under an
+        include(), is gated like the rest — not open because of how it is arranged."""
+        from types import ModuleType
+
+        from vantage.sites import VantageSite
+
+        def secret_page(request):
+            return HttpResponse("rows of data")
+
+        class GroupingSite(VantageSite):
+            def get_urls(self):
+                extra = include([path("deeper/", include([path("page/", secret_page)]))])
+                return [*super().get_urls(), path("extra/", extra)]
+
+        urlconf = ModuleType("grouped_urls")
+        urlconf.urlpatterns = [path("grouped/", GroupingSite(name="grouped").urls)]
+        settings.ROOT_URLCONF = urlconf
+        enrol(boss)
+        client.force_login(boss)
+        response = client.get("/grouped/extra/deeper/page/")
+        assert response.status_code == 302
+        assert "two-factor/verify" in response["Location"]
+        assert b"rows of data" not in response.content
 
     def test_a_post_is_refused_not_redirected(self, client, boss):
         enrol(boss)
