@@ -99,6 +99,7 @@ model, using the same resolution the pages use.
 | Reveal (sensitive fields) | Refused | — |
 | Data quality | Findings about it are dropped | Shown |
 | Webhook delivery log | Left out of the body as shown | Shown |
+| [Approvals](approvals.md) | Not named or shown; a request touching it cannot be decided by you | Cannot be requested; a request touching it cannot be decided by you |
 
 A create that would need a field the person cannot set — `NOT NULL`, no default — is
 refused on the form (and with a 422 from the API) with a sentence saying which field,
@@ -110,6 +111,22 @@ source the rules from somewhere else, override that method on your
 [`PanelPermissions`](permissions.md) subclass and return a `FieldAccess(hidden=...,
 readonly=...)`. `has_field_perm(request, model, name, "view" | "change")` is there for
 your own code.
+
+## With approvals
+
+When a panel also sets [`requires_approval`](approvals.md):
+
+- A **read-only** field is refused, not sent for approval: the person sees "not
+  editable" on every path (form, inline, board, API, import, history restore), and no
+  change request is made for it.
+- A **hidden** field is never named or shown on the approvals queue, the review screen,
+  the record's banner or the API. A request touching it shows "1 field you cannot see"
+  in its place and leaves out its note and reason. Audit entries for requests read
+  `… 1 hidden field (#12)` instead of the field's name.
+- **Approving or rejecting a request needs write access to every field in it.** An
+  approver for whom one of them is hidden or read-only cannot decide it, and it is not
+  counted as waiting for them. A request is applied whole or refused whole, never with
+  some fields dropped.
 
 ## Webhooks
 
