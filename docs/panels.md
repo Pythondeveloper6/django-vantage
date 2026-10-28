@@ -221,6 +221,7 @@ column is averaged, and an identifier is left alone. Details:
 | `inlines` | `list[type[Inline]]` | `None` | Child records editable on the parent's own form — see [Editable inlines](forms.md#editable-inlines) |
 | `related_tabs` | `bool \| None` | `None` | Group the detail page's related-record blocks into a tab strip. `None` decides by count (two or more); `True`/`False` assert it either way — see [The record page](forms.md#the-record-page) |
 | `sensitive_fields` | `list[str]` | inferred | Fields masked on every surface, revealable one at a time. A list replaces inference; `[]` switches masking off — see [Sensitive fields](sensitive-fields.md) |
+| `field_permissions` | `dict[str, dict[str, str]]` | `None` | Per role, fields that are `"hidden"` or `"readonly"`: `{"Support": {"price": "readonly"}}`. Added to the rules the roles matrix stores — see [Field permissions](field-permissions.md) |
 
 `readonly_fields` is a security boundary rather than a UI affordance. A readonly field
 is not rendered as a control **and** is not in the form's field list, so a hand-crafted
@@ -481,6 +482,11 @@ defaults are skipped.
 | `vantage.E092` | `history = True` while `VANTAGE["AUDIT_LOG"]` is off |
 | `vantage.E090` | `sensitive_fields` is not a list, or names something that is not a field or attribute |
 | `vantage.W090` | `list_search`/`search_fields`, `list_filter` or `ordering` explicitly names a [sensitive field](sensitive-fields.md); it is dropped at request time |
+| `vantage.E110` | `field_permissions` is not a dict of role name to rules |
+| `vantage.E111` | A `field_permissions` entry does not map a role name to a dict of field name to level |
+| `vantage.E112` | `field_permissions` names something that is not a field of the model |
+| `vantage.E113` | `field_permissions` sets a level other than `"hidden"` or `"readonly"` |
+| `vantage.E114` | `field_permissions` restricts the primary key |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different
