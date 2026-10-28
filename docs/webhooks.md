@@ -106,6 +106,11 @@ alongside `vantage.jobs`.
 a timeout capped at 3 seconds. This is a fallback, not the design: the request that
 changed the record waits for the receiver. The webhooks page says so while it is true.
 
+The wait is bounded as a whole, not only per socket operation: all the hooks one save
+triggers share a **3 second budget**, and a hook that does not fit is left `pending` for
+`manage.py vantage_webhooks` to send (after a couple of minutes) instead of making the
+request wait longer. With many hooks, or a slow receiver, run a queue.
+
 ## Retries
 
 A delivery succeeds on any `2xx`. Otherwise:
@@ -145,7 +150,8 @@ The URL is typed into a form and the *server* connects to it, so:
 
 * **Private addresses are refused by default**: loopback, private ranges, link-local
   (including the cloud metadata address `169.254.169.254`), carrier-grade NAT, multicast
-  and reserved ranges, and IPv6 forms that embed them. The check runs **at send time**
+  and reserved ranges, and IPv6 forms that embed them (IPv4-mapped, IPv4-compatible,
+  NAT64, 6to4, SIIT, and the old site-local `fec0::/10`). The check runs **at send time**
   on every address the host name resolves to — one bad record refuses the lot — and the
   connection is made to the address that was checked, not to the name, so DNS cannot
   change its answer in between. `WEBHOOKS_ALLOW_PRIVATE_NETWORKS = True` lifts it, for a
@@ -154,8 +160,27 @@ The URL is typed into a form and the *server* connects to it, so:
 * **Proxy environment variables are ignored**, since a proxy would be connected to
   instead of the address checked.
 * Only `http` and `https`, no credentials in the URL, a timeout on every socket
-  operation, and at most a few kilobytes of any response read.
+  operation, at most a few kilobytes of any response read, and a **total deadline** per
+  attempt covering the name lookup, connect, send, headers and body: three times
+  `WEBHOOKS_TIMEOUT` for a queued attempt, `WEBHOOKS_TIMEOUT` (at most 3 s) in-process. A
+  receiver that sends a byte at a time cannot hold a worker or a request past it.
 * Prefer `https`. The secret signs the body but does not encrypt it.
+
+## Who can see what: hooks are global
+
+Webhooks are not scoped to a tenant, a panel or a user's own permissions.
+
+* A hook receives **every matching change to every model**, for every user and every
+  tenant of the project, including models the person who made the hook cannot view.
+* Anyone holding `vantage.manage_webhooks` (and every superuser) can create such a hook,
+  point it at a URL they control, and **redeliver any logged payload to a new URL** from
+  the delivery log.
+* The payload is already stripped of sensitive fields, but the rest of `changes` and the
+  record's label are sent as they are.
+
+In a multi-tenant project treat `vantage.manage_webhooks` as equivalent to superuser:
+grant it only to people who may read all tenants' data, and give no tenant admin the
+webhooks page. There is no per-tenant filtering of hooks.
 
 ## Known limits
 
