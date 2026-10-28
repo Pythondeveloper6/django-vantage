@@ -1,0 +1,479 @@
+/* The panel on a phone.
+ *
+ * Linked from base.html with media="(max-width: 60rem)", so nothing here can reach a
+ * desktop screen. Two layers inside that:
+ *
+ *   - up to 60rem, the navigation is a drawer (the shell already collapses to one
+ *     column at that width);
+ *   - up to 40rem, a phone: lists become cards, the bulk-action bar becomes a bottom
+ *     sheet, every control is a comfortable touch target.
+ *
+ * Plain CSS and the same markup as the desktop table: a card is a <tr> laid out as a
+ * grid, and each value is labelled by the `data-label` the template writes on it. The
+ * rules that touch the table are prefixed with `.v-shell` because the grid's own
+ * stylesheet is linked after this one, further down the page, and has to lose ties.
+ *
+ * Everything is a token, so every UI preset and dark mode apply without a line here
+ * knowing about them. Safe-area insets need `viewport-fit=cover` (base.html); without
+ * it they resolve to 0 and nothing breaks.
+ */
+
+/* ── navigation drawer ────────────────────────────────────────────────────── */
+
+@media (max-width: 60rem) {
+  .v-sidebar[data-open="true"] {
+    inset-block: 0;
+    inset-inline-start: 0;
+    block-size: 100dvh;
+    max-inline-size: 85vw;
+    padding-block-end: env(safe-area-inset-bottom);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Dims the page behind the drawer. The pseudo-element is part of the shell, so a tap
+   * on it is a tap outside the sidebar, which is what closes it (vantage.js). */
+  .v-shell:has(.v-sidebar[data-open="true"])::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: color-mix(in oklab, var(--foreground) 45%, transparent);
+  }
+
+  .v-nav-item {
+    min-block-size: 2.75rem;
+  }
+}
+
+@media (max-width: 60rem) and (prefers-reduced-motion: no-preference) {
+  .v-sidebar[data-open="true"] {
+    animation: v-drawer-in 0.18s ease-out;
+  }
+
+  @keyframes v-drawer-in {
+    from { transform: translateX(-100%); }
+  }
+
+  [dir="rtl"] .v-sidebar[data-open="true"] {
+    animation-name: v-drawer-in-rtl;
+  }
+
+  @keyframes v-drawer-in-rtl {
+    from { transform: translateX(100%); }
+  }
+}
+
+/* ── phone ────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 40rem) {
+  /* The guard behind the rules below: nothing may make the page itself scroll
+   * sideways. A wide table still scrolls inside its own wrapper. */
+  .v-main {
+    overflow-x: clip;
+  }
+
+  .v-header {
+    padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+    gap: 0.5rem;
+  }
+
+  .v-content {
+    padding-block: 1rem max(1rem, env(safe-area-inset-bottom));
+    padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+
+  /* The site title is the first crumb and the logo is a tap away in the drawer; on a
+   * phone the room goes to where you are. */
+  .v-breadcrumb {
+    flex: 1 1 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .v-breadcrumb > a:first-child:not(:last-child),
+  .v-breadcrumb > a:first-child:not(:last-child) + .v-breadcrumb-sep {
+    display: none;
+  }
+
+  .v-breadcrumb > :last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* The search box is a trigger for the palette (vantage-palette.js), so it can shrink
+   * to its icon: the field is still there, still named, still a 44px target. */
+  .v-header .v-search {
+    flex: none;
+    inline-size: 2.75rem;
+  }
+
+  .v-header .v-search .v-input {
+    inline-size: 100%;
+    padding: 0;
+    color: transparent;
+    cursor: pointer;
+  }
+
+  .v-header .v-search .v-input::placeholder {
+    color: transparent;
+  }
+
+  .v-header .v-search svg {
+    inset-inline-start: 50%;
+    margin-inline-start: -0.4375rem;
+  }
+
+  .v-topbar-link span {
+    display: none;
+  }
+
+  .v-page-head {
+    flex-wrap: wrap;
+  }
+
+  .v-page-head > * {
+    min-inline-size: 0;
+  }
+
+  .v-page-actions {
+    inline-size: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* ── touch targets and the iOS zoom ──
+   * Safari zooms the page when a focused field is under 16px; 44px is the size a
+   * thumb can hit reliably (WCAG 2.5.8 asks for 24, Apple's guidance for 44). */
+  .v-btn,
+  .v-btn-sm,
+  .v-input,
+  .v-select,
+  .v-shell input:not([type="checkbox"], [type="radio"], [type="hidden"]),
+  .v-shell select,
+  .v-shell textarea {
+    min-block-size: 2.75rem;
+  }
+
+  .v-input,
+  .v-select,
+  .v-input-sm,
+  .v-shell input:not([type="checkbox"], [type="radio"]),
+  .v-shell select,
+  .v-shell textarea {
+    font-size: max(16px, 1rem);
+  }
+
+  .v-btn-icon {
+    min-inline-size: 2.75rem;
+  }
+
+  .v-shell input[type="checkbox"],
+  .v-shell input[type="radio"] {
+    inline-size: 1.375rem;
+    block-size: 1.375rem;
+  }
+
+  .v-shell label:has(> input[type="checkbox"], > input[type="radio"]) {
+    min-block-size: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .v-breadcrumb a,
+  .v-pagination .v-btn,
+  .v-export summary {
+    min-block-size: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .v-pagination {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .v-pagination-controls .v-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* ── detail and form pages: one column ── */
+  .v-detail,
+  .v-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .v-form-field-wide {
+    grid-column: auto;
+  }
+
+  /* ── the list as a stack of cards ── */
+
+  .v-shell .v-table-wrap {
+    border: 0;
+    background: none;
+    overflow: visible;
+  }
+
+  .v-shell .v-table,
+  .v-shell .v-table tbody {
+    display: block;
+    inline-size: 100%;
+  }
+
+  /* The header row survives as a strip of sort links, so sorting still works. It
+   * scrolls inside itself rather than wrapping into a wall of chips. */
+  .v-shell .v-table thead {
+    display: block;
+  }
+
+  .v-shell .v-table thead tr {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-block-end: 0.75rem;
+    scrollbar-width: none;
+  }
+
+  .v-shell .v-table thead th {
+    position: static;
+    display: flex;
+    flex: none;
+    inline-size: auto !important;
+    padding: 0;
+    border: 0;
+    background: none;
+    overflow: visible;
+  }
+
+  .v-shell .v-table thead th .v-sort,
+  .v-shell .v-table thead th .v-col-head-label {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: 0.875rem;
+    border: var(--border-width, 1px) solid var(--border);
+    border-radius: 9999px;
+    background: var(--card);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.8125rem;
+  }
+
+  .v-shell .v-table thead th[aria-sort] .v-sort {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .v-shell .v-table thead th .v-col-pin,
+  .v-shell .v-table thead th .v-col-resize {
+    display: none;
+  }
+
+  .v-shell .v-table thead th.v-select-cell {
+    min-inline-size: 2.75rem;
+    justify-content: center;
+  }
+
+  .v-shell .v-table thead th.v-row-actions-cell {
+    display: none;
+  }
+
+  .v-shell .v-table tbody tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.25rem;
+    margin-block-end: 0.75rem;
+    padding: 0.375rem 0.75rem 0.625rem;
+    border: var(--border-width, 1px) solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .v-shell .v-table tbody tr:hover {
+    background: var(--card);
+  }
+
+  .v-shell .v-table tbody td {
+    display: none;
+    padding: 0.25rem 0;
+    border: 0;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    /* A pinned column is a sideways-scrolling idea; a card has nothing to pin to. */
+    position: static;
+    background: none;
+    box-shadow: none;
+  }
+
+  .v-shell .v-table tbody td[data-card] {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: baseline;
+  }
+
+  .v-shell .v-table tbody td[data-card]::before {
+    content: attr(data-label);
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  /* The title: the first column, set apart from the label/value pairs under it. */
+  .v-shell .v-table tbody td[data-card][data-col-index="0"] {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    align-items: center;
+    min-block-size: 2.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .v-shell .v-table tbody td[data-card][data-col-index="0"]::before {
+    content: none;
+  }
+
+  .v-shell .v-table tbody td[data-card][data-col-index="0"] a {
+    min-block-size: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .v-shell .v-table tbody td.v-select-cell {
+    display: grid;
+    grid-column: 1;
+    grid-row: 1;
+    place-items: center;
+    inline-size: 2.75rem;
+    min-block-size: 2.75rem;
+    padding: 0;
+  }
+
+  .v-shell .v-table tbody td.v-row-actions-cell {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .v-shell .v-table tbody td.v-row-actions-cell:not(:has(*)) {
+    display: none;
+  }
+
+  /* A group heading and the totals strip are table furniture, not records. */
+  .v-shell .v-table tbody tr.v-group-row {
+    display: block;
+    padding: 0.25rem 0.25rem 0.5rem;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .v-shell .v-table tbody tr.v-group-row td {
+    display: block;
+    font-weight: 600;
+  }
+
+  .v-shell .v-table tfoot {
+    display: none;
+  }
+
+  /* The form's save bar and the toasts sit on the bottom edge too. */
+  .v-form-bar {
+    flex-wrap: wrap;
+    padding-block-end: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .v-form-bar > .v-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .v-toasts {
+    inset-block-end: max(0.75rem, env(safe-area-inset-bottom));
+    inset-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+    max-inline-size: none;
+  }
+
+  /* ── bulk actions: a bottom sheet ──
+   * It exists only while something is selected (`hidden` otherwise, from the script),
+   * so there is nothing to keep out of the way at rest. Fixed to the bottom edge,
+   * clear of the home indicator, and the page gets room beneath the last card. */
+  .v-action-bar {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 35;
+    margin: 0;
+    padding-block: 1rem max(0.75rem, env(safe-area-inset-bottom));
+    padding-inline: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+    border-width: var(--border-width, 1px) 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--card);
+    color: var(--foreground);
+    box-shadow: var(--shadow-lg);
+    max-block-size: 60dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* The grab handle: decoration for the eye, hidden from the accessibility tree. */
+  .v-action-bar::before {
+    content: "";
+    flex: 0 0 100%;
+    block-size: 0.25rem;
+    inline-size: 2.5rem;
+    margin: -0.5rem auto 0.25rem;
+    border-radius: 9999px;
+    background: var(--border);
+  }
+
+  .v-action-count {
+    flex: 1 1 auto;
+  }
+
+  .v-action-bar-spacer {
+    display: none;
+  }
+
+  .v-action-bar .v-action-close {
+    display: inline-flex;
+  }
+
+  .v-action-bar > .v-btn,
+  .v-action-bar > button {
+    flex: 1 1 calc(50% - 0.5rem);
+    justify-content: center;
+  }
+
+  .v-action-bar [data-select-all-matching] {
+    flex: 1 1 100%;
+  }
+
+  body:has(.v-action-bar:not([hidden])) .v-content {
+    padding-block-end: 14rem;
+  }
+
+  /* The inline-edit changeset bar is the same kind of thing and must not sit under
+   * the home indicator either. */
+  .v-inline-bar {
+    flex-wrap: wrap;
+    padding-block-end: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 40rem) and (prefers-reduced-motion: no-preference) {
+  .v-action-bar:not([hidden]) {
+    animation: v-sheet-in 0.2s ease-out;
+  }
+
+  @keyframes v-sheet-in {
+    from { transform: translateY(100%); }
+  }
+}

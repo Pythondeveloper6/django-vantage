@@ -404,6 +404,7 @@
     initUiThemePicker();
     initSubmitOnChange();
     initSidebar();
+    initPhoneFilters();
     initUserMenu();
 
     document.querySelectorAll(".v-toast-close").forEach(function (button) {
@@ -616,11 +617,36 @@
     }
     paint();
 
+    // The drawer is a disclosure, not a modal: nothing behind it is made inert, so it
+    // is closed by the toggle, by Escape, by a tap outside it and by following a link.
+    // Escape and a tap outside hand focus back to the toggle, which is where the user
+    // opened it from; following a link is leaving the page, so focus is left alone.
+    function setDrawer(open, restoreFocus) {
+      sidebar.setAttribute("data-open", open ? "true" : "false");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        var first = sidebar.querySelector("a[href]");
+        if (first) first.focus();
+      } else if (restoreFocus) {
+        toggle.focus();
+      }
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && narrow() && sidebar.getAttribute("data-open") === "true") {
+        setDrawer(false, true);
+      }
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!narrow() || sidebar.getAttribute("data-open") !== "true") return;
+      if (sidebar.contains(event.target) || toggle.contains(event.target)) return;
+      setDrawer(false, false);
+    });
+
     toggle.addEventListener("click", function () {
       if (narrow()) {
-        var open = sidebar.getAttribute("data-open") === "true";
-        sidebar.setAttribute("data-open", open ? "false" : "true");
-        toggle.setAttribute("aria-expanded", open ? "false" : "true");
+        setDrawer(sidebar.getAttribute("data-open") !== "true", true);
         return;
       }
       var next = !collapsed();
@@ -631,6 +657,18 @@
         /* Not persisting is survivable; not collapsing would not be. */
       }
       paint();
+    });
+  }
+
+  // The filter rail is open by default, which on a phone puts a screenful of options
+  // between the title and the first record. Folded here rather than in the template
+  // because whether it fits is a property of the screen, not of the page; the summary
+  // still says "On" when filters are applied, and without a script it simply stays open.
+  function initPhoneFilters() {
+    var phone = window.matchMedia("(max-width: 40rem)");
+    if (!phone.matches) return;
+    Array.prototype.forEach.call(document.querySelectorAll("details.v-filters"), function (el) {
+      el.open = false;
     });
   }
 
@@ -646,6 +684,38 @@
     var allFlag = form.querySelector("[data-select-all]");
     var total = Number(bar.getAttribute("data-total") || rows.length);
     var acrossPages = false;
+    var lastTouched = null;
+    var phone = window.matchMedia("(max-width: 40rem)");
+
+    // On a phone the bar is a bottom sheet, and a sheet is a dialog. It stays
+    // non-modal: the checkboxes behind it are still being ticked, so trapping focus
+    // inside it, or moving focus to it when it opens, would take the list away from
+    // the person using it. The role is applied only while it is a sheet; on a wide
+    // screen it remains the plain toolbar it always was.
+    function paintSheet() {
+      if (phone.matches) {
+        bar.setAttribute("role", "dialog");
+        bar.setAttribute("aria-modal", "false");
+        bar.setAttribute("aria-label", gettext("Actions for the selected records"));
+      } else {
+        bar.removeAttribute("role");
+        bar.removeAttribute("aria-modal");
+        bar.removeAttribute("aria-label");
+      }
+    }
+
+    function clear() {
+      acrossPages = false;
+      rows.forEach(function (row) { row.checked = false; });
+      Array.prototype.forEach.call(form.querySelectorAll("[data-exclusion]"), function (el) {
+        el.remove();
+      });
+      paint();
+      // The sheet is gone, so focus goes back to the row the user was last on rather
+      // than to <body>, where a keyboard user would lose their place in the list.
+      var target = lastTouched || rows[0];
+      if (target) target.focus();
+    }
 
     function selected() {
       return rows.filter(function (row) { return row.checked; });
@@ -684,8 +754,18 @@
       });
     }
 
+    var closer = bar.querySelector("[data-action-close]");
+    if (closer) closer.addEventListener("click", clear);
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && phone.matches && !bar.hidden) clear();
+    });
+    if (phone.addEventListener) phone.addEventListener("change", paintSheet);
+    paintSheet();
+
     rows.forEach(function (row) {
       row.addEventListener("change", function () {
+        lastTouched = row;
         // Unticking a row after "select all matching" narrows the set rather than
         // discarding it: that is the common case, not an edge one.
         if (acrossPages && !row.checked) {

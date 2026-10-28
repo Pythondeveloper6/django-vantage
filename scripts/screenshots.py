@@ -154,7 +154,39 @@ def capture(db: Path) -> None:
             save(page, f"palette-{scheme}")
             undo_toast(page, db, scheme, save)
             context.close()
+            phone(browser, scheme, save)
         browser.close()
+
+
+def phone(browser, scheme: str, save) -> None:
+    """The phone layout: a list as cards, then the bulk-action sheet with two ticked."""
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        device_scale_factor=2,
+        color_scheme=scheme,
+        is_mobile=True,
+        has_touch=True,
+    )
+    page = context.new_page()
+    page.goto(f"{BASE}/admin/")
+    page.fill("input[name=username]", "admin")
+    page.fill("input[name=password]", "admin12345")
+    page.click("button[type=submit]")
+    page.wait_for_load_state("networkidle")
+    page.goto(f"{BASE}/admin/shop/order/?view=table")
+    page.wait_for_load_state("networkidle")
+    # Past the title and the toolbar, so the picture is of the cards themselves.
+    page.evaluate("document.querySelector('table').scrollIntoView()")
+    save(page, f"phone-orders-{scheme}")
+    # Reviews carry bulk actions; orders are read-only in the demo.
+    page.goto(f"{BASE}/admin/shop/review/")
+    page.wait_for_load_state("networkidle")
+    page.evaluate("document.querySelector('table').scrollIntoView()")
+    page.locator("[data-select-row]").nth(0).check()
+    page.locator("[data-select-row]").nth(1).check()
+    page.wait_for_timeout(400)  # the sheet's slide
+    save(page, f"phone-sheet-{scheme}")
+    context.close()
 
 
 def undo_toast(page, db: Path, scheme: str, save) -> None:
