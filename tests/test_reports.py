@@ -25,7 +25,7 @@ import re
 from zoneinfo import ZoneInfo
 
 import pytest
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 from django.test import Client, override_settings
 from django.urls import resolve, reverse
@@ -882,3 +882,98 @@ class TestAttachmentFormulaInjection:
         _, rows = attached_rows(mailoutbox[0])
         assert "'" + evil in [cell for row in rows for cell in row]
         assert evil not in [cell for row in rows for cell in row]
+
+
+class TestSendTimeRechecks:
+    """Things that changed between queueing a send and running it."""
+
+    def test_a_scheduled_run_queued_before_a_pause_is_skipped(self, ada, authors, mailoutbox):
+        sub = make_sub(ada)
+        run = ReportRun.objects.create(subscription=sub)
+        ReportSubscription.objects.filter(pk=sub.pk).update(active=False)
+        run = reports.run_report(run.pk)
+        assert run.status == ReportRun.Status.SKIPPED
+        assert "paused" in run.reason
+        assert not mailoutbox
+
+    def test_send_now_still_sends_a_paused_report(self, ada, authors, mailoutbox):
+        sub = make_sub(ada, active=False)
+        run = ReportRun.objects.create(subscription=sub, trigger=ReportRun.Trigger.MANUAL)
+        assert reports.run_report(run.pk).status == ReportRun.Status.SENT
+        assert len(mailoutbox) == 1
+
+    def test_an_owner_who_must_use_two_factor_and_has_not_is_skipped(
+        self, ada, authors, mailoutbox, settings
+    ):
+        settings.VANTAGE = {"TWO_FACTOR": True, "TWO_FACTOR_REQUIRED_ROLES": ["Finance"]}
+        ada.groups.add(Group.objects.create(name="Finance"))
+        run = run_now(make_sub(ada))
+        assert run.status == ReportRun.Status.SKIPPED
+        assert "Two-factor" in run.reason
+        assert not mailoutbox
+
+    def test_an_enrolled_owner_is_sent_to(self, ada, authors, mailoutbox, settings):
+        from vantage import twofactor
+
+        settings.VANTAGE = {"TWO_FACTOR": True, "TWO_FACTOR_REQUIRED_ROLES": ["Finance"]}
+        ada.groups.add(Group.objects.create(name="Finance"))
+        device = twofactor.start_enrolment(ada)
+        device.confirmed_at = timezone.now()
+        device.save()
+        assert run_now(make_sub(ada)).status == ReportRun.Status.SENT
+
+    def test_a_requirement_that_does_not_cover_the_owner_changes_nothing(
+        self, ada, authors, mailoutbox, settings
+    ):
+        settings.VANTAGE = {"TWO_FACTOR": True, "TWO_FACTOR_REQUIRED_ROLES": ["Finance"]}
+        assert run_now(make_sub(ada)).status == ReportRun.Status.SENT
+
+
+class TestSendNowGuards:
+    def post(self, client, user, sub):
+        client.force_login(user)
+        return client.post(reverse("vantage:report-send", args=[sub.pk]))
+
+    def test_a_second_click_within_a_minute_is_refused(
+        self, client, ada, authors, mailoutbox, django_capture_on_commit_callbacks
+    ):
+        sub = make_sub(ada)
+        with django_capture_on_commit_callbacks(execute=True):
+            self.post(client, ada, sub)
+            response = self.post(client, ada, sub)
+        assert len(mailoutbox) == 1
+        assert ReportRun.objects.filter(trigger=ReportRun.Trigger.MANUAL).count() == 1
+        follow = client.get(response["Location"])
+        assert "Try again in" in follow.content.decode()
+
+    def test_it_is_allowed_again_after_the_cooldown(
+        self, client, ada, authors, mailoutbox, django_capture_on_commit_callbacks
+    ):
+        sub = make_sub(ada)
+        with django_capture_on_commit_callbacks(execute=True):
+            self.post(client, ada, sub)
+        ReportRun.objects.update(created_at=timezone.now() - dt.timedelta(seconds=61))
+        with django_capture_on_commit_callbacks(execute=True):
+            self.post(client, ada, sub)
+        assert len(mailoutbox) == 2
+
+    def test_the_limit_is_per_subscription(
+        self, client, ada, authors, mailoutbox, django_capture_on_commit_callbacks
+    ):
+        first = make_sub(ada)
+        second = make_sub(ada, make_view(ada, name="Other"))
+        with django_capture_on_commit_callbacks(execute=True):
+            self.post(client, ada, first)
+            self.post(client, ada, second)
+        assert len(mailoutbox) == 2
+
+    def test_scheduled_runs_do_not_count_towards_it(self, ada, authors):
+        sub = make_sub(ada)
+        ReportRun.objects.create(subscription=sub)
+        assert reports.manual_wait(sub) == 0
+
+    @override_settings(VANTAGE={"READ_ONLY": "Maintenance"})
+    def test_a_read_only_panel_refuses_it(self, client, ada, authors):
+        sub = make_sub(ada)
+        assert self.post(client, ada, sub).status_code == 403
+        assert not ReportRun.objects.exists()

@@ -306,7 +306,7 @@ number above zero) or `vantage.E117` (a base URL that does not start with `http:
 | `REPORTS_MAX_ATTACHMENT_MB` | `10` | Largest CSV attached to an email. A bigger report is sent as a short note, without the file |
 | `REPORTS_MAX_PER_USER` | `25` | Subscriptions one person may hold |
 | `REPORTS_RETENTION_DAYS` | `90` | How long a send log is kept before `manage.py vantage_reports` removes it |
-| `REPORTS_BASE_URL` | `""` | Where links in report emails point, e.g. `"https://panel.example.com"`. Empty uses the address the subscription was made from |
+| `REPORTS_BASE_URL` | `""` | Where links in report emails point, e.g. `"https://panel.example.com"`. Empty uses the address the subscription was made from, which comes from the request's `Host` header; set it in production (`vantage.W115`) |
 
 ## Undo
 
