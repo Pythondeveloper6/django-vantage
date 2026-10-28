@@ -230,6 +230,19 @@ def _membership(user):
 
 
 def _load(user) -> _UserRules:
+    try:
+        return _query(user)
+    except RuntimeError as exc:
+        # pytest-django blocks the connection for tests that did not ask for a database;
+        # drawing a page is not a reason to fail one. Narrowed on the blocker's own
+        # message so a real RuntimeError surfaces — the bargain :mod:`vantage.listprefs`
+        # strikes. A database that is genuinely down fails the page anyway.
+        if "Database access not allowed" not in str(exc):
+            raise
+        return _UserRules(user=user, stored={}, names=None)
+
+
+def _query(user) -> _UserRules:
     from vantage.models import FieldPermission
 
     names = None
@@ -275,6 +288,8 @@ def resolve(user, model: type[models.Model], *, panel=None, rules: _UserRules | 
     if user is None or not getattr(user, "is_authenticated", False):
         return UNRESTRICTED
     rules = rules if rules is not None else _load(user)
+    if not rules.stored and not rules.names:
+        return UNRESTRICTED  # the usual answer, without a content-type lookup
     ct_id = ContentType.objects.get_for_model(model, for_concrete_model=False).pk
     per_role: dict[int, dict[str, str]] = {
         gid: dict(fields) for gid, fields in rules.stored.get(ct_id, {}).items()
