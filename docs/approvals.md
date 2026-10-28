@@ -154,6 +154,34 @@ The value asked for has to be stored to be applied, so it is kept on the request
 as the record itself keeps the current one. The request table is not offered as a
 model in the panel.
 
+## With field permissions
+
+[Field permissions](field-permissions.md) apply to approvals the way they apply
+everywhere else, plus one rule about deciding:
+
+- **A field hidden from you is never named or shown** on the queue, the review screen,
+  the record's banner or in the API. A request that touches one shows its other fields
+  and one more row, "1 field you cannot see", with no name and no values. Its note and
+  rejection reason are left out too, since they are free text about those values. This
+  holds for the requester as well, if a role has hidden a field since they asked.
+- **A read-only field cannot be asked for.** Every path refuses it before the approval
+  hold is reached: the edit page and duplicate show it as text and ignore a forged
+  value, inline editing and the board do not offer it, the API answers **400**, import
+  does not map it and history restore does not offer it. The edit page's "needs
+  approval" note and the schema's `needs_approval` only name fields you may write.
+- **Deciding needs write access to every field in the request.** Approving changes the
+  fields, so an approver for whom any of them is hidden or read-only cannot approve
+  *or* reject that request. It is not under "Waiting for you" and not in the count; the
+  review screen, if they open it, says why. Someone else, whose roles let them change
+  every field in it, decides it. A superuser always can.
+- **A request is applied whole or not at all.** Approving never drops a field the
+  approver may not write: it is refused, with that reason, before anything is saved.
+
+The audit entries below name the request's fields. Someone a field is hidden from reads
+`requested approval of status, 1 hidden field (#12)` instead, on the history page, the
+audit log and the record's history panel, and the approval's diff leaves the field out,
+as every diff does.
+
 ## What is audited
 
 | When | Entry |

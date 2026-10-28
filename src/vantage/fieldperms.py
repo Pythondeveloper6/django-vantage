@@ -499,14 +499,20 @@ def hide_entry_fields(request, entries) -> list:
 
     The entry's :attr:`~vantage.models.VantageLogEntry.change_list` honours the mark.
     One answer per model, however many entries share it.
+
+    An approval entry's ``action_name`` names the fields of its change request
+    (``requested approval of price (#12)``); a hidden one is taken out of the name too,
+    on the copy being read. See :func:`vantage.approvals.redact_action_name`.
     """
     from django.contrib.contenttypes.models import ContentType
+
+    from vantage.approvals import redact_action_name
 
     entries = list(entries)
     if request is None:
         return entries
     for entry in entries:
-        if not entry.content_type_id or not entry.changes:
+        if not entry.content_type_id or not (entry.changes or entry.action_name):
             continue
         try:
             model = ContentType.objects.get_for_id(entry.content_type_id).model_class()
@@ -517,4 +523,5 @@ def hide_entry_fields(request, entries) -> list:
         hidden = hidden_names(request, model)
         if hidden:
             entry.vantage_hidden_fields = hidden
+            entry.action_name = redact_action_name(entry.action_name, hidden)
     return entries
