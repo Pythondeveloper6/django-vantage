@@ -284,20 +284,30 @@ class ListView(PanelView):
         return listquery.build(self.panel, request, self.permissions)
 
     def export(self, request):
+        queryset, columns, headers, masked = self.export_parts(request)
+        return stream_export(
+            request.GET["export"],
+            queryset,
+            columns,
+            headers,
+            self.panel.get_label_plural(),
+            masked=masked,
+        )
+
+    def export_parts(self, request):
+        """The rows, columns, headers and masked columns of an export.
+
+        Split out of :meth:`export` so a scheduled report, which has no browser to stream
+        to, builds its file from the same answer the download button gets.
+        """
         panel = self.panel
         queryset = self.build_queryset(request)[0]
         columns = panel.get_list_display(request)
         headers = [self._column_header(panel, name, None)["label"] for name in columns]
         from vantage.sensitive import is_sensitive_path
 
-        return stream_export(
-            request.GET["export"],
-            queryset,
-            columns,
-            headers,
-            panel.get_label_plural(),
-            masked={name for name in columns if is_sensitive_path(panel, name)},
-        )
+        masked = {name for name in columns if is_sensitive_path(panel, name)}
+        return queryset, columns, headers, masked
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
