@@ -228,11 +228,21 @@ def resolve_actions(panel, request=None) -> list[Action]:
         return resolved
 
     permissions = get_permissions()
+    from vantage.approvals import guarded_for
+
+    # An action that writes a field needing approval — the built-in Publish on a
+    # guarded ``status``, or anything declaring it in ``undo_fields`` — is one
+    # ``UPDATE`` over the selection and cannot be held back row by row. So it is not
+    # offered to someone whose change would need approving; see vantage.approvals.
+    held = set(guarded_for(request, panel))
     return [
         act
         for act in resolved
-        if act.permission is None
-        or permissions.has_model_perm(request, panel.model, act.permission)
+        if (
+            act.permission is None
+            or permissions.has_model_perm(request, panel.model, act.permission)
+        )
+        and not held.intersection(act.undo_fields or ())
     ]
 
 

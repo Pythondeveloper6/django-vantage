@@ -538,6 +538,11 @@
       ),
       "success"
     );
+    if (data.pending && data.pending_message) {
+      // A cell that needs approval went back to its stored value: the server said
+      // why, and that sentence is the note, so nobody thinks the edit was lost.
+      setNote(data.pending_message, "warning");
+    }
     paintBar();
     announce(noteEl.textContent);
     if (data.undo && window.vantageUndo) {
