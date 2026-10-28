@@ -117,6 +117,11 @@ class ModelPanel:
     #: ``"view"`` keeps the page but offers no restore; ``False`` removes it.
     history: bool | str | None = None
 
+    #: Fields whose changes wait for someone with ``<app>.approve_<model>`` before they
+    #: are saved. Anyone without it can still edit the record: the other fields save as
+    #: usual and these become a pending request. See :mod:`vantage.approvals`.
+    requires_approval: list[str] | None = None
+
     #: The data quality audit: ``None`` runs every check, ``False`` leaves this model
     #: out, a list of check names (``["nulls", "stale"]``) skips just those.
     data_quality: bool | list[str] | None = None
@@ -314,6 +319,18 @@ class ModelPanel:
             cached = (key, panel_sensitive_fields(self), {})
             self._sensitive_memo = cached
         return cached[1]
+
+    def get_requires_approval(self) -> tuple[str, ...]:
+        """The fields a change to which needs approval, in declared order.
+
+        Only names a held-back change can actually be made to: an unknown name, a
+        many-to-many or a file field is reported by ``manage.py check``
+        (``vantage.E106`` to ``E108``) and skipped here, so one bad entry cannot make the
+        edit page fail for a field nobody meant.
+        """
+        from vantage.approvals import approvable_fields
+
+        return approvable_fields(self)
 
     def can_reveal(self, request, obj, field_name: str) -> bool:
         """Whether ``request`` may reveal ``field_name`` on ``obj``. Override to narrow or widen.

@@ -1,0 +1,203 @@
+/* django-vantage — approval workflows: the queue, the review screen and the banner a
+ * record shows while a change to it is waiting.
+ *
+ * Semantic tokens only, as in vantage-webhooks.css, so both themes and every derived
+ * brand palette work without a hue written here. Everything stacks in one column, so
+ * the phone layout needs nothing of its own.
+ */
+
+/* ── the banner on a record ───────────────────────────────────────────────── */
+
+.v-approval-banner,
+.v-approval-held {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in oklab, var(--warning) 32%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--warning) 12%, transparent);
+}
+
+.v-approval-held {
+  border-color: var(--border);
+  background: var(--muted);
+}
+
+.v-approval-banner-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.v-approval-item + .v-approval-item {
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid color-mix(in oklab, var(--warning) 24%, transparent);
+}
+
+.v-approval-item {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.v-approval-note-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* ── one request ──────────────────────────────────────────────────────────── */
+
+.v-approval-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-approval-note {
+  margin: 0;
+  padding-inline-start: 0.625rem;
+  border-inline-start: 2px solid var(--border);
+  font-size: 0.8125rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.v-approval-diff {
+  font-size: 0.8125rem;
+}
+
+.v-approval-diff .v-diff-row[data-stale] dt {
+  color: var(--destructive);
+}
+
+.v-approval-stale {
+  display: block;
+  margin-block-start: 0.125rem;
+  color: var(--destructive);
+  font-size: 0.75rem;
+}
+
+/* ── the queue ────────────────────────────────────────────────────────────── */
+
+.v-approval-section + .v-approval-section {
+  margin-block-start: 1.5rem;
+}
+
+.v-approval-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.v-approval-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.v-approval-card {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+}
+
+.v-approval-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.v-approval-model {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.v-approval-record {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.v-approval-status {
+  flex: none;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.v-approval-status[data-status="pending"] {
+  background: color-mix(in oklab, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+.v-approval-status[data-status="approved"] {
+  background: color-mix(in oklab, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.v-approval-status[data-status="rejected"] {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
+}
+
+.v-approval-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ── deciding ─────────────────────────────────────────────────────────────── */
+
+.v-approval-decide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+  margin-block-start: 1rem;
+}
+
+.v-approval-form {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  justify-items: start;
+  padding: 0.875rem 1rem;
+}
+
+.v-approval-form-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.v-approval-form .v-textarea,
+.v-approval-held .v-textarea {
+  inline-size: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  resize: vertical;
+}
+
+.v-approval-form .v-textarea:focus,
+.v-approval-held .v-textarea:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 25%, transparent);
+}
+
+.v-approval-withdraw {
+  margin-block-start: 1rem;
+}

@@ -100,14 +100,34 @@ class KanbanMoveView(InlineWriteView):
                 return self.back()
             return JsonResponse(exc.payload, status=exc.status)
 
-        from vantage import audit
+        from vantage import approvals, audit
 
         # Outside the transaction, for the reason InlineWriteView.patch gives.
         for obj, form in saved:
             audit.log_form_save(request, obj, form, change=True)
 
-        obj = saved[0][0]
+        obj, form = saved[0]
         name = next(iter(row["fields"]))
+        pending = getattr(form, "vantage_pending", None)
+        if pending is not None:
+            # The card stays where it was: the column it was dragged to is a request,
+            # not the record's state. ``ok`` because nothing failed.
+            approvals.announce(request, obj, pending)
+            message = approvals.pending_message(self.panel, pending)
+            if as_form:
+                messages.warning(request, message)
+                return self.back()
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "pending": True,
+                    "detail": message,
+                    "pk": str(obj.pk),
+                    "label": safe_str(obj),
+                    "version": concurrency.token_for(obj) or "",
+                    "value": concurrency._jsonify(getattr(obj, name)),
+                }
+            )
         if as_form:
             messages.success(request, _("Moved “%(record)s”.") % {"record": safe_str(obj)})
             return self.back()

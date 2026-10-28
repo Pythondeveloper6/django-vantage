@@ -490,9 +490,15 @@ def apply_bulk_edit(request, panel, obj, data, names: list[str], *, on_saved=Non
     if not form.is_valid():
         return form
 
+    from vantage import approvals
+
     hook = getattr(panel, "save_model", None)
     with transaction.atomic(using=router.db_for_write(panel.model)):
         instance = form.save(commit=False)
+        # run_bulk_edit refuses a guarded field before it gets here. Held back rather
+        # than trusted, so a caller that skipped that check still writes nothing that
+        # nobody approved.
+        pending = approvals.withhold(request, panel, instance, form)
         if callable(hook):
             hook(request, instance, form, True)
         else:
@@ -505,6 +511,7 @@ def apply_bulk_edit(request, panel, obj, data, names: list[str], *, on_saved=Non
     from vantage import audit
 
     audit.log_form_save(request, instance, form, True)
+    approvals.announce(request, instance, pending)
     return form
 
 
@@ -638,6 +645,13 @@ def run_bulk_edit(request, panel, queryset, form, names: list[str], *, since=Non
     column = version_column(model)
 
     matched = queryset.count()
+    from vantage.approvals import refusal
+
+    refused = refusal(request, panel, names)
+    if refused:
+        # Refused rather than queued per row: see vantage.approvals.refusal. Before
+        # anything is written, so nothing is applied that nobody approved.
+        return BulkEditOutcome(strategy=strategy, reason=reason, matched=matched, refused=refused)
     if strategy == "instances" and matched > BULK_EDIT_INSTANCE_LIMIT:
         return BulkEditOutcome(
             strategy=strategy,

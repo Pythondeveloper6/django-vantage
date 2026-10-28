@@ -708,6 +708,10 @@ class DetailView(PanelView):
         from vantage.historyviews import history_url
 
         context.update(audit.history_context(self.request, obj))
+        from vantage.approvalviews import banner_context
+
+        # What is waiting for approval on this record, if anything.
+        context.update(banner_context(self.request, panel, obj))
         if context.get("history") is not None:
             # Only beside the panel it extends: the page has the same audit gate.
             context["history_url"] = history_url(panel, obj)
