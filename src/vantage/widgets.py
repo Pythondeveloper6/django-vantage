@@ -29,7 +29,9 @@ query, so one bounded ``LIMIT`` more is not a new cost.
 
 from __future__ import annotations
 
+import copy
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from decimal import Decimal
@@ -68,6 +70,7 @@ __all__ = [
     "WriteOnlyTextarea",
     "build_form_class",
     "classify",
+    "formfield_callback_for",
     "infer_form_fields",
     "infer_widget",
     "layout",
@@ -865,6 +868,39 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
     return formfield
 
 
+def formfield_callback_for(panel_or_model: Any) -> Callable[..., forms.Field | None]:
+    """The form-field callback for a panel: inference, then the panel's own overrides.
+
+    A panel with neither ``formfield_overrides`` nor ``widgets`` gets the shared
+    :func:`_formfield_callback` itself, so the common case allocates nothing. Otherwise
+    the overrides are folded into the keyword arguments *before* that callback runs, so
+    a replaced widget still goes through ``db_field.formfield()`` and keeps tenancy
+    scoping, safe option labels and the upload validator — an override changes the
+    control, never what the field accepts.
+
+    Class overrides follow ``ModelAdmin.formfield_for_dbfield``: the first class in the
+    model field's MRO that has an entry wins, its dict is deep-copied (a widget instance
+    shared between forms would share its ``attrs``) and keyword arguments a caller
+    passed explicitly still take precedence.
+    """
+    overrides = getattr(panel_or_model, "formfield_overrides", None) or {}
+    per_field = getattr(panel_or_model, "widgets", None) or {}
+    if not overrides and not per_field:
+        return _formfield_callback
+
+    def callback(db_field: models.Field, **kwargs: Any) -> forms.Field | None:
+        for klass in type(db_field).__mro__:
+            if klass in overrides:
+                kwargs = {**copy.deepcopy(overrides[klass]), **kwargs}
+                break
+        widget = per_field.get(db_field.name)
+        if widget is not None:
+            kwargs["widget"] = copy.deepcopy(widget) if isinstance(widget, forms.Widget) else widget
+        return _formfield_callback(db_field, **kwargs)
+
+    return callback
+
+
 # ── write-only secrets ──────────────────────────────────────────────────────
 
 #: The suffix of the "clear this value" checkbox a nullable secret gets on edit.
@@ -1051,7 +1087,10 @@ def build_form_class(panel_or_model: Any, fields: list[str] | None = None) -> ty
         if name not in excluded and not (name in secret and is_hashed(model, name))
     ]
     form_class = modelform_factory(
-        model, form=WriteOnlyModelForm, fields=names, formfield_callback=_formfield_callback
+        model,
+        form=WriteOnlyModelForm,
+        fields=names,
+        formfield_callback=formfield_callback_for(panel_or_model),
     )
     form_class.vantage_write_only = tuple(name for name in names if name in secret)
     form_class.vantage_sensitive_fields = secret

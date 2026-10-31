@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from django.core.checks import Error, Warning
+from django.db import models
 
 from vantage.introspection import resolve_path
 
@@ -54,6 +55,7 @@ class ModelPanelChecks:
             *self._check_sensitive_lookups(panel),
             *self._check_requires_approval(panel),
             *self._check_field_permissions(panel),
+            *self._check_widget_overrides(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -349,6 +351,64 @@ class ModelPanelChecks:
                         id="vantage.E020",
                     )
                 )
+        return errors
+
+    def _check_widget_overrides(self, panel: ModelPanel) -> list[Error]:
+        """``formfield_overrides`` keys are field classes; ``widgets`` keys are fields.
+
+        Checked here because both are read only when a form is built, so a typo would
+        otherwise surface as a control that quietly stayed inferred (E120, E121).
+        """
+        from django import forms as django_forms
+
+        errors: list[Error] = []
+        overrides = getattr(panel, "formfield_overrides", None)
+        if overrides is not None:
+            valid = isinstance(overrides, dict) and all(
+                isinstance(key, type) and issubclass(key, models.Field) and isinstance(value, dict)
+                for key, value in overrides.items()
+            )
+            if not valid:
+                errors.append(
+                    Error(
+                        "'formfield_overrides' must map model field classes to dicts of "
+                        f"form field arguments; got {overrides!r}.",
+                        hint='For example {models.TextField: {"widget": forms.Textarea}}.',
+                        obj=type(panel),
+                        id="vantage.E120",
+                    )
+                )
+        widgets = getattr(panel, "widgets", None)
+        if widgets is not None:
+            if not isinstance(widgets, dict):
+                errors.append(
+                    Error(
+                        f"'widgets' must be a dict of field name to widget; got {widgets!r}.",
+                        obj=type(panel),
+                        id="vantage.E121",
+                    )
+                )
+                return errors
+            names = {f.name for f in panel.model._meta.get_fields()}
+            for name, widget in widgets.items():
+                is_widget = isinstance(widget, django_forms.Widget) or (
+                    isinstance(widget, type) and issubclass(widget, django_forms.Widget)
+                )
+                if name not in names or not is_widget:
+                    problem = (
+                        f"{name!r} is not a field on {panel.model._meta.label}"
+                        if name not in names
+                        else f"{widget!r} is not a form widget"
+                    )
+                    errors.append(
+                        Error(
+                            f"'widgets' entry {name!r}: {problem}.",
+                            hint="Keys are model field names; values are Widget classes "
+                            "or instances.",
+                            obj=type(panel),
+                            id="vantage.E121",
+                        )
+                    )
         return errors
 
     # ── list views ──────────────────────────────────────────────────────────
