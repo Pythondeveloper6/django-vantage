@@ -132,6 +132,12 @@ def _iter_requests(
                 }
                 if "pk" in converters:
                     kwargs["pk"] = instances[panel.model].pk
+                # The per-model API sub-resources: an unknown action or saved view is a
+                # supported, non-crashing outcome, so placeholders exercise the route.
+                if "action_name" in converters:
+                    kwargs["action_name"] = "smoke-test-action"
+                if "view_pk" in converters:
+                    kwargs["view_pk"] = 0
                 yield f"{name} [{panel.opts.label_lower}]", name, kwargs
             continue
 
