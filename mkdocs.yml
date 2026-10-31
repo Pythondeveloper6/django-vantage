@@ -124,6 +124,7 @@ nav:
       - Permissions: permissions.md
       - Roles: roles.md
       - Field permissions: field-permissions.md
+      - Access review and elevated access: access-review.md
       - Two-factor sign-in: two-factor.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md

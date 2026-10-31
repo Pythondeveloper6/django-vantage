@@ -138,6 +138,21 @@ upgrading.
 - `card_fields` also picks the columns a phone card shows. Touch targets of at least
   44px, 16px fields so iOS does not zoom, and safe-area insets.
 
+#### Access review and break-glass access
+
+- An **access review** report: who can view, add, change and delete each model, and
+  see, change or reveal each sensitive or restricted field, per person or per role,
+  answered by the panel's own permission resolver. A screen linked from Roles with CSV
+  and JSON downloads (each one audited), and `manage.py vantage_access_review`. See
+  [Access review and elevated access](docs/access-review.md).
+- **Break-glass access**: a role or permissions held for a capped number of minutes,
+  with a reason, approved by a second person unless self-service is on. Expiry and
+  revocation take effect at check time with no cleanup job; every step is audited; a
+  banner shows while elevated, with a button to drop it. `manage.py vantage_break_glass`
+  grants, revokes and lists from a shell. Migration `0021_elevated_access`.
+- Settings `ACCESS_REVIEW_PERMISSION`, `BREAK_GLASS_PERMISSION`,
+  `BREAK_GLASS_SELF_SERVICE` and `BREAK_GLASS_MAX_MINUTES`.
+
 ### Changed
 
 - **CSV and TSV exports neutralise spreadsheet formulas** (visible to users): a text
