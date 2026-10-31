@@ -182,6 +182,7 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "REPORTS_MAX_PER_USER",
         "REPORTS_RETENTION_DAYS",
         "REPORTS_BASE_URL",
+        "UNMANAGED_READ_ONLY",
     }
 )
 
@@ -237,6 +238,8 @@ PROVISIONAL_PANEL_ATTRIBUTES: frozenset[str] = frozenset(
         "requires_approval",
         "formfield_overrides",
         "widgets",
+        "read_only",
+        "editable_fields",
     }
 )
 

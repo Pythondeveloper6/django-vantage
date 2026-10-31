@@ -56,6 +56,7 @@ class ModelPanelChecks:
             *self._check_requires_approval(panel),
             *self._check_field_permissions(panel),
             *self._check_widget_overrides(panel),
+            *self._check_read_only(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -349,6 +350,46 @@ class ModelPanelChecks:
                         hint=replacement,
                         obj=type(panel),
                         id="vantage.E020",
+                    )
+                )
+        return errors
+
+    def _check_read_only(self, panel: ModelPanel) -> list[Error]:
+        """``read_only`` is a bool or ``None``; ``editable_fields`` names real fields."""
+        errors: list[Error] = []
+        value = getattr(panel, "read_only", None)
+        if not (value is None or isinstance(value, bool)):
+            errors.append(
+                Error(
+                    f"'read_only' must be True, False or None; got {value!r}.",
+                    hint='None follows VANTAGE["UNMANAGED_READ_ONLY"] for unmanaged models.',
+                    obj=type(panel),
+                    id="vantage.E122",
+                )
+            )
+        editable = getattr(panel, "editable_fields", None)
+        if editable is None:
+            return errors
+        if not isinstance(editable, list | tuple):
+            return [
+                *errors,
+                Error(
+                    f"'editable_fields' must be a list of field names; got {editable!r}.",
+                    obj=type(panel),
+                    id="vantage.E123",
+                ),
+            ]
+        from vantage.fieldperms import rule_fields
+
+        names = {field.name for field in rule_fields(panel.model)}
+        for name in editable:
+            if name not in names:
+                errors.append(
+                    Error(
+                        f"'editable_fields' names {name!r}, which is not an editable field "
+                        f"of {panel.model._meta.label}.",
+                        obj=type(panel),
+                        id="vantage.E123",
                     )
                 )
         return errors

@@ -59,6 +59,15 @@ upgrading.
   migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
   Text or JSON output; exits `1` at `--fail-level` for CI.
 
+#### Read-only models for databases the project does not own
+
+- `ModelPanel.read_only` refuses add, delete and field changes on one model for
+  everyone, superusers included; `ModelPanel.editable_fields` keeps an allowlist of
+  fields changeable on existing rows, enforced through the field-permission layer so
+  every write path honours it. `VANTAGE["UNMANAGED_READ_ONLY"]` applies it to every
+  `managed = False` model. Checked by `vantage.E122` and `vantage.E123`. See
+  [Read-only models](docs/permissions.md#read-only-models-and-legacy-databases).
+
 #### Widget overrides
 
 - `ModelPanel.formfield_overrides`, with `django.contrib.admin`'s shape and semantics

@@ -342,9 +342,26 @@ def access(request, target, site=None) -> FieldAccess:
     # A resolver written before this existed (duck-typed rather than subclassed) gets
     # the default rule rather than an AttributeError on every page.
     ask = getattr(resolver, "field_access", None) or PanelPermissions().field_access
-    answer = ask(request, model) or UNRESTRICTED
+    answer = _with_read_only_model(model, ask(request, model) or UNRESTRICTED)
     cache[key] = answer
     return answer
+
+
+def _with_read_only_model(model, answer: FieldAccess) -> FieldAccess:
+    """Narrow ``answer`` to a read-only model's allowlist (``ModelPanel.editable_fields``).
+
+    Applied here, after whichever resolver answered, rather than inside
+    ``PanelPermissions.field_access``: that method bypasses superusers and may be
+    replaced by a project, and neither may make a table the project does not own
+    writable. Everything outside the allowlist becomes read-only; hidden stays hidden.
+    """
+    from vantage.safety import model_read_only
+
+    state = model_read_only(model)
+    if state is None:
+        return answer
+    locked = frozenset(f.name for f in rule_fields(model)) - state.editable - answer.hidden
+    return FieldAccess(hidden=answer.hidden, readonly=answer.readonly | locked)
 
 
 def _model_of(target) -> type[models.Model]:
