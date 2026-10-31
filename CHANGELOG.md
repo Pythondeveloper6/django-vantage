@@ -45,6 +45,15 @@ upgrading.
 
 ### Added
 
+#### Widget overrides
+
+- `ModelPanel.formfield_overrides`, with `django.contrib.admin`'s shape and semantics
+  (keyed by model field class, matched along its MRO), and `ModelPanel.widgets`, a
+  widget per field name. Both change the control only: validation, tenancy scoping of
+  relation choices, upload checks and write-only sensitive fields are unaffected.
+  Checked by `vantage.E120` and `vantage.E121`. See
+  [Overriding a widget](docs/forms.md#overriding-a-widget).
+
 #### History with point-in-time restore
 
 - Each record has a **History** page, linked from its detail page, that lists its audit

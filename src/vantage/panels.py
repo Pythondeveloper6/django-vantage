@@ -90,6 +90,18 @@ class ModelPanel:
     inlines: list[Any] | None = None
     related_tabs: bool | None = None
 
+    # ── widget overrides ────────────────────────────────────────────────────
+    #
+    # Inference picks every control; these replace it where it picked wrong, and only
+    # there. ``formfield_overrides`` has django.contrib.admin's shape and semantics —
+    # keyed by model field class, matched along that class's MRO, values passed to
+    # ``formfield()`` — so an adopted ``ModelAdmin``'s dict carries across unchanged:
+    # ``{models.TextField: {"widget": forms.Textarea(attrs={"rows": 3})}}``.
+    # ``widgets`` is per field name, ``{"body": MarkdownEditor}``, and wins over both.
+    # A sensitive field keeps its write-only control whatever either says.
+    formfield_overrides: dict[type[models.Field], dict[str, Any]] | None = None
+    widgets: dict[str, Any] | None = None
+
     # ── sensitive values ────────────────────────────────────────────────────
     #
     # ``None`` infers them (see vantage.sensitive); a list names them outright and

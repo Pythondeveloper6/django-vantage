@@ -106,16 +106,16 @@ An honest list. Some of these are decisions; some are gaps.
 | | Notes |
 |---|---|
 | **`panel.permissions`** | Removed outright, not merely ignored. Setting it fails `manage.py check` (`vantage.E020`). Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks — see [Panels](panels.md#removed-attributes) |
-| **A per-field widget override hook** | There is no `formfield_overrides` equivalent. Widgets are inferred per field kind; supply your own form if you need something specific |
 | **A lightbox on image thumbnails** | Clicking a thumbnail opens the original in a new tab; there is no click-to-enlarge overlay. See [Media and uploads](forms.md#media-and-uploads) |
 | **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (partial on purpose: the high-traffic strings — chrome, buttons, list and form pages, confirmations — with the rest falling back to English), for templates, Python and the JavaScript alike — see [Internationalization](internationalization.md) |
 
-`inlines`, `row_actions`, `list_select_related`, `related_tabs`, `layout` and background
-job offload for bulk actions used to belong on this table and no longer do — all six are
-real, tested features now. See [Editable inlines](forms.md#editable-inlines),
+`inlines`, `row_actions`, `list_select_related`, `related_tabs`, `layout`, background
+job offload for bulk actions and per-field widget overrides (`formfield_overrides`,
+`widgets`) used to belong on this table and no longer do — all seven are real, tested
+features now. See [Editable inlines](forms.md#editable-inlines),
 [Row actions](panels.md#row-actions), [The record page](forms.md#the-record-page),
-[The layout DSL](forms.md#the-layout-dsl) and [Bulk actions](lists.md#bulk-actions)
-respectively.
+[The layout DSL](forms.md#the-layout-dsl), [Bulk actions](lists.md#bulk-actions) and
+[Overriding a widget](forms.md#overriding-a-widget).
 
 **The JSON API is built.** [`vantage.api`](api.md) is a full read/write API over every
 registered panel — cursor pagination, optimistic concurrency, the same permission and
