@@ -271,16 +271,20 @@ def describe(panel, count: int, what: str, *, label: str = "", obj=None) -> tupl
         )
     if what == "delete":
         return (
+            # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
             ngettext("delete of %(count)s %(model)s", "delete of %(count)s %(models)s", count)
             % values,
+            # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
             ngettext("Restored %(count)s %(model)s.", "Restored %(count)s %(models)s.", count)
             % values,
         )
     if what == "bulk_edit":
         return (
+            # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
             ngettext("bulk edit of %(count)s %(model)s", "bulk edit of %(count)s %(models)s", count)
             % values,
             ngettext(
+                # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
                 "Reverted the edit to %(count)s %(model)s.",
                 "Reverted the edit to %(count)s %(models)s.",
                 count,
@@ -290,10 +294,14 @@ def describe(panel, count: int, what: str, *, label: str = "", obj=None) -> tupl
     if what == "inline":
         return (
             ngettext(
-                "inline edit of %(count)s %(model)s", "inline edit of %(count)s %(models)s", count
+                # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
+                "inline edit of %(count)s %(model)s",
+                "inline edit of %(count)s %(models)s",
+                count,
             )
             % values,
             ngettext(
+                # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
                 "Reverted the change to %(count)s %(model)s.",
                 "Reverted the changes to %(count)s %(models)s.",
                 count,
@@ -302,9 +310,11 @@ def describe(panel, count: int, what: str, *, label: str = "", obj=None) -> tupl
         )
     # An action, named by its label.
     return (
+        # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
         ngettext("“%(label)s” on %(count)s %(model)s", "“%(label)s” on %(count)s %(models)s", count)
         % values,
         ngettext(
+            # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
             "Reverted “%(label)s” on %(count)s %(model)s.",
             "Reverted “%(label)s” on %(count)s %(models)s.",
             count,
