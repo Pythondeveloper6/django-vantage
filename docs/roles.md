@@ -131,3 +131,9 @@ Any `AUTH_USER_MODEL` works. Membership is found through the user model's many-t
 `Group` (`groups` on `PermissionsMixin`); a user model without one has no members tab, and
 the matrix still manages the roles themselves. User search covers whichever of the
 username field, email field, `first_name` and `last_name` the model has.
+
+## Reviewing and elevating access
+
+The [access review](access-review.md) lists who can do what across every model, per
+person or per role, for audit evidence. [Elevated access](access-review.md#elevated-access-break-glass)
+lets someone hold a role for a few minutes with a reason, instead of holding it all year.

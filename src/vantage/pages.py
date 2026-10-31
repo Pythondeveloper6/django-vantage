@@ -26,7 +26,9 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 
 __all__ = [
+    "AccessReviewPage",
     "ApprovalsPage",
+    "BreakGlassPage",
     "DataQualityPage",
     "HealthPage",
     "MyReportsPage",
@@ -108,7 +110,11 @@ class Page:
             return True
         if callable(self.permission):
             return bool(self.permission(request))
-        return request.user.has_perm(str(self.permission))
+        if request.user.has_perm(str(self.permission)):
+            return True
+        from vantage.breakglass import holds
+
+        return holds(request, str(self.permission))
 
     # ── content ─────────────────────────────────────────────────────────────
 
@@ -290,6 +296,60 @@ class RolesPage(Page):
         from vantage.rolesviews import list_context
 
         return list_context(request)
+
+
+def _may_review_access(request) -> bool:
+    from vantage.accessreview import may_review
+
+    return may_review(request)
+
+
+class AccessReviewPage(Page):
+    """Who can see and change which model and which guarded field, for audit evidence.
+
+    Superusers only unless ``VANTAGE["ACCESS_REVIEW_PERMISSION"]`` widens it. Every
+    answer comes from the panel's own permission resolver; see
+    :mod:`vantage.accessreview`. The download hangs off this page's path.
+    """
+
+    title = _("Access review")
+    description = _(
+        "Who can view, add, change and delete each model, and its sensitive or restricted fields."
+    )
+    icon = "users"
+    group = _("System")
+    order = 93
+    path = "_/access-review/"
+    template_name = "vantage/access/review.html"
+    permission = staticmethod(_may_review_access)
+
+    def get_context(self, request):
+        from vantage.accessviews import review_context
+
+        return review_context(self.site, request)
+
+
+class BreakGlassPage(Page):
+    """Time-boxed elevated access: ask for it, grant it, see it, end it.
+
+    Open to every staff member, because anyone may *ask* for elevation with a reason;
+    granting and approving are gated by ``VANTAGE["BREAK_GLASS_PERMISSION"]``. The
+    request, grant, approve, revoke and drop routes hang off this page's path; see
+    :mod:`vantage.accessviews` and :mod:`vantage.breakglass`.
+    """
+
+    title = _("Elevated access")
+    description = _("Hold more than your usual access for a few minutes, with a reason.")
+    icon = "shield"
+    group = _("System")
+    order = 93
+    path = "_/elevated-access/"
+    template_name = "vantage/access/break_glass.html"
+
+    def get_context(self, request):
+        from vantage.accessviews import break_glass_context
+
+        return break_glass_context(self.site, request)
 
 
 def _may_manage_webhooks(request) -> bool:

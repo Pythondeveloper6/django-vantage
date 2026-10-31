@@ -69,6 +69,20 @@ DEFAULTS: dict[str, Any] = {
     # it; whoever is let in can still only grant permissions they hold themselves.
     # Code-only for the same reason as SETTINGS_PERMISSION: editable, it is a self-grant.
     "ROLES_PERMISSION": None,
+    # Who may open the access review report (who can see and change what). None means
+    # superusers only; a permission string or a callable taking the request widens it.
+    # Code-only: the report names every account that holds the keys to the panel.
+    "ACCESS_REVIEW_PERMISSION": None,
+    # Who may grant time-boxed elevated access ("break glass"). None means superusers
+    # only; a permission string or a callable taking the request widens it, and whoever
+    # is let in can only grant permissions they hold themselves. Code-only, like
+    # ROLES_PERMISSION: editable, it would be a self-grant.
+    "BREAK_GLASS_PERMISSION": None,
+    # Whether someone allowed to grant may activate their *own* request. False keeps
+    # the two-person rule: another authorised person approves every elevation.
+    "BREAK_GLASS_SELF_SERVICE": False,
+    # The longest one grant may last, in minutes. Every grant is capped to it.
+    "BREAK_GLASS_MAX_MINUTES": 60,
     "READ_ONLY": False,
     # Whether a model with ``Meta.managed = False`` — a table Django did not create and
     # does not migrate — is read-only in the panel unless its panel says otherwise

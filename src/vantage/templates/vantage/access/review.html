@@ -1,0 +1,93 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-primary" href="{{ export_csv_url }}">{% icon "upload" %}<span>{% translate "Download CSV" %}</span></a>
+    <a class="v-btn v-btn-secondary" href="{{ export_json_url }}">{% translate "Download JSON" %}</a>
+  </div>
+</div>
+
+<form class="v-card v-roles-create" method="get">
+  <label class="v-roles-create-field">
+    <span class="v-roles-label">{% translate "Report by" %}</span>
+    <select class="v-input" name="by">
+      <option value="user"{% if by == "user" %} selected{% endif %}>{% translate "Person" %}</option>
+      <option value="role"{% if by == "role" %} selected{% endif %}>{% translate "Role" %}</option>
+    </select>
+  </label>
+  <label class="v-roles-create-field">
+    <span class="v-roles-label">{% translate "Model" %}</span>
+    <select class="v-input" name="model">
+      <option value="">{% translate "All models" %}</option>
+      {% for key, label in model_choices %}<option value="{{ key }}"{% if key == model %} selected{% endif %}>{{ label }} ({{ key }})</option>{% endfor %}
+    </select>
+  </label>
+  <button class="v-btn v-btn-secondary">{% icon "filter" %}<span>{% translate "Show" %}</span></button>
+</form>
+
+<p class="v-muted">
+  {% blocktranslate trimmed with when=report.generated_at|date:"Y-m-d H:i" version=report.version %}
+    Generated {{ when }} by version {{ version }}. Row-level scoping (tenants, object permissions) is not shown.
+  {% endblocktranslate %}
+</p>
+
+{% for subject in report.subjects %}
+  <section class="v-card v-access-subject">
+    <div class="v-card-head">
+      <h2 class="v-card-title">
+        {{ subject.name }}
+        {% if subject.superuser %}<span class="v-badge" data-tone="warning">{% translate "Superuser" %}</span>{% endif %}
+        {% if subject.elevated_until %}<span class="v-badge" data-tone="danger">{% blocktranslate with time=subject.elevated_until|time:"H:i" %}Elevated until {{ time }}{% endblocktranslate %}</span>{% endif %}
+      </h2>
+    </div>
+    {% if subject.models %}
+      <div class="v-table-wrap">
+        <table class="v-table">
+          <thead>
+            <tr>
+              <th scope="col">{% translate "Model" %}</th>
+              <th scope="col">{% translate "View" %}</th>
+              <th scope="col">{% translate "Add" %}</th>
+              <th scope="col">{% translate "Change" %}</th>
+              <th scope="col">{% translate "Delete" %}</th>
+              <th scope="col">{% translate "Guarded fields" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in subject.models %}
+              <tr>
+                <th scope="row">{{ entry.label }} <span class="v-muted v-mono">{{ entry.model }}</span></th>
+                <td>{% if entry.view %}✓{% else %}—{% endif %}</td>
+                <td>{% if entry.add %}✓{% else %}—{% endif %}</td>
+                <td>{% if entry.change %}✓{% else %}—{% endif %}</td>
+                <td>{% if entry.delete %}✓{% else %}—{% endif %}</td>
+                <td>
+                  {% for f in entry.fields %}
+                    <span class="v-badge" data-tone="{% if not f.visible %}neutral{% elif f.editable %}primary{% else %}warning{% endif %}">
+                      {{ f.label }}:
+                      {% if not f.visible %}{% translate "hidden" %}{% elif f.editable %}{% translate "can change" %}{% else %}{% translate "read-only" %}{% endif %}{% if f.sensitive %},
+                        {% if f.reveal is None %}{% translate "reveal decided per record" %}{% elif f.reveal %}{% translate "can reveal" %}{% else %}{% translate "masked" %}{% endif %}{% endif %}
+                    </span>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="v-card-body"><p class="v-muted">{% translate "No access to any model shown here." %}</p></div>
+    {% endif %}
+  </section>
+{% empty %}
+  <div class="v-empty"><p class="v-empty-title">{% translate "Nobody to review." %}</p></div>
+{% endfor %}
+{% endblock %}
