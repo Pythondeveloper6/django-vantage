@@ -17,7 +17,7 @@ side by side — which matters, because the honest way to evaluate a replacement
 run it next to the thing it replaces.
 
 **What this module refuses to do is pretend.** ``ModelAdmin`` has a large surface and
-some of it has no equivalent here — inlines, ``formfield_overrides``, ``raw_id_fields``,
+some of it has no equivalent here — inlines, ``raw_id_fields``,
 custom ``get_urls``, media, and the view-override hooks. Those are *reported*, per
 model, through :func:`check_admin_adapter`, so ``manage.py check`` lists exactly what
 did not come across. A silent partial translation is worse than no translation: it
@@ -70,9 +70,6 @@ logger = logging.getLogger("vantage.contrib.admin")
 UNMAPPED_ATTRS: dict[str, str] = {
     "inlines": "inline formsets — edit the related model from its own page, or add it "
     "as a related tab",
-    "formfield_overrides": "per-field-class widget overrides — Vantage infers widgets "
-    "from the field and has no override hook for this; supply your own form if you "
-    "need something specific",
     "raw_id_fields": "raw id inputs — Vantage uses a searching select for relations",
     "autocomplete_fields": "autocomplete selects — Vantage's relation widget already "
     "searches, so this is usually a no-op",
@@ -320,6 +317,7 @@ def _translate(model: type, admin_obj: Any) -> tuple[dict[str, Any], list[str]]:
         attrs["list_editable"] = [name for name in editable if name != link]
 
     _translate_form(model, admin_obj, attrs, unmapped)
+    _translate_formfield_overrides(admin_obj, attrs)
     _translate_date_hierarchy(admin_obj, attrs)
     _translate_actions(admin_obj, attrs, unmapped)
     _translate_permissions(admin_obj, attrs)
@@ -419,6 +417,9 @@ def _str_column(model, methods: dict) -> str:
     def column(self, obj):
         return str(obj)
 
+    # A marker, so ``vantage_adopt`` can write this column out as ``str(obj)`` instead
+    # of treating it as a method it cannot read.
+    column.vantage_str_column = True  # type: ignore[attr-defined]
     methods[name] = column
     return name
 
@@ -492,6 +493,19 @@ def _translate_form(model, admin_obj, attrs: dict, unmapped: list) -> None:
 
     if fieldsets := _declared(admin_obj, "fieldsets"):
         attrs["layout"] = _layout_from_fieldsets(fieldsets)
+
+
+def _translate_formfield_overrides(admin_obj, attrs: dict) -> None:
+    """``formfield_overrides`` maps one-to-one onto ``ModelPanel.formfield_overrides``.
+
+    Read from the *class*, not the instance: ``ModelAdmin.__init__`` merges contrib.admin's
+    own widget defaults (the admin date picker, the admin file input) into the instance
+    dict, and carrying those across would swap Vantage's controls for admin-styled ones.
+    """
+    declared = getattr(type(admin_obj), "formfield_overrides", None)
+    base = getattr(_admin_base(), "formfield_overrides", None)
+    if declared and declared != base:
+        attrs["formfield_overrides"] = dict(declared)
 
 
 def _layout_from_fieldsets(fieldsets):
