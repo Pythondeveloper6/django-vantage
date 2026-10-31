@@ -69,7 +69,26 @@ DEFAULTS: dict[str, Any] = {
     # it; whoever is let in can still only grant permissions they hold themselves.
     # Code-only for the same reason as SETTINGS_PERMISSION: editable, it is a self-grant.
     "ROLES_PERMISSION": None,
+    # Who may open the access review report (who can see and change what). None means
+    # superusers only; a permission string or a callable taking the request widens it.
+    # Code-only: the report names every account that holds the keys to the panel.
+    "ACCESS_REVIEW_PERMISSION": None,
+    # Who may grant time-boxed elevated access ("break glass"). None means superusers
+    # only; a permission string or a callable taking the request widens it, and whoever
+    # is let in can only grant permissions they hold themselves. Code-only, like
+    # ROLES_PERMISSION: editable, it would be a self-grant.
+    "BREAK_GLASS_PERMISSION": None,
+    # Whether someone allowed to grant may activate their *own* request. False keeps
+    # the two-person rule: another authorised person approves every elevation.
+    "BREAK_GLASS_SELF_SERVICE": False,
+    # The longest one grant may last, in minutes. Every grant is capped to it.
+    "BREAK_GLASS_MAX_MINUTES": 60,
     "READ_ONLY": False,
+    # Whether a model with ``Meta.managed = False`` — a table Django did not create and
+    # does not migrate — is read-only in the panel unless its panel says otherwise
+    # (``ModelPanel.read_only``). Off by default for compatibility; recommended on for
+    # a panel over a database another system owns.
+    "UNMANAGED_READ_ONLY": False,
     "ENVIRONMENT": None,
     # ── multi-tenancy ───────────────────────────────────────────────────────
     # Off until TENANT_MODEL names a model, at which point every registered model must
@@ -115,6 +134,9 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMIT_CACHE": None,
     "RATE_LIMITS": None,
     "UPLOAD_MAX_BYTES": None,
+    # Extensions of active content (web pages, SVG, XML, scripts) a plain FileField
+    # may accept, e.g. [".svg"]. Empty: all refused. An opted-in file is still scanned.
+    "UPLOAD_ACTIVE_SUFFIXES": (),
     # ── two-factor sign-in ──────────────────────────────────────────────────
     # Offered to everyone from the account page. False removes the feature: no
     # enrolment, no second step, and any codes already set up stop being asked for.
@@ -214,6 +236,23 @@ DEFAULTS: dict[str, Any] = {
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
     "DATA_QUALITY": {},
+    # ── observability ───────────────────────────────────────────────────────
+    # The Prometheus endpoint at _/metrics/. Off, it is a 404.
+    "METRICS": False,
+    # Bearer token a scraper sends. None means superusers signed in to the panel only.
+    # Code-only: it is a credential.
+    "METRICS_TOKEN": None,
+    # Panel requests slower than this are logged to "vantage.requests" (needs
+    # vantage.metrics.SlowRequestMiddleware). 0 disables the log line.
+    "SLOW_REQUEST_MS": 1000,
+    # ── notifications ───────────────────────────────────────────────────────
+    # {"channel name": {"type": "slack"|"teams"|"email", "url": ..., "to": ...,
+    # "events": [...]}}. Code-only: the URLs are credentials. See vantage.notifications.
+    "NOTIFICATIONS": {},
+    # ── single sign-on ──────────────────────────────────────────────────────
+    # Identity-provider groups to roles. A dict of the keys in
+    # vantage.identity.ROLE_MAPPING_DEFAULTS; empty means no mapping.
+    "ROLE_MAPPING": {},
 }
 
 #: The data quality page's own settings, nested under ``VANTAGE["DATA_QUALITY"]`` so
@@ -285,6 +324,7 @@ class VantageSettings:
         if not isinstance(user, dict):
             raise ImproperlyConfigured(f"VANTAGE must be a dict, got {type(user).__name__}.")
 
+        user = _translate_deprecated(user)
         unknown = set(user) - set(DEFAULTS)
         if unknown:
             raise ImproperlyConfigured(_unknown_key_message(sorted(unknown)))
@@ -327,6 +367,12 @@ class VantageSettings:
 
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
+        from vantage.identity import resolve_role_mapping
+
+        resolved["ROLE_MAPPING"] = resolve_role_mapping(resolved["ROLE_MAPPING"])
+        from vantage.notifications import resolve_channels
+
+        resolved["NOTIFICATIONS"] = resolve_channels(resolved["NOTIFICATIONS"])
 
         # The database layer goes *under* attribute access rather than beside it, so
         # every existing ``vantage_settings.X`` picks up a UI override without knowing
@@ -365,6 +411,28 @@ class VantageSettings:
 
     def reset(self) -> None:
         self._cache = None
+
+
+def _translate_deprecated(user: dict[str, Any]) -> dict[str, Any]:
+    """Warn about deprecated keys, and carry a renamed key's value to its new name.
+
+    Runs before the unknown-key check, so a key that was renamed keeps working for the
+    whole deprecation period instead of becoming a typo the day it is renamed. Where
+    both names are set the new one wins: it is the one the owner wrote on purpose.
+    """
+    from vantage.deprecation import DEPRECATED_SETTINGS, warn_deprecated
+
+    used = [key for key in user if key in DEPRECATED_SETTINGS]
+    if not used:
+        return user
+    user = dict(user)
+    for key in used:
+        deprecation = DEPRECATED_SETTINGS[key]
+        warn_deprecated(deprecation, "The VANTAGE setting", stacklevel=5)
+        if deprecation.replacement and key not in DEFAULTS:
+            value = user.pop(key)
+            user.setdefault(deprecation.replacement, value)
+    return user
 
 
 def _resolve_data_quality(value: Any) -> dict[str, Any]:

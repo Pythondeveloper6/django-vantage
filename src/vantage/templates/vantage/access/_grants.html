@@ -1,0 +1,40 @@
+{% load i18n %}
+{% if rows %}
+<div class="v-table-wrap">
+  <table class="v-table">
+    <thead>
+      <tr>
+        <th scope="col">{% translate "Who" %}</th>
+        <th scope="col">{% translate "What" %}</th>
+        <th scope="col">{% translate "Status" %}</th>
+        <th scope="col">{% translate "Until" %}</th>
+        <th scope="col">{% translate "Reason" %}</th>
+        <th scope="col">{% translate "Granted by" %}</th>
+        <th scope="col"><span class="v-sr-only">{% translate "Actions" %}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <th scope="row">{{ row.grant.user_repr }}</th>
+          <td>{{ row.what }}</td>
+          <td><span class="v-badge" data-status="{{ row.status }}">{{ row.status_label }}</span></td>
+          <td>{% if row.grant.expires_at %}{{ row.grant.expires_at|date:"Y-m-d H:i" }}{% else %}{% blocktranslate count counter=row.grant.minutes %}{{ counter }} minute{% plural %}{{ counter }} minutes{% endblocktranslate %}{% endif %}</td>
+          <td>{{ row.grant.reason }}</td>
+          <td>{{ row.grant.granted_by_repr|default:"—" }}</td>
+          <td class="v-roles-row-actions">
+            {% if row.may_approve %}
+              <form method="post" action="{% url 'vantage:break-glass-approve' row.grant.pk %}">{% csrf_token %}<button class="v-btn v-btn-sm v-btn-primary">{% translate "Approve" %}</button></form>
+            {% endif %}
+            {% if row.may_revoke %}
+              <form method="post" action="{% url 'vantage:break-glass-revoke' row.grant.pk %}">{% csrf_token %}<button class="v-btn v-btn-sm v-btn-ghost">{% if row.status == "pending" %}{% translate "Reject" %}{% else %}{% translate "Revoke" %}{% endif %}</button></form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="v-card-body"><p class="v-muted">{% translate "None." %}</p></div>
+{% endif %}

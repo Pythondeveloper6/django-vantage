@@ -352,11 +352,91 @@ the point, and `tests/test_api.py::TestTenancyComposesAutomatically` proves it e
 end: a user of one tenant reading another tenant's row through the API gets the same
 `404` a mis-scoped HTML page would give, not a leak.
 
+## Bulk actions
+
+`GET .../_actions/` lists the actions the caller may run on a model.
+`POST .../_actions/<name>/` runs one. The selection is the JSON body (`ids`, or
+`select_all` plus optional `excluded`); a "select all matching" run takes its filters
+from the **query string**, exactly like the list endpoint.
+
+```bash
+# Preview: how many rows would this touch? Nothing is executed.
+curl -b cookies -H "X-CSRFToken: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"select_all": true, "dry_run": true}' \
+  "https://example.com/admin/_/api/shop/order/_actions/publish/?status=draft&q=acme"
+```
+
+| Status | Meaning |
+|---|---|
+| `200` | Ran inline: `{"affected", "message", "level", "scope"}`. |
+| `202` | Over the job threshold: `{"job": {"id", "status_url", ...}}`; poll `status_url`. (`200` with the finished job when no worker is configured.) |
+| `400` / `403` | Nothing selected / the action is unknown or not permitted. |
+| `409` | The action reported an error (for example a `PROTECT` reference). |
+| `422` | No rows match, or more than the action's `max_rows`. |
+| `428` | The action asks for confirmation: repeat with `"confirmed": true`. |
+
+## Saved views
+
+`GET/POST .../_views/` and `GET/PATCH/DELETE .../_views/<id>/` follow the HTML rules:
+a caller sees their own views, shared views and views granted to them (anything else
+is `404`); only the allow-listed filter, search and sort parameters are stored, taken
+from a `query` string or a `state` object; shared views need the current `version` to
+be updated (`409` on a stale one); only the owner changes name, visibility, edit scope
+or lock; a locked view cannot be overwritten. Saving under an existing name replaces
+your own view (`200`, `201` when created). `PATCH {"default": true}` makes it your
+default.
+
+## Import and export
+
+```bash
+# Dry run (the default): per-row errors, counts and diffs; nothing is written.
+curl -b cookies -H "X-CSRFToken: $TOKEN" -F file=@orders.csv -F mode=create \
+  https://example.com/admin/_/api/shop/order/_import/
+
+# Commit.
+curl -b cookies -H "X-CSRFToken: $TOKEN" -F file=@orders.csv -F dry_run=false \
+  https://example.com/admin/_/api/shop/order/_import/
+
+# Export the filtered list (csv, tsv, or json = newline-delimited).
+curl -b cookies "https://example.com/admin/_/api/shop/order/_export/?format=csv&status=paid"
+```
+
+Import takes CSV only (as the HTML wizard does), with the same size and row limits and
+permission rules (`add`, plus `change` for `update`/`upsert`). Optional parts:
+`mapping` (a JSON object of CSV header to field; inferred when omitted), `key_field`,
+`mode`. A request is a dry run unless it sends `dry_run=false`. Export uses the HTML
+export's columns, permission stripping and masking of sensitive columns.
+
+## File uploads
+
+Create and update accept `multipart/form-data`: a `fields` part holding the same JSON
+object as the JSON body, `version`/`note` parts, and each file as a part named after its
+field. Files go through the same form and `vantage.media` validators as the HTML form,
+so a web page named `.png` is rejected with `422`. Send `null` for a file field to clear it.
+
+```python
+import requests
+session.post(url, headers={"X-CSRFToken": token},
+             data={"fields": json.dumps({"name": "Ada", "email": "ada@example.com"})},
+             files={"avatar": open("ada.png", "rb")})
+```
+
+## OpenAPI
+
+`GET /_/api/openapi.json` (staff only) returns an OpenAPI 3.1 document generated from the
+registered panels. It contains only the models the caller can view, and only the
+operations they hold permission for. Security is the session cookie plus the
+`X-CSRFToken` header on unsafe verbs.
+
+```bash
+python manage.py vantage_openapi --user alice --output openapi.json
+python manage.py vantage_openapi > full.json   # every panel
+```
+
+Without `--user` the document describes every registered panel, which reveals model
+structure; do not publish it.
+
 ## What this API does not do
 
-- **No file or image uploads.** A JSON body cannot carry binary data. A model with a
-  `FileField`/`ImageField` is still fully readable and its other fields are still
-  writable through this API; use the HTML form for the upload itself.
-- **No bulk actions, saved views or import/export.** Those are list-page features with
-  their own request shapes; nothing here stops a future endpoint from exposing them
-  the same way this one exposes create/read/update/delete.
+- **No XLSX import.** The importer reads CSV only.
+- **No inline-formset writes.** Child rows are edited through their own endpoints.

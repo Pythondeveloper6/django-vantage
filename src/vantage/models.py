@@ -119,7 +119,8 @@ ALLOWED_UPLOAD_SUFFIXES: frozenset[str] = frozenset({".svg", ".png", ".jpg", ".j
 #: 2 MiB. A logo is a logo; anything larger is a mistake or an attempt to fill a disk.
 MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 
-#: Constructs that turn an uploaded SVG into stored XSS. An SVG is served from the
+#: Display names for what :func:`vantage.security.markup_hazard` refuses: the
+#: constructs that turn an uploaded SVG into stored XSS. An SVG is served from the
 #: panel's own origin, so a ``<script>`` inside one runs with the session cookie of
 #: whoever views the page — the logo is on every screen, so that is everyone.
 #:
@@ -127,21 +128,17 @@ MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 #: understand rather than trying to rewrite them into safety, because a rewriter that
 #: is wrong once is worse than a refusal that is occasionally annoying. Serving media
 #: from a separate origin remains the defence in depth this cannot replace.
-_SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str | Promise], ...] = (
+_HAZARD_LABELS: dict[str, str | Promise] = {
     # Translators: each of these names one thing found inside an uploaded SVG, and is
     # substituted into "That SVG contains %(hazard)s, which would run as script ...".
-    (re.compile(rb"<\s*(?:[a-z0-9]+:)?script\b", re.IGNORECASE), _("a <script> element")),
-    (re.compile(rb"\son[a-z]+\s*=", re.IGNORECASE), _("an inline event handler")),
-    (
-        re.compile(rb"attributeName\s*=\s*[\"']?\s*on", re.IGNORECASE),
-        _("an animation that writes an event handler"),
-    ),
-    (re.compile(rb"javascript\s*:", re.IGNORECASE), _("a javascript: URL")),
-    (
-        re.compile(rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE),
-        _("an embedded document"),
-    ),
-)
+    "a <script> element": _("a <script> element"),
+    "an inline event handler": _("an inline event handler"),
+    "an animation that writes an event handler": _("an animation that writes an event handler"),
+    "a javascript: URL": _("a javascript: URL"),
+    "an embedded data: document": _("an embedded data: document"),
+    "an embedded document": _("an embedded document"),
+    "an entity declaration": _("an entity declaration"),
+}
 
 #: A CSS length the token stylesheet can emit verbatim. Anything else would be
 #: interpolated straight into a ``<style>`` block.
@@ -193,15 +190,19 @@ def validate_branding_upload(value) -> None:
     if isinstance(payload, str):  # pragma: no cover - only a text-mode file object
         payload = payload.encode("utf-8", "replace")
 
-    for pattern, description in _SVG_HAZARDS:
-        if pattern.search(payload):
-            raise ValidationError(
-                _(
-                    "That SVG contains %(hazard)s, which would run as script on every "
-                    "page of the panel. Export it without scripting, or upload a PNG."
-                )
-                % {"hazard": description}
+    # One scanner for all three upload layers; see vantage.security.markup_hazard for
+    # the normalisation that makes it hard to spell a hazard some other way.
+    from vantage.security import markup_hazard
+
+    description = markup_hazard(payload)
+    if description:
+        raise ValidationError(
+            _(
+                "That SVG contains %(hazard)s, which would run as script on every "
+                "page of the panel. Export it without scripting, or upload a PNG."
             )
+            % {"hazard": _HAZARD_LABELS.get(description, description)}
+        )
 
 
 def validate_brand_color(value: str) -> None:
@@ -1795,3 +1796,112 @@ class FieldPermission(models.Model):
 
     def __str__(self) -> str:
         return f"{self.field_name}: {self.level} for group {self.group_id}"
+
+
+class ElevatedAccess(models.Model):
+    """Time-boxed elevated access: a role, or named permissions, held for minutes.
+
+    "Break glass" for people who need more than their standing access to fix something
+    now, without anyone holding admin-wide rights the rest of the year. See
+    :mod:`vantage.breakglass`.
+
+    **Nothing is ever written to group membership.** A grant is a row, and whether it
+    confers anything is decided at check time from ``starts_at``, ``expires_at`` and
+    ``revoked_at``. An expired grant gives nothing the instant the clock passes it,
+    whether or not anything ran — there is no cleanup job whose failure would leave
+    someone elevated.
+
+    A row starts as a *request* (``granted_at`` empty) unless the person creating it
+    may grant it outright. Approving it sets ``granted_by``, ``starts_at`` and
+    ``expires_at``; revoking, rejecting or dropping it sets ``revoked_at``.
+
+    ``logged_state`` records which lifecycle entries the audit log already holds
+    (``"active"``, then ``"expired"``), so activation and expiry are each recorded
+    exactly once, by whichever check first observes them.
+    """
+
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    user_repr = models.CharField(max_length=150, blank=True)
+    #: ``SET_NULL``: a deleted role confers nothing, and the grant stays readable.
+    role = models.ForeignKey(
+        "auth.Group", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    role_repr = models.CharField(max_length=150, blank=True)
+    #: ``["app_label.codename", ...]`` granted beside (or instead of) the role.
+    permissions = models.JSONField(default=list, blank=True)
+    reason = models.TextField()
+    #: What was asked for. The window itself is ``starts_at`` to ``expires_at``.
+    minutes = models.PositiveIntegerField()
+
+    requested_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    requested_by_repr = models.CharField(max_length=150, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    granted_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    granted_by_repr = models.CharField(max_length=150, blank=True)
+    granted_at = models.DateTimeField(null=True, blank=True)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    revoked_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    revoked_by_repr = models.CharField(max_length=150, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoke_reason = models.TextField(blank=True)
+
+    #: Permissions this grant actually decided an allow for, each audited once.
+    used = models.JSONField(default=list, blank=True)
+    logged_state = models.CharField(max_length=10, blank=True)
+
+    class Meta:
+        verbose_name = _("elevated access")
+        verbose_name_plural = _("elevated access grants")
+        ordering = ["-requested_at", "-pk"]
+        # Not an editable table in its own right: the break-glass screen is the way in.
+        default_permissions = ()
+        indexes = [
+            models.Index(fields=["user", "expires_at"], name="vantage_elevated_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        what = self.role_repr or ", ".join(self.permissions or []) or "-"
+        return f"{self.user_repr or self.user_id}: {what}"
+
+    @property
+    def status(self) -> str:
+        """``pending``, ``scheduled``, ``active``, ``expired``, ``revoked`` or ``rejected``.
+
+        Computed from the clock, never stored: the stored columns only say what
+        happened, and "is it active" is a question for the moment it is asked.
+        """
+        from django.utils import timezone
+
+        if self.revoked_at is not None:
+            return "revoked" if self.granted_at is not None else "rejected"
+        if self.granted_at is None:
+            return "pending"
+        now = timezone.now()
+        if self.expires_at is None or self.expires_at <= now:
+            return "expired"
+        if self.starts_at is not None and self.starts_at > now:
+            return "scheduled"
+        return "active"

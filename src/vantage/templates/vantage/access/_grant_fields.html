@@ -1,0 +1,20 @@
+{% load i18n %}
+<label class="v-roles-create-field">
+  <span class="v-roles-label">{% translate "Role" %}</span>
+  <select class="v-input" name="role">
+    <option value="">{% translate "No role" %}</option>
+    {% for role in roles %}<option value="{{ role.pk }}">{{ role.name }}</option>{% endfor %}
+  </select>
+</label>
+<label class="v-roles-create-field">
+  <span class="v-roles-label">{% translate "Permissions" %}</span>
+  <input class="v-input v-mono" type="text" name="permissions" autocomplete="off" placeholder="shop.change_order, shop.delete_order">
+</label>
+<label class="v-roles-create-field">
+  <span class="v-roles-label">{% translate "Minutes" %}</span>
+  <input class="v-input" type="number" name="minutes" min="1" max="{{ max_minutes }}" value="{{ max_minutes }}" required>
+</label>
+<label class="v-roles-create-field">
+  <span class="v-roles-label">{% translate "Reason" %}</span>
+  <textarea class="v-input" name="reason" required minlength="{{ min_reason }}" rows="2"></textarea>
+</label>

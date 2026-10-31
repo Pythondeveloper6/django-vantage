@@ -47,6 +47,24 @@ to whatever the matrix stores; where both name the same field for the same role,
 stricter one applies. The matrix shows a code rule as a *read-only in code* or *hidden in
 code* badge — the screen cannot lift it.
 
+A role named here (or in `TWO_FACTOR_REQUIRED_ROLES`) cannot be renamed from the roles
+screen: the rule binds by name, so a rename would silently drop it for every member.
+Change the code first.
+
+For a rule that depends on the request rather than the role, override
+`get_field_access(request)` on the panel and return a `vantage.fieldperms.FieldAccess`.
+It only ever adds restrictions, and applies to superusers too:
+
+```python
+from vantage.fieldperms import FieldAccess
+
+class OrderPanel(ModelPanel):
+    def get_field_access(self, request):
+        if request.user.has_perm("shop.close_period"):
+            return None
+        return FieldAccess(readonly=frozenset({"total"}))
+```
+
 `manage.py check` reports a malformed declaration:
 
 | Id | Problem |

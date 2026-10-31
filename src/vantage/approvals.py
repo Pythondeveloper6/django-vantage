@@ -423,6 +423,54 @@ def announce(request, obj, change_request) -> None:
         action_name=_action_name("requested approval of", change_request),
         changes={},
     )
+    _notify(request, type(obj), change_request, "approval.requested")
+
+
+#: The audit verb of a decision, mapped to its notification event.
+_DECISION_EVENTS = {
+    "approved change to": "approval.approved",
+    "rejected change to": "approval.rejected",
+    "withdrew request to change": "approval.withdrawn",
+}
+
+
+def _notify(request, model, change_request, event: str) -> None:
+    """Tell the channels that asked (``VANTAGE["NOTIFICATIONS"]``). Never raises.
+
+    Names the record by its stored safe label and the change by a field *count*: the
+    people reading a chat channel may not be allowed to know which fields a record has,
+    let alone their values.
+    """
+    from django.urls import NoReverseMatch, reverse
+
+    from vantage.notifications import notify
+
+    if model is None:
+        return
+    count = len(change_request.field_names)
+    title = {
+        "approval.requested": _("Approval requested"),
+        "approval.approved": _("Change approved"),
+        "approval.rejected": _("Change rejected"),
+        "approval.withdrawn": _("Approval request withdrawn"),
+    }[event]
+    link = None
+    try:
+        path = reverse(
+            f"vantage:{model._meta.app_label}-{model._meta.model_name}-detail",
+            args=[change_request.object_id],
+        )
+        link = request.build_absolute_uri(path) if request is not None else path
+    except (NoReverseMatch, Exception):
+        link = None
+    notify(
+        event,
+        title=f"{title}: {str(model._meta.verbose_name).capitalize()} "
+        f"{change_request.object_repr or change_request.object_id} (#{change_request.pk})",
+        lines=[str(_("%(count)s field(s) affected.") % {"count": count})],
+        link=link,
+        model=model,
+    )
 
 
 def _action_name(verb: str, change_request) -> str:
@@ -611,6 +659,7 @@ def approve(request, panel, obj, change_request) -> ApprovalOutcome:
     except AlreadyDecided:
         return ApprovalOutcome(False, gettext("Someone else has already decided this request."))
     change_request.refresh_from_db()
+    _notify(request, panel.model, change_request, "approval.approved")
     return ApprovalOutcome(
         True,
         gettext("Approved. %(fields)s is now saved.") % {"fields": _labels(panel.model, names)},
@@ -657,6 +706,10 @@ def withdraw(request, obj, change_request) -> bool:
 def _log(request, obj, change_request, verb: str) -> None:
     from vantage import audit
 
+    event = _DECISION_EVENTS.get(verb)
+    if event is not None:
+        model = type(obj) if obj is not None else _model_for(change_request.resource_key)
+        _notify(request, model, change_request, event)
     target = obj
     if target is None:
         # The record has gone; the entry still names the model and the id it was about.

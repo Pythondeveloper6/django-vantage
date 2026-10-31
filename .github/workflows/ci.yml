@@ -1,8 +1,8 @@
 # Continuous integration.
 #
-# Five jobs, in rough order of how fast they tell you something useful: lint, then the
-# test matrix, then the browser layer, then the type check (advisory), then the
-# packaging check.
+# Lint, the test matrix (SQLite), the browser layer, the type check (advisory), the
+# packaging check, then the same suite on PostgreSQL and MySQL, a coverage floor and a
+# dependency vulnerability audit.
 #
 # The packaging job is the one worth explaining. `vantage` is mostly not Python — 30
 # templates, 16 static files, a templatetags module — and every one is located by path
@@ -40,10 +40,13 @@ jobs:
     name: ruff
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing after checkout pushes; leave no token in .git/config.
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -63,6 +66,11 @@ jobs:
     name: py${{ matrix.python-version }} · Django ${{ matrix.django }}
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
+    # Matrix values reach the shell through the environment, never by expanding
+    # `${{ }}` inside a script, so a value can never become shell syntax.
+    env:
+      DJANGO_CELL: ${{ matrix.django }}
+      PYTHON_CELL: ${{ matrix.python-version }}
     strategy:
       # One red cell should not hide the other nine.
       fail-fast: false
@@ -82,10 +90,13 @@ jobs:
             experimental: true
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing after checkout pushes; leave no token in .git/config.
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -94,17 +105,17 @@ jobs:
       # "Django 5.2" instead of "Django django>=5.2,<6.0". The mapping lives here.
       - name: Resolve the Django requirement
         run: |
-          case "${{ matrix.django }}" in
+          case "$DJANGO_CELL" in
             5.2)  spec="django>=5.2,<6.0" ;;
             6.0)  spec="django>=6.0,<6.1" ;;
             6.1)  spec="django>=6.1,<6.2" ;;
             main) spec="https://github.com/django/django/archive/refs/heads/main.tar.gz" ;;
-            *)    echo "::error::unknown Django cell '${{ matrix.django }}'"; exit 1 ;;
+            *)    echo "::error::unknown Django cell '$DJANGO_CELL'"; exit 1 ;;
           esac
           echo "DJANGO_SPEC=$spec" >> "$GITHUB_ENV"
 
       - name: Create the environment
-        run: uv venv --python ${{ matrix.python-version }}
+        run: uv venv --python "$PYTHON_CELL"
 
       # Installed non-editable on purpose: the suite then imports `vantage` out of
       # site-packages rather than out of `src/`, so it exercises the built artefact and
@@ -118,7 +129,7 @@ jobs:
       # the resolver must refuse. Every other cell installs under the real bound.
       - name: Install
         run: |
-          if [ "${{ matrix.django }}" = "main" ]; then
+          if [ "$DJANGO_CELL" = "main" ]; then
             echo "django @ $DJANGO_SPEC" > "$RUNNER_TEMP/django-override.txt"
             uv pip install . --group dev --override "$RUNNER_TEMP/django-override.txt"
           else
@@ -140,10 +151,13 @@ jobs:
     name: browser (Playwright)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing after checkout pushes; leave no token in .git/config.
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -179,10 +193,13 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing after checkout pushes; leave no token in .git/config.
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -199,14 +216,16 @@ jobs:
     name: build & wheel contents
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Nothing after checkout pushes; leave no token in .git/config.
+          persist-credentials: false
           # setuptools-scm is not in use, but a shallow clone also hides the tags that
           # make `git describe` meaningful in a failure report.
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.2
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -233,8 +252,105 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the distributions
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
           path: dist/
           if-no-files-found: error
+
+  databases:
+    # The main matrix runs on SQLite. These two cells run the whole suite against a real
+    # PostgreSQL and MySQL, where the planner estimates, statement timeouts, keyset
+    # paging and case-sensitivity rules actually execute instead of being simulated.
+    name: ${{ matrix.database }} · py3.13 · Django 6.1
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, mysql]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vantage
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: vantage
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -proot" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+    env:
+      VANTAGE_TEST_DB: ${{ matrix.database }}
+      PGHOST: localhost
+      PGPORT: "5432"
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: "3306"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          uv venv
+          uv pip install . --group dev "django>=6.1,<6.2" "psycopg[binary]>=3.2" "mysqlclient>=2.2"
+
+      - name: pytest
+        run: uv run --no-sync pytest -p no:cacheprovider
+
+  coverage:
+    # A floor, not a target: it fails a change that deletes tests or adds a large
+    # untested module, and is raised as coverage rises.
+    name: coverage (gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - run: uv sync --group dev --frozen
+
+      - name: pytest with coverage
+        run: uv run --no-sync pytest --cov=vantage --cov-report=term-missing:skip-covered --cov-fail-under=90
+
+  audit:
+    # Known-vulnerable pins in the lockfile fail the build. The runtime dependency is
+    # Django alone; the rest are development tools, audited because they run in CI.
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "3.13"
+
+      - name: pip-audit
+        run: |
+          uv export --frozen --all-groups --no-hashes --no-emit-project > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit==2.9.0 --strict -r "$RUNNER_TEMP/requirements.txt"

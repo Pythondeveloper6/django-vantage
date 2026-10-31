@@ -23,7 +23,7 @@ charts, a command palette, light and dark themes and a schema map.</p>
 
 !!! warning "Alpha — `0.2.0a2`"
 
-    Working and heavily tested — more than 4,600 tests — but the API may still move.
+    Working and heavily tested — more than 5,000 tests — but the API may still move, through a [deprecation cycle](api-stability.md).
     See the [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is
     not done. Use it on an internal tool; pin the exact version if you depend on it.
 

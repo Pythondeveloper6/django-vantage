@@ -74,6 +74,7 @@ __all__ = [
     "bulk_edit_payload",
     "bulk_edit_strategy",
     "copy_children",
+    "copyable_children",
     "duplicate_plan",
     "panel_slot",
     "render_duplicate_notes",
@@ -343,15 +344,32 @@ def copy_children(request, source, target, groups) -> dict[str, int]:
     unique fields go through the same resolution the parent's did, because a child
     carrying a unique reference is exactly as capable of failing the insert.
     """
-    from vantage import audit
+    from vantage import audit, fieldperms
+    from vantage.permissions import get_permissions
+    from vantage.sensitive import sensitive_names
+    from vantage.tenancy import enforce as enforce_tenant
 
+    permissions = get_permissions()
     copied: dict[str, int] = {}
-    for group in groups:
+    for group in copyable_children(request, groups):
         child_model = group.model
+        # Never copied, like the parent's own: a sensitive value would end up in two
+        # rows, and a hidden one would be written by someone who may not see it.
+        skip = set(sensitive_names(child_model)) | set(
+            fieldperms.access(request, child_model).hidden
+        )
+        rows = permissions.filter_queryset(request, getattr(source, group.accessor).all(), "view")
         made = 0
         with transaction.atomic(using=router.db_for_write(child_model)):
-            for child in getattr(source, group.accessor).all():
-                clone = _clone_child(child, group.field_name, target)
+            for child in rows:
+                clone = _clone_child(
+                    child,
+                    group.field_name,
+                    target,
+                    skip=skip,
+                    before_save=enforce_tenant,
+                    request=request,
+                )
                 made += 1
         # Outside the transaction, as everywhere else in the package: an audit write
         # that fails inside an atomic block marks it for rollback and destroys the
@@ -362,7 +380,27 @@ def copy_children(request, source, target, groups) -> dict[str, int]:
     return copied
 
 
-def _clone_child(child, field_name: str, parent):
+def copyable_children(request, groups):
+    """The child groups this user may copy: view *and* add on the child model.
+
+    Copying a child is creating a row of the child model. Judged only by the parent's
+    ``add``, it would let someone create — and, through the copy, read — records of a
+    model they hold no permission on at all.
+    """
+    from vantage.permissions import get_permissions
+
+    permissions = get_permissions()
+    return [
+        group
+        for group in groups
+        if permissions.has_model_perm(request, group.model, "view")
+        and permissions.has_model_perm(request, group.model, "add")
+    ]
+
+
+def _clone_child(
+    child, field_name: str, parent, *, skip=frozenset(), before_save=None, request=None
+):
     clone = child.__class__()
     for field in concrete_fields(type(child)):
         if field.primary_key:
@@ -372,10 +410,15 @@ def _clone_child(child, field_name: str, parent):
             continue
         if not field.concrete or field.auto_created:
             continue
+        if field.name in skip:
+            # Left at the field's own default rather than copied.
+            continue
         value = getattr(child, field.attname, None)
         if getattr(field, "unique", False):
             value, _ = _unique_value(type(child), field, value)
         setattr(clone, field.attname, value)
+    if before_save is not None:
+        before_save(request, clone)
     clone.save()
     for field in m2m_fields(type(child)):
         if is_auto_created_through(through_model(field)):
@@ -1083,7 +1126,7 @@ def render_row_actions(panel, context: dict | None) -> Any:
     buttons = row_actions_for(panel, context.get("request"), obj)
     if not buttons:
         return None
-    return mark_safe(  # rendered by the template engine, which escapes
+    return mark_safe(  # noqa: S308 - rendered by the template engine, which escapes
         render_to_string(
             "vantage/partials/row_actions.html",
             {"row_actions": buttons, "object": obj, "panel": panel},

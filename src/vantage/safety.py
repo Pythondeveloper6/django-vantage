@@ -59,6 +59,54 @@ def read_only_reason() -> str | None:
     return value if isinstance(value, str) else _("This panel is in read-only mode.")
 
 
+class ModelReadOnly:
+    """Whether one model is read-only, and which fields stay editable if so.
+
+    Falsy for an ordinary model. Per model rather than per deployment: the case it
+    exists for is a panel over tables another system owns — a legacy database, a
+    reporting replica, a schema Django did not create and must not migrate — next to
+    models the project does own.
+    """
+
+    __slots__ = ("editable",)
+
+    def __init__(self, editable: frozenset[str] = frozenset()) -> None:
+        #: The allowlist: fields that may still be changed on an existing row.
+        self.editable = editable
+
+    def __bool__(self) -> bool:
+        return True
+
+    def refuses(self, action: str) -> bool:
+        """Adding and deleting are always refused; changing is refused unless some
+        field is allowlisted, in which case the field-level layer narrows it."""
+        if action in ("add", "delete"):
+            return True
+        return action == "change" and not self.editable
+
+
+def model_read_only(model) -> ModelReadOnly | None:
+    """The read-only state of ``model``, or ``None`` when it is writable.
+
+    ``ModelPanel.read_only`` decides when set. Left at ``None`` it follows
+    ``VANTAGE["UNMANAGED_READ_ONLY"]`` for a model with ``Meta.managed = False`` — the
+    usual shape of a table the project reads but does not own — and is writable
+    otherwise. Resolved through the registry on every call; it is an attribute lookup,
+    and caching it would have to be invalidated by every test that swaps a panel.
+    """
+    from vantage.conf import vantage_settings
+    from vantage.sensitive import _panel_for
+
+    panel = _panel_for(model)
+    declared = getattr(panel, "read_only", None) if panel is not None else None
+    if declared is None:
+        declared = (not model._meta.managed) and bool(vantage_settings.UNMANAGED_READ_ONLY)
+    if not declared:
+        return None
+    editable = getattr(panel, "editable_fields", None) if panel is not None else None
+    return ModelReadOnly(frozenset(editable or ()))
+
+
 # ── impersonation ───────────────────────────────────────────────────────────
 
 

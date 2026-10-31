@@ -14,7 +14,7 @@ today, and what a project has to do to use it.
 | Locale | Catalogue | Status |
 |---|---|---|
 | `en` | `locale/en/LC_MESSAGES/django.po` | Complete — an identity catalogue (every `msgstr` equals its `msgid`), since the source strings are already English. Exists mainly to prove the extract → compile → ship pipeline round-trips, and as a base for a project that wants to fork it into British or another English variant. |
-| `ar` | `locale/ar/LC_MESSAGES/django.po` | **Partial, on purpose.** High-traffic strings are translated: page chrome (skip link, nav landmarks, breadcrumb), buttons (save, cancel, discard, export), the list page's empty states and search/filter controls, the form page's unsaved-changes and validation banners, delete confirmations, the top bar and account menu, and one fully-translated plural (`ngettext`) entry. Everything else is left with an empty `msgstr`, which `gettext` falls back to the English source for — cleanly, and without a project ever seeing a blank label. A wrong guessed translation is a bug someone has to find later; an empty one is not. |
+| `ar` | `locale/ar/LC_MESSAGES/django.po`, `djangojs.po` | **Complete** in Modern Standard Arabic: every Python, template and JavaScript string is translated, including all six plural forms of every `ngettext` entry. A string added to the source after the last catalogue refresh is absent from the compiled catalogue until someone translates it, and `gettext` falls back to the English source for it — cleanly, without a blank label. |
 
 Both `.mo` files are compiled and shipped in the wheel (`pyproject.toml`'s
 `[tool.hatch.build.targets.wheel] artifacts = ["*.mo"]` forces this even though
@@ -51,20 +51,35 @@ RTL switch to remember. See [Theming → Right to left](theming.md#right-to-left
 `LOCALE_PATHS` for the shipped catalogues specifically. Add `LOCALE_PATHS` only for
 the project's *own* translations (its own app labels, its own custom pages).
 
-## Filling in the rest of the Arabic catalogue
+## Keeping the Arabic catalogue complete
 
-`locale/ar/LC_MESSAGES/django.po` is a normal gettext `.po` file — edit it with any
-PO editor (Poedit, Lokalize, or a text editor) or by hand, then recompile:
+`locale/ar/LC_MESSAGES/django.po` and `djangojs.po` are normal gettext files — edit
+them with any PO editor (Poedit, Lokalize, or a text editor). After a source change,
+refresh both locales from `src/vantage/`, translate what `msgfmt --statistics`
+reports as untranslated or fuzzy, then recompile:
 
 ```bash
 cd src/vantage
-django-admin compilemessages -l ar
+DJANGO_SETTINGS_MODULE=tests.settings PYTHONPATH=../.. \
+  django-admin makemessages -l ar -l en --no-obsolete
+DJANGO_SETTINGS_MODULE=tests.settings PYTHONPATH=../.. \
+  django-admin makemessages -d djangojs -l ar -l en --no-obsolete
+# the en catalogue is an identity catalogue: msgstr equals msgid (and msgstr[1]
+# equals msgid_plural) for every entry
+msgfmt --check --statistics -o /dev/null locale/ar/LC_MESSAGES/django.po
+django-admin compilemessages
 ```
 
 Run from `src/vantage/` specifically, so the `#:` source references inside the `.po`
 stay package-relative (`actions.py:85`, not
 `/home/you/django-vantage/src/vantage/actions.py:85`) — portable across every
-machine and CI runner that touches the file.
+machine and CI runner that touches the file. Both `.po` and compiled `.mo` files are
+committed. `tests/test_i18n.py` fails if the compiled Arabic catalogue is missing a
+message that the English one has, or a plural without all six forms.
+
+Plural entries whose singular and plural name different placeholders
+(`%(model)s` / `%(models)s`) carry an `# xgettext:no-python-format` comment in the
+source, because `xgettext` otherwise refuses to extract them.
 
 ## Adding a new locale
 
@@ -84,7 +99,7 @@ DJANGO_SETTINGS_MODULE=tests.settings PYTHONPATH=/path/to/django-vantage \
 ```
 
 Translate the strings that matter for a working panel — you do not have to fill in
-all ~890 entries before a locale is useful. Leave the rest with an empty `msgstr`;
+all ~1,700 entries before a locale is useful. Leave the rest with an empty `msgstr`;
 that falls back to English rather than shipping a guess. Re-run `compilemessages`
 after every edit; the `.po` is not read at runtime, only the compiled `.mo` is.
 

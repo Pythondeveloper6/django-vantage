@@ -26,6 +26,7 @@ from django.views.generic import TemplateView
 
 from vantage import listprefs, listquery
 from vantage.actions import Selection, resolve_actions
+from vantage.breakglass import banner as elevation_banner
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
 from vantage.nav import UI_THEME_COOKIE, build_nav, resolve_theme, resolve_ui_theme
@@ -92,6 +93,7 @@ class SiteView(TemplateView):
             breadcrumbs=self.get_breadcrumbs(),
             may_reveal=may_reveal_anything(self.request, self.site),
             reveal_seconds=REVEAL_SECONDS,
+            elevation=elevation_banner(self.request),
         )
         # The end of the header: the arranged controls, plus who is signed in. One
         # call rather than three keys, so authviews.shell_context cannot drift.
@@ -888,6 +890,7 @@ def _as_rows(data: dict) -> list[dict]:
     return rows
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class ImpersonateView(SiteView):
     """Start or stop impersonating another user. POST only, superusers only.
 
@@ -921,7 +924,16 @@ class ImpersonateView(SiteView):
         except ImpersonationError as exc:
             messages.error(request, str(exc))
 
-        return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
+        # Validated like every other ``next`` in the panel: this form is posted by any
+        # staff user (the stop branch), so an unchecked value is an open redirect.
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        target = request.POST.get("next") or ""
+        if not url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            target = reverse("vantage:dashboard")
+        return HttpResponseRedirect(target)
 
 
 class UIThemeCssView(SiteView):

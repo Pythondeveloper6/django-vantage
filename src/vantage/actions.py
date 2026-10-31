@@ -408,6 +408,7 @@ def _delete_selected(panel, request, queryset) -> ActionResult:
     if trashed:
         parts.append(
             ngettext(
+                # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
                 "Moved %(count)s %(model)s to the trash.",
                 "Moved %(count)s %(models)s to the trash.",
                 trashed,
@@ -417,6 +418,7 @@ def _delete_selected(panel, request, queryset) -> ActionResult:
     if destroyed and related:
         parts.append(
             ngettext(
+                # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
                 "Deleted %(count)s %(model)s and %(related)s related records.",
                 "Deleted %(count)s %(models)s and %(related)s related records.",
                 destroyed,
@@ -425,6 +427,7 @@ def _delete_selected(panel, request, queryset) -> ActionResult:
         )
     elif destroyed:
         parts.append(
+            # xgettext:no-python-format (plural names %(models)s, singular %(model)s)
             ngettext("Deleted %(count)s %(model)s.", "Deleted %(count)s %(models)s.", destroyed)
             % {"count": destroyed, "model": one, "models": many}
         )

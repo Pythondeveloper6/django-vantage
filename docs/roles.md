@@ -71,6 +71,15 @@ the role's whole bundle — so changing a role's members, renaming it, duplicati
 deleting it requires holding **every** permission the role grants. "Add myself to Admins"
 is refused rather than being a one-click escalation that never touched a checkbox.
 
+Nor can anyone but a superuser change **their own** access. Field rules combine
+most-permissively, so joining any role that grants the same model without the rule
+would lift it: adding or removing yourself as a member is refused, and so is editing,
+renaming or deleting a role you belong to. Someone else has to do it.
+
+A role named in code — in a panel's `field_permissions` or in
+`TWO_FACTOR_REQUIRED_ROLES` — cannot be renamed here, because both bind by name and a
+rename would silently drop the rule or the requirement for every member.
+
 The screen never shows or edits `is_staff` or `is_superuser`. Only a superuser viewing an
 account's effective permissions is told that the account is a superuser.
 
@@ -122,3 +131,9 @@ Any `AUTH_USER_MODEL` works. Membership is found through the user model's many-t
 `Group` (`groups` on `PermissionsMixin`); a user model without one has no members tab, and
 the matrix still manages the roles themselves. User search covers whichever of the
 username field, email field, `first_name` and `last_name` the model has.
+
+## Reviewing and elevating access
+
+The [access review](access-review.md) lists who can do what across every model, per
+person or per role, for audit evidence. [Elevated access](access-review.md#elevated-access-break-glass)
+lets someone hold a role for a few minutes with a reason, instead of holding it all year.

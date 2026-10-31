@@ -90,6 +90,28 @@ class ModelPanel:
     inlines: list[Any] | None = None
     related_tabs: bool | None = None
 
+    # ── read-only models ────────────────────────────────────────────────────
+    #
+    # ``True`` refuses add, delete and every field change on this model, for everyone,
+    # superusers included — the shape a table owned by another system wants. ``None``
+    # follows ``VANTAGE["UNMANAGED_READ_ONLY"]`` for a ``managed = False`` model.
+    # ``editable_fields`` is the exception list: those fields stay changeable on
+    # existing rows (by whoever has ``change`` permission), and nothing else does.
+    read_only: bool | None = None
+    editable_fields: list[str] | None = None
+
+    # ── widget overrides ────────────────────────────────────────────────────
+    #
+    # Inference picks every control; these replace it where it picked wrong, and only
+    # there. ``formfield_overrides`` has django.contrib.admin's shape and semantics —
+    # keyed by model field class, matched along that class's MRO, values passed to
+    # ``formfield()`` — so an adopted ``ModelAdmin``'s dict carries across unchanged:
+    # ``{models.TextField: {"widget": forms.Textarea(attrs={"rows": 3})}}``.
+    # ``widgets`` is per field name, ``{"body": MarkdownEditor}``, and wins over both.
+    # A sensitive field keeps its write-only control whatever either says.
+    formfield_overrides: dict[type[models.Field], dict[str, Any]] | None = None
+    widgets: dict[str, Any] | None = None
+
     # ── sensitive values ────────────────────────────────────────────────────
     #
     # ``None`` infers them (see vantage.sensitive); a list names them outright and
@@ -140,6 +162,23 @@ class ModelPanel:
 
     #: Swap in a subclass to extend validation for your own panel base class.
     checks_class: type | None = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn when a subclass sets a deprecated attribute, and honour a rename.
+
+        At class creation rather than per request, so the warning points at the panel
+        that set it and is emitted once, not on every page view.
+        """
+        super().__init_subclass__(**kwargs)
+        from vantage.deprecation import DEPRECATED_PANEL_ATTRIBUTES, warn_deprecated
+
+        for name, deprecation in DEPRECATED_PANEL_ATTRIBUTES.items():
+            if name not in cls.__dict__:
+                continue
+            warn_deprecated(deprecation, f"{cls.__name__}: the ModelPanel attribute")
+            replacement = deprecation.replacement
+            if replacement and replacement not in cls.__dict__:
+                setattr(cls, replacement, cls.__dict__[name])
 
     def __init__(self, model: type[models.Model], site: VantageSite | None = None) -> None:
         self.model = model
@@ -356,6 +395,16 @@ class ModelPanel:
             self._sensitive_memo = cached
         return cached[1]
 
+    def get_field_access(self, request):
+        """Extra per-request field restrictions, as a :class:`~vantage.fieldperms.FieldAccess`.
+
+        ``None`` (the default) adds nothing. Whatever this returns is merged with the
+        role-based rules, the stricter level winning per field, and — like the
+        ``has_<action>_permission`` hooks — applies to superusers too. Every read and
+        write path that honours field permissions honours this.
+        """
+        return None
+
     def get_requires_approval(self) -> tuple[str, ...]:
         """The fields a change to which needs approval, in declared order.
 
@@ -380,7 +429,11 @@ class ModelPanel:
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             return False
-        return bool(user.is_superuser) or user.has_perm(REVEAL_PERMISSION)
+        if user.is_superuser or user.has_perm(REVEAL_PERMISSION):
+            return True
+        from vantage.breakglass import holds
+
+        return holds(request, REVEAL_PERMISSION)
 
     def get_ordering(self, request=None) -> list[str]:
         ordering = self._declared_ordering()

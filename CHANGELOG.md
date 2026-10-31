@@ -13,8 +13,12 @@ word *breaking*, so the log is useful either way.
 
 The whole roadmap: seven features, each built on its own branch and merged into the
 release branch, then a security review and a visual check of the result, with every
-finding fixed. Five migrations were added (`0016`–`0020`), so run `migrate` after
-upgrading.
+finding fixed. On top of that, production-readiness work: an API stability policy and
+upgrade checker, access review and break-glass access, single sign-on role mapping,
+read-only legacy tables, notifications, metrics, a fuller JSON API with OpenAPI,
+adoption tooling, complete Arabic catalogues, database CI and a second security review.
+Six migrations were added (`0016`–`0021`), so run `migrate` after upgrading
+(`manage.py vantage_upgrade_check --from 0.2.0a2` lists everything).
 
 ### Known limitations
 
@@ -44,6 +48,93 @@ upgrading.
 - New strings are not yet in the `.po` catalogues.
 
 ### Added
+
+#### Adopting from django.contrib.admin
+
+- `manage.py vantage_adopt`: a per-model, per-attribute mapping report for a
+  `django.contrib.admin` site (`translated` / `needs panel code` / `unsupported`, with the
+  Vantage equivalent), `--format json`, `--app`, `--strict` for CI, and `--write` for
+  starter `panel.py` files that never overwrite without `--force`.
+- The contrib.admin adapter translates `formfield_overrides` onto
+  `ModelPanel.formfield_overrides`.
+- `vantage_scaffold --from-db` (unmanaged models via `inspectdb` plus read-only panels, with
+  `--table`, `--exclude-table`, `--database`, `--include-views`) and `--preset
+  crm|ecommerce|saas` with `--map role=Model` for a starter dashboard.
+- Docs: migrating from django.contrib.admin, plugin compatibility, comparison with Unfold
+  and admin themes, and benchmarks. `scripts/benchmark.py` times the main pages on N rows.
+
+#### API stability and upgrade checks
+
+- A written [API stability and deprecation policy](docs/api-stability.md). Every
+  `VANTAGE` setting and declarative `ModelPanel` attribute is classified, in
+  `vantage.deprecation`, as *stable* (frozen; changed only through a deprecation cycle
+  of at least two minor releases) or *provisional* (new since the last release). The
+  test suite fails on an unclassified addition.
+- `VantageDeprecationWarning`, and the machinery behind it: a deprecated setting or
+  panel attribute keeps working, warns, and a renamed one is carried to its new name.
+- `manage.py vantage_upgrade_check`: unknown, deprecated and provisional settings,
+  deprecated or removed panel attributes, panel configuration errors, unapplied
+  migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
+  Text or JSON output; exits `1` at `--fail-level` for CI.
+
+#### Image lightbox
+
+- A plain click on an image thumbnail opens the original in a `<dialog>` lightbox; the
+  thumbnail stays a link that opens a new tab without JavaScript or with a modifier key.
+
+#### Notifications
+
+- `VANTAGE["NOTIFICATIONS"]` sends approval requests and decisions, webhook deliveries
+  out of retries and failed background jobs to Slack, Microsoft Teams or email
+  (including "everyone who may approve this model"). Messages carry no field names or
+  values, chat posts use the webhook client's network guard, and delivery happens after
+  commit without ever failing the save. See [Notifications](docs/notifications.md).
+
+#### Metrics, slow-request logging and a runbook
+
+- A Prometheus endpoint at `_/metrics/` (off until `VANTAGE["METRICS"]`; bearer
+  `METRICS_TOKEN` compared in constant time, or a signed-in superuser): jobs, webhook
+  deliveries, report runs and approval requests by status, undo entries, and
+  per-process request counters. No new dependency.
+- `vantage.metrics.SlowRequestMiddleware` logs panel requests slower than
+  `SLOW_REQUEST_MS` to `vantage.requests` with structured fields.
+- An [operations runbook](docs/runbook.md): what to alert on, and what to do when data
+  is being changed wrongly, a credential leaks, a deletion needs reversing, or jobs and
+  webhooks are stuck.
+
+#### Single sign-on role mapping
+
+- `VANTAGE["ROLE_MAPPING"]` maps identity-provider groups (OpenID Connect claims from
+  Entra ID, Okta, Keycloak and others) onto roles at every sign-in, through
+  `vantage.identity.sync_roles` and adapters for mozilla-django-oidc, django-allauth and
+  python-social-auth. Only mapped roles are managed, removal follows the directory,
+  nothing becomes a superuser or creates a role, and every change is audited. See
+  [Single sign-on](docs/single-sign-on.md).
+
+#### Read-only models for databases the project does not own
+
+- `ModelPanel.read_only` refuses add, delete and field changes on one model for
+  everyone, superusers included; `ModelPanel.editable_fields` keeps an allowlist of
+  fields changeable on existing rows, enforced through the field-permission layer so
+  every write path honours it. `VANTAGE["UNMANAGED_READ_ONLY"]` applies it to every
+  `managed = False` model. Checked by `vantage.E122` and `vantage.E123`. See
+  [Read-only models](docs/permissions.md#read-only-models-and-legacy-databases).
+
+#### Widget overrides
+
+- `ModelPanel.formfield_overrides`, with `django.contrib.admin`'s shape and semantics
+  (keyed by model field class, matched along its MRO), and `ModelPanel.widgets`, a
+  widget per field name. Both change the control only: validation, tenancy scoping of
+  relation choices, upload checks and write-only sensitive fields are unaffected.
+  Checked by `vantage.E120` and `vantage.E121`. See
+  [Overriding a widget](docs/forms.md#overriding-a-widget).
+
+#### JSON API: bulk actions, saved views, import/export, uploads, OpenAPI
+
+- JSON API: bulk actions (`_actions/`, filter selection, `dry_run`, confirmation, job
+  hand-off), saved views, CSV import (dry run by default) and filtered export,
+  multipart file uploads through the media validators, and an OpenAPI 3.1 document at
+  `_/api/openapi.json` filtered per user, plus `manage.py vantage_openapi`.
 
 #### History with point-in-time restore
 
@@ -138,13 +229,33 @@ upgrading.
 - `card_fields` also picks the columns a phone card shows. Touch targets of at least
   44px, 16px fields so iOS does not zoom, and safe-area insets.
 
+#### Access review and break-glass access
+
+- An **access review** report: who can view, add, change and delete each model, and
+  see, change or reveal each sensitive or restricted field, per person or per role,
+  answered by the panel's own permission resolver. A screen linked from Roles with CSV
+  and JSON downloads (each one audited), and `manage.py vantage_access_review`. See
+  [Access review and elevated access](docs/access-review.md).
+- **Break-glass access**: a role or permissions held for a capped number of minutes,
+  with a reason, approved by a second person unless self-service is on. Expiry and
+  revocation take effect at check time with no cleanup job; every step is audited; a
+  banner shows while elevated, with a button to drop it. `manage.py vantage_break_glass`
+  grants, revokes and lists from a shell. Migration `0021_elevated_access`.
+- Settings `ACCESS_REVIEW_PERMISSION`, `BREAK_GLASS_PERMISSION`,
+  `BREAK_GLASS_SELF_SERVICE` and `BREAK_GLASS_MAX_MINUTES`.
+
 ### Changed
 
+- **The Arabic catalogues are complete** (`django` and `djangojs`, all six plural forms); the English catalogue was refreshed to match. Strings added later fall back to English until translated.
 - **CSV and TSV exports neutralise spreadsheet formulas** (visible to users): a text
   cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
   `'`, in the Export button and in report attachments alike. Numbers, dates and
   booleans are unchanged.
 - The model list's table rows carry `role="row"` and `role="gridcell"`.
+- **Breaking:** a plain `FileField` now refuses web pages, SVG, XML and scripts unless
+  the extension is listed in the new `VANTAGE["UPLOAD_ACTIVE_SUFFIXES"]`.
+- `records.copy_children()` now needs a request with a user, and copies only what that
+  user may add.
 
 ### Security
 
@@ -161,6 +272,28 @@ upgrading.
 - `check --deploy` warns when Django's admin is mounted without the two-factor
   middleware (`vantage.W095`) and when report links would be built from the `Host`
   header (`vantage.W115`).
+- Uploads: active content (web pages, SVG, XML, scripts) is refused on file fields
+  unless a project opts in, the SVG scan decodes and normalises a file before checking
+  it, and a stored file of such a type is linked as a download.
+- A URL column links only `http`, `https`, `ftp` and `ftps` addresses.
+- Child formsets on a parent's form respect the child model's row scoping, tenancy and
+  `requires_approval`.
+- Duplicating a record copies only children the user may view and add, and never their
+  sensitive or hidden values.
+- Dashboard table cards leave out fields hidden by field permissions.
+- Role managers cannot change their own roles or membership, and a role named in code
+  (field rules or a two-factor requirement) cannot be renamed.
+- An adopted `ModelAdmin`'s `get_readonly_fields`, `get_exclude` and `get_fields` become
+  read-only field rules; restrictive hooks that cannot be translated are a check error
+  (`vantage.E041`). New panel hook `get_field_access(request)`.
+- A background job started while impersonating is audited as the real account, and an
+  all-tenants job resumes only for an actor who is still a superuser.
+- The impersonation form validates its redirect target.
+- CSV import bounds the input it hands to the dialect sniffer.
+- Locked dependencies with published advisories were upgraded; CI actions are pinned to
+  commit hashes, checkouts keep no credentials, and the release build does not use a
+  cache.
+- `ruff`'s security rules (`S`) are enforced on the package source.
 
 ## [0.2.0a2] — 2026-10-27
 

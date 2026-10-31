@@ -222,6 +222,10 @@ column is averaged, and an identifier is left alone. Details:
 | `related_tabs` | `bool \| None` | `None` | Group the detail page's related-record blocks into a tab strip. `None` decides by count (two or more); `True`/`False` assert it either way — see [The record page](forms.md#the-record-page) |
 | `sensitive_fields` | `list[str]` | inferred | Fields masked on every surface, revealable one at a time. A list replaces inference; `[]` switches masking off — see [Sensitive fields](sensitive-fields.md) |
 | `field_permissions` | `dict[str, dict[str, str]]` | `None` | Per role, fields that are `"hidden"` or `"readonly"`: `{"Support": {"price": "readonly"}}`. Added to the rules the roles matrix stores — see [Field permissions](field-permissions.md) |
+| `read_only` | `bool \| None` | `None` | Refuse add, delete and field changes for everyone; `None` follows `UNMANAGED_READ_ONLY` for unmanaged models — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
+| `editable_fields` | `list[str]` | `None` | With `read_only`, the fields that stay changeable on existing rows |
+| `formfield_overrides` | `dict[type[Field], dict]` | `None` | Form-field arguments per model field class, with `django.contrib.admin`'s semantics: `{models.TextField: {"widget": MyEditor}}` — see [Overriding a widget](forms.md#overriding-a-widget) |
+| `widgets` | `dict[str, Widget]` | `None` | A widget per field name, winning over `formfield_overrides`: `{"body": MyEditor}` |
 
 `readonly_fields` is a security boundary rather than a UI affordance. A readonly field
 is not rendered as a control **and** is not in the form's field list, so a hand-crafted
@@ -493,6 +497,10 @@ defaults are skipped.
 | `vantage.E112` | `field_permissions` names something that is not a field of the model |
 | `vantage.E113` | `field_permissions` sets a level other than `"hidden"` or `"readonly"` |
 | `vantage.E114` | `field_permissions` restricts the primary key |
+| `vantage.E122` | `read_only` is not `True`, `False` or `None` |
+| `vantage.E123` | `editable_fields` is not a list, or names something that is not an editable field |
+| `vantage.E120` | `formfield_overrides` is not a dict of model field class to a dict of form field arguments |
+| `vantage.E121` | `widgets` is not a dict, names something that is not a field, or maps one to something that is not a form widget |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different

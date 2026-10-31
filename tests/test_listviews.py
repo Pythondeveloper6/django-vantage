@@ -595,7 +595,8 @@ class TestCalendar:
         with CaptureQueriesContext(connection) as queries:
             response = client_in.get(reverse(POST_LIST) + "?view=calendar&month=2026-03")
         assert response.context["calendar_count"] == 1
-        assert any('"published_at" >=' in q["sql"] for q in queries)
+        # Quoting is the backend's: "x" on SQLite and PostgreSQL, `x` on MySQL.
+        assert any('"published_at" >=' in q["sql"].replace("`", '"') for q in queries)
 
     @override_settings(TIME_ZONE="Asia/Tokyo")
     def test_days_are_the_viewers_days(self, client_in, author):
