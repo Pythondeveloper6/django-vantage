@@ -683,3 +683,74 @@ class TestThePermission:
         edit(client, order, status="paid")
         order.refresh_from_db()
         assert order.status == "paid"
+
+
+class TestChildFormsets:
+    """``inlines = [...]`` on a parent is one more way to write the child model.
+
+    Saving an order through its customer's form must hold a guarded field exactly as
+    the order's own edit page does, or ``requires_approval`` is a suggestion.
+    """
+
+    @pytest.fixture
+    def author_with_orders(self, monkeypatch, panel):
+        from vantage import inlines
+
+        class OrderInline(inlines.TabularInline):
+            model = Order
+            fields = ["number", "status", "total"]
+            extra = 0
+            max_num = 10
+            can_delete = False
+
+        author_panel = site.get_panel(Author)
+        monkeypatch.setattr(author_panel, "inlines", [OrderInline], raising=False)
+        return author_panel
+
+    def _post(self, client, order, **row):
+        customer = order.customer
+        prefix = "order_set"
+        page = client.get(reverse("vantage:testapp-author-change", args=[customer.pk]))
+        for group in page.context.get("inlines") or ():
+            prefix = group.prefix
+        data = {
+            "name": customer.name,
+            "email": customer.email,
+            "is_active": "on",
+            f"{prefix}-TOTAL_FORMS": "1",
+            f"{prefix}-INITIAL_FORMS": "1",
+            f"{prefix}-MIN_NUM_FORMS": "0",
+            f"{prefix}-MAX_NUM_FORMS": "1000",
+            f"{prefix}-0-id": str(order.pk),
+            f"{prefix}-0-customer": str(customer.pk),
+            f"{prefix}-0-number": order.number,
+            f"{prefix}-0-status": row.get("status", order.status),
+            f"{prefix}-0-total": row.get("total", str(order.total)),
+        }
+        return client.post(reverse("vantage:testapp-author-change", args=[customer.pk]), data)
+
+    def test_a_guarded_child_field_is_held_for_approval(self, client, order, author_with_orders):
+        user = person("carl", "view_order", "change_order", "add_order")
+        ct = ContentType.objects.get_for_model(Author)
+        user.user_permissions.add(
+            *Permission.objects.filter(
+                content_type=ct, codename__in=["view_author", "change_author"]
+            )
+        )
+        client.force_login(User.objects.get(pk=user.pk))
+
+        response = self._post(client, order, status="refunded", total="0.01")
+
+        assert response.status_code == 302
+        order.refresh_from_db()
+        assert order.status == "pending"
+        assert order.total == Decimal("10.00")
+        assert ChangeRequest.objects.filter(object_id=str(order.pk)).count() == 1
+
+    def test_an_approver_saves_straight_through(self, client, order, author_with_orders):
+        client.force_login(User.objects.create_superuser("root", "r@example.com", "x"))
+        response = self._post(client, order, status="refunded")
+        assert response.status_code == 302
+        order.refresh_from_db()
+        assert order.status == "refunded"
+        assert not ChangeRequest.objects.exists()
