@@ -18,12 +18,12 @@ def raw_tables():
     with connection.cursor() as cursor:
         cursor.execute(
             "CREATE TABLE legacy_customer (id integer PRIMARY KEY, name varchar(100) NOT NULL, "
-            "email varchar(100) NULL, signed_up datetime NOT NULL)"
+            "email varchar(100) NULL, signed_up timestamp NOT NULL)"
         )
         cursor.execute(
             "CREATE TABLE legacy_order (id integer PRIMARY KEY, "
             "customer_id integer NOT NULL REFERENCES legacy_customer (id), "
-            "total decimal NOT NULL, status varchar(20) NOT NULL, placed_at datetime NOT NULL)"
+            "total decimal NOT NULL, status varchar(20) NOT NULL, placed_at timestamp NOT NULL)"
         )
         cursor.execute("CREATE TABLE scratch_tmp (id integer PRIMARY KEY, note text)")
     yield
