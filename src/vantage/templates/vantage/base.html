@@ -198,6 +198,7 @@
 <script src="{% url 'vantage:jsi18n' %}"></script>
 <script src="{% static 'vantage/vantage-i18n-fallback.js' %}"></script>
 <script src="{% static 'vantage/vantage.js' %}" defer></script>
+<script src="{% static 'vantage/vantage-lightbox.js' %}" defer></script>
 {% if may_reveal %}
   {% comment %} The reveal endpoint is a POST, so the page needs a CSRF token even when
      nothing else on it is a form. Masked values stay plain bullets without it. {% endcomment %}

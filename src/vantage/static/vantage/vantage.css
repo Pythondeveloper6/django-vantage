@@ -2791,3 +2791,29 @@ a.v-file-chip:focus-visible {
 .v-health-dot[data-status="info"] { background: var(--muted-foreground); }
 .v-page-head ~ .v-card + .v-card { margin-block-start: 1rem; }
 .v-page-head ~ .v-dq-note { margin-block-end: 1rem; }
+
+/* ── image lightbox (vantage-lightbox.js) ─────────────────────────────────── */
+.v-lightbox {
+  max-width: min(92vw, 1200px);
+  max-height: 92vh;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+}
+.v-lightbox::backdrop { background: oklch(0 0 0 / 0.7); }
+.v-lightbox figure { margin: 0; display: grid; gap: 0.5rem; justify-items: center; }
+.v-lightbox img { max-width: 100%; max-height: calc(92vh - 5rem); object-fit: contain; }
+.v-lightbox figcaption { font-size: 0.875rem; }
+.v-lightbox-close {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  inset-inline-end: 0.5rem;
+  border: 0;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}

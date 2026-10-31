@@ -278,11 +278,12 @@ deliberately: see below), a source file over 25 MiB, a declared pixel count over
 its declared dimensions alone), or content that does not sniff as one of the supported
 raster types. Nothing here raises; a thumbnail that cannot be made degrades to a name.
 
-**There is no lightbox.** Clicking a thumbnail opens the original file in a new tab
-(`target="_blank"`), and that is the whole interaction. The template's own comment
-states the reasoning: "a chip is a worse picture and a better answer" than a broken
-image state, but a click-to-enlarge modal is simply not built yet — if you need one,
-this is a genuine gap to fill rather than a setting to flip.
+**Click to enlarge.** A plain click on an image thumbnail opens the original in a
+lightbox (a native `<dialog>`: Escape or a click outside closes it, focus returns to the
+thumbnail). The thumbnail is still an ordinary link, so without JavaScript, or with
+Ctrl/Cmd/Shift held, it opens the original in a new tab as before. The original is
+shown as an `<img>`, never navigated to, so an uploaded file cannot run script in the
+panel's origin through the lightbox.
 
 ### Upload validation
 
