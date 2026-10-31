@@ -312,6 +312,11 @@ branding.
 | `vantage.security` | Impersonation start and end, at `warning` |
 | `vantage.dashboards` | A widget that raised, with a traceback |
 | `vantage.filters` | Filter-layer diagnostics |
+| `vantage.requests` | Panel requests slower than `SLOW_REQUEST_MS`, with structured fields (needs `vantage.metrics.SlowRequestMiddleware`) |
+| `vantage.identity` | A role named in `ROLE_MAPPING` that does not exist |
+
+Metrics for Prometheus are at `_/metrics/` once `VANTAGE["METRICS"]` is on; what to
+alert on is in the [operations runbook](runbook.md).
 
 The in-panel [audit log](permissions.md#the-audit-log) is a separate thing: it records
 what a person did through the admin, with the actor, and is on by default.

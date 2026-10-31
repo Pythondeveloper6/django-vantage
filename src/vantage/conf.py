@@ -219,6 +219,15 @@ DEFAULTS: dict[str, Any] = {
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
     "DATA_QUALITY": {},
+    # ── observability ───────────────────────────────────────────────────────
+    # The Prometheus endpoint at _/metrics/. Off, it is a 404.
+    "METRICS": False,
+    # Bearer token a scraper sends. None means superusers signed in to the panel only.
+    # Code-only: it is a credential.
+    "METRICS_TOKEN": None,
+    # Panel requests slower than this are logged to "vantage.requests" (needs
+    # vantage.metrics.SlowRequestMiddleware). 0 disables the log line.
+    "SLOW_REQUEST_MS": 1000,
     # ── single sign-on ──────────────────────────────────────────────────────
     # Identity-provider groups to roles. A dict of the keys in
     # vantage.identity.ROLE_MAPPING_DEFAULTS; empty means no mapping.
