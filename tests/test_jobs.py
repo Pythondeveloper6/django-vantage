@@ -794,3 +794,36 @@ class TestArchivePanelStillWorks:
         assert job.status == VantageJob.Status.SUCCEEDED
         assert job.total == 5
         assert Archive.objects.filter(deleted_at__isnull=True).count() == 5
+
+
+class TestImpersonatedJobs:
+    """A job started while impersonating is audited as the person really signed in."""
+
+    def test_the_audit_entry_names_the_impersonator_not_the_target(
+        self, db, boss, clerk, use_panel
+    ):
+        from vantage.models import VantageLogEntry
+        from vantage.safety import IMPERSONATE_SESSION_KEY, IMPERSONATOR_SESSION_KEY
+
+        panel = use_panel(Promo, TouchPanel)
+        promos(3)
+        request = request_for(clerk)
+        # What start_impersonation leaves behind: signed in as the target, with the
+        # real account remembered in the session.
+        request.session = {IMPERSONATOR_SESSION_KEY: boss.pk, IMPERSONATE_SESSION_KEY: clerk.pk}
+        chosen = next(a for a in _actions(panel) if a.name == "touch")
+        job = jobs.enqueue(
+            request=request, panel=panel, action=chosen, selection=all_selected(), count=3
+        )
+
+        assert job.status == VantageJob.Status.SUCCEEDED
+        entry = VantageLogEntry.objects.latest("pk")
+        assert entry.actor_repr == "boss"
+
+    def test_an_ordinary_job_is_still_audited_as_its_actor(self, db, clerk, use_panel):
+        from vantage.models import VantageLogEntry
+
+        panel = use_panel(Promo, TouchPanel)
+        promos(2)
+        enqueue(panel, clerk, name="touch")
+        assert VantageLogEntry.objects.latest("pk").actor_repr == "clerk"
