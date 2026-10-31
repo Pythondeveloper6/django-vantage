@@ -1,0 +1,24 @@
+{% load i18n %}<details class="v-roles-fields" data-roles-fields>
+  <summary class="v-roles-fields-summary">
+    <span data-roles-fields-label>{% if row.restricted %}{% blocktranslate count counter=row.restricted trimmed %}{{ counter }} restricted{% plural %}{{ counter }} restricted{% endblocktranslate %}{% else %}{% translate "All fields" %}{% endif %}</span>
+  </summary>
+  <div class="v-roles-fields-panel" role="group"
+       aria-label="{% blocktranslate with model=row.label %}Field access on {{ model }}{% endblocktranslate %}">
+    <p class="v-roles-fields-help">{% translate "Hidden: not shown anywhere. Read-only: shown, never changed." %}</p>
+    <ul class="v-roles-fields-list">
+      {% for f in row.fields %}
+        <li class="v-roles-field"{% if f.floor %} data-floor="{{ f.floor }}"{% endif %}{% if f.level != f.base %} data-pending="field"{% endif %}>
+          <label for="v-roles-field-{{ f.key|slugify }}">{{ f.label }} <code class="v-mono">{{ f.name }}</code></label>
+          <select class="v-select v-roles-field-select" name="field" id="v-roles-field-{{ f.key|slugify }}"
+                  data-base="{{ f.base }}" data-key="{{ f.key }}" data-label="{{ row.key }}.{{ f.name }}" data-name="{{ row.label }} — {{ f.label }}"
+                  {% if f.locked %}disabled data-locked aria-describedby="v-roles-locked-note"{% elif not can_change %}disabled{% endif %}>
+            <option value="{{ f.key }}:"{% if not f.level %} selected{% endif %}>{% translate "Full access" %}</option>
+            <option value="{{ f.key }}:readonly"{% if f.level == "readonly" %} selected{% endif %}>{% translate "Read-only" %}</option>
+            <option value="{{ f.key }}:hidden"{% if f.level == "hidden" %} selected{% endif %}>{% translate "Hidden" %}</option>
+          </select>
+          {% if f.floor %}<span class="v-badge" title="{% translate 'Set in code by the panel’s field_permissions; the screen cannot lift it.' %}">{% if f.floor == "hidden" %}{% translate "hidden in code" %}{% else %}{% translate "read-only in code" %}{% endif %}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</details>

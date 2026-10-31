@@ -28,8 +28,9 @@ Zero config to start. One line to override anything.
   <img alt="The Orders list in django-vantage: stat cards with trends, a revenue chart, a status breakdown, filters and a data grid" src="docs/assets/screenshots/orders-light.webp">
 </picture>
 
-> **Alpha (`0.2.0a2`).** Working and heavily tested — more than 4,500 tests — but the
-> API may still move. See the
+> **Alpha (`0.2.0a2`).** Working and heavily tested — more than 5,000 tests — but the
+> API may still move
+> (through a [deprecation cycle](https://pythondeveloper6.github.io/django-vantage/api-stability/)). See the
 > [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/#how-finished-is-this)
 > for an honest account of what is and is not done. Use it on an internal tool, and
 > pin the exact version if you depend on it.
@@ -407,7 +408,38 @@ so "why is my `panel.py` being ignored?" has a single, findable answer.
 | **System health page** | Migrations, cache, database, task backend |
 | **Streaming CSV export, CSV import** | Export honours the filters and sort you are looking at; import maps, previews and validates first |
 | **Light, dark and system themes, RTL** | All from day one, with `en` and `ar` catalogues shipped |
+| **Read-only legacy tables** | `read_only = True` with an `editable_fields` allowlist for tables another system owns, enforced for everyone. [Docs →](https://pythondeveloper6.github.io/django-vantage/permissions/#read-only-models-and-legacy-databases) |
+| **Single sign-on role mapping** | Identity-provider groups (Entra ID, Okta, Keycloak) mapped onto roles at every sign-in. [Docs →](https://pythondeveloper6.github.io/django-vantage/single-sign-on/) |
+| **Notifications and metrics** | Slack, Teams and email for approvals and failures; a Prometheus endpoint and slow-request log. [Runbook →](https://pythondeveloper6.github.io/django-vantage/runbook/) |
+| **Upgrade checks** | A written deprecation policy and `manage.py vantage_upgrade_check`. [Docs →](https://pythondeveloper6.github.io/django-vantage/api-stability/) |
 | **Query-count guarantees** | `select_related` and `prefetch_related` are derived from what the page renders, and tests assert the cost does not grow with the row count |
+
+## Documentation and roadmap
+
+The [documentation](https://pythondeveloper6.github.io/django-vantage/) covers every
+feature; the [settings reference](https://pythondeveloper6.github.io/django-vantage/settings/)
+lists every `VANTAGE` key, and [API stability](https://pythondeveloper6.github.io/django-vantage/api-stability/)
+says what is frozen. History with point-in-time restore, approvals, two-factor sign-in,
+field permissions, scheduled reports, webhooks, the phone layout, access review and
+break-glass access have all shipped since the last published release; what is next is
+on the [roadmap](https://pythondeveloper6.github.io/django-vantage/roadmap/).
+
+## Security
+
+An admin panel is a high-privilege surface. Vantage fails closed (tenancy, read-only
+mode, field permissions and approvals are enforced in the permission layer, before the
+superuser bypass where it matters), refuses active-content uploads, masks secrets and
+audits what people do. Read the [security model and threat model](https://pythondeveloper6.github.io/django-vantage/security/)
+before exposing it, and report vulnerabilities privately as described in
+[SECURITY.md](https://github.com/Pythondeveloper6/django-vantage/blob/main/SECURITY.md). It has not had an independent external audit yet.
+
+## How it compares, and its limits
+
+Vantage replaces `django.contrib.admin` rather than theming it, so `ModelAdmin`-based
+plugins do not run inside it; `manage.py vantage_adopt` previews what translates. See
+[the comparison with Unfold and admin themes](https://pythondeveloper6.github.io/django-vantage/comparison/),
+[plugin compatibility](https://pythondeveloper6.github.io/django-vantage/plugin-compatibility/)
+and the [FAQ's honest list](https://pythondeveloper6.github.io/django-vantage/faq/#what-it-does-not-do).
 
 ## Requirements
 

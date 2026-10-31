@@ -125,7 +125,7 @@ class TestTheDeploymentFamily:
         for check in checks.DEPLOYMENT_CHECKS:
             found.update(m.id for m in _force(check))
         assert len(found) >= len(checks.DEPLOYMENT_CHECKS) - 1  # W056 is shared
-        assert all(i.startswith("vantage.W05") for i in found), found
+        assert all(i.startswith(("vantage.W05", "vantage.W115")) for i in found), found
 
     def test_every_one_of_them_is_silent_on_an_unmounted_project(self, unmounted, settings):
         """Being installed and being exposed are different facts. A project that never
@@ -164,7 +164,7 @@ def _force(check):
         MIDDLEWARE=[],
         MEDIA_URL="/media/",
         CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}},
-        VANTAGE={"AUDIT_LOG": False, "IMPORT_MAX_BYTES": 0},
+        VANTAGE={"AUDIT_LOG": False, "IMPORT_MAX_BYTES": 0, "REPORTS": True},
         SECURE_CSP={"DIRECTIVES": {"script-src": ["'self'", "'nonce-x'"]}},
     ):
         return check(app_configs=None)
@@ -528,3 +528,32 @@ class TestPanelIsMounted:
         module that raises while diagnosing a broken urlconf has removed the tool."""
         settings.ROOT_URLCONF = "tests.no_such_urlconf_module"
         assert checks.panel_is_mounted() is False
+
+
+# ── W115: where report links point ──────────────────────────────────────────
+
+
+class TestReportsBaseUrl:
+    def test_reports_on_without_a_base_url_warns(self, mounted, settings):
+        settings.VANTAGE = {"REPORTS": True}
+        assert ids(run(checks.check_deploy_reports_base_url)) == ["vantage.W115"]
+
+    def test_the_default_is_reports_on(self, mounted, settings):
+        settings.VANTAGE = {}
+        assert ids(run(checks.check_deploy_reports_base_url)) == ["vantage.W115"]
+
+    def test_a_base_url_settles_it(self, mounted, settings):
+        settings.VANTAGE = {"REPORTS_BASE_URL": "https://panel.example.com"}
+        assert run(checks.check_deploy_reports_base_url) == []
+
+    def test_reports_off_is_silent(self, mounted, settings):
+        settings.VANTAGE = {"REPORTS": False}
+        assert run(checks.check_deploy_reports_base_url) == []
+
+    def test_an_unmounted_panel_is_silent(self, unmounted, settings):
+        settings.VANTAGE = {"REPORTS": True}
+        assert run(checks.check_deploy_reports_base_url) == []
+
+    def test_the_hint_names_the_host_header(self, mounted, settings):
+        settings.VANTAGE = {"REPORTS": True}
+        assert "Host header" in run(checks.check_deploy_reports_base_url)[0].hint

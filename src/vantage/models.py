@@ -66,7 +66,9 @@ Pillow would have done has to be written out — see :func:`validate_branding_up
 from __future__ import annotations
 
 import re
+from datetime import time as dt_time
 from pathlib import Path
+from uuid import uuid4
 
 from django.conf import settings as django_settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -90,6 +92,7 @@ __all__ = [
     "ALLOWED_UPLOAD_SUFFIXES",
     "MAX_UPLOAD_BYTES",
     "SETTING_COLUMNS",
+    "ChangeRequest",
     "DashboardLayout",
     "ListPreference",
     "NavConfiguration",
@@ -97,9 +100,13 @@ __all__ = [
     "SavedViewGrant",
     "SavedViewUserState",
     "SiteConfiguration",
+    "TwoFactorDevice",
+    "TwoFactorRecoveryCode",
     "UndoEntry",
     "VantageJob",
     "VantageLogEntry",
+    "Webhook",
+    "WebhookDelivery",
     "validate_brand_color",
     "validate_branding_upload",
     "validate_css_length",
@@ -112,7 +119,8 @@ ALLOWED_UPLOAD_SUFFIXES: frozenset[str] = frozenset({".svg", ".png", ".jpg", ".j
 #: 2 MiB. A logo is a logo; anything larger is a mistake or an attempt to fill a disk.
 MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 
-#: Constructs that turn an uploaded SVG into stored XSS. An SVG is served from the
+#: Display names for what :func:`vantage.security.markup_hazard` refuses: the
+#: constructs that turn an uploaded SVG into stored XSS. An SVG is served from the
 #: panel's own origin, so a ``<script>`` inside one runs with the session cookie of
 #: whoever views the page — the logo is on every screen, so that is everyone.
 #:
@@ -120,21 +128,17 @@ MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 #: understand rather than trying to rewrite them into safety, because a rewriter that
 #: is wrong once is worse than a refusal that is occasionally annoying. Serving media
 #: from a separate origin remains the defence in depth this cannot replace.
-_SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str | Promise], ...] = (
+_HAZARD_LABELS: dict[str, str | Promise] = {
     # Translators: each of these names one thing found inside an uploaded SVG, and is
     # substituted into "That SVG contains %(hazard)s, which would run as script ...".
-    (re.compile(rb"<\s*(?:[a-z0-9]+:)?script\b", re.IGNORECASE), _("a <script> element")),
-    (re.compile(rb"\son[a-z]+\s*=", re.IGNORECASE), _("an inline event handler")),
-    (
-        re.compile(rb"attributeName\s*=\s*[\"']?\s*on", re.IGNORECASE),
-        _("an animation that writes an event handler"),
-    ),
-    (re.compile(rb"javascript\s*:", re.IGNORECASE), _("a javascript: URL")),
-    (
-        re.compile(rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE),
-        _("an embedded document"),
-    ),
-)
+    "a <script> element": _("a <script> element"),
+    "an inline event handler": _("an inline event handler"),
+    "an animation that writes an event handler": _("an animation that writes an event handler"),
+    "a javascript: URL": _("a javascript: URL"),
+    "an embedded data: document": _("an embedded data: document"),
+    "an embedded document": _("an embedded document"),
+    "an entity declaration": _("an entity declaration"),
+}
 
 #: A CSS length the token stylesheet can emit verbatim. Anything else would be
 #: interpolated straight into a ``<style>`` block.
@@ -186,15 +190,19 @@ def validate_branding_upload(value) -> None:
     if isinstance(payload, str):  # pragma: no cover - only a text-mode file object
         payload = payload.encode("utf-8", "replace")
 
-    for pattern, description in _SVG_HAZARDS:
-        if pattern.search(payload):
-            raise ValidationError(
-                _(
-                    "That SVG contains %(hazard)s, which would run as script on every "
-                    "page of the panel. Export it without scripting, or upload a PNG."
-                )
-                % {"hazard": description}
+    # One scanner for all three upload layers; see vantage.security.markup_hazard for
+    # the normalisation that makes it hard to spell a hazard some other way.
+    from vantage.security import markup_hazard
+
+    description = markup_hazard(payload)
+    if description:
+        raise ValidationError(
+            _(
+                "That SVG contains %(hazard)s, which would run as script on every "
+                "page of the panel. Export it without scripting, or upload a PNG."
             )
+            % {"hazard": _HAZARD_LABELS.get(description, description)}
+        )
 
 
 def validate_brand_color(value: str) -> None:
@@ -553,11 +561,15 @@ class VantageLogEntry(models.Model):
         per-process cache, so this costs no query per entry.
         """
         hidden = self._sensitive_now()
+        # Set by vantage.fieldperms.hide_entry_fields for the person reading the log:
+        # a field hidden from them is left out altogether, not even "changed".
+        absent = getattr(self, "vantage_hidden_fields", frozenset())
         return [
             {"field": name, "from": None, "to": None}
             if name in hidden
             else {"field": name, "from": delta.get("from"), "to": delta.get("to")}
             for name, delta in sorted((self.changes or {}).items())
+            if name not in absent
         ]
 
     @property
@@ -567,6 +579,24 @@ class VantageLogEntry(models.Model):
         if self.action != self.Action.ACTION or not name.startswith("revealed "):
             return ""
         return name.removeprefix("revealed ").removesuffix(" on")
+
+    @property
+    def restored_as_of(self):
+        """The moment a "restored as of <when>" entry restored to, else ``None``.
+
+        Parsed rather than shown as stored, so the page can format it the way it
+        formats every other timestamp.
+        """
+        from django.utils.dateparse import parse_datetime
+
+        name = self.action_name or ""
+        prefix = "restored as of "
+        if self.action != self.Action.UPDATE or not name.startswith(prefix):
+            return None
+        try:
+            return parse_datetime(name.removeprefix(prefix))
+        except ValueError:
+            return None
 
     def _sensitive_now(self) -> frozenset[str]:
         if not self.content_type_id or not self.changes:
@@ -1160,6 +1190,252 @@ class VantageJob(models.Model):
         return self.actor_id is not None and self.actor_id == user.pk
 
 
+# ── webhooks ────────────────────────────────────────────────────────────────
+
+
+class Webhook(models.Model):
+    """A URL that is told, with a signed POST, when a record is created, changed or deleted.
+
+    The subscription is two lists rather than two relations: ``resources`` holds
+    ``Options.label_lower`` strings (``"shop.order"``) exactly as :class:`VantageJob`'s
+    ``resource_key`` does, so a webhook for a model that has since been unregistered
+    stays listable and editable instead of cascading away. An empty ``resources`` list means
+    every model, and an empty ``events`` list means every event; the form never produces
+    an empty ``events`` list, but a row written by hand still does something sensible.
+
+    ``secret`` is stored in the clear because the HMAC cannot be computed from a hash.
+    That is the same trade every webhook sender makes; the page shows it once, when it is
+    generated, and never prints it again. See :mod:`vantage.webhooks`.
+    """
+
+    name = models.CharField(max_length=100)
+    url = models.URLField(max_length=500)
+    resources = models.JSONField(default=list, blank=True)
+    events = models.JSONField(default=list, blank=True)
+    active = models.BooleanField(default=True)
+    secret = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    #: ``SET_NULL`` for the same reason as the audit log's actor.
+    created_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = _("webhook")
+        verbose_name_plural = _("webhooks")
+        ordering = ["name", "pk"]
+        permissions = [("manage_webhooks", _("Can manage webhooks"))]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def subscribes_to(self, resource_key: str, event: str) -> bool:
+        """Whether a change of ``event`` to a ``resource_key`` record concerns this hook."""
+        if not self.active:
+            return False
+        if self.resources and resource_key not in self.resources:
+            return False
+        return not self.events or event in self.events
+
+
+class WebhookDelivery(models.Model):
+    """One attempt chain to send one event to one webhook, and what happened.
+
+    The body is stored, not rebuilt, so a retry sends what the first attempt sent and a
+    redelivery sends what the original did. ``response_body`` is truncated on the way in:
+    the log exists to answer "what did they say", and a 2 MB error page is not an answer.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Queued")
+        RETRYING = "retrying", _("Waiting to retry")
+        SUCCEEDED = "succeeded", _("Delivered")
+        FAILED = "failed", _("Failed")
+
+    TERMINAL: frozenset[str] = frozenset({"succeeded", "failed"})
+
+    #: ``CASCADE``: deleting a webhook deletes its log, which is what its owner expects.
+    webhook = models.ForeignKey(Webhook, on_delete=models.CASCADE, related_name="deliveries")
+    #: Sent as ``X-Vantage-Delivery``. Unique per chain; a redelivery gets a new one.
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True)
+    event = models.CharField(max_length=20)
+    resource_key = models.CharField(max_length=100, blank=True)
+    object_id = models.CharField(max_length=255, blank=True)
+    payload = models.JSONField(default=dict)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveIntegerField(default=0)
+    response_code = models.PositiveIntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True)
+    error = models.CharField(max_length=300, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    #: The delivery this one re-sent, if it was a redelivery.
+    redelivery_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = _("webhook delivery")
+        verbose_name_plural = _("webhook deliveries")
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(fields=["webhook", "-created_at"], name="vantage_whd_hook_idx"),
+            models.Index(fields=["status", "next_attempt_at"], name="vantage_whd_due_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.event} → {self.webhook_id} ({self.status})"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in self.TERMINAL
+
+
+# ── scheduled reports ───────────────────────────────────────────────────────
+
+
+class ReportSubscription(models.Model):
+    """A saved view, mailed to some addresses as a CSV on a schedule.
+
+    It stores *which* view and *whose* it is, never a result and never a permission
+    snapshot: every send re-runs the view as ``user`` as the database knows them at that
+    moment, so a colleague who has since left, or lost access to the model, receives
+    nothing. See :mod:`vantage.reports`.
+
+    ``next_run_at`` is the whole schedule. The cron command only asks "which active rows
+    are due", and claims one by a conditional update on this column, which is what keeps
+    two overlapping runs from sending it twice. ``NULL`` while paused.
+    """
+
+    class Frequency(models.TextChoices):
+        DAILY = "daily", _("Every day")
+        WEEKLY = "weekly", _("Every week")
+        MONTHLY = "monthly", _("Every month")
+
+    class Status(models.TextChoices):
+        SENT = "sent", _("Sent")
+        SKIPPED = "skipped", _("Skipped")
+        FAILED = "failed", _("Failed")
+
+    #: ``CASCADE``: a subscription to a deleted view has nothing left to run.
+    view = models.ForeignKey(SavedView, on_delete=models.CASCADE, related_name="reports")
+    #: Whose permissions, tenant and column choices the export runs under.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="vantage_reports",
+    )
+    frequency = models.CharField(max_length=10, choices=Frequency.choices, default="weekly")
+    #: 0 is Monday, as in :meth:`datetime.date.weekday`. Used by ``weekly`` only.
+    weekday = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(6)]
+    )
+    #: 1 to 31, clamped to the month's last day. Used by ``monthly`` only.
+    day_of_month = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
+    #: Wall-clock time in the site timezone (``TIME_ZONE``).
+    send_time = models.TimeField(default=dt_time(8, 0))
+    #: Whether the subscriber's own address is a recipient. Their address is read from
+    #: the account at send time, so changing it changes where the report goes.
+    to_self = models.BooleanField(default=True)
+    #: Other addresses, which only a user holding ``vantage.send_reports_to_others`` may set.
+    recipients = models.JSONField(default=list, blank=True)
+    active = models.BooleanField(default=True)
+    #: Why it is paused when something other than the owner's Pause button did it.
+    paused_reason = models.CharField(max_length=200, blank=True)
+    next_run_at = models.DateTimeField(null=True, blank=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(max_length=10, choices=Status.choices, blank=True)
+    #: The tenant the subscription was made under, as :func:`vantage.tenancy.snapshot`
+    #: writes it. Context for the export, not a permission: a worker has no host to
+    #: resolve one from.
+    tenant = models.CharField(max_length=255, blank=True)
+    #: ``https://panel.example.com/``, from the request that created it, so an email can
+    #: link back to the panel without a setting. ``REPORTS_BASE_URL`` wins when set.
+    origin = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("report subscription")
+        verbose_name_plural = _("report subscriptions")
+        ordering = ["view__name", "pk"]
+        permissions = [
+            ("manage_reports", _("Can manage everyone's scheduled reports")),
+            ("send_reports_to_others", _("Can send scheduled reports to other addresses")),
+        ]
+        indexes = [
+            models.Index(fields=["active", "next_run_at"], name="vantage_rep_due_idx"),
+            models.Index(fields=["user"], name="vantage_rep_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.view_id} → {self.user_id} ({self.frequency})"
+
+
+class ReportRun(models.Model):
+    """One attempt to send one subscription, and what became of it.
+
+    ``reason`` carries the skip explanation (the account is inactive, the permission is
+    gone), ``error`` an unexpected failure. They are separate because the first is the
+    system working as designed and the second is somebody's to fix.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Queued")
+        RUNNING = "running", _("Running")
+        SENT = "sent", _("Sent")
+        SKIPPED = "skipped", _("Skipped")
+        FAILED = "failed", _("Failed")
+
+    TERMINAL: frozenset[str] = frozenset({"sent", "skipped", "failed"})
+
+    class Trigger(models.TextChoices):
+        SCHEDULE = "schedule", _("Scheduled")
+        MANUAL = "manual", _("Send now")
+
+    subscription = models.ForeignKey(
+        ReportSubscription, on_delete=models.CASCADE, related_name="runs"
+    )
+    trigger = models.CharField(max_length=10, choices=Trigger.choices, default="schedule")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    rows = models.PositiveIntegerField(null=True, blank=True)
+    #: Whether the CSV went out as an attachment, or the email was the short note.
+    attached = models.BooleanField(default=False)
+    size_bytes = models.PositiveIntegerField(null=True, blank=True)
+    recipients_count = models.PositiveIntegerField(default=0)
+    reason = models.CharField(max_length=300, blank=True)
+    error = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("report run")
+        verbose_name_plural = _("report runs")
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(fields=["subscription", "-created_at"], name="vantage_rrun_sub_idx"),
+            models.Index(fields=["status", "created_at"], name="vantage_rrun_status_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.subscription_id} ({self.status})"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in self.TERMINAL
+
+
 # ── the dashboard, as somebody arranged it ──────────────────────────────────
 
 
@@ -1326,3 +1602,306 @@ class UndoEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.summary} · {self.resource_key}"
+
+
+class TwoFactorDevice(models.Model):
+    """One person's authenticator app: the shared TOTP secret and its bookkeeping.
+
+    One row per person, and a *new* row per enrolment rather than an edit of the old
+    one: :attr:`tag` is random per row, and a session's proof that it passed the second
+    step names the tag it passed against. Re-enrolling therefore invalidates every
+    session verified against the previous authenticator without having to find them.
+
+    The secret is stored sealed (see :func:`vantage.twofactor.seal`), never shown
+    again once :attr:`confirmed_at` is set, and the table is excluded from the panel's
+    own CRUD screens — the only ways in are the account page and the reset screen.
+    """
+
+    user = models.OneToOneField(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    #: The 20-byte secret, encrypted with a key derived from ``SECRET_KEY``.
+    secret = models.CharField(max_length=200)
+    #: Random, not secret. What a verified session remembers it was verified against.
+    tag = models.CharField(max_length=32, unique=True)
+    #: ``NULL`` while enrolment is in progress: the code has been shown but nobody has
+    #: yet proved, by typing a code, that an app really holds it.
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    #: The highest 30-second step a code has been accepted for. A code is only good
+    #: for a step above this, which is what makes one code good for one sign-in.
+    last_step = models.BigIntegerField(default=0)
+    #: Attempts since the last right answer or the last lockout. Each is counted
+    #: before its answer is compared, so parallel requests cannot outrun the lock.
+    failed_attempts = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("two-factor device")
+        verbose_name_plural = _("two-factor devices")
+
+    def __str__(self) -> str:
+        # Never the secret, and not even its length.
+        state = "confirmed" if self.confirmed_at else "pending"
+        return f"two-factor device for user {self.user_id} ({state})"
+
+
+class TwoFactorRecoveryCode(models.Model):
+    """One single-use recovery code, stored only as its SHA-256.
+
+    A fast hash is enough here, unlike for a password, because the code is not chosen
+    by a person: it carries 80 random bits, which no amount of hashing speed brings
+    within reach of guessing. A fast, unsalted hash is also what lets a code be found
+    with one indexed lookup instead of being compared against every row.
+    """
+
+    device = models.ForeignKey(TwoFactorDevice, on_delete=models.CASCADE, related_name="codes")
+    code_hash = models.CharField(max_length=64)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("two-factor recovery code")
+        verbose_name_plural = _("two-factor recovery codes")
+        constraints = [
+            models.UniqueConstraint(fields=["device", "code_hash"], name="vantage_2fa_code_unique")
+        ]
+
+    def __str__(self) -> str:
+        return f"recovery code for device {self.device_id}"
+
+
+# ── changes waiting for approval ────────────────────────────────────────────
+
+
+class ChangeRequest(models.Model):
+    """A change to fields a panel lists in ``requires_approval``, held until approved.
+
+    The record keeps its old values while this row is pending; nothing about it is
+    written to the record until someone allowed to approve does so. See
+    :mod:`vantage.approvals`.
+
+    The record is named the way :class:`VantageJob` and :class:`Webhook` name a model —
+    ``resource_key`` is ``Options.label_lower`` and ``object_id`` is the primary key as
+    text — rather than with a foreign key, so a request survives its record being
+    deleted, and can still be read (and rejected) afterwards.
+
+    ``changes`` holds, per field, the value the requester saw (``from``) and the value
+    they asked for (``to``), both as ``Field.value_to_string`` gives them. ``from`` is
+    the concurrency check: approving compares it with the record as it stands, and a
+    field that has moved since makes the request stale rather than silently reverting
+    whatever moved it. The ``*_display`` strings are what the queue shows, captured when
+    the request was made; a sensitive field never has one.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Waiting for approval")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+        WITHDRAWN = "withdrawn", _("Withdrawn")
+
+    resource_key = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=255)
+    #: The record's label when the request was made, for the queue and for a request
+    #: whose record has since been deleted.
+    object_repr = models.CharField(max_length=200, blank=True)
+    changes = models.JSONField(default=dict)
+    #: Optional, from the person asking: why the change is wanted.
+    note = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+
+    #: ``SET_NULL`` for the reason the audit log's actor gives, with the username kept
+    #: beside it.
+    requested_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    requested_by_repr = models.CharField(max_length=150, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    decided_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    decided_by_repr = models.CharField(max_length=150, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    #: Why it was rejected. Required to reject; empty otherwise.
+    reason = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = _("change request")
+        verbose_name_plural = _("change requests")
+        ordering = ["-requested_at", "-pk"]
+        indexes = [
+            models.Index(
+                fields=["resource_key", "object_id", "status"], name="vantage_chreq_record_idx"
+            ),
+            models.Index(fields=["status", "-requested_at"], name="vantage_chreq_queue_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.resource_key} #{self.object_id} ({self.status})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == self.Status.PENDING
+
+    @property
+    def field_names(self) -> list[str]:
+        return list(self.changes or {})
+
+
+class FieldPermission(models.Model):
+    """One role's rule for one field of one model: hidden, or visible but read-only.
+
+    Keyed to ``auth.Group`` because that is what a role *is* (see :mod:`vantage.roles`):
+    the matrix edits groups, and a rule that lived anywhere else would be a second
+    membership list to keep in step with the first. The model is named by its content
+    type, like a ``Permission`` row, so a rule is dropped along with the model's
+    permissions rather than left pointing at nothing.
+
+    Only restrictions are stored. "No row" is the default — full access — so a project
+    that never opens the field-access controls has an empty table, and granting a
+    restriction can never widen anything. How several roles combine is
+    :mod:`vantage.fieldperms`'s business, not this table's.
+    """
+
+    class Level(models.TextChoices):
+        READONLY = "readonly", _("Read-only")
+        HIDDEN = "hidden", _("Hidden")
+
+    group = models.ForeignKey(
+        "auth.Group", on_delete=models.CASCADE, related_name="vantage_field_permissions"
+    )
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="+")
+    field_name = models.CharField(max_length=255)
+    level = models.CharField(max_length=16, choices=Level.choices)
+
+    class Meta:
+        verbose_name = _("field permission")
+        verbose_name_plural = _("field permissions")
+        # Not an editable table in its own right: the roles matrix is the only way in.
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "content_type", "field_name"], name="vantage_field_perm_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.field_name}: {self.level} for group {self.group_id}"
+
+
+class ElevatedAccess(models.Model):
+    """Time-boxed elevated access: a role, or named permissions, held for minutes.
+
+    "Break glass" for people who need more than their standing access to fix something
+    now, without anyone holding admin-wide rights the rest of the year. See
+    :mod:`vantage.breakglass`.
+
+    **Nothing is ever written to group membership.** A grant is a row, and whether it
+    confers anything is decided at check time from ``starts_at``, ``expires_at`` and
+    ``revoked_at``. An expired grant gives nothing the instant the clock passes it,
+    whether or not anything ran — there is no cleanup job whose failure would leave
+    someone elevated.
+
+    A row starts as a *request* (``granted_at`` empty) unless the person creating it
+    may grant it outright. Approving it sets ``granted_by``, ``starts_at`` and
+    ``expires_at``; revoking, rejecting or dropping it sets ``revoked_at``.
+
+    ``logged_state`` records which lifecycle entries the audit log already holds
+    (``"active"``, then ``"expired"``), so activation and expiry are each recorded
+    exactly once, by whichever check first observes them.
+    """
+
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    user_repr = models.CharField(max_length=150, blank=True)
+    #: ``SET_NULL``: a deleted role confers nothing, and the grant stays readable.
+    role = models.ForeignKey(
+        "auth.Group", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    role_repr = models.CharField(max_length=150, blank=True)
+    #: ``["app_label.codename", ...]`` granted beside (or instead of) the role.
+    permissions = models.JSONField(default=list, blank=True)
+    reason = models.TextField()
+    #: What was asked for. The window itself is ``starts_at`` to ``expires_at``.
+    minutes = models.PositiveIntegerField()
+
+    requested_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    requested_by_repr = models.CharField(max_length=150, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    granted_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    granted_by_repr = models.CharField(max_length=150, blank=True)
+    granted_at = models.DateTimeField(null=True, blank=True)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    revoked_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    revoked_by_repr = models.CharField(max_length=150, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoke_reason = models.TextField(blank=True)
+
+    #: Permissions this grant actually decided an allow for, each audited once.
+    used = models.JSONField(default=list, blank=True)
+    logged_state = models.CharField(max_length=10, blank=True)
+
+    class Meta:
+        verbose_name = _("elevated access")
+        verbose_name_plural = _("elevated access grants")
+        ordering = ["-requested_at", "-pk"]
+        # Not an editable table in its own right: the break-glass screen is the way in.
+        default_permissions = ()
+        indexes = [
+            models.Index(fields=["user", "expires_at"], name="vantage_elevated_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        what = self.role_repr or ", ".join(self.permissions or []) or "-"
+        return f"{self.user_repr or self.user_id}: {what}"
+
+    @property
+    def status(self) -> str:
+        """``pending``, ``scheduled``, ``active``, ``expired``, ``revoked`` or ``rejected``.
+
+        Computed from the clock, never stored: the stored columns only say what
+        happened, and "is it active" is a question for the moment it is asked.
+        """
+        from django.utils import timezone
+
+        if self.revoked_at is not None:
+            return "revoked" if self.granted_at is not None else "rejected"
+        if self.granted_at is None:
+            return "pending"
+        now = timezone.now()
+        if self.expires_at is None or self.expires_at <= now:
+            return "expired"
+        if self.starts_at is not None and self.starts_at > now:
+            return "scheduled"
+        return "active"

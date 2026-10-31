@@ -50,3 +50,21 @@ node_modules/
 
 # Uploads and generated product pictures from the demo seed.
 /example/media/
+
+# Internal planning and assessment docs — never tracked
+VALUE-[A]SSESSMENT.md
+PACKAGES-*-AND-FEATURES.md
+*-ASSESSMENT.md
+plan.md
+PLAN*.md
+FEATURE_CANDIDATES.md
+IMPLEMENTATION_STATUS.md
+RELEASE_SCOPE.md
+RELEASE_*_PLAN.md
+ROADMAP-INTERNAL*.md
+NOTES*.md
+docs/superpowers/
+docs/feature-backlog.md
+reports/
+.planning/
+.claude/

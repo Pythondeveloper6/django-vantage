@@ -644,7 +644,8 @@ Settings: [`JOBS`, `JOB_THRESHOLD_SECONDS`, `JOB_CHUNK_SIZE`, `JOB_MAX_STORED_ER
 
 ## Export
 
-Every list page exports what it is currently showing.
+Every list page exports what it is currently showing. To get a saved view by email on a
+schedule instead, see [Scheduled reports](reports.md).
 
 ```
 ?export=csv          orders.csv          text/csv
@@ -675,6 +676,17 @@ download starts immediately rather than appearing to hang.
 Columns are the ones on screen, headers are the column labels, and related objects
 export as their `__str__` — what a human reading the file expects, rather than a
 primary key they would have to join back themselves.
+
+**Formulas are defused.** CSV and TSV are opened in spreadsheets, and a text cell that
+starts with `=`, `+`, `-`, `@`, a tab or a carriage return is run as a formula there.
+Anyone who can type into a free-text field could plant one, so such a *text* value is
+exported with a leading `'`: `=HYPERLINK(...)` arrives as `'=HYPERLINK(...)` and displays
+as text. Numbers, decimals, dates and booleans are not text and are never touched, so
+`-1.50` stays a number. The rule is the one the import error report uses, and scheduled
+report attachments share it with the Export button. It also means a text value that
+begins with one of those characters gains a visible `'` if the file is imported back.
+JSON (NDJSON) is not opened in a spreadsheet and is exported unchanged. There is no Excel
+export; if one is added it needs the same rule.
 
 JSON is **newline-delimited**, one object per line, rather than one big array: a
 streamed array cannot be closed if the queryset raises halfway, leaving a file that is

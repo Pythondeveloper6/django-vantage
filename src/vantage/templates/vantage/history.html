@@ -1,0 +1,196 @@
+{% extends "vantage/base.html" %}
+{% load vantage i18n %}
+
+{% comment %}
+  A record's history page. Two halves: the record as it was at a chosen point (with the
+  fields that can be restored ticked off one by one), and the timeline the point is
+  chosen from. Every field carries its verdict in words, not only in styling — "cannot
+  be worked out" has to be readable by someone who cannot tell muted grey from black.
+{% endcomment %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ panel.get_label }} · <span class="v-mono">#{{ object.pk }}</span></p>
+  </div>
+  <div class="v-page-actions">
+    {% if detail_url %}<a class="v-btn v-btn-ghost" href="{{ detail_url }}">{% translate "Back to record" %}</a>{% endif %}
+  </div>
+</div>
+
+<div class="v-detail v-history-page">
+  <section class="v-card v-history-asof" aria-labelledby="v-history-asof-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-history-asof-title">
+        {% if position %}
+          {% blocktranslate with when=position.at|date:"Y-m-d H:i:s" %}As it was on {{ when }}{% endblocktranslate %}
+        {% else %}
+          {% translate "As it was" %}
+        {% endif %}
+      </h2>
+    </div>
+
+    <form class="v-card-body v-toolbar v-history-picker" method="get">
+      <label class="v-audit-field">
+        <span class="v-audit-label">{% translate "Date and time" %}</span>
+        <input class="v-input" type="datetime-local" step="1" name="at" value="{{ at_value }}" required>
+      </label>
+      <button class="v-btn v-btn-secondary v-btn-sm">{% translate "Show" %}</button>
+    </form>
+
+    {% if reconstruction %}
+      {% if reconstruction.status == "empty" %}
+        <p class="v-card-body v-muted">{% translate "Nothing has been done to this record through the panel, so there is no history to go back to." %}</p>
+      {% elif reconstruction.status == "before_create" %}
+        <p class="v-card-body v-muted">{% blocktranslate with when=reconstruction.starts_at|date:"Y-m-d H:i" %}This record did not exist yet. It was created on {{ when }}.{% endblocktranslate %}</p>
+      {% elif reconstruction.status == "before_history" %}
+        <p class="v-card-body v-muted">
+          {% if reconstruction.truncated %}
+            {% blocktranslate count counter=replay_limit with when=reconstruction.starts_at|date:"Y-m-d H:i" %}Only the most recent change is replayed, and it starts on {{ when }}. Nothing earlier can be shown.{% plural %}Only the most recent {{ counter }} changes are replayed, and they start on {{ when }}. Nothing earlier can be shown.{% endblocktranslate %}
+          {% else %}
+            {% blocktranslate with when=reconstruction.starts_at|date:"Y-m-d H:i" %}This record's history starts on {{ when }}. Nothing before that was recorded, so it cannot be shown.{% endblocktranslate %}
+          {% endif %}
+        </p>
+      {% elif reconstruction.status == "deleted" %}
+        <p class="v-card-body v-muted">{% translate "At that point this record had been deleted." %}</p>
+      {% else %}
+        {% if reconstruction.bulk_runs %}
+          <p class="v-card-body v-history-warning" role="note">
+            {% blocktranslate count counter=reconstruction.bulk_runs %}A bulk change ran on these records after this point. It is logged once for the whole run, not per record, so the fields it could have touched are only shown where the history confirms them.{% plural %}{{ counter }} bulk changes ran on these records after this point. They are logged once for each run, not per record, so the fields they could have touched are only shown where the history confirms them.{% endblocktranslate %}
+          </p>
+        {% endif %}
+
+        {% if restore_errors %}
+          <div class="v-card-body v-history-errors" role="alert">
+            <p>{% translate "Nothing was restored, because these old values are no longer accepted:" %}</p>
+            <ul>{% for error in restore_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+          </div>
+        {% endif %}
+
+        <form method="post" class="v-history-restore">
+          {% csrf_token %}
+          {% for key, value in position_fields %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <input type="hidden" name="version" value="{{ version }}">
+          <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
+          <div class="v-table-wrap">
+            <table class="v-table v-table-flow v-history-table">
+              <thead>
+                <tr>
+                  <th scope="col">{% translate "Field" %}</th>
+                  <th scope="col">{% translate "Then" %}</th>
+                  <th scope="col">{% translate "Now" %}</th>
+                  {% if offer_restore %}<th scope="col"><span class="v-sr-only">{% translate "Restore" %}</span></th>{% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for state in reconstruction.fields %}
+                  <tr class="v-history-row{% if state.known and state.changed %} is-changed{% endif %}">
+                    <th scope="row">{{ state.label }}</th>
+                    {% if state.masked %}
+                      <td colspan="2"><span class="v-masked">••••••••</span> <span class="v-history-reason">{{ state.reason }}</span></td>
+                    {% elif state.shown %}
+                      <td>
+                        {{ state.value_display }}
+                        {% if not state.known %}<span class="v-history-reason">{{ state.reason }}</span>{% endif %}
+                      </td>
+                      <td>{{ state.current_display }}</td>
+                    {% else %}
+                      <td><span class="v-history-reason">{{ state.reason }}</span></td>
+                      <td>{% if state.current_display %}{{ state.current_display }}{% else %}<span class="v-muted">—</span>{% endif %}</td>
+                    {% endif %}
+                    {% if offer_restore %}
+                      <td class="v-history-pick">
+                        {% if state.restorable %}
+                          <label>
+                            <input type="checkbox" name="fields" value="{{ state.name }}">
+                            <span class="v-history-pick-text">{% blocktranslate with name=state.label %}Restore {{ name }}{% endblocktranslate %}</span>
+                          </label>
+                        {% endif %}
+                      </td>
+                    {% endif %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if offer_restore %}
+            <div class="v-card-body v-history-actions">
+              <button class="v-btn v-btn-primary">{% translate "Restore selected fields" %}</button>
+              <span class="v-muted">{% translate "Restoring saves the record through its edit form, and is recorded in the audit log." %}</span>
+            </div>
+          {% elif not reconstruction.changed %}
+            <p class="v-card-body v-muted">{% translate "Every field that can be worked out held the same value then as now." %}</p>
+          {% endif %}
+        </form>
+
+        {% if reconstruction.unrecorded %}
+          <p class="v-card-body v-muted v-history-unrecorded">
+            {% translate "Not in the history, because the audit log only records fields on the edit form:" %}
+            {{ reconstruction.unrecorded|join:", " }}.
+          </p>
+        {% endif %}
+      {% endif %}
+    {% elif asked %}
+      <p class="v-card-body v-muted">{% translate "That point is not in this record's history." %}</p>
+    {% else %}
+      <p class="v-card-body v-muted">{% translate "Pick a change below, or a date and time, to see this record as it was then." %}</p>
+    {% endif %}
+  </section>
+
+  <section class="v-card v-history" aria-labelledby="v-history-timeline-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-history-timeline-title">{% translate "Timeline" %}</h2>
+      {% if timeline %}<span class="v-badge">{{ timeline|length }}</span>{% endif %}
+    </div>
+    {% if timeline %}
+      <ol class="v-history-list">
+        {% for row in timeline %}
+          {% with entry=row.entry %}
+          <li class="v-history-item{% if row.current %} is-current{% endif %}" data-action="{{ entry.action }}"{% if row.current %} aria-current="true"{% endif %}>
+            <div class="v-history-head">
+              <span class="v-audit-verb" data-action="{{ entry.action }}">{{ entry.get_action_display }}</span>
+              {% translate "Someone" as unknown_actor %}
+              <span class="v-history-who">{{ entry.actor_repr|default:unknown_actor }}</span>
+              <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"Y-m-d H:i:s" }}</time>
+              <a class="v-btn v-btn-sm v-btn-ghost" href="{{ row.url }}">{% translate "As it was after this" %}</a>
+            </div>
+            {% if entry.restored_as_of %}
+              <p class="v-history-note">{% blocktranslate with when=entry.restored_as_of|date:"Y-m-d H:i" %}Restored from history, as of {{ when }}.{% endblocktranslate %}</p>
+            {% elif entry.revealed_field %}
+              <p class="v-history-note">{% blocktranslate with name=entry.revealed_field %}Revealed <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% elif entry.action_name %}
+              <p class="v-history-note">{% blocktranslate with name=entry.action_name %}Ran <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% endif %}
+            {% if entry.change_list %}
+              <dl class="v-diff">
+                {% for change in entry.change_list %}
+                  <div class="v-diff-row">
+                    <dt>{{ change.field }}</dt>
+                    <dd>
+                      {% if change.from is not None %}<del>{{ change.from }}</del>{% endif %}
+                      {% if change.from is not None and change.to is not None %}
+                        <span class="v-diff-arrow" aria-hidden="true">→</span>
+                      {% endif %}
+                      {% if change.to is not None %}<ins>{{ change.to }}</ins>{% endif %}
+                      {% if change.from is None and change.to is None %}
+                        <span class="v-diff-redacted">{% translate "changed — value not recorded" %}</span>
+                      {% endif %}
+                    </dd>
+                  </div>
+                {% endfor %}
+              </dl>
+            {% endif %}
+          </li>
+          {% endwith %}
+        {% endfor %}
+      </ol>
+      {% if truncated %}
+        <p class="v-card-body v-muted">{% blocktranslate count counter=replay_limit %}Showing the most recent change.{% plural %}Showing the most recent {{ counter }} changes.{% endblocktranslate %}</p>
+      {% endif %}
+    {% else %}
+      <p class="v-card-body v-muted">{% translate "Nothing has been done to this record through the panel." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

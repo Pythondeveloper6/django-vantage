@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from django.core.checks import Error, Warning
+from django.db import models
 
 from vantage.introspection import resolve_path
 
@@ -47,10 +48,15 @@ class ModelPanelChecks:
             *self._check_related_tabs(panel),
             *self._check_data_quality(panel),
             *self._check_undo(panel),
+            *self._check_history(panel),
             *self._check_removed(panel),
             *self._check_list_views(panel),
             *self._check_sensitive_fields(panel),
             *self._check_sensitive_lookups(panel),
+            *self._check_requires_approval(panel),
+            *self._check_field_permissions(panel),
+            *self._check_widget_overrides(panel),
+            *self._check_read_only(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -295,6 +301,40 @@ class ModelPanelChecks:
             )
         ]
 
+    def _check_history(self, panel: ModelPanel) -> list[Error]:
+        """``history`` is ``None``, ``True``, ``False`` or ``"view"``.
+
+        ``True`` while the audit log is off is a contradiction rather than a typo: the
+        page replays the log, and with no log there is nothing to replay. Said at
+        ``check`` time instead of a page that silently 404s.
+        """
+        from vantage.conf import vantage_settings
+
+        value = getattr(panel, "history", None)
+        if not (value is None or isinstance(value, bool) or value == "view"):
+            return [
+                Error(
+                    f"'history' must be True, False, \"view\" or None; got {value!r}.",
+                    hint=(
+                        'None follows VANTAGE["AUDIT_LOG"]; "view" shows history without '
+                        "restore; False removes the page."
+                    ),
+                    obj=type(panel),
+                    id="vantage.E091",
+                )
+            ]
+        if value is True and not vantage_settings.AUDIT_LOG:
+            return [
+                Error(
+                    f"{type(panel).__name__} sets history = True, but VANTAGE['AUDIT_LOG'] "
+                    "is off, so there is no history to show.",
+                    hint="Turn the audit log on, or leave 'history' unset.",
+                    obj=type(panel),
+                    id="vantage.E092",
+                )
+            ]
+        return []
+
     def _check_removed(self, panel: ModelPanel) -> list[Error]:
         """Fail loudly on an attribute that no longer exists.
 
@@ -312,6 +352,104 @@ class ModelPanelChecks:
                         id="vantage.E020",
                     )
                 )
+        return errors
+
+    def _check_read_only(self, panel: ModelPanel) -> list[Error]:
+        """``read_only`` is a bool or ``None``; ``editable_fields`` names real fields."""
+        errors: list[Error] = []
+        value = getattr(panel, "read_only", None)
+        if not (value is None or isinstance(value, bool)):
+            errors.append(
+                Error(
+                    f"'read_only' must be True, False or None; got {value!r}.",
+                    hint='None follows VANTAGE["UNMANAGED_READ_ONLY"] for unmanaged models.',
+                    obj=type(panel),
+                    id="vantage.E122",
+                )
+            )
+        editable = getattr(panel, "editable_fields", None)
+        if editable is None:
+            return errors
+        if not isinstance(editable, list | tuple):
+            return [
+                *errors,
+                Error(
+                    f"'editable_fields' must be a list of field names; got {editable!r}.",
+                    obj=type(panel),
+                    id="vantage.E123",
+                ),
+            ]
+        from vantage.fieldperms import rule_fields
+
+        names = {field.name for field in rule_fields(panel.model)}
+        for name in editable:
+            if name not in names:
+                errors.append(
+                    Error(
+                        f"'editable_fields' names {name!r}, which is not an editable field "
+                        f"of {panel.model._meta.label}.",
+                        obj=type(panel),
+                        id="vantage.E123",
+                    )
+                )
+        return errors
+
+    def _check_widget_overrides(self, panel: ModelPanel) -> list[Error]:
+        """``formfield_overrides`` keys are field classes; ``widgets`` keys are fields.
+
+        Checked here because both are read only when a form is built, so a typo would
+        otherwise surface as a control that quietly stayed inferred (E120, E121).
+        """
+        from django import forms as django_forms
+
+        errors: list[Error] = []
+        overrides = getattr(panel, "formfield_overrides", None)
+        if overrides is not None:
+            valid = isinstance(overrides, dict) and all(
+                isinstance(key, type) and issubclass(key, models.Field) and isinstance(value, dict)
+                for key, value in overrides.items()
+            )
+            if not valid:
+                errors.append(
+                    Error(
+                        "'formfield_overrides' must map model field classes to dicts of "
+                        f"form field arguments; got {overrides!r}.",
+                        hint='For example {models.TextField: {"widget": forms.Textarea}}.',
+                        obj=type(panel),
+                        id="vantage.E120",
+                    )
+                )
+        widgets = getattr(panel, "widgets", None)
+        if widgets is not None:
+            if not isinstance(widgets, dict):
+                errors.append(
+                    Error(
+                        f"'widgets' must be a dict of field name to widget; got {widgets!r}.",
+                        obj=type(panel),
+                        id="vantage.E121",
+                    )
+                )
+                return errors
+            names = {f.name for f in panel.model._meta.get_fields()}
+            for name, widget in widgets.items():
+                is_widget = isinstance(widget, django_forms.Widget) or (
+                    isinstance(widget, type) and issubclass(widget, django_forms.Widget)
+                )
+                if name not in names or not is_widget:
+                    problem = (
+                        f"{name!r} is not a field on {panel.model._meta.label}"
+                        if name not in names
+                        else f"{widget!r} is not a form widget"
+                    )
+                    errors.append(
+                        Error(
+                            f"'widgets' entry {name!r}: {problem}.",
+                            hint="Keys are model field names; values are Widget classes "
+                            "or instances.",
+                            obj=type(panel),
+                            id="vantage.E121",
+                        )
+                    )
         return errors
 
     # ── list views ──────────────────────────────────────────────────────────
@@ -508,6 +646,152 @@ class ModelPanelChecks:
                         )
                     )
         return warnings
+
+    # ── approval workflows ──────────────────────────────────────────────────
+
+    def _check_requires_approval(self, panel: ModelPanel) -> list[Error]:
+        """``requires_approval`` must name fields a change can actually be held back for.
+
+        Every failure here is silent at runtime by design — the entry is skipped, so the
+        edit page keeps working — which is exactly why it has to be loud at ``check``
+        time: a typo would mean a field the author meant to protect saves directly.
+        """
+        from django.db import models
+
+        from vantage.formviews import form_editable_names
+
+        declared = getattr(panel, "requires_approval", None)
+        if declared is None:
+            return []
+        if isinstance(declared, str) or not isinstance(declared, list | tuple):
+            return [
+                Error(
+                    f"'requires_approval' must be a list of field names; got {declared!r}.",
+                    hint='For example: requires_approval = ["price", "status"].',
+                    obj=type(panel),
+                    id="vantage.E105",
+                )
+            ]
+        editable = set(form_editable_names(panel))
+        errors: list[Error] = []
+        for name in declared:
+            try:
+                field = panel.model._meta.get_field(str(name))
+            except Exception:
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which is not a field of "
+                        f"{panel.opts.label}.",
+                        hint="An unknown name protects nothing: the field you meant saves "
+                        "without approval.",
+                        obj=type(panel),
+                        id="vantage.E106",
+                    )
+                )
+                continue
+            if field.many_to_many or not getattr(field, "concrete", False):
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which is a many-to-many "
+                        "or reverse relation. Those are written after the record, so a "
+                        "change to one cannot be held back for approval.",
+                        obj=type(panel),
+                        id="vantage.E108",
+                    )
+                )
+            elif isinstance(field, models.FileField):
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which is a file field. "
+                        "An upload is stored as it is saved, so it cannot wait for approval.",
+                        obj=type(panel),
+                        id="vantage.E108",
+                    )
+                )
+            elif name not in editable:
+                errors.append(
+                    Error(
+                        f"'requires_approval' refers to {name!r}, which this panel's form "
+                        "does not let anyone edit.",
+                        hint="It is not editable, or it is in readonly_fields or exclude, "
+                        "or the panel's fields leave it out. Nothing can change it here, so "
+                        "there is nothing to approve.",
+                        obj=type(panel),
+                        id="vantage.E107",
+                    )
+                )
+        return errors
+
+    def _check_field_permissions(self, panel: ModelPanel) -> list[Error]:
+        """``field_permissions``: role name to ``{field: level}`` (E110 to E114).
+
+        At request time a malformed entry is skipped rather than raised on, so one typo
+        cannot take every page down — which means a rule that names a misspelt field
+        restricts nothing, and the field it meant to protect is shown. Hence errors.
+        Whether the role exists is the database's business and is not checked here.
+        """
+        from vantage.fieldperms import normalise_level, rule_fields
+
+        declared = getattr(panel, "field_permissions", None)
+        if declared is None:
+            return []
+        if not isinstance(declared, dict):
+            return [
+                Error(
+                    f"'field_permissions' must be a dict of role name to rules; got {declared!r}.",
+                    hint='For example {"Support": {"price": "readonly"}}.',
+                    obj=type(panel),
+                    id="vantage.E110",
+                )
+            ]
+        errors: list[Error] = []
+        names = {f.name for f in rule_fields(panel.model)}
+        pk = panel.opts.pk.name
+        for role, rules in declared.items():
+            if not isinstance(role, str) or not isinstance(rules, dict):
+                errors.append(
+                    Error(
+                        f"'field_permissions' entry {role!r} must map a role name to a dict "
+                        f"of field name to level; got {rules!r}.",
+                        obj=type(panel),
+                        id="vantage.E111",
+                    )
+                )
+                continue
+            for name, level in rules.items():
+                if name == pk:
+                    errors.append(
+                        Error(
+                            f"'field_permissions' for {role!r} restricts the primary key "
+                            f"{name!r} of {panel.opts.label}.",
+                            hint="Every link and row is built from it, so it cannot be hidden "
+                            "or made read-only. Restrict the record with permissions instead.",
+                            obj=type(panel),
+                            id="vantage.E114",
+                        )
+                    )
+                elif name not in names:
+                    errors.append(
+                        Error(
+                            f"'field_permissions' for {role!r} refers to {name!r}, which is "
+                            f"not a field of {panel.opts.label}.",
+                            hint="An unknown name restricts nothing, so the field you meant "
+                            "is shown and writable.",
+                            obj=type(panel),
+                            id="vantage.E112",
+                        )
+                    )
+                if normalise_level(level) is None:
+                    errors.append(
+                        Error(
+                            f"'field_permissions' for {role!r} sets {name!r} to {level!r}, "
+                            "which is not a level.",
+                            hint='Use "hidden" or "readonly" (or "read-only").',
+                            obj=type(panel),
+                            id="vantage.E113",
+                        )
+                    )
+        return errors
 
 
 #: The attribute that tells each view which field to use, for E071's hint.

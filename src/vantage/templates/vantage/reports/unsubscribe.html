@@ -1,0 +1,57 @@
+{% load static vantage i18n %}<!doctype html>
+{% comment %}
+  The page behind the unsubscribe link in a report email. Standalone, like the sign-in
+  page: whoever lands here may not have an account, and a sidebar would be a column of
+  links they cannot use.
+
+  Opening it changes nothing. The button posts, because mail scanners open every link
+  in a message and an unsubscribe that fired on GET would be triggered by the scanner.
+{% endcomment %}
+<html lang="{{ language_code|default:"en" }}"{% if ui_theme %} data-ui-theme="{{ ui_theme }}"{% endif %}{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if is_rtl %} dir="rtl"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>{% blocktranslate with site_title=settings.SITE_TITLE %}Scheduled report · {{ site_title }}{% endblocktranslate %}</title>
+{% if settings.FAVICON %}<link rel="icon" href="{% asset settings.FAVICON %}">{% endif %}
+<script{{ csp_nonce_attr }}>{{ no_flash_script|safe }}</script>
+<style{{ csp_nonce_attr }}>{{ theme_css|safe }}</style>
+<link rel="stylesheet" href="{% static 'vantage/vantage.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-auth.css' %}">
+{% if settings.CUSTOM_CSS %}<link rel="stylesheet" href="{% asset settings.CUSTOM_CSS %}">{% endif %}
+</head>
+<body>
+<div class="v-auth">
+  <main class="v-auth-main">
+    <div class="v-auth-inner">
+      <div class="v-auth-brand">
+        {% include "vantage/partials/brand.html" with mark_class="v-auth-mark" %}
+      </div>
+
+      <div class="v-card">
+        <div class="v-card-head">
+          <h1 class="v-card-title">{% translate "Scheduled report" %}</h1>
+        </div>
+        <div class="v-card-body">
+          {% if not valid %}
+            <p class="v-auth-help">{% translate "This link is not valid, or the report no longer exists." %}</p>
+          {% elif done %}
+            <p class="v-auth-help">
+              {% blocktranslate with name=sub.view.name %}You will no longer receive “{{ name }}”. The person who set it up can turn it back on from the panel.{% endblocktranslate %}
+            </p>
+          {% else %}
+            <p class="v-auth-help">
+              {% blocktranslate with name=sub.view.name %}Stop emailing “{{ name }}”? This pauses the report for everyone who receives it.{% endblocktranslate %}
+            </p>
+            <form method="post">
+              <button class="v-btn v-btn-primary v-auth-submit" type="submit">{% translate "Unsubscribe" %}</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

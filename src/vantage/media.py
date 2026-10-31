@@ -411,8 +411,53 @@ def validate_file_upload(value: Any) -> None:
             code="upload_not_an_image",
         )
 
-    if suffix == ".svg" or detected == "image/svg+xml":
+    if (suffix in ACTIVE_SUFFIXES or detected in ACTIVE_TYPES) and (
+        suffix not in allowed_active_suffixes()
+    ):
+        raise ValidationError(
+            _(
+                "%(name)s is a kind of file a browser runs rather than shows (a web page, "
+                "SVG, XML or script), so it cannot be uploaded here."
+            )
+            % {"name": _basename(name) or _("That file")},
+            code="upload_active_content",
+        )
+
+    if suffix == ".svg" or suffix in _MARKUP_SUFFIXES or detected in ACTIVE_TYPES:
         _refuse_executable_svg(value, name)
+
+
+#: Extensions a browser executes or renders as a document when the file is opened.
+#: Refused on every file field unless named in ``VANTAGE["UPLOAD_ACTIVE_SUFFIXES"]``.
+ACTIVE_SUFFIXES = frozenset(
+    {
+        ".html", ".htm", ".xhtml", ".xht", ".shtml",
+        ".svg", ".svgz",
+        ".xml", ".xsl", ".xslt",
+        ".js", ".mjs",
+    }
+)  # fmt: skip
+
+#: Sniffed content types refused whatever the extension says.
+ACTIVE_TYPES = frozenset({"text/html", "image/svg+xml"})
+
+#: The markup suffixes a project may opt into; they are still scanned when it does.
+_MARKUP_SUFFIXES = frozenset({".html", ".htm", ".xhtml", ".xht", ".shtml", ".xml", ".xsl", ".xslt"})
+
+
+def allowed_active_suffixes() -> frozenset[str]:
+    """The active-content extensions a project has explicitly opted into."""
+    from vantage.conf import vantage_settings
+
+    configured = vantage_settings.UPLOAD_ACTIVE_SUFFIXES or ()
+    return frozenset(
+        ("." + str(item).lower().lstrip(".")) for item in configured if str(item).strip(".")
+    )
+
+
+def is_active_file(name: str) -> bool:
+    """Whether a stored file is of a kind a browser would run if opened inline."""
+    return _suffix(name) in ACTIVE_SUFFIXES
 
 
 def _refuse_executable_svg(value: Any, name: str) -> None:
@@ -435,23 +480,23 @@ def _refuse_executable_svg(value: Any, name: str) -> None:
     third copy of the same rejection list is a third thing to update when somebody finds
     a new way to smuggle script into an SVG, and only two of them would get updated.
     """
-    from vantage.security import SVG_HAZARDS
+    from vantage.security import markup_hazard
 
     # The whole file, not the sniffed head: a script element at the end of an SVG runs
     # exactly as well as one at the start. Bounded by the size ceiling already enforced
     # by _check_size above, so this cannot be turned into a memory attack.
     payload = _read_all(value)
-    for pattern, description in SVG_HAZARDS:
-        if pattern.search(payload):
-            raise ValidationError(
-                _(
-                    "%(name)s contains %(hazard)s, which would run as script for anyone "
-                    "who opens it from the panel. Export it without the script, or "
-                    "convert it to a PNG."
-                )
-                % {"name": _basename(name), "hazard": description},
-                code="upload_executable_svg",
+    description = markup_hazard(payload)
+    if description:
+        raise ValidationError(
+            _(
+                "%(name)s contains %(hazard)s, which would run as script for anyone "
+                "who opens it from the panel. Export it without the script, or "
+                "convert it to a PNG."
             )
+            % {"name": _basename(name), "hazard": description},
+            code="upload_executable_svg",
+        )
 
 
 def validate_image_upload(value: Any) -> None:
@@ -728,6 +773,10 @@ def render_file(file: Any, *, obj: Any = None, size: str = "sm") -> SafeString:
             "alt": alt_text(file, obj),
             "icon": chip_icon(name),
             "size": size,
+            # A page, SVG or script is offered as a download rather than opened in a
+            # tab: opened inline from the panel's origin it would run with the
+            # reader's session. Covers files stored before uploads refused them.
+            "download": is_active_file(name),
         },
     )
 

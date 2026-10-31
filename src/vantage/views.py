@@ -26,6 +26,7 @@ from django.views.generic import TemplateView
 
 from vantage import listprefs, listquery
 from vantage.actions import Selection, resolve_actions
+from vantage.breakglass import banner as elevation_banner
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
 from vantage.nav import UI_THEME_COOKIE, build_nav, resolve_theme, resolve_ui_theme
@@ -92,6 +93,7 @@ class SiteView(TemplateView):
             breadcrumbs=self.get_breadcrumbs(),
             may_reveal=may_reveal_anything(self.request, self.site),
             reveal_seconds=REVEAL_SECONDS,
+            elevation=elevation_banner(self.request),
         )
         # The end of the header: the arranged controls, plus who is signed in. One
         # call rather than three keys, so authviews.shell_context cannot drift.
@@ -284,20 +286,35 @@ class ListView(PanelView):
         return listquery.build(self.panel, request, self.permissions)
 
     def export(self, request):
-        panel = self.panel
-        queryset = self.build_queryset(request)[0]
-        columns = panel.get_list_display(request)
-        headers = [self._column_header(panel, name, None)["label"] for name in columns]
-        from vantage.sensitive import is_sensitive_path
-
+        queryset, columns, headers, masked = self.export_parts(request)
         return stream_export(
             request.GET["export"],
             queryset,
             columns,
             headers,
-            panel.get_label_plural(),
-            masked={name for name in columns if is_sensitive_path(panel, name)},
+            self.panel.get_label_plural(),
+            masked=masked,
         )
+
+    def export_parts(self, request):
+        """The rows, columns, headers and masked columns of an export.
+
+        Split out of :meth:`export` so a scheduled report, which has no browser to stream
+        to, builds its file from the same answer the download button gets.
+        """
+        panel = self.panel
+        queryset = self.build_queryset(request)[0]
+        from vantage.fieldperms import strip_hidden
+
+        # get_list_display already drops hidden columns; asked again on the line that
+        # writes the file, because a file travels further than the page and a subclass
+        # overriding the getter should not be able to put a hidden field in it.
+        columns = strip_hidden(request, panel, panel.get_list_display(request))
+        headers = [self._column_header(panel, name, None)["label"] for name in columns]
+        from vantage.sensitive import is_sensitive_path
+
+        masked = {name for name in columns if is_sensitive_path(panel, name)}
+        return queryset, columns, headers, masked
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -346,7 +363,9 @@ class ListView(PanelView):
 
     def table_context(self, panel, request, queryset, sort, spec) -> dict:
         """The grid's own context: columns, the page of rows, grouping, the footer."""
-        columns = panel.get_list_display(request)
+        from vantage.fieldperms import strip_hidden
+
+        columns = strip_hidden(request, panel, panel.get_list_display(request))
         link = panel.get_list_link(request)
 
         paginator = CappedPaginator(
@@ -357,8 +376,10 @@ class ListView(PanelView):
         )
         page = paginator.get_page(request.GET.get("page"))
 
+        headers = [self._column_header(panel, name, sort) for name in columns]
         return {
-            "columns": [self._column_header(panel, name, sort) for name in columns],
+            "columns": headers,
+            "card_columns": self._card_columns(panel, columns, headers),
             "rows": self._rows(panel, page.object_list, columns, link, request),
             "grouping": self.grouping(request),
             "group_options": [
@@ -584,6 +605,24 @@ class ListView(PanelView):
             depths[pk] = depth
         return depths
 
+    #: How many columns a phone card shows when the panel does not choose.
+    CARD_COLUMNS = 4
+
+    @classmethod
+    def _card_columns(cls, panel, columns: list[str], headers: list[dict]) -> dict[int, str]:
+        """Column position -> label, for the columns a phone card shows (title first).
+
+        ``card_fields`` is the same one-line choice the gallery and the board read.
+        Names that are not columns of the table are skipped: a card is the table's own
+        row restacked, not a second renderer.
+        """
+        chosen = panel.card_fields
+        if chosen is None:
+            shown = range(min(len(columns), cls.CARD_COLUMNS))
+        else:
+            shown = [i for i, name in enumerate(columns) if i == 0 or name in chosen]
+        return {i: str(headers[i]["label"]) for i in shown}
+
     @staticmethod
     def _row(panel, obj, columns: list[str], link: str) -> dict:
         from django.urls import NoReverseMatch, reverse
@@ -638,10 +677,16 @@ class DetailView(PanelView):
         obj = self.object
         panel = self.panel
 
+        from vantage.fieldperms import access
         from vantage.sensitive import safe_str, set_password_url
+
+        rules = access(self.request, panel)
+        hidden = rules.hidden
 
         def password_url(name):
             url = set_password_url(panel, obj, name)
+            if not rules.can_change(name):
+                return None
             if url and self.permissions.has_object_perm(self.request, panel.model, "change", obj):
                 return url
             return None
@@ -659,6 +704,8 @@ class DetailView(PanelView):
                 "set_password_url": password_url(field.name),
             }
             for field in displayable_fields(panel.model)
+            # Not masked, absent: a hidden field's label alone says it exists.
+            if field.name not in hidden
         ]
 
         related = self._related(obj)
@@ -675,8 +722,16 @@ class DetailView(PanelView):
             object_label=safe_str(obj, panel.site),
         )
         from vantage import audit
+        from vantage.historyviews import history_url
 
         context.update(audit.history_context(self.request, obj))
+        from vantage.approvalviews import banner_context
+
+        # What is waiting for approval on this record, if anything.
+        context.update(banner_context(self.request, panel, obj))
+        if context.get("history") is not None:
+            # Only beside the panel it extends: the page has the same audit gate.
+            context["history_url"] = history_url(panel, obj)
         return context
 
     #: How many related rows to preview before the panel becomes a link only.
@@ -835,6 +890,7 @@ def _as_rows(data: dict) -> list[dict]:
     return rows
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class ImpersonateView(SiteView):
     """Start or stop impersonating another user. POST only, superusers only.
 
@@ -868,7 +924,16 @@ class ImpersonateView(SiteView):
         except ImpersonationError as exc:
             messages.error(request, str(exc))
 
-        return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
+        # Validated like every other ``next`` in the panel: this form is posted by any
+        # staff user (the stop branch), so an unchecked value is an open redirect.
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        target = request.POST.get("next") or ""
+        if not url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            target = reverse("vantage:dashboard")
+        return HttpResponseRedirect(target)
 
 
 class UIThemeCssView(SiteView):

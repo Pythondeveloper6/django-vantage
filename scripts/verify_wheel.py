@@ -54,7 +54,7 @@ REQUIRED_FILES = [
 
 # Run inside the throwaway venv. Kept as a string rather than a module so the venv
 # never needs the repository on its path — which is the whole point of the exercise.
-SMOKE = '''
+SMOKE = """
 import django
 from django.conf import settings
 
@@ -128,7 +128,7 @@ applied = sorted(name for app, name in loader.disk_migrations if app == "vantage
 print("migrations loadable      :", ", ".join(applied))
 
 print("SMOKE OK")
-'''
+"""
 
 
 def inspect(wheel: Path) -> None:
