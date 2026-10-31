@@ -106,6 +106,13 @@ upgrading.
   Checked by `vantage.E120` and `vantage.E121`. See
   [Overriding a widget](docs/forms.md#overriding-a-widget).
 
+#### JSON API: bulk actions, saved views, import/export, uploads, OpenAPI
+
+- JSON API: bulk actions (`_actions/`, filter selection, `dry_run`, confirmation, job
+  hand-off), saved views, CSV import (dry run by default) and filtered export,
+  multipart file uploads through the media validators, and an OpenAPI 3.1 document at
+  `_/api/openapi.json` filtered per user, plus `manage.py vantage_openapi`.
+
 #### History with point-in-time restore
 
 - Each record has a **History** page, linked from its detail page, that lists its audit
