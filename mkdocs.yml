@@ -130,6 +130,9 @@ nav:
       - Multi-tenancy: tenancy.md
       - Internationalization: internationalization.md
       - Extending: extending.md
+      - Migrating from django.contrib.admin: migrating-from-django-admin.md
+      - Plugin compatibility: plugin-compatibility.md
+      - Vantage vs Unfold: comparison.md
   - Operations:
       - Settings reference: settings.md
       - Deployment: deployment.md
@@ -139,5 +142,6 @@ nav:
       - Scheduled reports: reports.md
       - Accessibility: accessibility.md
       - Browser tests: browser-tests.md
+      - Benchmarks: benchmarks.md
   - FAQ: faq.md
   - Roadmap: roadmap.md
