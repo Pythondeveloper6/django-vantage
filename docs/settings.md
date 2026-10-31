@@ -176,6 +176,10 @@ strictness, so an item that cannot be shown is omitted.
 | `SETTINGS_PERMISSION` | `None` | — | Who may open the settings screen. `None` means superusers only |
 | `LIST_PREFS_PERMISSION` | `None` | — | Who may save a list's preferences **for everyone**. `None` means superusers only |
 | `ROLES_PERMISSION` | `None` | — | Who may open the [roles & permissions screen](roles.md). `None` means superusers only |
+| `ACCESS_REVIEW_PERMISSION` | `None` | — | Who may open the [access review](access-review.md). `None` means superusers only |
+| `BREAK_GLASS_PERMISSION` | `None` | — | Who may grant and approve [elevated access](access-review.md#elevated-access-break-glass). `None` means superusers only |
+| `BREAK_GLASS_SELF_SERVICE` | `False` | — | Whether someone allowed to grant may activate their own request. `False` keeps the two-person rule |
+| `BREAK_GLASS_MAX_MINUTES` | `60` | — | The longest one elevated-access grant may last |
 | `READ_ONLY` | `False` | ✓ | `True`, or a string that doubles as the explanation shown to users |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
@@ -192,8 +196,9 @@ with their defaults in [Security](security.md#installing-the-middleware) — see
 [Two settings layers](security.md#two-settings-layers) for why their defaults live
 there.
 
-`SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION` and `ROLES_PERMISSION` each accept a permission string or a
-callable taking the request:
+`SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION`, `ROLES_PERMISSION`,
+`ACCESS_REVIEW_PERMISSION` and `BREAK_GLASS_PERMISSION` each accept a permission string
+or a callable taking the request:
 
 ```python
 VANTAGE = {
@@ -202,8 +207,8 @@ VANTAGE = {
 }
 ```
 
-None is editable from the UI. `SETTINGS_PERMISSION` and `ROLES_PERMISSION` in
-particular would be self-grants.
+None is editable from the UI. `SETTINGS_PERMISSION`, `ROLES_PERMISSION` and
+`BREAK_GLASS_PERMISSION` in particular would be self-grants.
 
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
