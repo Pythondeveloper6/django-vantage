@@ -26,6 +26,15 @@ uv run python example/manage.py runserver 8765
 Both the migration and the seed are idempotent, so re-running either is harmless. To
 start completely clean, delete `example/db.sqlite3` and run them again.
 
+## Check that it works
+
+```bash
+uv run pytest tests/test_example_project.py
+```
+
+boots the demo against a throwaway database (`VANTAGE_DEMO_DB`, `VANTAGE_DEMO_MEDIA`),
+runs `check`, `migrate` and `seed`, and loads the panel as the seeded admin.
+
 ## Sign in
 
 | Username | Password      | Role                       |

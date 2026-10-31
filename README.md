@@ -414,11 +414,32 @@ so "why is my `panel.py` being ignored?" has a single, findable answer.
 | **Upgrade checks** | A written deprecation policy and `manage.py vantage_upgrade_check`. [Docs →](https://pythondeveloper6.github.io/django-vantage/api-stability/) |
 | **Query-count guarantees** | `select_related` and `prefetch_related` are derived from what the page renders, and tests assert the cost does not grow with the row count |
 
-## Roadmap
+## Documentation and roadmap
 
-Next up: record history with point-in-time restore, approval workflows, two-factor
-sign-in, field-level permissions, scheduled reports, webhooks and a layout for phones.
-[Read the roadmap →](https://pythondeveloper6.github.io/django-vantage/roadmap/)
+The [documentation](https://pythondeveloper6.github.io/django-vantage/) covers every
+feature; the [settings reference](https://pythondeveloper6.github.io/django-vantage/settings/)
+lists every `VANTAGE` key, and [API stability](https://pythondeveloper6.github.io/django-vantage/api-stability/)
+says what is frozen. History with point-in-time restore, approvals, two-factor sign-in,
+field permissions, scheduled reports, webhooks, the phone layout, access review and
+break-glass access have all shipped since the last published release; what is next is
+on the [roadmap](https://pythondeveloper6.github.io/django-vantage/roadmap/).
+
+## Security
+
+An admin panel is a high-privilege surface. Vantage fails closed (tenancy, read-only
+mode, field permissions and approvals are enforced in the permission layer, before the
+superuser bypass where it matters), refuses active-content uploads, masks secrets and
+audits what people do. Read the [security model and threat model](https://pythondeveloper6.github.io/django-vantage/security/)
+before exposing it, and report vulnerabilities privately as described in
+[SECURITY.md](https://github.com/Pythondeveloper6/django-vantage/blob/main/SECURITY.md). It has not had an independent external audit yet.
+
+## How it compares, and its limits
+
+Vantage replaces `django.contrib.admin` rather than theming it, so `ModelAdmin`-based
+plugins do not run inside it; `manage.py vantage_adopt` previews what translates. See
+[the comparison with Unfold and admin themes](https://pythondeveloper6.github.io/django-vantage/comparison/),
+[plugin compatibility](https://pythondeveloper6.github.io/django-vantage/plugin-compatibility/)
+and the [FAQ's honest list](https://pythondeveloper6.github.io/django-vantage/faq/#what-it-does-not-do).
 
 ## Requirements
 

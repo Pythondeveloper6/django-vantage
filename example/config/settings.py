@@ -5,6 +5,7 @@ on, and the database is a SQLite file next to this project. Everything here exis
 be read, so it stays as short as a working Django project can be.
 """
 
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -53,7 +54,8 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        # Overridable so the smoke test can run the demo against a throwaway database.
+        "NAME": os.environ.get("VANTAGE_DEMO_DB", BASE_DIR / "db.sqlite3"),
     }
 }
 
@@ -65,7 +67,7 @@ USE_I18N = True
 USE_TZ = True
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = os.environ.get("VANTAGE_DEMO_MEDIA", BASE_DIR / "media")
 
 STATIC_URL = "static/"
 
