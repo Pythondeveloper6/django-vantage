@@ -59,6 +59,11 @@ upgrading.
   migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
   Text or JSON output; exits `1` at `--fail-level` for CI.
 
+#### Image lightbox
+
+- A plain click on an image thumbnail opens the original in a `<dialog>` lightbox; the
+  thumbnail stays a link that opens a new tab without JavaScript or with a modifier key.
+
 #### Notifications
 
 - `VANTAGE["NOTIFICATIONS"]` sends approval requests and decisions, webhook deliveries
