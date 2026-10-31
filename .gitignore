@@ -52,8 +52,8 @@ node_modules/
 /example/media/
 
 # Internal planning and assessment docs — never tracked
-VALUE-ASSESSMENT.md
-PACKAGES-GAPS-AND-FEATURES.md
+VALUE-[A]SSESSMENT.md
+PACKAGES-[G]APS-AND-FEATURES.md
 *-ASSESSMENT.md
 plan.md
 PLAN*.md
