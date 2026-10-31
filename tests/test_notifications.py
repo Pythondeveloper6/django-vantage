@@ -120,6 +120,21 @@ class TestDelivery:
             vantage_settings.reset()
 
 
+def test_a_newline_in_a_record_label_cannot_inject_a_mail_header(settings):
+    settings.VANTAGE = {
+        "NOTIFICATIONS": {"m": {"type": "email", "to": ["a@example.com"], "events": ["job.failed"]}}
+    }
+    vantage_settings.reset()
+    try:
+        channel = vantage_settings.NOTIFICATIONS["m"]
+        notifications._send(channel, "job.failed", "Order\nBcc: x@evil.example", [], None)
+    finally:
+        vantage_settings.reset()
+    (message,) = mail.outbox
+    assert "\n" not in message.subject
+    assert message.bcc == []
+
+
 class TestValidation:
     @pytest.mark.parametrize(
         "value",

@@ -153,7 +153,9 @@ def _send(channel: dict[str, Any], event: str, title: str, body: list[str], mode
             return
         from django.core.mail import send_mail
 
-        send_mail(title, "\n".join(body) or title, None, recipients, fail_silently=False)
+        # A record label is user data; a newline in it must not become a mail header.
+        subject = " ".join(title.split())[:200]
+        send_mail(subject, "\n".join(body) or subject, None, recipients, fail_silently=False)
         return
     text = "\n".join([f"*{title}*" if kind == "slack" else f"**{title}**", *body])
     payload = {"text": text}
