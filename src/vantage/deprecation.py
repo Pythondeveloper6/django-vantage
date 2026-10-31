@@ -187,6 +187,7 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "METRICS",
         "METRICS_TOKEN",
         "SLOW_REQUEST_MS",
+        "NOTIFICATIONS",
     }
 )
 

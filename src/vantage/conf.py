@@ -228,6 +228,10 @@ DEFAULTS: dict[str, Any] = {
     # Panel requests slower than this are logged to "vantage.requests" (needs
     # vantage.metrics.SlowRequestMiddleware). 0 disables the log line.
     "SLOW_REQUEST_MS": 1000,
+    # ── notifications ───────────────────────────────────────────────────────
+    # {"channel name": {"type": "slack"|"teams"|"email", "url": ..., "to": ...,
+    # "events": [...]}}. Code-only: the URLs are credentials. See vantage.notifications.
+    "NOTIFICATIONS": {},
     # ── single sign-on ──────────────────────────────────────────────────────
     # Identity-provider groups to roles. A dict of the keys in
     # vantage.identity.ROLE_MAPPING_DEFAULTS; empty means no mapping.
@@ -349,6 +353,9 @@ class VantageSettings:
         from vantage.identity import resolve_role_mapping
 
         resolved["ROLE_MAPPING"] = resolve_role_mapping(resolved["ROLE_MAPPING"])
+        from vantage.notifications import resolve_channels
+
+        resolved["NOTIFICATIONS"] = resolve_channels(resolved["NOTIFICATIONS"])
 
         # The database layer goes *under* attribute access rather than beside it, so
         # every existing ``vantage_settings.X`` picks up a UI override without knowing
