@@ -66,7 +66,10 @@ class PanelPermissions:
             return override
         if self.superuser_bypass and user.is_superuser:
             return True
-        return user.has_perm(self.perm_name(model, action))
+        perm = self.perm_name(model, action)
+        # Time-boxed elevation is asked only after the standing answer is no, so
+        # someone without a grant pays one query per request, on their first refusal.
+        return user.has_perm(perm) or _elevated(request, perm)
 
     @staticmethod
     def is_read_only(action: str) -> bool:
@@ -94,7 +97,10 @@ class PanelPermissions:
             return True
         if not self.supports_object_permissions:
             return self.has_model_perm(request, model, action)
-        return user.has_perm(self.perm_name(model, action), obj)
+        perm = self.perm_name(model, action)
+        # An elevated permission is a model-level grant, so it covers every row — the
+        # same meaning ``accept_global_perms`` gives a standing one below.
+        return user.has_perm(perm, obj) or _elevated(request, perm)
 
     # ── the panel's own answer ──────────────────────────────────────────────
 
@@ -147,7 +153,13 @@ class PanelPermissions:
             return fieldperms.UNRESTRICTED
         if self.superuser_bypass and user.is_superuser:
             return fieldperms.UNRESTRICTED
-        return fieldperms.resolve(user, model, rules=fieldperms.user_rules(request))
+        answer = fieldperms.resolve(user, model, rules=fieldperms.user_rules(request))
+        if answer:
+            # A role held through a grant votes like a membership, and only ever lifts.
+            from vantage.breakglass import widen
+
+            answer = widen(request, user, model, answer)
+        return answer
 
     def has_field_perm(self, request, model: type[Model], name: str, action: str) -> bool:
         """Whether this user may ``"view"`` or ``"change"`` one field of ``model``.
@@ -208,6 +220,10 @@ class GuardianPermissions(PanelPermissions):
         if self.superuser_bypass and user.is_superuser:
             return queryset
 
+        perm = self.perm_name(queryset.model, action)
+        if _elevated(request, perm):
+            return queryset
+
         from guardian.shortcuts import get_objects_for_user
 
         return get_objects_for_user(
@@ -219,6 +235,14 @@ class GuardianPermissions(PanelPermissions):
             accept_global_perms=True,
             with_superuser=True,
         )
+
+
+def _elevated(request, perm: str) -> bool:
+    """Whether an active break-glass grant gives this request ``perm``. See
+    :mod:`vantage.breakglass`: computed from the clock at check time, cached per request."""
+    from vantage.breakglass import holds
+
+    return holds(request, perm)
 
 
 def _panel_hook(model: type[Model], action: str):

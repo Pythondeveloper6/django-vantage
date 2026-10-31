@@ -380,7 +380,11 @@ class ModelPanel:
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             return False
-        return bool(user.is_superuser) or user.has_perm(REVEAL_PERMISSION)
+        if user.is_superuser or user.has_perm(REVEAL_PERMISSION):
+            return True
+        from vantage.breakglass import holds
+
+        return holds(request, REVEAL_PERMISSION)
 
     def get_ordering(self, request=None) -> list[str]:
         ordering = self._declared_ordering()
