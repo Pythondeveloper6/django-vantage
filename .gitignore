@@ -53,7 +53,7 @@ node_modules/
 
 # Internal planning and assessment docs — never tracked
 VALUE-[A]SSESSMENT.md
-PACKAGES-[G]APS-AND-FEATURES.md
+PACKAGES-*-AND-FEATURES.md
 *-ASSESSMENT.md
 plan.md
 PLAN*.md
