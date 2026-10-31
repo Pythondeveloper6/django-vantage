@@ -266,6 +266,7 @@ If `PostAdmin` is not registered with `contrib.admin`, name the model:
 | `actions` | Vantage actions, with `short_description` and `permissions` |
 | `has_view/add/change/delete_permission` | the same methods on the panel |
 | `get_queryset`, `save_model` | delegated to the admin — the signatures match |
+| `get_readonly_fields`, `get_exclude`, `get_fields` | per-request **read-only** field rules through the panel's `get_field_access(request)`, asked with `obj=None` |
 
 Only what the admin actually *declared* is translated. An attribute left at its
 `ModelAdmin` default stays unset on the panel, so Vantage's inference still runs:
@@ -347,3 +348,4 @@ VANTAGE = {
 | `vantage.E030` | A plugin failed to load and was skipped |
 | `vantage.W030` | `VANTAGE["PLUGINS"]` names a plugin nothing provides |
 | `vantage.W040` | A `ModelAdmin` was adopted with settings that could not be translated |
+| `vantage.E041` | An adopted `ModelAdmin` restricts access with a hook the adapter cannot translate (`formfield_for_foreignkey`, `formfield_for_manytomany`, `formfield_for_choice_field`, `get_form`, `has_module_permission`). Restrict the same thing on the panel, then add the ID to `SILENCED_SYSTEM_CHECKS` |

@@ -356,6 +356,16 @@ class ModelPanel:
             self._sensitive_memo = cached
         return cached[1]
 
+    def get_field_access(self, request):
+        """Extra per-request field restrictions, as a :class:`~vantage.fieldperms.FieldAccess`.
+
+        ``None`` (the default) adds nothing. Whatever this returns is merged with the
+        role-based rules, the stricter level winning per field, and — like the
+        ``has_<action>_permission`` hooks — applies to superusers too. Every read and
+        write path that honours field permissions honours this.
+        """
+        return None
+
     def get_requires_approval(self) -> tuple[str, ...]:
         """The fields a change to which needs approval, in declared order.
 

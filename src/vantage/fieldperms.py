@@ -343,8 +343,32 @@ def access(request, target, site=None) -> FieldAccess:
     # the default rule rather than an AttributeError on every page.
     ask = getattr(resolver, "field_access", None) or PanelPermissions().field_access
     answer = ask(request, model) or UNRESTRICTED
+    answer = _with_panel_rules(request, model, answer, site)
     cache[key] = answer
     return answer
+
+
+def _with_panel_rules(request, model, answer: FieldAccess, site=None) -> FieldAccess:
+    """Add the panel's own ``get_field_access(request)``, if it has one.
+
+    The hook only ever restricts further: its answer is merged with the resolver's,
+    the stricter level winning per field. Like the ``has_<action>_permission`` hooks it
+    applies to superusers too, because it is the panel's statement about the field
+    rather than about a role. The adopted ``contrib.admin`` translation uses it for
+    ``get_readonly_fields``, ``get_exclude`` and ``get_fields``.
+    """
+    panel = _panel_for(model, site)
+    hook = getattr(panel, "get_field_access", None) if panel is not None else None
+    if not callable(hook):
+        return answer
+    extra = hook(request)
+    if not extra:
+        return answer
+    hidden = frozenset(answer.hidden) | frozenset(getattr(extra, "hidden", ()) or ())
+    readonly = (
+        frozenset(answer.readonly) | frozenset(getattr(extra, "readonly", ()) or ())
+    ) - hidden
+    return FieldAccess(hidden=hidden, readonly=readonly)
 
 
 def _model_of(target) -> type[models.Model]:
