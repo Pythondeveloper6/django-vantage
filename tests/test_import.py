@@ -883,3 +883,33 @@ class TestStash:
         assert importer.sweep_stash(now=time.time() + importer.STASH_TTL + 1) >= 1
         with pytest.raises(importer.StashExpired):
             importer.read_stash(user=boss, model_label="testapp.post", token=token)
+
+
+class TestDialectSniffingIsBounded:
+    """``csv.Sniffer`` is super-linear on quote-heavy input; it only ever sees a little.
+
+    A 64 KiB sample of ``,"a,"a,"a…`` took the better part of a minute to sniff, from
+    one upload, before the importer read a single row.
+    """
+
+    def test_the_sniffer_is_handed_a_small_sample(self, monkeypatch):
+        import csv
+
+        from vantage import importer
+
+        seen = []
+        original = csv.Sniffer.sniff
+
+        def spy(self, sample, delimiters=None):
+            seen.append(len(sample))
+            return original(self, sample[:64], delimiters=delimiters)
+
+        monkeypatch.setattr(csv.Sniffer, "sniff", spy)
+        importer._sniff(',"a' * 30_000)
+        assert seen and max(seen) <= importer.SNIFF_CHARS
+
+    def test_a_semicolon_file_is_still_recognised(self):
+        from vantage import importer
+
+        dialect = importer._sniff("name;email\nAda;ada@example.com\nBob;bob@example.com\n")
+        assert dialect.delimiter == ";"

@@ -216,7 +216,22 @@ def selection_payload(selection: Selection, request, *, count: int | None = None
         # A worker has no host and no headers, so a subdomain or header resolver
         # cannot run there. None unless tenancy is on. See vantage.tenancy.snapshot.
         "tenant": tenancy_snapshot(request),
+        # Who is really signed in, when it is not ``request.user``. The job runs with
+        # the target's permissions (that is what impersonation means), but its audit
+        # entry must name the person who pressed the button, exactly as an inline run
+        # does. Otherwise a deferred bulk action is a way to act without a trace.
+        "impersonator": _impersonator_pk(request),
     }
+
+
+def _impersonator_pk(request):
+    from vantage.safety import real_user
+
+    user = getattr(request, "user", None)
+    actual = real_user(request) if user is not None else None
+    if actual is None or actual is user or getattr(actual, "pk", None) == getattr(user, "pk", None):
+        return None
+    return actual.pk
 
 
 def selection_from_payload(payload: dict) -> Selection:
@@ -657,6 +672,12 @@ def _rehydrate(job: VantageJob):
 
     payload = job.selection or {}
     request = JobRequest(user=actor, query=payload.get("query", ""), path=payload.get("path", "/"))
+    if payload.get("impersonator") is not None:
+        # Read only by vantage.safety.real_user, i.e. by the audit layer. Permissions
+        # are still the actor's own.
+        from vantage.safety import IMPERSONATOR_SESSION_KEY
+
+        request.session[IMPERSONATOR_SESSION_KEY] = payload["impersonator"]
     # The tenant the selection was made under, put back before anything reads a row.
     # Without it a host- or header-based resolver finds nothing here and the job —
     # correctly, but uselessly — resolves to zero rows. No-op unless tenancy is on.

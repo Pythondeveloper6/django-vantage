@@ -1096,10 +1096,11 @@ class TestFileFieldSvgScreening:
         with pytest.raises(ValidationError):
             validate_file_upload(upload("attachment.svg", body))
 
-    def test_a_clean_svg_is_still_accepted(self):
-        """The fix must not turn every SVG into a rejection, only a hostile one."""
+    def test_a_clean_svg_is_still_accepted(self, settings):
+        """Once a project opts SVG in, only a hostile one is refused."""
         from vantage.media import validate_file_upload
 
+        settings.VANTAGE = {"UPLOAD_ACTIVE_SUFFIXES": [".svg"]}
         body = b'<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'
         validate_file_upload(upload("attachment.svg", body))  # must not raise
 
@@ -1151,3 +1152,177 @@ class TestUploadScreeningThroughTheStack:
         """The panel must not police the rest of the site's forms."""
         response = client.post(LOGIN, {"file": upload("x.png", b"<html>")})
         assert response.status_code != 400
+
+
+# ---------------------------------------------------------------------------------------
+# Findings from the full security review. Each class below was written before its fix
+# and failed against the code as it was.
+# ---------------------------------------------------------------------------------------
+
+
+class TestUrlColumnSchemes:
+    """A URL column links only to schemes a browser will not execute.
+
+    ``URLField`` validates its scheme in forms, but a row written by a script, a data
+    migration or another service never passed through one, so the stored value is
+    whatever someone put there — ``javascript:…`` included.
+    """
+
+    @pytest.fixture
+    def panel(self, db):
+        from tests.testapp.models import Author
+
+        return site.get_panel(Author)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "javascript:alert(1)",
+            " JavaScript:alert(1)",
+            "java\tscript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "vbscript:msgbox(1)",
+        ],
+    )
+    def test_an_executable_scheme_is_shown_but_not_linked(self, panel, value):
+        from tests.testapp.models import Author
+        from vantage.render import render_cell
+
+        html = str(render_cell(panel, Author(name="a", email="a@x.io", website=value), "website"))
+        assert "<a " not in html
+        assert "href" not in html
+
+    def test_an_http_url_is_still_a_link(self, panel):
+        from tests.testapp.models import Author
+        from vantage.render import render_cell
+
+        obj = Author(name="a", email="a@x.io", website="https://example.com/p?q=1")
+        html = str(render_cell(panel, obj, "website"))
+        assert 'href="https://example.com/p?q=1"' in html
+
+
+class TestImpersonateRedirect:
+    """The impersonation form's ``next`` only ever lands back inside this site."""
+
+    @pytest.mark.parametrize("target", ["https://evil.example/", "//evil.example/x"])
+    def test_an_offsite_next_falls_back_to_the_dashboard(self, client, db, target):
+        user = User.objects.create_user("s", "s@example.com", "x", is_staff=True)
+        client.force_login(user)
+        response = client.post(reverse("vantage:impersonate"), {"next": target})
+        assert response.status_code == 302
+        assert response["Location"] == reverse("vantage:dashboard")
+
+    def test_a_local_next_is_kept(self, client, db):
+        user = User.objects.create_user("s", "s@example.com", "x", is_staff=True)
+        client.force_login(user)
+        response = client.post(reverse("vantage:impersonate"), {"next": "/admin/audit/"})
+        assert response["Location"] == "/admin/audit/"
+
+
+#: SVGs that slipped past the old pattern list, each in a different way: a namespace
+#: prefix with punctuation in it, an entity-encoded scheme, a UTF-16 encoding, and an
+#: entity declaration.
+EVASIVE_SVGS = {
+    "prefix-underscore": b'<svg xmlns="http://www.w3.org/2000/svg" xmlns:a_b="http://www.w3.org/2000/svg">'
+    b"<a_b:script>alert(1)</a_b:script></svg>",
+    "prefix-dash": b'<svg xmlns="http://www.w3.org/2000/svg" xmlns:a-b="http://www.w3.org/2000/svg">'
+    b"<a-b:script>alert(1)</a-b:script></svg>",
+    "entity-scheme": b'<svg xmlns="http://www.w3.org/2000/svg" '
+    b'xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href="&#106;avascript:alert(1)">'
+    b'<rect width="9" height="9"/></a></svg>',
+    "utf16": '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'.encode(
+        "utf-16"
+    ),
+    "prefix-foreign": b'<svg xmlns="http://www.w3.org/2000/svg" xmlns:x_="http://www.w3.org/2000/svg">'
+    b"<x_:foreignObject/></svg>",
+}
+
+INERT_SVG = b'<svg xmlns="http://www.w3.org/2000/svg"><rect width="9" height="9"/></svg>'
+
+
+class TestActiveContentUploads:
+    """Markup a browser would run is refused on a plain FileField unless a project opts in.
+
+    A deny-list of dangerous constructs is one bypass away from stored XSS on the panel's
+    own origin, so the default no longer relies on one: web pages, SVG, XML and scripts
+    are refused outright, by extension or by content.
+    """
+
+    @pytest.mark.parametrize(
+        ("name", "content"),
+        [
+            ("a.html", b"<html><body>hi</body></html>"),
+            ("a.htm", b"<p>hi</p>"),
+            ("a.xhtml", b'<html xmlns="http://www.w3.org/1999/xhtml"></html>'),
+            ("a.xml", b'<x:script xmlns:x="http://www.w3.org/1999/xhtml">1</x:script>'),
+            ("a.js", b"alert(1)"),
+            ("a.svg", INERT_SVG),
+            ("a.txt.html", b"hello"),
+        ],
+    )
+    def test_active_content_is_refused_by_default(self, name, content):
+        from django.core.exceptions import ValidationError
+
+        from vantage.media import validate_file_upload
+
+        with pytest.raises(ValidationError):
+            validate_file_upload(upload(name, content))
+
+    def test_an_ordinary_document_is_still_accepted(self):
+        from vantage.media import validate_file_upload
+
+        validate_file_upload(upload("contract.pdf", b"%PDF-1.7\n%..."))
+        validate_file_upload(upload("notes.txt", b"plain words"))
+
+    def test_an_inert_svg_is_accepted_once_a_project_opts_in(self, settings):
+        from vantage.media import validate_file_upload
+
+        settings.VANTAGE = {"UPLOAD_ACTIVE_SUFFIXES": [".svg"]}
+        validate_file_upload(upload("a.svg", INERT_SVG))
+
+    @pytest.mark.parametrize("key", sorted(EVASIVE_SVGS))
+    def test_an_opted_in_svg_is_still_scanned(self, settings, key):
+        from django.core.exceptions import ValidationError
+
+        from vantage.media import validate_file_upload
+
+        settings.VANTAGE = {"UPLOAD_ACTIVE_SUFFIXES": [".svg"]}
+        with pytest.raises(ValidationError):
+            validate_file_upload(upload("a.svg", EVASIVE_SVGS[key]))
+
+    @pytest.mark.parametrize("key", sorted(EVASIVE_SVGS))
+    def test_a_branding_svg_cannot_evade_the_scan(self, key):
+        from django.core.exceptions import ValidationError
+
+        from vantage.models import validate_branding_upload
+
+        with pytest.raises(ValidationError):
+            validate_branding_upload(upload("logo.svg", EVASIVE_SVGS[key]))
+
+    @pytest.mark.parametrize("key", sorted(EVASIVE_SVGS))
+    def test_the_middleware_cannot_be_evaded_either(self, key):
+        assert security.inspect_upload(upload("logo.svg", EVASIVE_SVGS[key]))
+
+    @pytest.mark.parametrize(
+        ("name", "content"),
+        [
+            ("a.html", b"<html><script>alert(1)</script>"),
+            ("a.xml", b'<x:script xmlns:x="http://www.w3.org/1999/xhtml">alert(1)</x:script>'),
+        ],
+    )
+    def test_the_middleware_refuses_scriptable_markup(self, name, content):
+        assert security.inspect_upload(upload(name, content))
+
+    def test_a_stored_active_file_is_offered_as_a_download(self):
+        from django.core.files.storage import default_storage
+
+        from vantage.media import render_file
+
+        class Stored:
+            name = "attachments/old.svg"
+            url = "/media/attachments/old.svg"
+            storage = default_storage
+
+        html = str(render_file(Stored()))
+        assert "download" in html
+        assert 'target="_blank"' not in html

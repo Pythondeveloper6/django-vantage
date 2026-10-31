@@ -49,7 +49,8 @@ version. Older minors are not backported.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x (pre-release) | ✅ current development line |
+| 0.2.x (pre-release) | ✅ current development line |
+| 0.1.x | ❌ superseded — upgrade to the latest 0.2 release |
 | < 0.1 | ❌ never released |
 
 **The package has not had a stable release yet.** While the version is below `1.0` there
@@ -84,6 +85,11 @@ prevented:
 - CSRF on a state-changing endpoint, or a missing `Cache-Control: no-store` on a
   permission-scoped response;
 - impersonation, read-only mode or the audit log being bypassable or forgeable;
+- a role manager (a non-superuser allowed into the roles screen) granting a permission
+  or lifting a field rule they do not hold, or changing their own access;
+- stored script on the panel's origin through an upload, a URL value or any other
+  user-supplied content;
+- a webhook reaching a private, loopback or link-local address;
 - a denial of service reachable by an ordinary authenticated user — an unbounded query,
   an unbounded import, an unpaginated relation.
 
@@ -103,6 +109,9 @@ prevented:
 - findings from an automated scanner with no demonstrated impact.
 
 ## Hardening notes
+
+The full threat model — assets, actors and trust boundaries — is in the
+[security documentation](docs/security.md#threat-model).
 
 Two settings are worth knowing about before you need them:
 

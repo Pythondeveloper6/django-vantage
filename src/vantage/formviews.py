@@ -453,7 +453,8 @@ class PanelFormView(PanelView):
             return {"node": "tab", "label": node.label, "slug": node.slug, "children": children}
         if isinstance(node, Row):
             return {"node": "row", "children": children}
-        assert isinstance(node, Section)
+        if not isinstance(node, Section):  # pragma: no cover - a new layout node type
+            raise TypeError(f"Unknown layout node: {node!r}")
         return {
             "node": "section",
             "title": node.title,

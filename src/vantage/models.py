@@ -119,7 +119,8 @@ ALLOWED_UPLOAD_SUFFIXES: frozenset[str] = frozenset({".svg", ".png", ".jpg", ".j
 #: 2 MiB. A logo is a logo; anything larger is a mistake or an attempt to fill a disk.
 MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 
-#: Constructs that turn an uploaded SVG into stored XSS. An SVG is served from the
+#: Display names for what :func:`vantage.security.markup_hazard` refuses: the
+#: constructs that turn an uploaded SVG into stored XSS. An SVG is served from the
 #: panel's own origin, so a ``<script>`` inside one runs with the session cookie of
 #: whoever views the page — the logo is on every screen, so that is everyone.
 #:
@@ -127,21 +128,17 @@ MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
 #: understand rather than trying to rewrite them into safety, because a rewriter that
 #: is wrong once is worse than a refusal that is occasionally annoying. Serving media
 #: from a separate origin remains the defence in depth this cannot replace.
-_SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str | Promise], ...] = (
+_HAZARD_LABELS: dict[str, str | Promise] = {
     # Translators: each of these names one thing found inside an uploaded SVG, and is
     # substituted into "That SVG contains %(hazard)s, which would run as script ...".
-    (re.compile(rb"<\s*(?:[a-z0-9]+:)?script\b", re.IGNORECASE), _("a <script> element")),
-    (re.compile(rb"\son[a-z]+\s*=", re.IGNORECASE), _("an inline event handler")),
-    (
-        re.compile(rb"attributeName\s*=\s*[\"']?\s*on", re.IGNORECASE),
-        _("an animation that writes an event handler"),
-    ),
-    (re.compile(rb"javascript\s*:", re.IGNORECASE), _("a javascript: URL")),
-    (
-        re.compile(rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE),
-        _("an embedded document"),
-    ),
-)
+    "a <script> element": _("a <script> element"),
+    "an inline event handler": _("an inline event handler"),
+    "an animation that writes an event handler": _("an animation that writes an event handler"),
+    "a javascript: URL": _("a javascript: URL"),
+    "an embedded data: document": _("an embedded data: document"),
+    "an embedded document": _("an embedded document"),
+    "an entity declaration": _("an entity declaration"),
+}
 
 #: A CSS length the token stylesheet can emit verbatim. Anything else would be
 #: interpolated straight into a ``<style>`` block.
@@ -193,15 +190,19 @@ def validate_branding_upload(value) -> None:
     if isinstance(payload, str):  # pragma: no cover - only a text-mode file object
         payload = payload.encode("utf-8", "replace")
 
-    for pattern, description in _SVG_HAZARDS:
-        if pattern.search(payload):
-            raise ValidationError(
-                _(
-                    "That SVG contains %(hazard)s, which would run as script on every "
-                    "page of the panel. Export it without scripting, or upload a PNG."
-                )
-                % {"hazard": description}
+    # One scanner for all three upload layers; see vantage.security.markup_hazard for
+    # the normalisation that makes it hard to spell a hazard some other way.
+    from vantage.security import markup_hazard
+
+    description = markup_hazard(payload)
+    if description:
+        raise ValidationError(
+            _(
+                "That SVG contains %(hazard)s, which would run as script on every "
+                "page of the panel. Export it without scripting, or upload a PNG."
             )
+            % {"hazard": _HAZARD_LABELS.get(description, description)}
+        )
 
 
 def validate_brand_color(value: str) -> None:

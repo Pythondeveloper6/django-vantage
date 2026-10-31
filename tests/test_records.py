@@ -164,7 +164,10 @@ class TestCopyChildren:
         copy = Post.objects.create(title="Copy", slug="copy", body="b", author=author)
 
         groups = records.duplicate_plan(panel_for(Post), post).children
-        made = records.copy_children(rf.get("/"), post, copy, groups)
+        request = rf.get("/")
+        # Copying children creates child rows, so it is judged against a user.
+        request.user = User.objects.create_superuser("root", "r@example.com", "x")
+        made = records.copy_children(request, post, copy, groups)
 
         assert made == {"comments": 1}
         assert copy.comments.count() == 1
@@ -1003,3 +1006,52 @@ class TestBulkEditIsAudited:
         )
         entry = VantageLogEntry.objects.get(action_name="bulk_edit")
         assert entry.content_type == ContentType.objects.get_for_model(Post)
+
+
+class TestDuplicateChildPermissions:
+    """Copying children is creating rows of the child model, and is judged as that."""
+
+    def _clerk(self, client, *codenames):
+        from django.contrib.auth.models import Permission
+
+        user = User.objects.create_user("clerk", "c@example.com", "x", is_staff=True)
+        for codename in codenames:
+            user.user_permissions.add(
+                Permission.objects.get(codename=codename, content_type__app_label="testapp")
+            )
+        client.force_login(user)
+        return user
+
+    def _post(self, client, author, accessor):
+        url = reverse("vantage:testapp-author-duplicate", args=[author.pk])
+        return client.post(
+            url,
+            {
+                "name": "Copy",
+                "email": "copy@example.com",
+                "is_active": "on",
+                "_copy_children": [accessor],
+            },
+        )
+
+    def test_children_the_user_cannot_add_are_not_copied(self, client, db):
+        from tests.testapp.models import Author, ZCredential
+
+        author = Author.objects.create(name="Ada", email="ada@example.com")
+        ZCredential.objects.create(name="prod", owner=author, api_token="tok-1")
+        self._clerk(client, "view_author", "add_author")
+        self._post(client, author, "credentials")
+        copy = Author.objects.get(email="copy@example.com")
+        assert not ZCredential.objects.filter(owner=copy).exists()
+
+    def test_a_copied_child_never_carries_its_sensitive_values(self, client, db):
+        from tests.testapp.models import Author, ZCredential
+
+        author = Author.objects.create(name="Ada", email="ada@example.com")
+        ZCredential.objects.create(name="prod", owner=author, api_token="tok-1")
+        self._clerk(client, "view_author", "add_author", "view_zcredential", "add_zcredential")
+        self._post(client, author, "credentials")
+        copy = Author.objects.get(email="copy@example.com")
+        clone = ZCredential.objects.get(owner=copy)
+        assert clone.name == "prod"
+        assert clone.api_token != "tok-1"

@@ -120,6 +120,9 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMIT_CACHE": None,
     "RATE_LIMITS": None,
     "UPLOAD_MAX_BYTES": None,
+    # Extensions of active content (web pages, SVG, XML, scripts) a plain FileField
+    # may accept, e.g. [".svg"]. Empty: all refused. An opted-in file is still scanned.
+    "UPLOAD_ACTIVE_SUFFIXES": (),
     # ── two-factor sign-in ──────────────────────────────────────────────────
     # Offered to everyone from the account page. False removes the feature: no
     # enrolment, no second step, and any codes already set up stop being asked for.

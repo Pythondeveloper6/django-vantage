@@ -232,7 +232,8 @@ def render_slot(name: str, context: Any = None, **extra: Any) -> SafeString:
         if rendered:
             parts.append(rendered)
 
-    return mark_safe("".join(parts))
+    # Every part is escaped above or a template's own autoescaped output.
+    return mark_safe("".join(parts))  # noqa: S308
 
 
 def is_filled(name: str, context: Any = None) -> bool:
@@ -282,7 +283,7 @@ def _render_one(contribution: Contribution, data: dict, request) -> str:
     if contribution.template:
         # Not escaped: a template escaped its own variables on the way through, and
         # escaping the result again would render the fragment's own markup as text.
-        return mark_safe(render_to_string(contribution.template, data, request=request))
+        return mark_safe(render_to_string(contribution.template, data, request=request))  # noqa: S308
 
     result = contribution.render(data)  # type: ignore[misc]
     if result is None:
