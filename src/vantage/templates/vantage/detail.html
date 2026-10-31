@@ -1,5 +1,7 @@
 {% extends "vantage/base.html" %}
-{% load vantage vantage_slots i18n %}
+{% load static vantage vantage_slots i18n %}
+
+{% block head %}{% if approval_banner.pending %}<link rel="stylesheet" href="{% static 'vantage/vantage-approvals.css' %}">{% endif %}{% endblock %}
 
 {% block content %}
 <div class="v-page-head">
@@ -20,6 +22,8 @@
     {% slot "object_actions" %}
   </div>
 </div>
+
+{% include "vantage/partials/approval_banner.html" %}
 
 <div class="v-detail">
   <section class="v-card">

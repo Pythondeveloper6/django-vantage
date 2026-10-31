@@ -1421,3 +1421,36 @@ class TestTheTenantModelScopesToItself:
         body = client_as(user).get(list_url(TntOrg)).content.decode()
         assert org_a.slug in body
         assert org_b.slug not in body
+
+
+class TestRestoreAllTenantsSnapshot:
+    """A job snapshotted as "all tenants" only resumes that way for someone who still is.
+
+    The live resolver answering nothing is ambiguous in a worker: either it cannot see
+    a host or header there, or the actor has since lost their tenant. Widening the
+    second case to every tenant is the wrong way to fail.
+    """
+
+    def _request(self, user):
+        from vantage.jobs import JobRequest
+
+        return JobRequest(user=user)
+
+    def test_a_demoted_operator_is_refused(self, settings, orgs):
+        settings.VANTAGE = {
+            "TENANT_MODEL": "testapp.TntOrg",
+            "TENANT_RESOLVER": "tests.test_tenancy.UsernamePkResolver",
+        }
+        user = User.objects.create_user("nobody-in-particular", is_staff=True)
+        with pytest.raises(TenantMismatch):
+            tenancy.restore(self._request(user), "*")
+
+    def test_a_superuser_still_resumes_across_tenants(self, settings, orgs):
+        settings.VANTAGE = {
+            "TENANT_MODEL": "testapp.TntOrg",
+            "TENANT_RESOLVER": "tests.test_tenancy.UsernamePkResolver",
+        }
+        user = User.objects.create_superuser("root-op", "r@example.com", "x")
+        request = self._request(user)
+        tenancy.restore(request, "*")
+        assert current(request) is ALL_TENANTS

@@ -177,6 +177,13 @@
           });
       })
       .then(function (result) {
+        if (result.status === 200 && result.body && result.body.ok && result.body.pending) {
+          // Saved as a request, not as a move: the card goes home, and the note on it
+          // says the change is waiting for approval.
+          card.setAttribute("data-version", result.body.version || "");
+          undo(result.body.detail || gettext("The move was sent for approval."));
+          return;
+        }
         if (result.status === 200 && result.body && result.body.ok) {
           card.removeAttribute("data-busy");
           card.setAttribute("data-version", result.body.version || "");

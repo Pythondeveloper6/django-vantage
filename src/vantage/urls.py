@@ -11,23 +11,31 @@ from django.views.decorators.cache import cache_page
 from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
+    accessviews,
     api,
+    approvalviews,
     auditviews,
     autocomplete,
     formviews,
+    historyviews,
     importviews,
     inline,
     jobviews,
     listprefsview,
     listviews,
     recordviews,
+    reportviews,
     revealviews,
     rolesviews,
     savedviews,
     settingsview,
     topbarviews,
+    twofactor,
+    twofactorviews,
     views,
+    webhookviews,
 )
+from vantage.metrics import MetricsView
 from vantage.palette import build_urls
 
 
@@ -68,14 +76,28 @@ def build(site) -> list:
             name="impersonate",
         ),
         path("_/undo/", views.UndoView.as_view(site=site), name="undo"),
+        path("_/metrics/", MetricsView.as_view(site=site), name="metrics"),
     ]
 
     # The account page and the top-bar arrangement screen. Before the page loop for
     # the same reason as the block above: both live under the reserved "_/" prefix.
     urlpatterns += topbarviews.build_urls(site)
+    # Two-factor set-up and the second step for sessions signed in elsewhere. Under
+    # "_/account/", so before the page loop for the same reason.
+    urlpatterns += twofactorviews.build_urls(site)
 
     # The roles screens hang off the roles page's path, and only exist while it does.
     urlpatterns += rolesviews.build_urls(site)
+    # The access review download and the break-glass screens, under their pages' paths.
+    urlpatterns += accessviews.build_urls(site)
+
+    # Likewise the webhook screens, which hang off the webhooks page's path.
+    urlpatterns += webhookviews.build_urls(site)
+    # And the review screen for one change request, under the approvals page.
+    urlpatterns += approvalviews.build_urls(site)
+
+    # Scheduled reports: subscribe, edit, pause, send and the unsubscribe link.
+    urlpatterns += reportviews.build_urls(site)
 
     # Custom pages come before model routes so a page may deliberately claim a path
     # that would otherwise look like an app prefix.
@@ -100,6 +122,8 @@ def build(site) -> list:
     urlpatterns.extend(listviews.build_urls(site))
     # Same again: 'reveal/<field>' and 'set-password' are record-route suffixes.
     urlpatterns.extend(revealviews.build_urls(site))
+    # And 'history' for a record's timeline and point-in-time restore.
+    urlpatterns.extend(historyviews.build_urls(site))
 
     for panel in site.panels():
         opts = panel.opts
@@ -165,4 +189,6 @@ def build(site) -> list:
     # panel, so where it is appended relative to the per-panel loop above does not
     # matter the way the "_prefs"/"_inline" routes' ordering does - see api.build_urls.
     urlpatterns += api.build_urls(site)
-    return urlpatterns
+    # Last, and over everything: every route above, and any a later change adds, is
+    # behind the two-factor gate unless its view says otherwise. See vantage.twofactor.
+    return twofactor.guard_patterns(urlpatterns)

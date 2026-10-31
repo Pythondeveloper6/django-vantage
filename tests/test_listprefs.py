@@ -23,6 +23,7 @@ from django.db import connection
 from django.db.models import Count, Sum
 from django.test import RequestFactory, override_settings
 
+from tests.conftest import sqlite_only
 from tests.testapp.models import Author, Order
 from vantage import listprefs
 from vantage.conf import DEFAULTS
@@ -907,6 +908,7 @@ class TestOrdering:
 # ── the properties copied from siteconfig ───────────────────────────────────
 
 
+@sqlite_only
 class TestDatabaseUnavailable:
     def test_a_missing_table_falls_through_to_the_code(self, panel, rf, person):
         """``migrate`` on an empty database renders nothing, but ``check`` and a
@@ -943,14 +945,16 @@ class TestCaching:
     def test_both_rows_are_read_in_one_query(self, panel, rf, person, django_assert_num_queries):
         write(panel, None, columns=["status"])
         write(panel, person, per_page=5)
-        with django_assert_num_queries(1):
+        # Two: both preference rows, and the person's field permissions (read once per
+        # request, for every page, since a column hidden from them is not a candidate).
+        with django_assert_num_queries(2):
             listprefs.resolve(panel, get_request(rf, person))
 
     def test_a_second_ask_on_the_same_request_is_free(
         self, panel, rf, person, django_assert_num_queries
     ):
         request = get_request(rf, person)
-        with django_assert_num_queries(1):
+        with django_assert_num_queries(2):  # the rows, and field permissions; see above
             listprefs.resolve(panel, request)
             listprefs.resolve(panel, request)
             listprefs.override(panel, request, "list_display")

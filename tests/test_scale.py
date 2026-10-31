@@ -17,6 +17,7 @@ from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from tests.conftest import sqlite_only
 from tests.testapp.models import LedgerEntry, Post, Ticket
 from vantage import conf, scale
 from vantage.permissions import PanelPermissions
@@ -257,6 +258,7 @@ class TestCappedCount:
 # ── the vendor guard ────────────────────────────────────────────────────────
 
 
+@sqlite_only
 class TestEstimatesAreSkippedOffPostgres:
     def test_sqlite_declares_itself_incapable(self):
         assert supports_estimates() is False
@@ -468,6 +470,7 @@ class TestCoversWholeTable:
 # ── the statement timeout ───────────────────────────────────────────────────
 
 
+@sqlite_only
 class TestStatementTimeout:
     def test_it_is_a_no_op_off_postgres(self, db, django_assert_num_queries):
         with django_assert_num_queries(0), statement_timeout(5000):

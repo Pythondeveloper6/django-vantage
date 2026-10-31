@@ -613,6 +613,7 @@ textarea {
 .v-btn svg {
   inline-size: 1rem;
   block-size: 1rem;
+  flex: none; /* a flex item's min-width is 0: in a squeezed cell the icon collapsed to nothing */
 }
 
 .v-btn:disabled {
@@ -761,6 +762,25 @@ textarea {
   border-block-end: 1px solid var(--border);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A table whose cells hold sentences and buttons rather than one-line values: the
+ * columns size to their content and the text wraps instead of being cut off. */
+.v-table-flow {
+  table-layout: auto;
+}
+
+.v-table-flow th,
+.v-table-flow td {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.v-table-flow .v-cell-actions {
+  inline-size: 1%;
   white-space: nowrap;
 }
 
@@ -1869,6 +1889,9 @@ textarea {
 
 .v-action-bar-spacer { margin-inline-start: auto; }
 
+/* The dismiss button of the phone sheet (vantage-mobile.css shows it there). */
+.v-action-close { display: none; }
+
 .v-action-count {
   font-weight: 550;
   font-variant-numeric: tabular-nums;
@@ -2105,6 +2128,28 @@ textarea {
 .v-readonly-banner svg {
   inline-size: 0.875rem;
   block-size: 0.875rem;
+}
+
+/* ── note: one line of explanation above a table or form ──────────────────────
+ * The icon is sized here, once. An svg with no width is 100% of its container wide. */
+
+.v-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.v-note[data-tone="warning"] {
+  color: var(--warning);
+}
+
+.v-note svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex: none;
 }
 
 /* ── health page ──────────────────────────────────────────────────────────── */
@@ -2746,3 +2791,29 @@ a.v-file-chip:focus-visible {
 .v-health-dot[data-status="info"] { background: var(--muted-foreground); }
 .v-page-head ~ .v-card + .v-card { margin-block-start: 1rem; }
 .v-page-head ~ .v-dq-note { margin-block-end: 1rem; }
+
+/* ── image lightbox (vantage-lightbox.js) ─────────────────────────────────── */
+.v-lightbox {
+  max-width: min(92vw, 1200px);
+  max-height: 92vh;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+}
+.v-lightbox::backdrop { background: oklch(0 0 0 / 0.7); }
+.v-lightbox figure { margin: 0; display: grid; gap: 0.5rem; justify-items: center; }
+.v-lightbox img { max-width: 100%; max-height: calc(92vh - 5rem); object-fit: contain; }
+.v-lightbox figcaption { font-size: 0.875rem; }
+.v-lightbox-close {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  inset-inline-end: 0.5rem;
+  border: 0;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}

@@ -221,6 +221,11 @@ column is averaged, and an identifier is left alone. Details:
 | `inlines` | `list[type[Inline]]` | `None` | Child records editable on the parent's own form — see [Editable inlines](forms.md#editable-inlines) |
 | `related_tabs` | `bool \| None` | `None` | Group the detail page's related-record blocks into a tab strip. `None` decides by count (two or more); `True`/`False` assert it either way — see [The record page](forms.md#the-record-page) |
 | `sensitive_fields` | `list[str]` | inferred | Fields masked on every surface, revealable one at a time. A list replaces inference; `[]` switches masking off — see [Sensitive fields](sensitive-fields.md) |
+| `field_permissions` | `dict[str, dict[str, str]]` | `None` | Per role, fields that are `"hidden"` or `"readonly"`: `{"Support": {"price": "readonly"}}`. Added to the rules the roles matrix stores — see [Field permissions](field-permissions.md) |
+| `read_only` | `bool \| None` | `None` | Refuse add, delete and field changes for everyone; `None` follows `UNMANAGED_READ_ONLY` for unmanaged models — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
+| `editable_fields` | `list[str]` | `None` | With `read_only`, the fields that stay changeable on existing rows |
+| `formfield_overrides` | `dict[type[Field], dict]` | `None` | Form-field arguments per model field class, with `django.contrib.admin`'s semantics: `{models.TextField: {"widget": MyEditor}}` — see [Overriding a widget](forms.md#overriding-a-widget) |
+| `widgets` | `dict[str, Widget]` | `None` | A widget per field name, winning over `formfield_overrides`: `{"body": MyEditor}` |
 
 `readonly_fields` is a security boundary rather than a UI affordance. A readonly field
 is not rendered as a control **and** is not in the form's field list, so a hand-crafted
@@ -246,6 +251,8 @@ Details: [Forms](forms.md).
 | `actions` | `list[str \| Action]` | `None` | Bulk actions offered on the list page |
 | `row_actions` | `list[str]` | `None` | Which actions appear in the menu on each list row — see below |
 | `undo` | `bool \| None` | `None` | Whether deletes and edits offer **Undo** in their toast. `None` follows `UNDO_WINDOW`; `False` turns it off for this model — see [Undo](undo.md) |
+| `history` | `bool \| "view" \| None` | `None` | The record's [History](history.md) page and restoring from it. `None` follows `AUDIT_LOG`; `"view"` keeps the page without restore; `False` removes it |
+| `requires_approval` | `list[str]` | `None` | Fields whose changes wait for someone with `<app>.approve_<model>` before they are saved; the rest of an edit saves as usual — see [Approvals](approvals.md) |
 | `checks_class` | `type` | `ModelPanelChecks` | Subclass it to extend validation for your own panel base class |
 
 When `actions` is left unset, every method on the panel decorated with `@action` is
@@ -338,6 +345,7 @@ one takes `request`, so the answer can depend on who is asking.
 | `get_trash_queryset(request)` | `QuerySet` | Soft-deleted rows, or an empty queryset |
 | `get_sensitive_fields()` | `frozenset[str]` | The masked field names — `sensitive_fields`, or inference |
 | `can_reveal(request, obj, field_name)` | `bool` | Whether this request may reveal one value. Default: superusers and `vantage.reveal_sensitive` — see [Revealing a value](sensitive-fields.md#revealing-a-value) |
+| `get_requires_approval()` | `tuple[str, ...]` | `requires_approval`, minus any entry a check reports (E106–E108) |
 
 `get_list_queryset` derives its optimisation from what the page actually renders — every
 column and every search path — so a column added to `list_display` cannot reintroduce
@@ -476,8 +484,23 @@ defaults are skipped.
 | `vantage.E078` | `kanban_fields` is not a list, or names a field a board cannot be grouped by |
 | `vantage.E079` | `calendar_fields` is not a list, or names something that is not a date |
 | `vantage.E077` | `undo` is set to something other than `True`, `False` or `None` |
+| `vantage.E091` | `history` is set to something other than `True`, `False`, `"view"` or `None` |
+| `vantage.E092` | `history = True` while `VANTAGE["AUDIT_LOG"]` is off |
 | `vantage.E090` | `sensitive_fields` is not a list, or names something that is not a field or attribute |
 | `vantage.W090` | `list_search`/`search_fields`, `list_filter` or `ordering` explicitly names a [sensitive field](sensitive-fields.md); it is dropped at request time |
+| `vantage.E105` | `requires_approval` is not a list of field names |
+| `vantage.E106` | `requires_approval` names something that is not a field of the model |
+| `vantage.E107` | `requires_approval` names a field the panel's form does not let anyone edit (not editable, readonly, excluded or left out of `fields`) |
+| `vantage.E108` | `requires_approval` names a many-to-many, a reverse relation or a file field, which cannot be held back |
+| `vantage.E110` | `field_permissions` is not a dict of role name to rules |
+| `vantage.E111` | A `field_permissions` entry does not map a role name to a dict of field name to level |
+| `vantage.E112` | `field_permissions` names something that is not a field of the model |
+| `vantage.E113` | `field_permissions` sets a level other than `"hidden"` or `"readonly"` |
+| `vantage.E114` | `field_permissions` restricts the primary key |
+| `vantage.E122` | `read_only` is not `True`, `False` or `None` |
+| `vantage.E123` | `editable_fields` is not a list, or names something that is not an editable field |
+| `vantage.E120` | `formfield_overrides` is not a dict of model field class to a dict of form field arguments |
+| `vantage.E121` | `widgets` is not a dict, names something that is not a field, or maps one to something that is not a form widget |
 
 `vantage.E020` is also issued from an unrelated place, `nav.py`, for a malformed
 [`NAV`](settings.md#navigation) entry — the same numeric id covers two different

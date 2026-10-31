@@ -69,7 +69,26 @@ DEFAULTS: dict[str, Any] = {
     # it; whoever is let in can still only grant permissions they hold themselves.
     # Code-only for the same reason as SETTINGS_PERMISSION: editable, it is a self-grant.
     "ROLES_PERMISSION": None,
+    # Who may open the access review report (who can see and change what). None means
+    # superusers only; a permission string or a callable taking the request widens it.
+    # Code-only: the report names every account that holds the keys to the panel.
+    "ACCESS_REVIEW_PERMISSION": None,
+    # Who may grant time-boxed elevated access ("break glass"). None means superusers
+    # only; a permission string or a callable taking the request widens it, and whoever
+    # is let in can only grant permissions they hold themselves. Code-only, like
+    # ROLES_PERMISSION: editable, it would be a self-grant.
+    "BREAK_GLASS_PERMISSION": None,
+    # Whether someone allowed to grant may activate their *own* request. False keeps
+    # the two-person rule: another authorised person approves every elevation.
+    "BREAK_GLASS_SELF_SERVICE": False,
+    # The longest one grant may last, in minutes. Every grant is capped to it.
+    "BREAK_GLASS_MAX_MINUTES": 60,
     "READ_ONLY": False,
+    # Whether a model with ``Meta.managed = False`` — a table Django did not create and
+    # does not migrate — is read-only in the panel unless its panel says otherwise
+    # (``ModelPanel.read_only``). Off by default for compatibility; recommended on for
+    # a panel over a database another system owns.
+    "UNMANAGED_READ_ONLY": False,
     "ENVIRONMENT": None,
     # ── multi-tenancy ───────────────────────────────────────────────────────
     # Off until TENANT_MODEL names a model, at which point every registered model must
@@ -115,6 +134,23 @@ DEFAULTS: dict[str, Any] = {
     "RATE_LIMIT_CACHE": None,
     "RATE_LIMITS": None,
     "UPLOAD_MAX_BYTES": None,
+    # Extensions of active content (web pages, SVG, XML, scripts) a plain FileField
+    # may accept, e.g. [".svg"]. Empty: all refused. An opted-in file is still scanned.
+    "UPLOAD_ACTIVE_SUFFIXES": (),
+    # ── two-factor sign-in ──────────────────────────────────────────────────
+    # Offered to everyone from the account page. False removes the feature: no
+    # enrolment, no second step, and any codes already set up stop being asked for.
+    "TWO_FACTOR": True,
+    # Who may not use the panel without it. Code-only, like the permission settings:
+    # a requirement the people it binds could switch off is not a requirement.
+    "TWO_FACTOR_REQUIRED_SUPERUSERS": False,
+    # Role (auth.Group) names whose members must use it, e.g. ["Finance"].
+    "TWO_FACTOR_REQUIRED_ROLES": [],
+    # The name an authenticator app files the code under. None means SITE_TITLE.
+    "TWO_FACTOR_ISSUER": None,
+    # Wrong codes in a row before the account's second step locks, and for how long.
+    "TWO_FACTOR_MAX_ATTEMPTS": 5,
+    "TWO_FACTOR_LOCKOUT_SECONDS": 300,
     "DEFAULT_PER_PAGE": 50,
     # ── list views ──────────────────────────────────────────────────────────
     # A raster tile URL template for the map view, e.g.
@@ -159,6 +195,36 @@ DEFAULTS: dict[str, Any] = {
     "JOB_RETENTION_DAYS": 30,
     # Queue name for django.tasks / RQ. Celery uses its own routing.
     "JOB_QUEUE": "default",
+    # ── webhooks ────────────────────────────────────────────────────────────
+    # Off, no hook fires and the page is hidden. Existing rows are kept.
+    "WEBHOOKS": True,
+    # Webhooks refuse to call loopback, private, link-local and other non-public
+    # addresses, checked against what the host name resolves to at send time. True
+    # lifts that, for a receiver on your own network. Code-only: editable from the
+    # panel, it would be a way for a webhook manager to reach your internal services.
+    "WEBHOOKS_ALLOW_PRIVATE_NETWORKS": False,
+    # Seconds one delivery may wait on the receiver, per socket operation.
+    "WEBHOOKS_TIMEOUT": 5,
+    # Attempts before a delivery is marked failed, the first one included.
+    "WEBHOOKS_MAX_ATTEMPTS": 6,
+    # Seconds before the first retry; each later wait doubles it (capped at a day).
+    "WEBHOOKS_BACKOFF_SECONDS": 30,
+    # Finished deliveries older than this are removed by `manage.py vantage_webhooks`.
+    "WEBHOOKS_RETENTION_DAYS": 30,
+    # ── scheduled reports ───────────────────────────────────────────────────
+    # Off, nothing is sent and the pages and the Subscribe control are hidden.
+    # Existing subscriptions are kept.
+    "REPORTS": True,
+    # Largest CSV attached to an email, in megabytes of file. A bigger report is sent
+    # as a short note saying so, with no attachment.
+    "REPORTS_MAX_ATTACHMENT_MB": 10,
+    # Subscriptions one person may hold.
+    "REPORTS_MAX_PER_USER": 25,
+    # Finished sends older than this are removed by `manage.py vantage_reports`.
+    "REPORTS_RETENTION_DAYS": 90,
+    # Where links in report emails point, e.g. "https://panel.example.com". Empty uses
+    # the address the subscription was made from.
+    "REPORTS_BASE_URL": "",
     # ── undo ────────────────────────────────────────────────────────────────
     # Seconds the "Undo" button on a delete or edit toast stays redeemable. 0 turns
     # undo off everywhere; ModelPanel.undo = False turns it off for one model.
@@ -170,6 +236,23 @@ DEFAULTS: dict[str, Any] = {
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
     "DATA_QUALITY": {},
+    # ── observability ───────────────────────────────────────────────────────
+    # The Prometheus endpoint at _/metrics/. Off, it is a 404.
+    "METRICS": False,
+    # Bearer token a scraper sends. None means superusers signed in to the panel only.
+    # Code-only: it is a credential.
+    "METRICS_TOKEN": None,
+    # Panel requests slower than this are logged to "vantage.requests" (needs
+    # vantage.metrics.SlowRequestMiddleware). 0 disables the log line.
+    "SLOW_REQUEST_MS": 1000,
+    # ── notifications ───────────────────────────────────────────────────────
+    # {"channel name": {"type": "slack"|"teams"|"email", "url": ..., "to": ...,
+    # "events": [...]}}. Code-only: the URLs are credentials. See vantage.notifications.
+    "NOTIFICATIONS": {},
+    # ── single sign-on ──────────────────────────────────────────────────────
+    # Identity-provider groups to roles. A dict of the keys in
+    # vantage.identity.ROLE_MAPPING_DEFAULTS; empty means no mapping.
+    "ROLE_MAPPING": {},
 }
 
 #: The data quality page's own settings, nested under ``VANTAGE["DATA_QUALITY"]`` so
@@ -214,6 +297,8 @@ CHOICES: dict[str, tuple[str, ...]] = {
 MINIMUMS: dict[str, int] = {
     "UNDO_WINDOW": 0,
     "UNDO_MAX_ROWS": 1,
+    "TWO_FACTOR_MAX_ATTEMPTS": 1,
+    "TWO_FACTOR_LOCKOUT_SECONDS": 1,
 }
 
 
@@ -239,6 +324,7 @@ class VantageSettings:
         if not isinstance(user, dict):
             raise ImproperlyConfigured(f"VANTAGE must be a dict, got {type(user).__name__}.")
 
+        user = _translate_deprecated(user)
         unknown = set(user) - set(DEFAULTS)
         if unknown:
             raise ImproperlyConfigured(_unknown_key_message(sorted(unknown)))
@@ -275,9 +361,18 @@ class VantageSettings:
                 )
 
         _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
+        problem = two_factor_problem(user)
+        if problem:
+            raise ImproperlyConfigured(problem)
 
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
+        from vantage.identity import resolve_role_mapping
+
+        resolved["ROLE_MAPPING"] = resolve_role_mapping(resolved["ROLE_MAPPING"])
+        from vantage.notifications import resolve_channels
+
+        resolved["NOTIFICATIONS"] = resolve_channels(resolved["NOTIFICATIONS"])
 
         # The database layer goes *under* attribute access rather than beside it, so
         # every existing ``vantage_settings.X`` picks up a UI override without knowing
@@ -318,6 +413,28 @@ class VantageSettings:
         self._cache = None
 
 
+def _translate_deprecated(user: dict[str, Any]) -> dict[str, Any]:
+    """Warn about deprecated keys, and carry a renamed key's value to its new name.
+
+    Runs before the unknown-key check, so a key that was renamed keeps working for the
+    whole deprecation period instead of becoming a typo the day it is renamed. Where
+    both names are set the new one wins: it is the one the owner wrote on purpose.
+    """
+    from vantage.deprecation import DEPRECATED_SETTINGS, warn_deprecated
+
+    used = [key for key in user if key in DEPRECATED_SETTINGS]
+    if not used:
+        return user
+    user = dict(user)
+    for key in used:
+        deprecation = DEPRECATED_SETTINGS[key]
+        warn_deprecated(deprecation, "The VANTAGE setting", stacklevel=5)
+        if deprecation.replacement and key not in DEFAULTS:
+            value = user.pop(key)
+            user.setdefault(deprecation.replacement, value)
+    return user
+
+
 def _resolve_data_quality(value: Any) -> dict[str, Any]:
     """Merge ``VANTAGE["DATA_QUALITY"]`` over its defaults, rejecting unknown keys."""
     if value is None:
@@ -355,6 +472,35 @@ def _validate_sensitive_patterns(value: Any) -> None:
             "VANTAGE['SENSITIVE_PATTERNS'] must be a list of field-name words, optionally "
             f'including "..." to keep the built-in ones; got {value!r}.'
         )
+
+
+def two_factor_problem(user: dict) -> str | None:
+    """What is wrong with the two-factor requirement settings, or ``None``.
+
+    Shared with the system check, so ``manage.py check`` and the first page render
+    say the same thing. Strict for the same reason as ``SENSITIVE_PATTERNS``: a bare
+    string here would be iterated a letter at a time, and a requirement that silently
+    matched no role is a requirement that silently does not exist.
+    """
+    superusers = user.get("TWO_FACTOR_REQUIRED_SUPERUSERS", False)
+    if not isinstance(superusers, bool):
+        return (
+            f"VANTAGE['TWO_FACTOR_REQUIRED_SUPERUSERS'] must be True or False; got {superusers!r}."
+        )
+    roles = user.get("TWO_FACTOR_REQUIRED_ROLES", [])
+    if not isinstance(roles, list | tuple) or any(
+        not (isinstance(role, str) and role.strip()) for role in roles
+    ):
+        return f"VANTAGE['TWO_FACTOR_REQUIRED_ROLES'] must be a list of role names; got {roles!r}."
+    issuer = user.get("TWO_FACTOR_ISSUER")
+    if issuer is not None and (not isinstance(issuer, str) or not issuer.strip() or ":" in issuer):
+        # The colon is the separator between issuer and account in an otpauth:// label;
+        # an issuer containing one is filed by some apps under the wrong name.
+        return (
+            "VANTAGE['TWO_FACTOR_ISSUER'] must be a non-empty name without a colon, or "
+            f"None; got {issuer!r}."
+        )
+    return None
 
 
 def _unknown_key_message(unknown: list[str]) -> str:

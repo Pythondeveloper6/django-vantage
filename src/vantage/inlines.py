@@ -395,6 +395,9 @@ class BoundInline:
     #: ``(instance, pk)`` for every row :func:`save` destroyed, captured before the pk was
     #: blanked so :func:`log` can still name them.
     deleted: list[tuple[Any, Any]] = dataclass_field(default_factory=list)
+    #: ``(child, panel, change_request)`` for every guarded child field :func:`save` held
+    #: back, announced by :func:`log` once the transaction has committed.
+    held: list[tuple[Any, Any, Any]] = dataclass_field(default_factory=list)
 
     @property
     def prefix(self) -> str:
@@ -474,7 +477,13 @@ def _bind_one(inline: Inline, parent_model, request, instance, data, files):
     may_delete = may_change and inline.can_delete and inline.allows(request, "delete")
     readonly = not may_change
 
-    names = inline.get_fields(parent_model)
+    from vantage import fieldperms
+
+    # The child model's own field rules: a hidden field is no column, and a read-only
+    # one is a disabled field, which Django fills from the stored value whatever the
+    # POST says — the same server-side refusal as leaving it out, kept on the page.
+    rules = fieldperms.access(request, inline.model)
+    names = [name for name in inline.get_fields(parent_model) if name not in rules.hidden]
     formset_class = _formset_class(
         inline,
         parent_model,
@@ -489,7 +498,13 @@ def _bind_one(inline: Inline, parent_model, request, instance, data, files):
         data=None if readonly else data,
         files=None if readonly else files,
         instance=instance,
-        queryset=inline.get_queryset(request, parent_model),
+        # Scoped exactly as the child model's own list would be — row permissions and,
+        # through them, the tenant. Unscoped, a parent's form would show and accept
+        # edits to children the user cannot open on their own page; scoped, a posted
+        # id outside it is an unknown row the formset rejects.
+        queryset=get_permissions().filter_queryset(
+            request, inline.get_queryset(request, parent_model), "view"
+        ),
     )
 
     # Built once and reused. ``BaseFormSet.empty_form`` is a property that constructs a
@@ -499,6 +514,11 @@ def _bind_one(inline: Inline, parent_model, request, instance, data, files):
     empty_form = formset.empty_form
 
     _share_choices([*formset.forms, empty_form])
+    if rules.readonly:
+        for child_form in [*formset.forms, empty_form]:
+            for name in rules.readonly:
+                if name in child_form.fields:
+                    child_form.fields[name].disabled = True
     if readonly:
         _disable(formset)
 
@@ -675,6 +695,9 @@ def save(request, parent, groups: list[BoundInline]) -> None:
     actually being written, never once per row rendered — and it short-circuits to the
     model-level answer entirely when no backend can answer an object-level question.
     """
+    from vantage import approvals
+    from vantage.tenancy import enforce as enforce_tenant
+
     for group in groups:
         if group.readonly:
             continue
@@ -689,11 +712,24 @@ def save(request, parent, groups: list[BoundInline]) -> None:
         # New rows are collected before the deletions so an ``add`` that a permission
         # refuses aborts before anything has been destroyed.
         instances = formset.save(commit=False)
+        forms_by_instance = {id(form.instance): form for form in formset.forms}
+        child_panel = _child_panel(group.inline.model)
 
         for obj in instances:
             action = "change" if obj.pk else "add"
             if not group.inline.allows(request, action, obj):
                 raise _denied(group, action)
+            form = forms_by_instance.get(id(obj))
+            if child_panel is not None and form is not None:
+                # The child's own ``requires_approval``: this formset is one more way to
+                # write the child model, so a guarded field is held here exactly as it
+                # is on the child's edit page.
+                held = approvals.withhold(request, child_panel, obj, form)
+                if held is not None:
+                    group.held.append((obj, child_panel, held))
+            # Stamps the tenant on a new child and refuses one pointed at another
+            # tenant. A no-op unless tenancy is on.
+            enforce_tenant(request, obj)
             obj.save()
         formset.save_m2m()
 
@@ -711,6 +747,13 @@ def save(request, parent, groups: list[BoundInline]) -> None:
             # written by :func:`log`, after this transaction commits.
             group.deleted.append((obj, obj.pk))
             obj.delete()
+
+
+def _child_panel(model):
+    """The registered panel for an inline's model, or ``None`` if it has none."""
+    from vantage.sites import site
+
+    return site.get_panel(model) if site.is_registered(model) else None
 
 
 def _denied(group: BoundInline, action: str):
@@ -744,3 +787,10 @@ def log(request, groups: list[BoundInline]) -> None:
             # rather than a ``None``.
             obj.pk = pk
             audit.log_delete(request, obj)
+        for obj, panel, change_request in group.held:
+            from django.contrib import messages
+
+            from vantage import approvals
+
+            approvals.announce(request, obj, change_request)
+            messages.warning(request, approvals.pending_message(panel, change_request))

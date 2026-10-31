@@ -59,6 +59,14 @@ can run in the background. [Bulk actions](lists.md#bulk-actions)
 **Undo.** Deletes, bulk edits and inline edits show a toast with an **Undo** button for a
 few seconds. Nothing is ever restored over somebody else's newer change. [Undo](undo.md)
 
+**History.** See any record as it was on a given date, replayed from the audit log, and
+restore some or all of its fields. Fields the log cannot vouch for are labelled, never
+guessed. [History](history.md)
+
+**Approvals.** `requires_approval = ["price", "status"]` makes a change to those fields
+wait for someone with permission to approve it; the rest of the edit saves as usual.
+A request is never applied over a newer value. [Approvals](approvals.md)
+
 **Export and import.** CSV, TSV and JSON export of exactly what you are looking at, and a
 CSV import wizard that maps, previews and validates before writing anything.
 [Export](lists.md#export) · [Import](lists.md#import)
@@ -138,6 +146,9 @@ Logo, title and theme can also be set from the settings screen. [Theming](themin
 **Theme presets.** Pick a whole look — `vantage`, `shadcn`, `slate`, `rose` and more — in
 one line, and let each person choose their own from the account page.
 [UI theme presets](ui-themes.md)
+
+**A layout for phones.** Lists become cards, bulk actions a bottom sheet, navigation a
+drawer. [Phones](phones.md)
 
 **Light, dark and system.** With no flash on load. [Light, dark and system](theming.md#light-dark-and-system)
 

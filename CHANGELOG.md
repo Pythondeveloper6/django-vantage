@@ -11,6 +11,290 @@ word *breaking*, so the log is useful either way.
 
 ## [Unreleased]
 
+The whole roadmap: seven features, each built on its own branch and merged into the
+release branch, then a security review and a visual check of the result, with every
+finding fixed. On top of that, production-readiness work: an API stability policy and
+upgrade checker, access review and break-glass access, single sign-on role mapping,
+read-only legacy tables, notifications, metrics, a fuller JSON API with OpenAPI,
+adoption tooling, complete Arabic catalogues, database CI and a second security review.
+Six migrations were added (`0016`–`0021`), so run `migrate` after upgrading
+(`manage.py vantage_upgrade_check --from 0.2.0a2` lists everything).
+
+### Known limitations
+
+- **Only changes made through the panel count.** History, approvals and webhooks see
+  what the panel saves; the shell, scripts, signals and the project's own views are not
+  seen.
+- **Two-factor sign-in covers the panel.** Django's admin is held to it only when
+  `vantage.twofactor.AdminTwoFactorMiddleware` is installed (`check --deploy` warns,
+  `vantage.W095`), and other login views not at all. One authenticator per person,
+  TOTP only.
+- **Webhooks are global.** A hook receives every model's changes across all tenants, so
+  treat `vantage.manage_webhooks` as superuser-equivalent in a multi-tenant project.
+  Delivery is at least once and unordered, and the signing secret is stored as is, since
+  a signature is computed from it.
+- **Field permissions do not reach panel author code**: method columns, custom
+  templates, slots, callable stats and `save_model`. A `__str__` that prints a hidden
+  value is replaced only in autocomplete, global search and API labels.
+- **Approvals are not offered on bulk edit**, which refuses a guarded field instead, and
+  creating a record is never held. A custom action is kept from non-approvers only when
+  it lists the field in `undo_fields`.
+- **History cannot reconstruct** foreign keys, files, binary or sensitive fields, and a
+  field a bulk action may have touched since is shown but not restorable.
+- **Scheduled reports are CSV only**, with no per-recipient unsubscribe.
+- **The phone layout** covers lists, forms, detail pages and the new screens; the board,
+  calendar, gallery and map views are unchanged, and nothing was tested on real iOS
+  hardware.
+- New strings are not yet in the `.po` catalogues.
+
+### Added
+
+#### Adopting from django.contrib.admin
+
+- `manage.py vantage_adopt`: a per-model, per-attribute mapping report for a
+  `django.contrib.admin` site (`translated` / `needs panel code` / `unsupported`, with the
+  Vantage equivalent), `--format json`, `--app`, `--strict` for CI, and `--write` for
+  starter `panel.py` files that never overwrite without `--force`.
+- The contrib.admin adapter translates `formfield_overrides` onto
+  `ModelPanel.formfield_overrides`.
+- `vantage_scaffold --from-db` (unmanaged models via `inspectdb` plus read-only panels, with
+  `--table`, `--exclude-table`, `--database`, `--include-views`) and `--preset
+  crm|ecommerce|saas` with `--map role=Model` for a starter dashboard.
+- Docs: migrating from django.contrib.admin, plugin compatibility, comparison with Unfold
+  and admin themes, and benchmarks. `scripts/benchmark.py` times the main pages on N rows.
+
+#### API stability and upgrade checks
+
+- A written [API stability and deprecation policy](docs/api-stability.md). Every
+  `VANTAGE` setting and declarative `ModelPanel` attribute is classified, in
+  `vantage.deprecation`, as *stable* (frozen; changed only through a deprecation cycle
+  of at least two minor releases) or *provisional* (new since the last release). The
+  test suite fails on an unclassified addition.
+- `VantageDeprecationWarning`, and the machinery behind it: a deprecated setting or
+  panel attribute keeps working, warns, and a renamed one is carried to its new name.
+- `manage.py vantage_upgrade_check`: unknown, deprecated and provisional settings,
+  deprecated or removed panel attributes, panel configuration errors, unapplied
+  migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
+  Text or JSON output; exits `1` at `--fail-level` for CI.
+
+#### Image lightbox
+
+- A plain click on an image thumbnail opens the original in a `<dialog>` lightbox; the
+  thumbnail stays a link that opens a new tab without JavaScript or with a modifier key.
+
+#### Notifications
+
+- `VANTAGE["NOTIFICATIONS"]` sends approval requests and decisions, webhook deliveries
+  out of retries and failed background jobs to Slack, Microsoft Teams or email
+  (including "everyone who may approve this model"). Messages carry no field names or
+  values, chat posts use the webhook client's network guard, and delivery happens after
+  commit without ever failing the save. See [Notifications](docs/notifications.md).
+
+#### Metrics, slow-request logging and a runbook
+
+- A Prometheus endpoint at `_/metrics/` (off until `VANTAGE["METRICS"]`; bearer
+  `METRICS_TOKEN` compared in constant time, or a signed-in superuser): jobs, webhook
+  deliveries, report runs and approval requests by status, undo entries, and
+  per-process request counters. No new dependency.
+- `vantage.metrics.SlowRequestMiddleware` logs panel requests slower than
+  `SLOW_REQUEST_MS` to `vantage.requests` with structured fields.
+- An [operations runbook](docs/runbook.md): what to alert on, and what to do when data
+  is being changed wrongly, a credential leaks, a deletion needs reversing, or jobs and
+  webhooks are stuck.
+
+#### Single sign-on role mapping
+
+- `VANTAGE["ROLE_MAPPING"]` maps identity-provider groups (OpenID Connect claims from
+  Entra ID, Okta, Keycloak and others) onto roles at every sign-in, through
+  `vantage.identity.sync_roles` and adapters for mozilla-django-oidc, django-allauth and
+  python-social-auth. Only mapped roles are managed, removal follows the directory,
+  nothing becomes a superuser or creates a role, and every change is audited. See
+  [Single sign-on](docs/single-sign-on.md).
+
+#### Read-only models for databases the project does not own
+
+- `ModelPanel.read_only` refuses add, delete and field changes on one model for
+  everyone, superusers included; `ModelPanel.editable_fields` keeps an allowlist of
+  fields changeable on existing rows, enforced through the field-permission layer so
+  every write path honours it. `VANTAGE["UNMANAGED_READ_ONLY"]` applies it to every
+  `managed = False` model. Checked by `vantage.E122` and `vantage.E123`. See
+  [Read-only models](docs/permissions.md#read-only-models-and-legacy-databases).
+
+#### Widget overrides
+
+- `ModelPanel.formfield_overrides`, with `django.contrib.admin`'s shape and semantics
+  (keyed by model field class, matched along its MRO), and `ModelPanel.widgets`, a
+  widget per field name. Both change the control only: validation, tenancy scoping of
+  relation choices, upload checks and write-only sensitive fields are unaffected.
+  Checked by `vantage.E120` and `vantage.E121`. See
+  [Overriding a widget](docs/forms.md#overriding-a-widget).
+
+#### JSON API: bulk actions, saved views, import/export, uploads, OpenAPI
+
+- JSON API: bulk actions (`_actions/`, filter selection, `dry_run`, confirmation, job
+  hand-off), saved views, CSV import (dry run by default) and filtered export,
+  multipart file uploads through the media validators, and an OpenAPI 3.1 document at
+  `_/api/openapi.json` filtered per user, plus `manage.py vantage_openapi`.
+
+#### History with point-in-time restore
+
+- Each record has a **History** page, linked from its detail page, that lists its audit
+  entries and shows the record as it was after any of them, or at any date and time,
+  next to how it is now. Values are replayed from the audit log and only shown as known
+  when the log agrees with itself and with the current row; anything else is labelled
+  with the reason instead of guessed. See [History](docs/history.md).
+- Tick fields to **restore** them. The restore saves through the panel's edit form, with
+  its validation, `save_model`, tenancy and optimistic-lock checks, needs `change`, and
+  writes its own "restored as of" audit entry.
+- `ModelPanel.history = "view"` shows history without restore; `False` removes the page
+  (`vantage.E091`, `vantage.E092`). `save_form()` and `audit.log_form_save()` accept an
+  `action_name`.
+
+#### Approval workflows
+
+- `requires_approval = ["price", "status"]` makes a change to those fields wait for
+  someone with `<app>.approve_<model>` (or a superuser). The rest of the edit saves as
+  usual. Covers the edit page, history restore, inline editing, board moves, the JSON
+  API (answers `202` with `pending`) and import. See [Approvals](docs/approvals.md).
+- An **Approvals** page with a count in the navigation, and a banner on a record while a
+  change to it is waiting. Approving saves through the normal save path and is refused
+  if the field has moved since; rejecting needs a reason; nobody approves their own
+  request. Every step is audited, and the `updated` webhook fires only when the change
+  is applied.
+- `Page.get_badge(request)` lets a custom page show a live count beside its navigation
+  entry. Checks `vantage.E105`–`vantage.E108`.
+
+#### Two-factor sign-in
+
+- Authenticator-app codes (TOTP, RFC 6238), set up from the account page with a QR code
+  drawn by the package, a key for manual entry, and confirmation by code. Ten
+  single-use recovery codes are shown once and stored as hashes. See
+  [Two-factor sign-in](docs/two-factor.md).
+- `TWO_FACTOR_REQUIRED_SUPERUSERS` and `TWO_FACTOR_REQUIRED_ROLES` require it; anyone
+  required who has not set it up is sent to set-up before anything else in the panel,
+  the API and autocomplete included. Also `TWO_FACTOR`, `TWO_FACTOR_ISSUER`,
+  `TWO_FACTOR_MAX_ATTEMPTS` and `TWO_FACTOR_LOCKOUT_SECONDS`.
+- A superuser-only screen to reset someone's two-factor sign-in, audited, and
+  `manage.py vantage_two_factor_reset <username>`. Checks `vantage.E095`–`vantage.E097`
+  and `vantage.W095`.
+
+#### Field-level permissions
+
+- Per role, any field can be **hidden** (gone from lists, filters, search, sorting,
+  cards, list views, stats, detail, forms, exports, the API, import, history, audit
+  diffs, autocomplete and data quality) or **read-only** (shown, but refused on the
+  server by every write path). Several roles combine most-permissively, like Django's
+  model permissions; superusers are never restricted. See
+  [Field-level permissions](docs/field-permissions.md).
+- A **Fields** column in the roles matrix, with the existing review step and audit
+  entry. `ModelPanel.field_permissions = {"Support": {"price": "readonly"}}` sets rules
+  in code as a floor under the stored ones (`vantage.E110`–`vantage.E114`).
+  `PanelPermissions.field_access()` and `has_field_perm()` for custom resolvers.
+- Approvals respect them: deciding a request needs write access to every field in it,
+  and a hidden field is never named on approval screens or in their audit entries.
+
+#### Scheduled reports
+
+- Subscribe to a saved view and get it as a CSV by email every day, week or month, at a
+  time you choose. Sending to other addresses needs `send_reports_to_others`. See
+  [Scheduled reports](docs/reports.md).
+- Each send runs as the subscriber, with their permissions, tenant, field rules and
+  masking as they are at that moment; a send for someone who has lost access is
+  skipped with the reason logged.
+- **My reports** and a System **Scheduled reports** page (`manage_reports`) with a send
+  log, pause, resume, delete and send now. `manage.py vantage_reports` sends what is due
+  from cron, through the job backend or inline, and never twice. Every email has a
+  signed unsubscribe link that needs no sign-in.
+- Settings `REPORTS`, `REPORTS_MAX_ATTACHMENT_MB`, `REPORTS_MAX_PER_USER`,
+  `REPORTS_RETENTION_DAYS` and `REPORTS_BASE_URL`; checks `vantage.E115`–`vantage.E117`
+  and `vantage.W115`.
+
+#### Webhooks
+
+- A System page to send a signed POST (HMAC-SHA256) to a URL you choose when a record is
+  created, changed or deleted, with a delivery log, **Send test** and **Redeliver**, and
+  a `vantage.manage_webhooks` permission. See [Webhooks](docs/webhooks.md).
+- Deliveries are queued after commit through the job backend and retried with
+  exponential backoff; without a queue they run in-process within a 3 second budget per
+  save. `manage.py vantage_webhooks` sends due retries and sweeps old deliveries.
+- Settings `WEBHOOKS`, `WEBHOOKS_ALLOW_PRIVATE_NETWORKS`, `WEBHOOKS_TIMEOUT`,
+  `WEBHOOKS_MAX_ATTEMPTS`, `WEBHOOKS_BACKOFF_SECONDS` and `WEBHOOKS_RETENTION_DAYS`;
+  checks `vantage.E100` and `vantage.E101`.
+
+#### A layout for phones
+
+- Below 40rem, list rows become cards and the bulk-action bar becomes a bottom sheet;
+  other tables keep every column and scroll inside their own box. The navigation drawer
+  gains a scrim, Escape and focus return. See [Phones](docs/phones.md).
+- `card_fields` also picks the columns a phone card shows. Touch targets of at least
+  44px, 16px fields so iOS does not zoom, and safe-area insets.
+
+#### Access review and break-glass access
+
+- An **access review** report: who can view, add, change and delete each model, and
+  see, change or reveal each sensitive or restricted field, per person or per role,
+  answered by the panel's own permission resolver. A screen linked from Roles with CSV
+  and JSON downloads (each one audited), and `manage.py vantage_access_review`. See
+  [Access review and elevated access](docs/access-review.md).
+- **Break-glass access**: a role or permissions held for a capped number of minutes,
+  with a reason, approved by a second person unless self-service is on. Expiry and
+  revocation take effect at check time with no cleanup job; every step is audited; a
+  banner shows while elevated, with a button to drop it. `manage.py vantage_break_glass`
+  grants, revokes and lists from a shell. Migration `0021_elevated_access`.
+- Settings `ACCESS_REVIEW_PERMISSION`, `BREAK_GLASS_PERMISSION`,
+  `BREAK_GLASS_SELF_SERVICE` and `BREAK_GLASS_MAX_MINUTES`.
+
+### Changed
+
+- **The Arabic catalogues are complete** (`django` and `djangojs`, all six plural forms); the English catalogue was refreshed to match. Strings added later fall back to English until translated.
+- **CSV and TSV exports neutralise spreadsheet formulas** (visible to users): a text
+  cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
+  `'`, in the Export button and in report attachments alike. Numbers, dates and
+  booleans are unchanged.
+- The model list's table rows carry `role="row"` and `role="gridcell"`.
+- **Breaking:** a plain `FileField` now refuses web pages, SVG, XML and scripts unless
+  the extension is listed in the new `VANTAGE["UPLOAD_ACTIVE_SUFFIXES"]`.
+- `records.copy_children()` now needs a request with a user, and copies only what that
+  user may add.
+
+### Security
+
+- Webhooks refuse private, loopback and link-local targets by default, including IPv6
+  forms that wrap them, checked at send time against the address actually connected
+  to. Redirects and proxies are never followed, and every delivery has a total
+  wall-clock deadline. Sensitive fields are never sent.
+- Two-factor: each attempt is counted before it is compared, so parallel requests
+  cannot outrun the lockout; codes cannot be replayed; the stored secret is encrypted
+  and bound to its user and enrolment; routes nested under `include()` are gated too.
+- Scheduled reports re-check the subscription and the owner's two-factor status when
+  they run; **Send now** is refused in read-only mode and limited to once a minute per
+  report.
+- `check --deploy` warns when Django's admin is mounted without the two-factor
+  middleware (`vantage.W095`) and when report links would be built from the `Host`
+  header (`vantage.W115`).
+- Uploads: active content (web pages, SVG, XML, scripts) is refused on file fields
+  unless a project opts in, the SVG scan decodes and normalises a file before checking
+  it, and a stored file of such a type is linked as a download.
+- A URL column links only `http`, `https`, `ftp` and `ftps` addresses.
+- Child formsets on a parent's form respect the child model's row scoping, tenancy and
+  `requires_approval`.
+- Duplicating a record copies only children the user may view and add, and never their
+  sensitive or hidden values.
+- Dashboard table cards leave out fields hidden by field permissions.
+- Role managers cannot change their own roles or membership, and a role named in code
+  (field rules or a two-factor requirement) cannot be renamed.
+- An adopted `ModelAdmin`'s `get_readonly_fields`, `get_exclude` and `get_fields` become
+  read-only field rules; restrictive hooks that cannot be translated are a check error
+  (`vantage.E041`). New panel hook `get_field_access(request)`.
+- A background job started while impersonating is audited as the real account, and an
+  all-tenants job resumes only for an actor who is still a superuser.
+- The impersonation form validates its redirect target.
+- CSV import bounds the input it hands to the dialect sniffer.
+- Locked dependencies with published advisories were upgraded; CI actions are pinned to
+  commit hashes, checkouts keep no credentials, and the release build does not use a
+  cache.
+- `ruff`'s security rules (`S`) are enforced on the package source.
+
 ## [0.2.0a2] — 2026-10-27
 
 Everything in 0.2.0a1, which was tagged but never published to PyPI, plus:

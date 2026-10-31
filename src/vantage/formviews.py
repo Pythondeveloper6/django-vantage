@@ -107,31 +107,50 @@ def _model_field(model, name: str):
 # second answer, and only one of the two would get fixed.
 
 
-def form_field_names(panel) -> list[str]:
+def form_field_names(panel, request=None) -> list[str]:
     """Every name the form page shows, editable or not, in layout order.
 
     Readonly names are appended when inference did not already pick them up: the
     canonical example is ``readonly_fields = ["created_at"]`` on an ``auto_now_add``
     column, which is not an editable field at all and would otherwise vanish from a
     page whose whole purpose was to display it.
+
+    With a ``request``, a field hidden from that person is not on the page at all — not
+    as an input, not as text. See :mod:`vantage.fieldperms`.
     """
     names = list(panel.fields) if panel.fields else infer_form_fields(panel.model)
     for name in panel.readonly_fields or ():
         if name not in names:
             names.append(name)
     excluded = set(panel.exclude or ())
-    return [name for name in names if name not in excluded]
+    names = [name for name in names if name not in excluded]
+    if request is None:
+        return names
+    from vantage.fieldperms import without_hidden
+
+    return without_hidden(request, panel, names)
 
 
-def form_editable_names(panel) -> list[str]:
-    """The names a write may actually set. Everything else is not in the form at all."""
+def form_editable_names(panel, request=None) -> list[str]:
+    """The names a write may actually set. Everything else is not in the form at all.
+
+    With a ``request``, a field that person may only read is left out too, which is
+    what makes it read-only on every write path that builds its form from this list:
+    the edit page, the JSON API, duplicate and history restore. Rendering it as text is
+    the affordance; leaving it out of the form is the boundary.
+    """
     readonly = set(panel.readonly_fields or ())
     secret = panel.get_sensitive_fields()
-    return [
+    names = [
         name
-        for name in form_field_names(panel)
+        for name in form_field_names(panel, request)
         if name not in readonly and not (name in secret and is_hashed(panel.model, name))
     ]
+    if request is None:
+        return names
+    from vantage.fieldperms import editable_fields
+
+    return editable_fields(request, panel, names)
 
 
 def save_form(
@@ -142,6 +161,7 @@ def save_form(
     change: bool,
     inline_groups=(),
     version: str | None = None,
+    action_name: str = "",
 ):
     """Persist, handing control to the panel's ``save_model`` hook when it has one.
 
@@ -168,7 +188,15 @@ def save_form(
     duplicated in :mod:`vantage.api` because the compare-and-set has to run *inside* the
     save transaction, between ``form.save(commit=False)`` and the write, which only this
     function can arrange.
+
+    ``action_name`` is passed to the audit entry; see :func:`vantage.audit.log_form_save`.
+
+    A field the panel lists in ``requires_approval`` that this user may not change
+    directly is put back before the write and becomes a pending request instead — see
+    :func:`vantage.approvals.withhold`. The request is left on the form as
+    ``vantage_pending`` for the caller to tell the user about.
     """
+    from vantage import approvals
     from vantage.tenancy import enforce as enforce_tenant
 
     hook = getattr(panel, "save_model", None)
@@ -180,6 +208,9 @@ def save_form(
             # Raises StaleWrite, rolling back the transaction, if the row moved under
             # us; a no-op if the model has no version column at all.
             concurrency.claim(obj, version)
+        # After the lock and before the hook, so ``save_model`` sees exactly what will
+        # be written and never a value that is still waiting for approval.
+        pending = approvals.withhold(request, panel, obj, form)
         # Before the hook, so the hook sees a complete object. Stamps the tenant on a
         # create and refuses a write that would move the record to another one —
         # scoping the read cannot catch either. A no-op unless tenancy is on.
@@ -195,7 +226,8 @@ def save_form(
     # the write it was recording.
     from vantage import audit
 
-    audit.log_form_save(request, obj, form, change)
+    audit.log_form_save(request, obj, form, change, action_name=action_name)
+    approvals.announce(request, obj, pending)
     inlines.log(request, inline_groups)
     return obj
 
@@ -278,11 +310,11 @@ class PanelFormView(PanelView):
 
     def get_field_names(self) -> list[str]:
         """Every name the page shows, editable or not, in layout order."""
-        return form_field_names(self.panel)
+        return form_field_names(self.panel, self.request)
 
     def get_editable_field_names(self) -> list[str]:
         """The names this page may actually write. See :func:`form_editable_names`."""
-        return form_editable_names(self.panel)
+        return form_editable_names(self.panel, self.request)
 
     # ── the form ────────────────────────────────────────────────────────────
 
@@ -318,11 +350,29 @@ class PanelFormView(PanelView):
         # and not its children's would be fixed, resubmitted, and refused again for
         # reasons it declined to mention the first time.
         form_ok = form.is_valid()
+        if form_ok and not self.change:
+            from vantage.fieldperms import unfillable_message
+
+            refusal = unfillable_message(self.request, self.panel)
+            if refusal:
+                form.add_error(None, refusal)
+                form_ok = False
         groups = inlines.bind(self, form)
         if not inlines.all_valid(groups) or not form_ok:
             return self.render_to_response(self.get_context_data(form=form, inlines=groups))
+        from vantage import approvals
+
+        form.vantage_approval_note = request.POST.get(approvals.NOTE_FIELD, "")
         obj = self.save_form(form, groups)
-        messages.success(request, self.get_success_message(obj))
+        pending = getattr(form, "vantage_pending", None)
+        if pending is None:
+            messages.success(request, self.get_success_message(obj))
+        else:
+            # Said as a warning, not a success: the part they will look for first —
+            # the field they meant to change — has not changed yet.
+            if groups or set(form.changed_data) - set(pending.field_names):
+                messages.success(request, self.get_success_message(obj))
+            messages.warning(request, approvals.pending_message(self.panel, pending))
         return HttpResponseRedirect(self.get_success_url(obj))
 
     def save_form(self, form: forms.ModelForm, inline_groups=()):
@@ -403,7 +453,8 @@ class PanelFormView(PanelView):
             return {"node": "tab", "label": node.label, "slug": node.slug, "children": children}
         if isinstance(node, Row):
             return {"node": "row", "children": children}
-        assert isinstance(node, Section)
+        if not isinstance(node, Section):  # pragma: no cover - a new layout node type
+            raise TypeError(f"Unknown layout node: {node!r}")
         return {
             "node": "section",
             "title": node.title,
@@ -466,6 +517,12 @@ class PanelFormView(PanelView):
             cancel_url=self.get_cancel_url(),
             submit_label=self.submit_label,
         )
+        if self.change and self.object is not None:
+            from vantage.approvalviews import banner_context
+
+            # Which fields here will wait for approval, said before anything is typed,
+            # and what is already waiting on this record.
+            context.update(banner_context(self.request, self.panel, self.object))
         return context
 
     def get_cancel_url(self) -> str:

@@ -9,6 +9,11 @@
     <h1 class="v-page-title">{{ page_title }}</h1>
     <p class="v-page-description">{{ page_description }}</p>
   </div>
+  {% if access_review_url %}
+    <div class="v-page-actions">
+      <a class="v-btn v-btn-secondary" href="{{ access_review_url }}">{% icon "users" %}<span>{% translate "Access review" %}</span></a>
+    </div>
+  {% endif %}
 </div>
 
 {% if can_add %}

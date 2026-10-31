@@ -1,0 +1,28 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{% blocktranslate with name=hook.name %}Delete {{ name }}?{% endblocktranslate %}</h1>
+  </div>
+</div>
+
+<section class="v-card v-confirm">
+  <div class="v-card-body">
+    <p class="v-confirm-lede">
+      {% blocktranslate count counter=deliveries with name=hook.name %}This permanently deletes <strong>{{ name }}</strong> and its {{ counter }} logged delivery.{% plural %}This permanently deletes <strong>{{ name }}</strong> and its {{ counter }} logged deliveries.{% endblocktranslate %}
+    </p>
+    <p class="v-muted">{% translate "To stop it without losing the log, untick Active instead." %}</p>
+  </div>
+  <div class="v-card-body v-confirm-actions">
+    <a class="v-btn v-btn-secondary" href="{{ list_url }}">{% translate "Cancel" %}</a>
+    <form method="post">
+      {% csrf_token %}
+      <button class="v-btn v-btn-destructive" type="submit">{% translate "Delete webhook" %}</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

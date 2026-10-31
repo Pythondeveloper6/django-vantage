@@ -29,6 +29,7 @@ from vantage.dashboards import (
     dashboard_context,
     get_dashboard,
 )
+from vantage.permissions import get_permissions
 from vantage.stats import Chart
 
 #: Declared at module scope on purpose: this is how a real dashboard is written, and
@@ -351,7 +352,9 @@ class TestPermissions:
         """
         user = User.objects.create_user("plain", password="x", is_staff=True)
         request = request_from(user)
-        user.has_perm("testapp.view_post")  # warm the permission cache
+        # Warm everything the gate reads, through the gate itself: Django's permission
+        # cache and the request's break-glass answer.
+        assert not get_permissions().has_model_perm(request, Post, "view")
 
         class Board(Dashboard):
             def get_widgets(self, _request):
@@ -1001,9 +1004,9 @@ class TestArrangedPermissions:
         A card that computes a number and then declines to show it has already paid for
         it and already put it in the query log. The render is not free — Django's own
         permission check has to read the permission tables the first time it is asked —
-        but that cost is two fixed queries, not one that grows if the arrangement grows,
-        and neither of them is the card's own aggregate: nothing here may touch the
-        orders table.
+        but that cost is three fixed queries (two permission tables and the request's
+        one break-glass lookup), not one that grows if the arrangement grows, and none
+        of them is the card's own aggregate: nothing here may touch the orders table.
         """
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
@@ -1019,7 +1022,7 @@ class TestArrangedPermissions:
 
         # Permission lookups, not the card: the aggregate never ran.
         assert not any("testapp_order" in q["sql"] for q in queries.captured_queries)
-        assert len(queries) <= 2, [q["sql"] for q in queries.captured_queries]
+        assert len(queries) <= 3, [q["sql"] for q in queries.captured_queries]
 
     def test_the_same_card_renders_once_the_permission_is_granted(self, db, request_from, orders):
         user = User.objects.create_user("plain", password="x", is_staff=True)
@@ -1340,3 +1343,38 @@ def _request_for(user):
     request = RequestFactory().get("/")
     request.user = user
     return request
+
+
+@pytest.mark.django_db
+def test_a_table_card_leaves_out_a_column_hidden_from_the_viewer(client):
+    """Field permissions reach the dashboard's recent-records tables too."""
+    from decimal import Decimal
+
+    from django.contrib.auth.models import Group, Permission, User
+    from django.contrib.contenttypes.models import ContentType
+
+    from tests.testapp.models import Author, Order
+    from vantage.models import FieldPermission
+
+    group = Group.objects.create(name="Support")
+    group.permissions.add(
+        Permission.objects.get(codename="view_order", content_type__app_label="testapp")
+    )
+    FieldPermission.objects.create(
+        group=group,
+        content_type=ContentType.objects.get_for_model(Order),
+        field_name="total",
+        level="hidden",
+    )
+    user = User.objects.create_user("agent", "a@example.com", "x", is_staff=True)
+    user.groups.add(group)
+    client.force_login(user)
+    customer = Author.objects.create(name="Grace", email="g@example.com")
+    Order.objects.create(
+        number="A-1001", customer=customer, status="pending", total=Decimal("4321.77")
+    )
+
+    body = client.get(reverse("vantage:dashboard")).content.decode()
+
+    assert "A-1001" in body  # the card is there
+    assert "4321.77" not in body and "4,321.77" not in body

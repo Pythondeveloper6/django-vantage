@@ -79,6 +79,76 @@ def check_vantage_settings(app_configs, **kwargs) -> list[Error]:
             )
 
     errors.extend(_check_brand(user))
+    errors.extend(_check_webhooks(user))
+    errors.extend(_check_reports(user))
+    return errors
+
+
+def _check_webhooks(user: dict) -> list[Error]:
+    """The webhook switches and limits: wrong types here would fail at send time, in a
+    worker, where nobody is looking."""
+    errors: list[Error] = []
+    for key in ("WEBHOOKS", "WEBHOOKS_ALLOW_PRIVATE_NETWORKS"):
+        if key in user and not isinstance(user[key], bool):
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] must be True or False; got {user[key]!r}.",
+                    id="vantage.E100",
+                )
+            )
+    for key in (
+        "WEBHOOKS_TIMEOUT",
+        "WEBHOOKS_MAX_ATTEMPTS",
+        "WEBHOOKS_BACKOFF_SECONDS",
+        "WEBHOOKS_RETENTION_DAYS",
+    ):
+        value = user.get(key)
+        if key in user and (
+            isinstance(value, bool) or not isinstance(value, int | float) or value <= 0
+        ):
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] must be a number greater than zero; got {value!r}.",
+                    id="vantage.E101",
+                )
+            )
+    return errors
+
+
+def _check_reports(user: dict) -> list[Error]:
+    """The scheduled-report switch and limits: a wrong type would fail in the cron job,
+    where nobody is looking."""
+    errors: list[Error] = []
+    if "REPORTS" in user and not isinstance(user["REPORTS"], bool):
+        errors.append(
+            Error(
+                f"VANTAGE['REPORTS'] must be True or False; got {user['REPORTS']!r}.",
+                id="vantage.E115",
+            )
+        )
+    for key in ("REPORTS_MAX_ATTACHMENT_MB", "REPORTS_MAX_PER_USER", "REPORTS_RETENTION_DAYS"):
+        value = user.get(key)
+        if key in user and (
+            isinstance(value, bool) or not isinstance(value, int | float) or value <= 0
+        ):
+            errors.append(
+                Error(
+                    f"VANTAGE[{key!r}] must be a number greater than zero; got {value!r}.",
+                    id="vantage.E116",
+                )
+            )
+    base = user.get("REPORTS_BASE_URL")
+    if "REPORTS_BASE_URL" in user and (
+        not isinstance(base, str) or (base and not base.startswith(("http://", "https://")))
+    ):
+        errors.append(
+            Error(
+                f"VANTAGE['REPORTS_BASE_URL'] must be empty or start with http:// or https://; "
+                f"got {base!r}.",
+                hint="For example 'https://panel.example.com'.",
+                id="vantage.E117",
+            )
+        )
     return errors
 
 
@@ -111,6 +181,54 @@ def _check_brand(user: dict) -> list[Error]:
                     id=check_id,
                 )
             )
+    return errors
+
+
+def check_two_factor(app_configs, **kwargs) -> list[Error]:
+    """The two-factor settings, and the one piece of the stack the feature cannot lack.
+
+    ``E095`` and ``E096`` are the same validation :mod:`vantage.conf` applies, reported
+    with an id so each can be found and fixed separately. ``E097`` is the session: the
+    half-signed-in state and the proof of the second step both live in it, so without
+    ``SessionMiddleware`` there is nothing to hold either — and a requirement that
+    cannot be enforced must not look as if it were.
+    """
+    from django.conf import settings as django_settings
+
+    from vantage.conf import two_factor_problem
+
+    user = getattr(django_settings, "VANTAGE", None) or {}
+    if not isinstance(user, dict):
+        return []  # E001 has already said so
+    errors: list[Error] = []
+    requirement = {
+        key: user[key]
+        for key in ("TWO_FACTOR_REQUIRED_SUPERUSERS", "TWO_FACTOR_REQUIRED_ROLES")
+        if key in user
+    }
+    problem = two_factor_problem(requirement)
+    if problem:
+        errors.append(Error(problem, id="vantage.E095"))
+    if "TWO_FACTOR_ISSUER" in user:
+        problem = two_factor_problem({"TWO_FACTOR_ISSUER": user["TWO_FACTOR_ISSUER"]})
+        if problem:
+            errors.append(Error(problem, id="vantage.E096"))
+
+    if (
+        user.get("TWO_FACTOR", DEFAULTS["TWO_FACTOR"])
+        and panel_is_mounted()
+        and not any(entry.rsplit(".", 1)[-1] == "SessionMiddleware" for entry in _middleware())
+    ):
+        errors.append(
+            Error(
+                "Two-factor sign-in is on, but no SessionMiddleware is installed.",
+                hint=(
+                    "Add 'django.contrib.sessions.middleware.SessionMiddleware' to "
+                    "MIDDLEWARE, or set VANTAGE['TWO_FACTOR'] = False."
+                ),
+                id="vantage.E097",
+            )
+        )
     return errors
 
 
@@ -661,6 +779,33 @@ def check_deploy_media_origin(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_reports_base_url(app_configs, **kwargs) -> list[Warning]:
+    """Report emails whose links come from a request header. (``vantage.W115``)
+
+    Without ``REPORTS_BASE_URL`` the unsubscribe and "open in the panel" links are built
+    from the address the subscription was made from, and that address is taken from the
+    request's ``Host`` header. Behind a proxy that does not pin the host, or with a
+    permissive ``ALLOWED_HOSTS``, whoever sends that header decides where every later
+    email links. Silent when reports are off or the panel is not mounted.
+    """
+    if not panel_is_mounted():
+        return []
+    if not _vantage_setting("REPORTS") or _vantage_setting("REPORTS_BASE_URL"):
+        return []
+    return [
+        Warning(
+            "Scheduled reports are on and VANTAGE['REPORTS_BASE_URL'] is not set.",
+            hint=(
+                "Links in report emails are then built from the Host header of the "
+                "request that created each subscription, which a client can choose. "
+                "Set REPORTS_BASE_URL to the panel's public address, for example "
+                "'https://panel.example.com'. See docs/reports.md."
+            ),
+            id="vantage.W115",
+        )
+    ]
+
+
 def _models_with_file_fields() -> list[str]:
     """``"app.Model"`` for every registered model that can hold an uploaded file."""
     from django.db import models as django_models
@@ -781,6 +926,88 @@ def check_deploy_login_throttle(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_two_factor_admin(app_configs, **kwargs) -> list[Warning]:
+    """Two-factor is required, and ``django.contrib.admin`` is mounted without it.
+    (``vantage.W095``)
+
+    The panel's gate covers the panel. Django's admin has its own sign-in, which asks
+    for the password and nothing else, and its own pages, which the gate never sees —
+    so a requirement that looks enforced has a door beside it that skips it. Silent
+    once :class:`vantage.twofactor.AdminTwoFactorMiddleware` is installed, and when
+    nobody is required to use two-factor sign-in, because then the panel does not
+    promise anything the admin breaks.
+
+    Registered on its own rather than in :data:`DEPLOYMENT_CHECKS`: two-factor owns
+    ids 095 to 099 in every family, and this is one of them.
+    """
+    from vantage import twofactor
+
+    if not panel_is_mounted():
+        return []
+    try:
+        required = twofactor.enabled() and (
+            twofactor.setting("TWO_FACTOR_REQUIRED_SUPERUSERS")
+            or bool(twofactor.setting("TWO_FACTOR_REQUIRED_ROLES"))
+        )
+    except Exception:  # an invalid value is E095's to report
+        return []
+    if not required:
+        return []
+    if any(m.rsplit(".", 1)[-1] == "AdminTwoFactorMiddleware" for m in _middleware()):
+        return []
+    mounted = _django_admin_mounts()
+    if not mounted:
+        return []
+    where = ", ".join(f"/{prefix}" for prefix in mounted)
+    return [
+        Warning(
+            f"Two-factor sign-in is required, but django.contrib.admin is mounted at "
+            f"{where} and does not ask for it.",
+            hint=(
+                "A session signed in at the admin's own login page has the password and "
+                "nothing else, and the admin lets it in. Add "
+                "'vantage.twofactor.AdminTwoFactorMiddleware' after "
+                "AuthenticationMiddleware to hold the admin to the same requirement, or "
+                "unmount the admin. See docs/two-factor.md."
+            ),
+            id="vantage.W095",
+        )
+    ]
+
+
+def _django_admin_mounts() -> list[str]:
+    """Where in the root URLconf a ``django.contrib.admin`` site is mounted.
+
+    Found by the marks the admin puts on its own views (see
+    :func:`vantage.twofactor.admin_site_of`), not by the ``admin`` namespace, so a
+    renamed or second site is found too. Never raises, for the same reason as
+    :func:`panel_is_mounted`.
+    """
+    from django.urls import get_resolver
+
+    from vantage.twofactor import admin_site_of
+
+    found: list[str] = []
+
+    def walk(patterns, prefix: str) -> None:
+        for pattern in patterns:
+            nested = getattr(pattern, "url_patterns", None)
+            if nested is not None:
+                walk(nested, prefix + str(pattern.pattern))
+                continue
+            # The site's own views, not a ModelAdmin's: those are one include deeper.
+            callback = getattr(pattern, "callback", None)
+            if hasattr(callback, "admin_site") and admin_site_of(callback) is not None:
+                if prefix not in found:
+                    found.append(prefix)
+
+    try:
+        walk(get_resolver().url_patterns, "")
+    except Exception:  # a urlconf that raises is reported by Django's own checks
+        return []
+    return found
+
+
 #: Every deployment check, so ``apps.py`` registers them in one loop and adding one
 #: here is not also an edit there.
 DEPLOYMENT_CHECKS = (
@@ -795,4 +1022,5 @@ DEPLOYMENT_CHECKS = (
     check_deploy_login_throttle,
     check_deploy_panel_middleware,
     check_deploy_media_origin,
+    check_deploy_reports_base_url,
 )

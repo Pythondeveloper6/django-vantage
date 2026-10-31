@@ -114,22 +114,39 @@ nav:
       - Analytics: analytics.md
       - Forms: forms.md
       - Undo: undo.md
+      - History: history.md
+      - Approvals: approvals.md
       - Pages and dashboards: pages-and-dashboards.md
       - Theming: theming.md
       - UI theme presets: ui-themes.md
+      - Phones: phones.md
   - Platform:
       - Permissions: permissions.md
       - Roles: roles.md
+      - Field permissions: field-permissions.md
+      - Access review and elevated access: access-review.md
+      - Two-factor sign-in: two-factor.md
+      - Single sign-on: single-sign-on.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
       - Multi-tenancy: tenancy.md
       - Internationalization: internationalization.md
       - Extending: extending.md
+      - Migrating from django.contrib.admin: migrating-from-django-admin.md
+      - Plugin compatibility: plugin-compatibility.md
+      - Vantage vs Unfold: comparison.md
   - Operations:
       - Settings reference: settings.md
+      - API stability and upgrades: api-stability.md
       - Deployment: deployment.md
+      - Operations runbook: runbook.md
       - Security: security.md
       - Data quality: data-quality.md
+      - Webhooks: webhooks.md
+      - Notifications: notifications.md
+      - Scheduled reports: reports.md
       - Accessibility: accessibility.md
       - Browser tests: browser-tests.md
+      - Benchmarks: benchmarks.md
   - FAQ: faq.md
+  - Roadmap: roadmap.md

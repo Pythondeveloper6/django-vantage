@@ -176,7 +176,17 @@ strictness, so an item that cannot be shown is omitted.
 | `SETTINGS_PERMISSION` | `None` | — | Who may open the settings screen. `None` means superusers only |
 | `LIST_PREFS_PERMISSION` | `None` | — | Who may save a list's preferences **for everyone**. `None` means superusers only |
 | `ROLES_PERMISSION` | `None` | — | Who may open the [roles & permissions screen](roles.md). `None` means superusers only |
+| `ACCESS_REVIEW_PERMISSION` | `None` | — | Who may open the [access review](access-review.md). `None` means superusers only |
+| `BREAK_GLASS_PERMISSION` | `None` | — | Who may grant and approve [elevated access](access-review.md#elevated-access-break-glass). `None` means superusers only |
+| `BREAK_GLASS_SELF_SERVICE` | `False` | — | Whether someone allowed to grant may activate their own request. `False` keeps the two-person rule |
+| `BREAK_GLASS_MAX_MINUTES` | `60` | — | The longest one elevated-access grant may last |
 | `READ_ONLY` | `False` | ✓ | `True`, or a string that doubles as the explanation shown to users |
+| `NOTIFICATIONS` | `{}` | — | Slack, Teams and email channels for approvals, failed webhooks and failed jobs — see [Notifications](notifications.md) |
+| `METRICS` | `False` | — | Serve Prometheus metrics at `_/metrics/` — see the [runbook](runbook.md#monitoring) |
+| `METRICS_TOKEN` | `None` | — | Bearer token a scraper sends; `None` allows signed-in superusers only |
+| `SLOW_REQUEST_MS` | `1000` | — | Log panel requests slower than this to `vantage.requests` (with `SlowRequestMiddleware`); `0` disables |
+| `ROLE_MAPPING` | `{}` | — | Identity-provider groups to roles, applied at every SSO sign-in — see [Single sign-on](single-sign-on.md) |
+| `UNMANAGED_READ_ONLY` | `False` | — | Make every `Meta.managed = False` model read-only unless its panel sets `read_only = False` — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
@@ -184,6 +194,7 @@ strictness, so an item that cannot be shown is omitted.
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
 | `MAP_TILE_URL` | `None` | — | Opt-in raster tiles for the [map view](list-views.md#map), e.g. `"https://tile.openstreetmap.org/{z}/{x}/{y}.png"`. Must contain `{z}`, `{x}` and `{y}`. `None` draws a dependency-free SVG plot and fetches nothing |
 | `RELATION_PICKER` | `"always"` | — | `"always"` or `"threshold"`. Whether a single-valued relation gets the searchable picker regardless of row count, or only above 50 — see [Relations and the search threshold](forms.md#relations-and-the-search-threshold) |
+| `UPLOAD_ACTIVE_SUFFIXES` | `()` | — | Active-content extensions (`.svg`, `.html`, `.xml`, `.js`…) a plain `FileField` may accept, e.g. `[".svg"]`. Empty refuses them all; an accepted file is still scanned for script — see [Security](security.md#active-content-uploads) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
 
@@ -192,8 +203,9 @@ with their defaults in [Security](security.md#installing-the-middleware) — see
 [Two settings layers](security.md#two-settings-layers) for why their defaults live
 there.
 
-`SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION` and `ROLES_PERMISSION` each accept a permission string or a
-callable taking the request:
+`SETTINGS_PERMISSION`, `LIST_PREFS_PERMISSION`, `ROLES_PERMISSION`,
+`ACCESS_REVIEW_PERMISSION` and `BREAK_GLASS_PERMISSION` each accept a permission string
+or a callable taking the request:
 
 ```python
 VANTAGE = {
@@ -202,12 +214,30 @@ VANTAGE = {
 }
 ```
 
-None is editable from the UI. `SETTINGS_PERMISSION` and `ROLES_PERMISSION` in
-particular would be self-grants.
+None is editable from the UI. `SETTINGS_PERMISSION`, `ROLES_PERMISSION` and
+`BREAK_GLASS_PERMISSION` in particular would be self-grants.
 
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
 bypass. See [Read-only mode](permissions.md#read-only-mode).
+
+## Two-factor sign-in
+
+On offer to everyone, required of nobody, until you say otherwise — see
+[Two-factor sign-in](two-factor.md).
+
+| Key | Default | UI | Effect |
+|---|---|---|---|
+| `TWO_FACTOR` | `True` | — | Offer authenticator-app codes on the account page and ask for them at sign-in. `False` removes the feature, and stops asking anyone who had set it up |
+| `TWO_FACTOR_REQUIRED_SUPERUSERS` | `False` | — | Superusers may not use the panel until they have set it up |
+| `TWO_FACTOR_REQUIRED_ROLES` | `[]` | — | Role (`auth.Group`) names whose members must use it, e.g. `["Finance"]` |
+| `TWO_FACTOR_ISSUER` | `None` | — | The name an authenticator app files the code under. `None` means `SITE_TITLE`. No colons |
+| `TWO_FACTOR_MAX_ATTEMPTS` | `5` | — | Wrong codes in a row before the account's second step locks |
+| `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | — | How long that lock lasts |
+
+None is editable from the UI: a requirement the people it binds could switch off is not
+a requirement. A bad value is an error at `manage.py check` (`vantage.E095`, `E096`) and
+at the first page render.
 
 ## Multi-tenancy
 
@@ -257,6 +287,38 @@ retry behaviour, and the backends it is tried against.
 | `JOB_MAX_STORED_ERRORS` | `1000` | Most per-row errors kept for the downloadable report |
 | `JOB_RETENTION_DAYS` | `30` | How long a finished job's row is kept before it is swept |
 | `JOB_QUEUE` | `"default"` | Queue name passed to `django.tasks` or RQ. Celery uses its own routing instead |
+
+## Webhooks
+
+A POST to a URL you choose when a record is created, changed or deleted — see
+[Webhooks](webhooks.md) for the payload, the signature and the retry rules. A malformed
+value is `vantage.E100` (a switch that is not `True`/`False`) or `vantage.E101` (a limit
+that is not a number above zero).
+
+| Key | Default | Effect |
+|---|---|---|
+| `WEBHOOKS` | `True` | `False` fires nothing and hides the page. Stored webhooks are kept |
+| `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` | `False` | Lets webhooks call loopback, private, link-local and other non-public addresses. Code-only, never editable in the panel |
+| `WEBHOOKS_TIMEOUT` | `5` | Seconds a receiver may take per socket operation. A whole attempt gets three times this; the in-process fallback caps it at 3 in total |
+| `WEBHOOKS_MAX_ATTEMPTS` | `6` | Attempts before a delivery is marked failed, the first included |
+| `WEBHOOKS_BACKOFF_SECONDS` | `30` | Wait before the first retry; each later wait doubles, up to a day |
+| `WEBHOOKS_RETENTION_DAYS` | `30` | How long a finished delivery is kept before `manage.py vantage_webhooks` removes it |
+
+## Scheduled reports
+
+A saved view mailed as a CSV on a schedule — see [Scheduled reports](reports.md) for who
+the export runs as, the size cap and the cron command. A malformed value is
+`vantage.E115` (a switch that is not `True`/`False`), `vantage.E116` (a limit that is not a
+number above zero) or `vantage.E117` (a base URL that does not start with `http://` or
+`https://`).
+
+| Key | Default | Effect |
+|---|---|---|
+| `REPORTS` | `True` | `False` sends nothing and hides the pages and the Subscribe control. Stored subscriptions are kept |
+| `REPORTS_MAX_ATTACHMENT_MB` | `10` | Largest CSV attached to an email. A bigger report is sent as a short note, without the file |
+| `REPORTS_MAX_PER_USER` | `25` | Subscriptions one person may hold |
+| `REPORTS_RETENTION_DAYS` | `90` | How long a send log is kept before `manage.py vantage_reports` removes it |
+| `REPORTS_BASE_URL` | `""` | Where links in report emails point, e.g. `"https://panel.example.com"`. Empty uses the address the subscription was made from, which comes from the request's `Host` header; set it in production (`vantage.W115`) |
 
 ## Undo
 
@@ -321,18 +383,31 @@ NAV  NAV_UNLISTED  DASHBOARD
 PLUGINS  PLUGINS_EXCLUDE
 
 PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION  ROLES_PERMISSION
-READ_ONLY  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
+ACCESS_REVIEW_PERMISSION  BREAK_GLASS_PERMISSION  BREAK_GLASS_SELF_SERVICE
+BREAK_GLASS_MAX_MINUTES
+READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  NOTIFICATIONS
+METRICS  METRICS_TOKEN  SLOW_REQUEST_MS
+ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
-RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES
+RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES  UPLOAD_ACTIVE_SUFFIXES
 IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
+
+TWO_FACTOR  TWO_FACTOR_REQUIRED_SUPERUSERS  TWO_FACTOR_REQUIRED_ROLES
+TWO_FACTOR_ISSUER  TWO_FACTOR_MAX_ATTEMPTS  TWO_FACTOR_LOCKOUT_SECONDS
 
 TENANT_MODEL  TENANT_RESOLVER  TENANT_FIELD
 TENANT_SCOPE  TENANT_EXEMPT  TENANT_UNSCOPED
 
 JOBS  JOB_THRESHOLD_SECONDS  JOB_CHUNK_SIZE
 JOB_MAX_STORED_ERRORS  JOB_RETENTION_DAYS  JOB_QUEUE
+
+WEBHOOKS  WEBHOOKS_ALLOW_PRIVATE_NETWORKS  WEBHOOKS_TIMEOUT
+WEBHOOKS_MAX_ATTEMPTS  WEBHOOKS_BACKOFF_SECONDS  WEBHOOKS_RETENTION_DAYS
+
+REPORTS  REPORTS_MAX_ATTACHMENT_MB  REPORTS_MAX_PER_USER
+REPORTS_RETENTION_DAYS  REPORTS_BASE_URL
 
 UNDO_WINDOW  UNDO_MAX_ROWS
 
@@ -377,4 +452,6 @@ works as expected in tests.
 - [Permissions](permissions.md) — `PERMISSIONS`, `READ_ONLY`, `AUDIT_LOG`
 - [Multi-tenancy](tenancy.md) — the `TENANT_*` family in full
 - [Lists](lists.md#background-jobs) — the `JOB_*` family, and what triggers an offload
+- [Webhooks](webhooks.md) — the `WEBHOOKS_*` family in full
+- [Scheduled reports](reports.md) — the `REPORTS_*` family in full
 - [Deployment](deployment.md) — which of these to check before going live

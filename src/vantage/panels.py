@@ -90,12 +90,42 @@ class ModelPanel:
     inlines: list[Any] | None = None
     related_tabs: bool | None = None
 
+    # ── read-only models ────────────────────────────────────────────────────
+    #
+    # ``True`` refuses add, delete and every field change on this model, for everyone,
+    # superusers included — the shape a table owned by another system wants. ``None``
+    # follows ``VANTAGE["UNMANAGED_READ_ONLY"]`` for a ``managed = False`` model.
+    # ``editable_fields`` is the exception list: those fields stay changeable on
+    # existing rows (by whoever has ``change`` permission), and nothing else does.
+    read_only: bool | None = None
+    editable_fields: list[str] | None = None
+
+    # ── widget overrides ────────────────────────────────────────────────────
+    #
+    # Inference picks every control; these replace it where it picked wrong, and only
+    # there. ``formfield_overrides`` has django.contrib.admin's shape and semantics —
+    # keyed by model field class, matched along that class's MRO, values passed to
+    # ``formfield()`` — so an adopted ``ModelAdmin``'s dict carries across unchanged:
+    # ``{models.TextField: {"widget": forms.Textarea(attrs={"rows": 3})}}``.
+    # ``widgets`` is per field name, ``{"body": MarkdownEditor}``, and wins over both.
+    # A sensitive field keeps its write-only control whatever either says.
+    formfield_overrides: dict[type[models.Field], dict[str, Any]] | None = None
+    widgets: dict[str, Any] | None = None
+
     # ── sensitive values ────────────────────────────────────────────────────
     #
     # ``None`` infers them (see vantage.sensitive); a list names them outright and
     # replaces inference; ``[]`` switches masking off for this model. A user model's
     # password hash is masked whatever this says.
     sensitive_fields: list[str] | None = None
+
+    # ── field-level permissions ─────────────────────────────────────────────
+    #
+    # Per role, which fields are ``"hidden"`` or ``"readonly"``:
+    # ``{"Support": {"price": "readonly", "cost": "hidden"}}``. Added to whatever the
+    # roles matrix stores, the stricter of the two winning; superusers are never
+    # restricted. See vantage.fieldperms.
+    field_permissions: dict[str, dict[str, str]] | None = None
 
     # ── behaviour ───────────────────────────────────────────────────────────
     #
@@ -112,6 +142,15 @@ class ModelPanel:
     #: follows ``VANTAGE["UNDO_WINDOW"]``; ``False`` switches it off for this model —
     #: for one whose rows must never come back once deleted, say.
     undo: bool | None = None
+    #: The record's history page: its audit timeline, the record as of any point in
+    #: it, and restoring fields from there. ``None`` follows ``VANTAGE["AUDIT_LOG"]``;
+    #: ``"view"`` keeps the page but offers no restore; ``False`` removes it.
+    history: bool | str | None = None
+
+    #: Fields whose changes wait for someone with ``<app>.approve_<model>`` before they
+    #: are saved. Anyone without it can still edit the record: the other fields save as
+    #: usual and these become a pending request. See :mod:`vantage.approvals`.
+    requires_approval: list[str] | None = None
 
     #: The data quality audit: ``None`` runs every check, ``False`` leaves this model
     #: out, a list of check names (``["nulls", "stale"]``) skips just those.
@@ -123,6 +162,23 @@ class ModelPanel:
 
     #: Swap in a subclass to extend validation for your own panel base class.
     checks_class: type | None = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn when a subclass sets a deprecated attribute, and honour a rename.
+
+        At class creation rather than per request, so the warning points at the panel
+        that set it and is emitted once, not on every page view.
+        """
+        super().__init_subclass__(**kwargs)
+        from vantage.deprecation import DEPRECATED_PANEL_ATTRIBUTES, warn_deprecated
+
+        for name, deprecation in DEPRECATED_PANEL_ATTRIBUTES.items():
+            if name not in cls.__dict__:
+                continue
+            warn_deprecated(deprecation, f"{cls.__name__}: the ModelPanel attribute")
+            replacement = deprecation.replacement
+            if replacement and replacement not in cls.__dict__:
+                setattr(cls, replacement, cls.__dict__[name])
 
     def __init__(self, model: type[models.Model], site: VantageSite | None = None) -> None:
         self.model = model
@@ -233,6 +289,14 @@ class ModelPanel:
     # the intelligence. Override a getter for logic that inference cannot express.
 
     def get_list_display(self, request=None) -> list[str]:
+        columns = self._declared_list_display(request)
+        if request is None:
+            return columns
+        # A column whose field is hidden from this person is not a masked column, it
+        # is no column: the header alone would say the field exists.
+        return self._without_hidden(request, columns) or [self.opts.pk.name]
+
+    def _declared_list_display(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_display")
         if stored is not None:
             return list(stored)
@@ -248,6 +312,16 @@ class ModelPanel:
         return inferred
 
     def get_list_link(self, request=None) -> str:
+        link = self._declared_list_link(request)
+        if request is not None and link not in self.get_list_display(request):
+            # A hidden field is no column, so it cannot carry the row's link either.
+            from vantage.fieldperms import is_hidden_path
+
+            if is_hidden_path(request, self, link):
+                return self.get_list_display(request)[0]
+        return link
+
+    def _declared_list_link(self, request=None) -> str:
         if self.list_link is not None:
             return self.list_link
         # An explicit list_display — or a UI override of one — without an explicit
@@ -266,7 +340,9 @@ class ModelPanel:
         # Never a sensitive path, whoever declared it: a filter is an oracle — ticking
         # "pin = 1234" and watching the row count answers the question the mask exists
         # to refuse. ``vantage.W090`` tells the author their declaration was dropped.
-        return self._without_sensitive(self._declared_list_filter(request))
+        # A field hidden from this person is refused for the same reason.
+        paths = self._without_sensitive(self._declared_list_filter(request))
+        return self._without_hidden(request, paths)
 
     def _declared_list_filter(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_filter")
@@ -278,7 +354,8 @@ class ModelPanel:
 
     def get_list_search(self, request=None) -> list[str]:
         # Same reason as get_list_filter: a substring search is a guessing oracle.
-        return self._without_sensitive(self._declared_list_search(request))
+        paths = self._without_sensitive(self._declared_list_search(request))
+        return self._without_hidden(request, paths)
 
     def _declared_list_search(self, request=None) -> list[str]:
         stored = listprefs.override(self, request, "list_search")
@@ -292,6 +369,13 @@ class ModelPanel:
         from vantage.sensitive import strip_sensitive
 
         return strip_sensitive(self, paths)
+
+    def _without_hidden(self, request, paths: list[str]) -> list[str]:
+        if request is None:
+            return paths
+        from vantage.fieldperms import strip_hidden
+
+        return strip_hidden(request, self, paths)
 
     # ── sensitive values ────────────────────────────────────────────────────
 
@@ -311,6 +395,28 @@ class ModelPanel:
             self._sensitive_memo = cached
         return cached[1]
 
+    def get_field_access(self, request):
+        """Extra per-request field restrictions, as a :class:`~vantage.fieldperms.FieldAccess`.
+
+        ``None`` (the default) adds nothing. Whatever this returns is merged with the
+        role-based rules, the stricter level winning per field, and — like the
+        ``has_<action>_permission`` hooks — applies to superusers too. Every read and
+        write path that honours field permissions honours this.
+        """
+        return None
+
+    def get_requires_approval(self) -> tuple[str, ...]:
+        """The fields a change to which needs approval, in declared order.
+
+        Only names a held-back change can actually be made to: an unknown name, a
+        many-to-many or a file field is reported by ``manage.py check``
+        (``vantage.E106`` to ``E108``) and skipped here, so one bad entry cannot make the
+        edit page fail for a field nobody meant.
+        """
+        from vantage.approvals import approvable_fields
+
+        return approvable_fields(self)
+
     def can_reveal(self, request, obj, field_name: str) -> bool:
         """Whether ``request`` may reveal ``field_name`` on ``obj``. Override to narrow or widen.
 
@@ -323,9 +429,22 @@ class ModelPanel:
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             return False
-        return bool(user.is_superuser) or user.has_perm(REVEAL_PERMISSION)
+        if user.is_superuser or user.has_perm(REVEAL_PERMISSION):
+            return True
+        from vantage.breakglass import holds
+
+        return holds(request, REVEAL_PERMISSION)
 
     def get_ordering(self, request=None) -> list[str]:
+        ordering = self._declared_ordering()
+        if request is None or not ordering:
+            return ordering
+        # Ranking rows by a field someone cannot see tells them its order, which is a
+        # bound on every value of it. Falls back to newest-first rather than to the
+        # model's Meta.ordering, which may be the very field being hidden.
+        return self._without_hidden(request, ordering) or ["-pk"]
+
+    def _declared_ordering(self) -> list[str]:
         if self.ordering is not None:
             # A fixed order by a secret still ranks every row by it. Dropped, with
             # vantage.W090 saying so; inference never chooses one.
@@ -373,7 +492,30 @@ class ModelPanel:
             declared = infer_list_views(self.model)
         else:
             declared = list(self.list_views)
-        return [name for name in declared if supported(self, name)] or ["table"]
+        views = [name for name in declared if supported(self, name)]
+        if request is not None:
+            # A board grouped by a field this person cannot see would print its values
+            # as column headings; a map of hidden coordinates is the coordinates.
+            views = [name for name in views if self._view_visible(name, request)]
+        return views or ["table"]
+
+    def _view_visible(self, name: str, request) -> bool:
+        from vantage.fieldperms import hidden_names
+
+        hidden = hidden_names(request, self)
+        if not hidden:
+            return True
+        if name == "kanban":
+            return bool(self.get_kanban_fields(request))
+        if name == "calendar":
+            return bool(self.get_calendar_fields(request))
+        if name == "gallery":
+            return self.get_gallery_field(request) not in hidden
+        if name == "map":
+            fields = self.get_map_fields(request)
+            names = (fields,) if isinstance(fields, str) else tuple(fields or ())
+            return not any(field in hidden for field in names)
+        return True
 
     def get_kanban_field(self, request=None) -> str | None:
         if self.kanban_field is not None:
@@ -394,7 +536,7 @@ class ModelPanel:
         from vantage.listviews.inference import kanban_candidates
 
         return self._view_field_choices(
-            self.get_kanban_field(request), self.kanban_fields, kanban_candidates
+            self.get_kanban_field(request), self.kanban_fields, kanban_candidates, request
         )
 
     def get_calendar_fields(self, request=None) -> list[str]:
@@ -402,20 +544,21 @@ class ModelPanel:
         from vantage.listviews.inference import calendar_candidates
 
         return self._view_field_choices(
-            self.get_calendar_field(request), self.calendar_fields, calendar_candidates
+            self.get_calendar_field(request), self.calendar_fields, calendar_candidates, request
         )
 
-    def _view_field_choices(self, default, declared, infer) -> list[str]:
+    def _view_field_choices(self, default, declared, infer, request=None) -> list[str]:
         """``default`` first, then the declared or inferred rest, never a sensitive one.
 
         A sensitive field is refused even when declared: grouping by a secret prints
-        one column per distinct value, which is the value.
+        one column per distinct value, which is the value. So is a field hidden from
+        this person, for the same reason.
         """
         sensitive = self.get_sensitive_fields()
         rest = infer(self.model) if declared is None else list(declared)
         chosen = [default] if default else []
         chosen.extend(name for name in rest if name not in chosen)
-        return [name for name in chosen if name not in sensitive]
+        return self._without_hidden(request, [name for name in chosen if name not in sensitive])
 
     def get_gallery_field(self, request=None) -> str | None:
         if self.gallery_field is not None:
@@ -435,7 +578,7 @@ class ModelPanel:
     def get_card_fields(self, request=None, exclude: tuple[str, ...] = ()) -> list[str]:
         """What a card shows under its title. ``exclude`` is the view's own field."""
         if self.card_fields is not None:
-            return list(self.card_fields)
+            return self._without_hidden(request, list(self.card_fields))
         from vantage.listviews.inference import infer_card_fields
 
         return infer_card_fields(

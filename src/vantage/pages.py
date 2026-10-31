@@ -25,7 +25,20 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-__all__ = ["DataQualityPage", "HealthPage", "Page", "RolesPage", "SchemaPage", "page_slug"]
+__all__ = [
+    "AccessReviewPage",
+    "ApprovalsPage",
+    "BreakGlassPage",
+    "DataQualityPage",
+    "HealthPage",
+    "MyReportsPage",
+    "Page",
+    "ReportsPage",
+    "RolesPage",
+    "SchemaPage",
+    "WebhooksPage",
+    "page_slug",
+]
 
 _CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -97,13 +110,25 @@ class Page:
             return True
         if callable(self.permission):
             return bool(self.permission(request))
-        return request.user.has_perm(str(self.permission))
+        if request.user.has_perm(str(self.permission)):
+            return True
+        from vantage.breakglass import holds
+
+        return holds(request, str(self.permission))
 
     # ── content ─────────────────────────────────────────────────────────────
 
     def get_context(self, request) -> dict:
         """Everything the page needs. Override this; it is the whole point."""
         return {}
+
+    def get_badge(self, request) -> str | None:
+        """A count shown beside the page in the navigation, or ``None`` for none.
+
+        Asked once per page load for every page the user can see, so it has to be cheap
+        — a count, not a computation.
+        """
+        return None
 
     def get_template_names(self) -> list[str]:
         if self.template_name:
@@ -271,3 +296,174 @@ class RolesPage(Page):
         from vantage.rolesviews import list_context
 
         return list_context(request)
+
+
+def _may_review_access(request) -> bool:
+    from vantage.accessreview import may_review
+
+    return may_review(request)
+
+
+class AccessReviewPage(Page):
+    """Who can see and change which model and which guarded field, for audit evidence.
+
+    Superusers only unless ``VANTAGE["ACCESS_REVIEW_PERMISSION"]`` widens it. Every
+    answer comes from the panel's own permission resolver; see
+    :mod:`vantage.accessreview`. The download hangs off this page's path.
+    """
+
+    title = _("Access review")
+    description = _(
+        "Who can view, add, change and delete each model, and its sensitive or restricted fields."
+    )
+    icon = "users"
+    group = _("System")
+    order = 93
+    path = "_/access-review/"
+    template_name = "vantage/access/review.html"
+    permission = staticmethod(_may_review_access)
+
+    def get_context(self, request):
+        from vantage.accessviews import review_context
+
+        return review_context(self.site, request)
+
+
+class BreakGlassPage(Page):
+    """Time-boxed elevated access: ask for it, grant it, see it, end it.
+
+    Open to every staff member, because anyone may *ask* for elevation with a reason;
+    granting and approving are gated by ``VANTAGE["BREAK_GLASS_PERMISSION"]``. The
+    request, grant, approve, revoke and drop routes hang off this page's path; see
+    :mod:`vantage.accessviews` and :mod:`vantage.breakglass`.
+    """
+
+    title = _("Elevated access")
+    description = _("Hold more than your usual access for a few minutes, with a reason.")
+    icon = "shield"
+    group = _("System")
+    order = 93
+    path = "_/elevated-access/"
+    template_name = "vantage/access/break_glass.html"
+
+    def get_context(self, request):
+        from vantage.accessviews import break_glass_context
+
+        return break_glass_context(self.site, request)
+
+
+def _may_manage_webhooks(request) -> bool:
+    from vantage import webhooks
+
+    return webhooks.enabled() and webhooks.may_manage(request)
+
+
+class WebhooksPage(Page):
+    """Outbound webhooks and their delivery log.
+
+    Superusers, or anyone holding ``vantage.manage_webhooks``; ``VANTAGE["WEBHOOKS"] =
+    False`` removes the page. The edit, test and redeliver screens hang off this page's
+    path; see :mod:`vantage.webhookviews`.
+    """
+
+    title = _("Webhooks")
+    description = _("Tell another system, with a signed POST, when a record changes.")
+    icon = "send"
+    group = _("System")
+    order = 97
+    path = "_/webhooks/"
+    template_name = "vantage/webhooks/list.html"
+    permission = staticmethod(_may_manage_webhooks)
+
+    def get_context(self, request):
+        from vantage.webhookviews import list_context
+
+        return list_context(request)
+
+
+def _may_see_reports(request) -> bool:
+    from vantage import reports
+
+    return reports.enabled()
+
+
+def _may_manage_reports(request) -> bool:
+    from vantage import reports
+
+    return reports.enabled() and reports.may_manage(request)
+
+
+class MyReportsPage(Page):
+    """The scheduled reports you subscribed to, and what became of each send.
+
+    Open to anyone who can reach the panel: what a report contains is decided by its
+    owner's own permissions when it is sent, so listing your own reveals nothing.
+    ``VANTAGE["REPORTS"] = False`` removes it. The routes that act on a report hang off
+    the same path; see :mod:`vantage.reportviews`.
+    """
+
+    title = _("My reports")
+    description = _("Saved views emailed to you as a CSV, and what became of each send.")
+    icon = "mail"
+    group = _("System")
+    order = 98
+    path = "_/reports/"
+    template_name = "vantage/reports/list.html"
+    permission = staticmethod(_may_see_reports)
+
+    def get_context(self, request):
+        from vantage.reportviews import list_context
+
+        return list_context(request, everyone=False)
+
+
+class ReportsPage(Page):
+    """Every scheduled report, for the people who run the panel."""
+
+    title = _("Scheduled reports")
+    description = _("Everyone's scheduled reports: pause, resume, delete or send one now.")
+    icon = "mail"
+    group = _("System")
+    order = 99
+    path = "_/reports/all/"
+    template_name = "vantage/reports/list.html"
+    permission = staticmethod(_may_manage_reports)
+
+    def get_context(self, request):
+        from vantage.reportviews import list_context
+
+        return list_context(request, everyone=True)
+
+
+class ApprovalsPage(Page):
+    """Changes to ``requires_approval`` fields, waiting for someone to approve them.
+
+    In the navigation for anyone who can view a model that has such fields: approvers
+    work the queue, and everyone else finds their own requests there. The count beside
+    it is what is waiting for *you*. The review screen hangs off this page's path; see
+    :mod:`vantage.approvalviews`.
+    """
+
+    title = _("Approvals")
+    description = _("Changes that wait for a second pair of eyes before they are saved.")
+    icon = "check"
+    group = _("System")
+    order = 94
+    path = "_/approvals/"
+    template_name = "vantage/approvals/list.html"
+
+    def has_permission(self, request) -> bool:
+        from vantage.approvalviews import may_use
+
+        return self.site is not None and may_use(self.site, request)
+
+    def get_badge(self, request) -> str | None:
+        from vantage.approvalviews import waiting_count
+
+        count = waiting_count(self.site, request)
+        return str(count) if count else None
+
+    def get_context(self, request):
+        from vantage.approvalviews import list_context
+
+        return list_context(self.site, request)

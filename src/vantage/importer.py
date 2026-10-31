@@ -107,9 +107,13 @@ CHUNK_SIZE = 500
 #: the mapping is right, which a handful of rows answers as well as a thousand.
 PREVIEW_DIFF_ROWS = 10
 
-#: Bytes of the file handed to the dialect sniffer, and the window scanned for the
-#: binary-content check.
+#: Bytes of the file scanned for the binary-content check.
 SNIFF_BYTES = 64 * 1024
+
+#: Characters handed to ``csv.Sniffer``. Small on purpose: its quote-and-delimiter
+#: regular expressions are super-linear on hostile input (64 KiB of ``,"a`` took tens
+#: of seconds), and a delimiter is evident from the first few lines of any real file.
+SNIFF_CHARS = 4 * 1024
 
 #: A header row wider than this is a transposed file or a corrupt one, not a table.
 MAX_COLUMNS = 200
@@ -303,7 +307,13 @@ def _sniff(text: str) -> type[csv.Dialect] | csv.Dialect:
     entirely, which is not an error — it is a one-column file.
     """
     try:
-        return csv.Sniffer().sniff(text[:SNIFF_BYTES], delimiters=",;\t|")
+        sample = text[:SNIFF_CHARS]
+        # Whole lines only, when there is more than one: a row cut in half mid-quote
+        # can talk the sniffer into the wrong delimiter.
+        cut = sample.rfind("\n")
+        if 0 < cut < len(sample) - 1:
+            sample = sample[: cut + 1]
+        return csv.Sniffer().sniff(sample, delimiters=",;\t|")
     except csv.Error:
         return csv.excel
 
@@ -756,12 +766,17 @@ class ImportResult:
     updated: int = 0
     unchanged: int = 0
     failed: int = 0
+    #: Rows whose change to a ``requires_approval`` field became a pending request.
+    #: A row that also changed other fields is counted in ``updated`` as well.
+    queued: int = 0
+    #: Of those, rows where the held-back change was the only change.
+    queued_only: int = 0
     errors: list[RowError] = dataclass_field(default_factory=list)
     diffs: list[RowDiff] = dataclass_field(default_factory=list)
 
     @property
     def total(self) -> int:
-        return self.created + self.updated + self.unchanged + self.failed
+        return self.created + self.updated + self.unchanged + self.failed + self.queued_only
 
     @property
     def wrote_anything(self) -> bool:
@@ -794,6 +809,10 @@ class ImportResult:
             ngettext("%(count)s failed", "%(count)s failed", self.failed)
             % {"count": f"{self.failed:,}"}
             if self.failed
+            else "",
+            ngettext("%(count)s sent for approval", "%(count)s sent for approval", self.queued)
+            % {"count": f"{self.queued:,}"}
+            if self.queued
             else "",
         ]
         stated = [part for part in parts if part]
@@ -844,6 +863,9 @@ class _Runner:
         ]
         self._related: dict[tuple[str, str], tuple[str | None, str | None]] = {}
         self._labels: dict[tuple[str, Any], str] = {}
+        #: Change requests made since the last chunk committed, with their record,
+        #: announced in the audit log once that chunk is durable. See :func:`commit`.
+        self.pending: list[tuple[Any, Any]] = []
 
         # A panel with a ``save_model`` hook may well be the thing that supplies the
         # missing value — stamping the acting user onto an ``author`` field is the
@@ -980,7 +1002,7 @@ class _Runner:
                 )
 
         try:
-            self._save(form)
+            held = self._save(form)
         except (DatabaseError, ValidationError) as exc:
             # The savepoint has already rolled this row back, so the surrounding
             # transaction is still usable and the row left nothing behind.
@@ -989,6 +1011,15 @@ class _Runner:
 
         if existing is None:
             result.created += 1
+        elif held is not None:
+            # Queued one record at a time, the same as the edit page: the rest of the
+            # row is saved and the guarded fields wait. See vantage.approvals.
+            result.queued += 1
+            self.pending.append((form.instance, held))
+            if len(changed) > len(held.field_names):
+                result.updated += 1
+            else:
+                result.queued_only += 1
         else:
             result.updated += 1
 
@@ -1002,11 +1033,15 @@ class _Runner:
         find that an import bypassed it. No ``save_m2m``: many-to-many columns are never
         importable, so there is nothing deferred to write.
         """
+        from vantage import approvals
         from vantage.tenancy import enforce as enforce_tenant
 
         hook = getattr(self.panel, "save_model", None)
         with transaction.atomic(using=self.db):
             obj = form.save(commit=False)
+            # A guarded field goes back to its stored value and becomes a request,
+            # inside this row's savepoint so a failed row leaves no request behind.
+            held = approvals.withhold(self.request, self.panel, obj, form)
             # Same guard the edit form applies, for the same reason: a spreadsheet is
             # just as capable of carrying another tenant's key as a POST body is.
             enforce_tenant(self.request, obj)
@@ -1014,6 +1049,15 @@ class _Runner:
                 hook(self.request, obj, form, form.instance.pk is not None)
             else:
                 obj.save()
+        return held
+
+    def announce(self) -> None:
+        """Log the requests made by rows that are now committed, then forget them."""
+        from vantage import approvals
+
+        for obj, change_request in self.pending:
+            approvals.announce(self.request, obj, change_request)
+        self.pending = []
 
     # ── lookups ─────────────────────────────────────────────────────────────
 
@@ -1298,6 +1342,8 @@ def commit(
         with transaction.atomic(using=runner.db):
             for number, row in chunk:
                 runner.row(number, row, result)
+        # After the chunk commits, never inside it — the audit rule in vantage.audit.
+        runner.announce()
     return result
 
 

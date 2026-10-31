@@ -33,6 +33,7 @@ reason. See :func:`save_declaration` and :func:`_stored_nav`.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -46,6 +47,8 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.translation import gettext_lazy as _
 
 from vantage.conf import vantage_settings
+
+logger = logging.getLogger("vantage.nav")
 
 __all__ = [
     "ITEM_KINDS",
@@ -1235,11 +1238,39 @@ def build_nav(site, request=None) -> list[NavGroup]:
     """The sidebar for this request, resolved through all three layers."""
     stored = stored_declaration()
     if stored is not None:
-        return _stored_nav(site, request, stored, stored_known_keys())
-    declaration = vantage_settings.NAV
-    if declaration:
-        return _declared_nav(site, request, declaration)
-    return _derived_nav(site, request)
+        groups = _stored_nav(site, request, stored, stored_known_keys())
+    elif vantage_settings.NAV:
+        groups = _declared_nav(site, request, vantage_settings.NAV)
+    else:
+        groups = _derived_nav(site, request)
+    return _page_badges(site, request, groups)
+
+
+def _base_get_badge():
+    from vantage.pages import Page
+
+    return Page.get_badge
+
+
+def _page_badges(site, request, groups: list[NavGroup]) -> list[NavGroup]:
+    """Fill in the live counts pages report through ``Page.get_badge``.
+
+    Applied after all three layers so an arranged or declared sidebar keeps them too. A
+    badge written in the arrangement or in ``NAV`` wins: somebody chose it on purpose.
+    """
+    if request is None:
+        return groups
+    pages = {f"page:{page.get_slug()}": page for page in site.pages()}
+    for group in groups:
+        for item in group.items:
+            page = pages.get(item.key)
+            if page is None or item.badge or page.get_badge is _base_get_badge():
+                continue
+            try:
+                item.badge = page(site).get_badge(request)
+            except Exception:  # a count must never take the sidebar down with it
+                logger.exception("Could not compute the badge for %s.", item.key)
+    return groups
 
 
 def check_nav(app_configs, **kwargs) -> list:

@@ -45,7 +45,15 @@ from django.urls import NoReverseMatch, get_resolver, reverse
 from django.urls.resolvers import URLResolver
 from model_bakery import baker
 
-from vantage.models import SavedView, VantageJob
+from vantage.models import (
+    ChangeRequest,
+    ElevatedAccess,
+    ReportSubscription,
+    SavedView,
+    VantageJob,
+    Webhook,
+    WebhookDelivery,
+)
 from vantage.sites import site as vantage_site
 
 #: The seven URL names ``vantage.urls.build()`` mints for every registered panel,
@@ -84,7 +92,19 @@ def _prefix_pk_map(panels, instances) -> dict[str, object]:
     return {f"{p.opts.app_label}/{p.opts.model_name}/": instances[p.model].pk for p in panels}
 
 
-def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
+def _iter_requests(
+    panels,
+    instances,
+    job,
+    saved_view,
+    role=None,
+    user=None,
+    webhook=None,
+    delivery=None,
+    report=None,
+    change_request=None,
+    elevated_access=None,
+):
     """Every request this test will make: ``(description, url_name, kwargs)``.
 
     Walks the mounted resolver rather than naming routes, so a route added after this
@@ -114,6 +134,12 @@ def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
                 }
                 if "pk" in converters:
                     kwargs["pk"] = instances[panel.model].pk
+                # The per-model API sub-resources: an unknown action or saved view is a
+                # supported, non-crashing outcome, so placeholders exercise the route.
+                if "action_name" in converters:
+                    kwargs["action_name"] = "smoke-test-action"
+                if "view_pk" in converters:
+                    kwargs["view_pk"] = 0
                 yield f"{name} [{panel.opts.label_lower}]", name, kwargs
             continue
 
@@ -130,6 +156,16 @@ def _iter_requests(panels, instances, job, saved_view, role=None, user=None):
                     kwargs["pk"] = saved_view.pk
                 elif route.startswith("_/roles/") and role is not None:
                     kwargs["pk"] = role.pk
+                elif route.startswith("_/reports/") and report is not None:
+                    kwargs["pk"] = report.pk
+                elif route.startswith("_/webhooks/deliveries/") and delivery is not None:
+                    kwargs["pk"] = delivery.pk
+                elif route.startswith("_/webhooks/") and webhook is not None:
+                    kwargs["pk"] = webhook.pk
+                elif route.startswith("_/approvals/") and change_request is not None:
+                    kwargs["pk"] = change_request.pk
+                elif route.startswith("_/elevated-access/") and elevated_access is not None:
+                    kwargs["pk"] = elevated_access.pk
                 else:
                     unresolved.append(param)
             elif param == "user" and route.startswith("_/roles/") and user is not None:
@@ -230,6 +266,8 @@ def world(db):
         edit_scope=SavedView.EditScope.EVERYONE,
     )
 
+    webhook = Webhook.objects.create(name="Smoke hook", url="https://hooks.example.com/in")
+
     return {
         "panels": panels,
         "instances": instances,
@@ -239,6 +277,18 @@ def world(db):
         "saved_view": saved_view,
         # The roles screens take a group's pk, and the per-user screen a user's.
         "role": Group.objects.create(name="Smoke role"),
+        "webhook": webhook,
+        "delivery": WebhookDelivery.objects.create(webhook=webhook, event="updated"),
+        "report": ReportSubscription.objects.create(view=saved_view, user=superuser),
+        # A request about a record that is gone: the review screen must 404 for anyone
+        # who is not its author, rather than fall over.
+        "change_request": ChangeRequest.objects.create(
+            resource_key="testapp.post", object_id="0", changes={}
+        ),
+        # A pending break-glass request, for the approve and revoke routes.
+        "elevated_access": ElevatedAccess.objects.create(
+            user=staff, reason="Smoke test request", minutes=5
+        ),
     }
 
 
@@ -289,6 +339,11 @@ class TestFullRouteWalk:
                 world["saved_view"],
                 role=world["role"],
                 user=world["staff"],
+                webhook=world["webhook"],
+                delivery=world["delivery"],
+                report=world["report"],
+                change_request=world["change_request"],
+                elevated_access=world["elevated_access"],
             )
         )
         failures: list[str] = []
@@ -311,6 +366,11 @@ class TestFullRouteWalk:
                 world["saved_view"],
                 role=world["role"],
                 user=world["staff"],
+                webhook=world["webhook"],
+                delivery=world["delivery"],
+                report=world["report"],
+                change_request=world["change_request"],
+                elevated_access=world["elevated_access"],
             )
         )
         failures: list[str] = []

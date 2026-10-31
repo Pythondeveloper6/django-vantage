@@ -1,0 +1,189 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-reports.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% comment %}
+  Said out loud, as the webhooks page does: with no queue configured the cron command
+  sends the emails itself, and nothing at all happens until cron runs it.
+{% endcomment %}
+<p class="v-note" data-tone="warning">
+  {% icon "activity" %}
+  <span>
+    {% if backend.deferred %}
+      {% blocktranslate trimmed %}
+        Reports are queued by <code class="v-mono">manage.py vantage_reports</code>, which
+        must run every minute from cron.
+      {% endblocktranslate %}
+    {% else %}
+      {% blocktranslate trimmed %}
+        No task backend is configured, so <code class="v-mono">manage.py vantage_reports</code>
+        sends each report itself. It must run every minute from cron.
+      {% endblocktranslate %}
+    {% endif %}
+  </span>
+</p>
+
+<div class="v-table-wrap">
+  {% if subs %}
+    <table class="v-table v-table-flow v-reports-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Saved view" %}</th>
+          {% if everyone %}<th scope="col">{% translate "Runs as" %}</th>{% endif %}
+          <th scope="col">{% translate "Schedule" %}</th>
+          <th scope="col">{% translate "Next" %}</th>
+          <th scope="col">{% translate "Last" %}</th>
+          <th scope="col" class="v-reports-num">{% translate "Failed" %}</th>
+          <th scope="col"><span class="v-sr-only">{% translate "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sub in subs %}
+          <tr>
+            <th scope="row">
+              {% if sub.can_edit %}<a class="v-cell-link" href="{% url 'vantage:report-edit' sub.pk %}">{{ sub.view.name }}</a>{% else %}{{ sub.view.name }}{% endif %}
+              <code class="v-mono v-reports-model">{{ sub.view.model_label }}</code>
+            </th>
+            {% if everyone %}<td>{{ sub.user.get_username }}</td>{% endif %}
+            <td>
+              {{ sub.schedule }}
+              <span class="v-reports-status" data-status="{% if sub.active %}active{% else %}paused{% endif %}">
+                {% if sub.active %}{% translate "Active" %}{% else %}{% translate "Paused" %}{% endif %}
+              </span>
+              {% if sub.paused_reason %}<p class="v-reports-model">{{ sub.paused_reason }}</p>{% endif %}
+            </td>
+            <td class="v-reports-when">
+              {% if sub.next_run_at %}<time datetime="{{ sub.next_run_at|date:'c' }}">{{ sub.next_run_at|date:"Y-m-d H:i" }}</time>{% else %}—{% endif %}
+            </td>
+            <td class="v-reports-when">
+              {% if sub.last_run_at %}
+                <time datetime="{{ sub.last_run_at|date:'c' }}">{{ sub.last_run_at|date:"Y-m-d H:i" }}</time>
+                <span class="v-reports-status" data-status="{{ sub.last_status }}">{{ sub.get_last_status_display }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="v-reports-num"><a href="?report={{ sub.pk }}&amp;status=failed">{{ sub.failing }}</a></td>
+            <td class="v-cell-actions">
+              <div class="v-reports-actions">
+              {% if sub.can_act %}
+                <form method="post" action="{% url 'vantage:report-send' sub.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button class="v-btn v-btn-ghost v-btn-sm"
+                          aria-label="{% blocktranslate with name=sub.view.name %}Send {{ name }} now{% endblocktranslate %}">{% icon "send" %}<span>{% translate "Send now" %}</span></button>
+                </form>
+                {% if writable %}
+                  <form method="post" action="{% if sub.active %}{% url 'vantage:report-pause' sub.pk %}{% else %}{% url 'vantage:report-resume' sub.pk %}{% endif %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="v-btn v-btn-ghost v-btn-sm">{% if sub.active %}{% translate "Pause" %}{% else %}{% translate "Resume" %}{% endif %}</button>
+                  </form>
+                  {% if sub.can_edit %}
+                    <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:report-edit' sub.pk %}">{% icon "pencil" %}<span>{% translate "Edit" %}</span></a>
+                  {% endif %}
+                  <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:report-delete' sub.pk %}"
+                     aria-label="{% blocktranslate with name=sub.view.name %}Delete the report of {{ name }}{% endblocktranslate %}">{% icon "trash" %}<span>{% translate "Delete" %}</span></a>
+                {% endif %}
+              {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      {% icon "mail" class="v-empty-icon" %}
+      <p class="v-empty-title">{% translate "No scheduled reports yet." %}</p>
+      <p class="v-empty-body">
+        {% blocktranslate trimmed %}
+          Open a saved view on a list page and choose Subscribe to get it by email as a
+          CSV every day, week or month.
+        {% endblocktranslate %}
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+<h2 class="v-reports-heading">{% translate "Sends" %}</h2>
+
+<form class="v-reports-filter" method="get">
+  <label>
+    <span class="v-sr-only">{% translate "Report" %}</span>
+    <select class="v-select v-input-sm" name="report">
+      <option value="">{% translate "All reports" %}</option>
+      {% for sub in subs %}
+        <option value="{{ sub.pk }}" {% if selected == sub.pk|stringformat:"d" %}selected{% endif %}>{{ sub.view.name }}{% if everyone %} ({{ sub.user.get_username }}){% endif %}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span class="v-sr-only">{% translate "Status" %}</span>
+    <select class="v-select v-input-sm" name="status">
+      <option value="">{% translate "Any status" %}</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="v-btn v-btn-secondary v-btn-sm">{% translate "Filter" %}</button>
+</form>
+
+<div class="v-table-wrap">
+  {% if page_obj.object_list %}
+    <table class="v-table v-table-flow v-reports-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "When" %}</th>
+          <th scope="col">{% translate "Report" %}</th>
+          <th scope="col">{% translate "Status" %}</th>
+          <th scope="col" class="v-reports-num">{% translate "Rows" %}</th>
+          <th scope="col" class="v-reports-num">{% translate "To" %}</th>
+          <th scope="col" class="v-reports-num">{% translate "Time" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in page_obj %}
+          <tr>
+            <td class="v-reports-when"><time datetime="{{ run.created_at|date:'c' }}">{{ run.created_at|date:"Y-m-d H:i:s" }}</time></td>
+            <td>
+              {{ run.subscription.view.name }}
+              {% if everyone %}<code class="v-mono v-reports-model">{{ run.subscription.user.get_username }}</code>{% endif %}
+              <span class="v-reports-model">{{ run.get_trigger_display }}</span>
+            </td>
+            <td>
+              <span class="v-reports-status" data-status="{{ run.status }}">{{ run.get_status_display }}</span>
+              {% if run.status == "sent" and not run.attached %}<p class="v-reports-model">{% translate "Sent without the file: it was over the size limit." %}</p>{% endif %}
+              {% if run.reason %}<p class="v-reports-model">{{ run.reason }}</p>{% endif %}
+              {% if run.error %}<p class="v-reports-error">{{ run.error }}</p>{% endif %}
+            </td>
+            <td class="v-reports-num">{{ run.rows|default_if_none:"—" }}</td>
+            <td class="v-reports-num">{% if run.status == "sent" %}{{ run.recipients_count }}{% else %}—{% endif %}</td>
+            <td class="v-reports-num">{% if run.duration_ms is not None %}{{ run.duration_ms }} ms{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      <p class="v-empty-title">{% translate "Nothing has been sent yet." %}</p>
+    </div>
+  {% endif %}
+</div>
+
+{% if page_obj.has_other_pages %}
+  <nav class="v-reports-pager" aria-label="{% translate 'Pages' %}">
+    {% if page_obj.has_previous %}<a class="v-btn v-btn-ghost v-btn-sm" href="?report={{ selected }}&amp;status={{ status }}&amp;page={{ page_obj.previous_page_number }}">{% translate "Newer" %}</a>{% endif %}
+    <span class="v-muted">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="v-btn v-btn-ghost v-btn-sm" href="?report={{ selected }}&amp;status={{ status }}&amp;page={{ page_obj.next_page_number }}">{% translate "Older" %}</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

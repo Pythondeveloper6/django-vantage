@@ -53,6 +53,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from django import forms
 from django.apps import apps as django_apps
 from django.core.exceptions import PermissionDenied
 from django.db import router, transaction
@@ -61,7 +62,7 @@ from django.middleware.csrf import get_token
 from django.urls import NoReverseMatch, path, reverse
 from django.views import View
 
-from vantage import concurrency, formviews, listquery
+from vantage import concurrency, fieldperms, formviews, listquery
 from vantage.inline import form_errors, json_to_form_data
 from vantage.optimizer import plan_related
 from vantage.pagination import (
@@ -89,6 +90,7 @@ __all__ = [
     "SchemaView",
     "build_urls",
     "csrf_failure",
+    "model_schema",
 ]
 
 #: The model-level permission each HTTP verb answers to. Matches the four actions
@@ -224,6 +226,78 @@ def _parse_json_body(request) -> dict[str, Any]:
     return payload
 
 
+class WriteBody:
+    """A create/update body, from JSON or from ``multipart/form-data``.
+
+    A JSON body is ``{"fields": {...}, "version": "...", "note": "..."}``. A multipart
+    body carries the *same* three keys as form parts — ``fields`` as a JSON-encoded
+    string, ``version`` and ``note`` as plain text — and each uploaded file as a part
+    named after the field it belongs to. Keeping the JSON object in a part rather than
+    inventing a second flat encoding means a boolean, a ``null`` or a JSON column is
+    decoded by the one conversion (:func:`vantage.inline.json_to_form_data`) whichever
+    way it arrived.
+    """
+
+    def __init__(self, request) -> None:
+        self.files = None
+        content_type = (request.content_type or "").lower()
+        if content_type == "multipart/form-data":
+            data, self.files = self._parse_multipart(request)
+            raw = data.get("fields", "{}")
+            try:
+                fields = json.loads(raw) if raw else {}
+            except ValueError as exc:
+                raise BadRequest("The 'fields' part was not valid JSON.") from exc
+            if not isinstance(fields, dict):
+                raise BadRequest("The 'fields' part must be a JSON object.")
+            self.fields: Any = fields
+            self.version = data.get("version")
+            self.note = data.get("note")
+            # An upload for a field is its value; so is naming the part at all.
+            self.has_fields = True
+            return
+        payload = _parse_json_body(request)
+        self.fields = payload.get("fields")
+        self.version = payload.get("version")
+        self.note = payload.get("note")
+        self.has_fields = isinstance(self.fields, dict)
+
+    @staticmethod
+    def _parse_multipart(request):
+        """POST is parsed by Django; PUT and PATCH are not, so parse them ourselves."""
+        try:
+            if request.method == "POST":
+                return request.POST, request.FILES
+            return request.parse_file_upload(request.META, request)
+        except Exception as exc:  # MultiPartParserError, TooManyFilesSent, ...
+            raise BadRequest(f"The multipart body could not be read: {exc}") from exc
+
+    def require_fields(self) -> dict[str, Any]:
+        if not self.has_fields:
+            raise BadRequest("The request body must include a 'fields' object.")
+        return self.fields
+
+    @property
+    def uploaded_names(self) -> list[str]:
+        return list(self.files) if self.files is not None else []
+
+
+def _bind(form_class, values: dict[str, Any], body: WriteBody, **kwargs):
+    """The bound form for a write, with uploads and file clears applied.
+
+    A file field is cleared by sending ``null`` for it, which here becomes the clear
+    checkbox the HTML control posts — the one rule for "remove the stored file" that
+    ``ClearableFileInput`` already implements, including its refusal to clear a
+    required field.
+    """
+    data = json_to_form_data(form_class, values)
+    for name, value in values.items():
+        field = form_class.base_fields.get(name)
+        if value is None and field is not None and isinstance(field.widget, forms.FileInput):
+            data[f"{name}-clear"] = "on"
+    return form_class(data=data, files=body.files, **kwargs)
+
+
 # ── the registry guard ──────────────────────────────────────────────────────
 
 
@@ -286,15 +360,18 @@ def _html_detail_url(panel, obj) -> str | None:
         return None
 
 
-def _record_payload(panel, obj) -> dict[str, Any]:
-    """One record, fully — the shape both retrieve and every write echo back."""
+def _record_payload(panel, obj, request=None) -> dict[str, Any]:
+    """One record, fully — the shape both retrieve and every write echo back.
+
+    Fields hidden from the caller are not in it, on a read or on a write's echo.
+    """
     return {
         "pk": json_value(obj.pk),
-        "display": safe_str(obj, panel.site),
+        "display": fieldperms.safe_label(request, obj, panel.site),
         "version": concurrency.token_for(obj),
         "url": _detail_url(panel, obj),
         "html_url": _html_detail_url(panel, obj),
-        "fields": object_fields(panel, obj),
+        "fields": object_fields(panel, obj, hidden=fieldperms.hidden_names(request, panel)),
     }
 
 
@@ -406,9 +483,19 @@ class ModelApiView(ApiView):
         self.panel = self.site.get_panel(self.model)
         self.permissions = get_permissions()
 
-        action = ACTION_FOR_METHOD.get(request.method.upper(), "view")
+        action = self.required_action(request)
         if not self.permissions.has_model_perm(request, self.model, action):
             raise ApiError(403, _model_denied_message(self.panel, action))
+
+    def required_action(self, request) -> str:
+        """The model-level verb this request needs before the handler is reached.
+
+        Overridden by the endpoints whose HTTP verb does not say what they do: a bulk
+        action is a ``POST`` that needs ``view`` here (the action's own permission is
+        checked against it in the handler), and a saved view is a ``POST`` that writes
+        no model row at all.
+        """
+        return ACTION_FOR_METHOD.get(request.method.upper(), "view")
 
 
 # ── list + create ────────────────────────────────────────────────────────────
@@ -429,7 +516,7 @@ class ListCreateView(ModelApiView):
         resolved = listquery.build(self.panel, request, self.permissions, allow_tree=False)
         queryset = resolved.queryset
 
-        columns = self._requested_fields(request)
+        columns = fieldperms.strip_hidden(request, self.panel, self._requested_fields(request))
         select, prefetch = plan_related(self.panel.model, columns)
         if select:
             queryset = queryset.select_related(*sorted(select))
@@ -499,9 +586,10 @@ class ListCreateView(ModelApiView):
             return self.panel.get_list_display(request)
 
         wanted = [name.strip() for name in raw.split(",") if name.strip()]
+        hidden = fieldperms.hidden_names(request, self.panel)
         allowed = {
             *self.panel.get_list_display(request),
-            *(field.name for field in record_fields(self.panel.model)),
+            *(field.name for field in record_fields(self.panel.model) if field.name not in hidden),
         }
         unknown = [name for name in wanted if name not in allowed]
         if unknown:
@@ -526,24 +614,26 @@ class ListCreateView(ModelApiView):
     # ── create ──────────────────────────────────────────────────────────────
 
     def _create(self, request):
-        payload = _parse_json_body(request)
-        submitted = payload.get("fields")
-        if not isinstance(submitted, dict):
-            raise BadRequest("The request body must include a 'fields' object.")
+        body = WriteBody(request)
+        submitted = body.require_fields()
 
-        editable = formviews.form_editable_names(self.panel)
-        unknown = sorted(set(submitted) - set(editable))
+        editable = formviews.form_editable_names(self.panel, request)
+        unknown = sorted((set(submitted) | set(body.uploaded_names)) - set(editable))
         if unknown:
             raise ApiError(400, f"Unknown or read-only field(s): {', '.join(unknown)}.")
 
+        refusal = fieldperms.unfillable_message(request, self.panel)
+        if refusal:
+            raise ApiError(422, refusal)
+
         form_class = build_form_class(self.panel, editable)
         filled = _with_field_defaults(form_class, editable, submitted)
-        form = form_class(data=json_to_form_data(form_class, filled))
+        form = _bind(form_class, filled, body)
         if not form.is_valid():
             return error_response(422, "Validation failed.", errors=form_errors(form))
 
         obj = formviews.save_form(request, self.panel, form, change=False)
-        return json_response(_record_payload(self.panel, obj), status=201)
+        return json_response(_record_payload(self.panel, obj, request), status=201)
 
 
 # ── one record ───────────────────────────────────────────────────────────────
@@ -554,7 +644,7 @@ class RecordDetailView(ModelApiView):
 
     def get(self, request, *args, **kwargs):
         obj = formviews.get_record(request, self.panel, self.permissions, self.kwargs["pk"], "view")
-        return json_response(_record_payload(self.panel, obj))
+        return json_response(_record_payload(self.panel, obj, request))
 
     def put(self, request, *args, **kwargs):
         return self._write(request, partial=False)
@@ -589,13 +679,14 @@ class RecordDetailView(ModelApiView):
         obj = formviews.get_record(
             request, self.panel, self.permissions, self.kwargs["pk"], "change"
         )
-        payload = _parse_json_body(request)
-        submitted = payload.get("fields")
-        if not isinstance(submitted, dict):
-            raise BadRequest("The request body must include a 'fields' object.")
+        body = WriteBody(request)
+        submitted = body.require_fields()
 
-        editable = formviews.form_editable_names(self.panel)
-        unknown = sorted(set(submitted) - set(editable))
+        # Per caller: a field they may only read is "read-only" here exactly as it is on
+        # the edit page, and one hidden from them is "unknown" — the same answer as a
+        # name that does not exist, so the error cannot be used to discover it.
+        editable = formviews.form_editable_names(self.panel, request)
+        unknown = sorted((set(submitted) | set(body.uploaded_names)) - set(editable))
         if unknown:
             raise ApiError(400, f"Unknown or read-only field(s): {', '.join(unknown)}.")
 
@@ -603,7 +694,7 @@ class RecordDetailView(ModelApiView):
         # built over a subset of fields - vantage.inline.ChangeSet.build_form does the
         # same narrowing for the same reason: a partial write must not demand a value
         # for a required field nobody is touching.
-        names = list(submitted) if partial else editable
+        names = list(dict.fromkeys([*submitted, *body.uploaded_names])) if partial else editable
         # A PUT that leaves a sensitive field out keeps it: the client was never sent the
         # value, so it cannot be expected to send it back. Only an explicit null clears.
         secret = self.panel.get_sensitive_fields()
@@ -614,11 +705,13 @@ class RecordDetailView(ModelApiView):
         )
 
         form_class = build_form_class(self.panel, names)
-        form = form_class(data=json_to_form_data(form_class, values), instance=obj)
+        form = _bind(form_class, values, body, instance=obj)
         if not form.is_valid():
             return error_response(422, "Validation failed.", errors=form_errors(form))
 
-        version = payload.get("version")
+        note = body.note
+        form.vantage_approval_note = note if isinstance(note, str) else ""
+        version = body.version
         try:
             saved = formviews.save_form(
                 request,
@@ -635,12 +728,38 @@ class RecordDetailView(ModelApiView):
                     "pk": json_value(stale.obj.pk),
                     "version": stale.token,
                     "label": safe_str(stale.obj, self.panel.site),
+                    # ``submitted`` was checked against the editable names above, so
+                    # nothing hidden from this caller can be in the diff.
                     "fields": concurrency.field_diff(
                         stale.obj, submitted, sensitive=self.panel.get_sensitive_fields()
                     ),
                 },
             )
-        return json_response(_record_payload(self.panel, saved))
+        pending = getattr(form, "vantage_pending", None)
+        if pending is not None:
+            # 202, not 200: part of what was sent has not been saved yet. The record in
+            # the body is what is stored; ``pending`` says which fields are waiting.
+            record = _record_payload(self.panel, saved, request)
+            record["pending"] = _pending_payload(self.panel, pending)
+            return json_response(record, status=202)
+        return json_response(_record_payload(self.panel, saved, request))
+
+
+def _pending_payload(panel, change_request) -> dict[str, Any]:
+    """The change request a write became, without any value a sensitive field holds."""
+    from vantage.approvals import pending_message
+
+    secret = panel.get_sensitive_fields()
+    return {
+        "id": change_request.pk,
+        "status": change_request.status,
+        "fields": change_request.field_names,
+        "requested": {
+            name: None if name in secret else change.get("to")
+            for name, change in change_request.changes.items()
+        },
+        "detail": pending_message(panel, change_request),
+    }
 
 
 # ── schema ───────────────────────────────────────────────────────────────────
@@ -657,7 +776,7 @@ class SchemaView(ApiView):
 
     def get(self, request, *args, **kwargs):
         models = {
-            panel.opts.label_lower: self._model_schema(request, panel)
+            panel.opts.label_lower: model_schema(request, panel, self.permissions)
             for panel in self.permissions.visible_panels(request, list(self.site.panels()))
         }
         return json_response({"models": models})
@@ -665,58 +784,73 @@ class SchemaView(ApiView):
     def resolve(self, request, *args, **kwargs) -> None:
         self.permissions = get_permissions()
 
-    def _model_schema(self, request, panel) -> dict[str, Any]:
-        editable = set(formviews.form_editable_names(panel))
-        form_class = build_form_class(panel, sorted(editable)) if editable else None
-        bound = form_class.base_fields if form_class is not None else {}
-        secret = panel.get_sensitive_fields()
 
-        fields = [
-            field_schema(
-                panel.model,
-                field.name,
-                form_field=bound.get(field.name),
-                readonly=field.name not in editable,
-                options_url=self._options_url(field),
-            )
-            for field in record_fields(panel.model)
-        ]
-        for entry in fields:
-            # A client building a form needs to know the field will never be read back:
-            # render it empty, and send nothing (or omit it) to keep the stored value.
-            entry["sensitive"] = entry["name"] in secret
-            if entry["sensitive"]:
-                entry.pop("initial", None)
+def model_schema(request, panel, permissions) -> dict[str, Any]:
+    """One model as this caller sees it. Shared with the OpenAPI document.
 
-        return {
-            "model": panel.opts.label_lower,
-            "label": panel.get_label(),
-            "label_plural": panel.get_label_plural(),
-            "actions": sorted(self.permissions.allowed_actions(request, panel.model)),
-            "list_url": _list_url(self.site, panel),
-            "list_display": panel.get_list_display(request),
-            "list_filter": panel.get_list_filter(request),
-            "list_search": panel.get_list_search(request),
-            "fields": fields,
-        }
+    A module function rather than a view method so :mod:`vantage.apiopenapi` describes a
+    model with the very code that answers ``/_/api/schema/`` — one definition of "which
+    fields, which are writable, which need approval" for both.
+    """
+    editable = set(formviews.form_editable_names(panel, request))
+    form_class = build_form_class(panel, sorted(editable)) if editable else None
+    bound = form_class.base_fields if form_class is not None else {}
+    secret = panel.get_sensitive_fields()
+    hidden = fieldperms.hidden_names(request, panel)
 
-    @staticmethod
-    def _options_url(field: Any) -> str | None:
-        related = getattr(field, "related_model", None)
-        if related is None:
-            return None
-        try:
-            base = reverse("vantage:autocomplete")
-        except NoReverseMatch:  # pragma: no cover - only when autocomplete is not mounted
-            return None
-        return f"{base}?model={related._meta.label}"
+    fields = [
+        field_schema(
+            panel.model,
+            field.name,
+            form_field=bound.get(field.name),
+            readonly=field.name not in editable,
+            options_url=_options_url(field),
+        )
+        for field in record_fields(panel.model)
+        if field.name not in hidden
+    ]
+    from vantage.approvals import guarded_for
+
+    # For this caller: a change to one of these is answered 202 and waits. Only
+    # among the fields they may write: a read-only one is refused, never held.
+    held = set(guarded_for(request, panel)) & set(editable)
+    for entry in fields:
+        # A client building a form needs to know the field will never be read back:
+        # render it empty, and send nothing (or omit it) to keep the stored value.
+        entry["sensitive"] = entry["name"] in secret
+        if entry["sensitive"]:
+            entry.pop("initial", None)
+        entry["needs_approval"] = entry["name"] in held
+
+    return {
+        "model": panel.opts.label_lower,
+        "label": panel.get_label(),
+        "label_plural": panel.get_label_plural(),
+        "actions": sorted(permissions.allowed_actions(request, panel.model)),
+        "list_url": _list_url(panel.site, panel),
+        "list_display": panel.get_list_display(request),
+        "list_filter": panel.get_list_filter(request),
+        "list_search": panel.get_list_search(request),
+        "fields": fields,
+    }
+
+
+def _options_url(field: Any) -> str | None:
+    related = getattr(field, "related_model", None)
+    if related is None:
+        return None
+    try:
+        base = reverse("vantage:autocomplete")
+    except NoReverseMatch:  # pragma: no cover - only when autocomplete is not mounted
+        return None
+    return f"{base}?model={related._meta.label}"
 
 
 # ── mounting ────────────────────────────────────────────────────────────────
 
 
 def build_urls(site) -> list:
-    """Routes for ``site``: one schema endpoint, and one list/detail pair per model.
+    """Routes for ``site``: schema, OpenAPI, the per-model extras, then list/detail.
 
     The list and detail routes are parameterised by ``app_label``/``model_name`` rather
     than looped per panel the way :mod:`vantage.recordviews` mounts its own — a shorter
@@ -725,17 +859,38 @@ def build_urls(site) -> list:
     :class:`vantage.autocomplete.AutocompleteView` already uses for the same reason.
     Nothing this resolves can name a model outside ``site.panels()``: the guard runs on
     every request, not only once at mount time.
+
+    **Order matters.** The detail route's ``<path:pk>`` is greedy, so the per-model
+    sub-resources (``_actions/``, ``_views/``, ``_import/``, ``_export/``) are declared
+    first, or they would be read as primary keys. The leading underscore is the same
+    reserved-prefix trick the HTML routes use; a record whose primary key is literally
+    one of those four names is the only thing this shadows.
     """
+    from vantage import apiactions, apiio, apiopenapi, apisaved
+
+    prefix = "_/api/<str:app_label>/<str:model_name>/"
+    bound = {"site": site}
     return [
-        path("_/api/schema/", SchemaView.as_view(site=site), name="api-schema"),
+        path("_/api/schema/", SchemaView.as_view(**bound), name="api-schema"),
+        path("_/api/openapi.json", apiopenapi.OpenAPIView.as_view(**bound), name="api-openapi"),
         path(
-            "_/api/<str:app_label>/<str:model_name>/",
-            ListCreateView.as_view(site=site),
-            name="api-list",
+            f"{prefix}_actions/",
+            apiactions.ActionListView.as_view(**bound),
+            name="api-actions",
         ),
         path(
-            "_/api/<str:app_label>/<str:model_name>/<path:pk>/",
-            RecordDetailView.as_view(site=site),
-            name="api-detail",
+            f"{prefix}_actions/<str:action_name>/",
+            apiactions.ActionRunView.as_view(**bound),
+            name="api-action-run",
         ),
+        path(f"{prefix}_views/", apisaved.SavedViewListView.as_view(**bound), name="api-views"),
+        path(
+            f"{prefix}_views/<int:view_pk>/",
+            apisaved.SavedViewDetailView.as_view(**bound),
+            name="api-view-detail",
+        ),
+        path(f"{prefix}_import/", apiio.ImportView.as_view(**bound), name="api-import"),
+        path(f"{prefix}_export/", apiio.ExportView.as_view(**bound), name="api-export"),
+        path(prefix, ListCreateView.as_view(**bound), name="api-list"),
+        path(f"{prefix}<path:pk>/", RecordDetailView.as_view(**bound), name="api-detail"),
     ]

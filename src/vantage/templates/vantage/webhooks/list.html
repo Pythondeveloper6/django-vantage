@@ -1,0 +1,178 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-webhooks.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  {% if writable %}
+    <div class="v-page-actions">
+      <a class="v-btn v-btn-primary" href="{% url 'vantage:webhook-create' %}">{% icon "plus" %}<span>{% translate "New webhook" %}</span></a>
+    </div>
+  {% endif %}
+</div>
+
+{% if new_secret %}
+  <section class="v-form-alert" data-tone="warning" role="alert">
+    <p class="v-form-alert-title">{% blocktranslate with name=new_secret.name %}Signing secret for {{ name }}{% endblocktranslate %}</p>
+    <p><code class="v-mono v-webhooks-secret">{{ new_secret.secret }}</code></p>
+    <p>{% translate "Copy it now. It is not shown again; you can generate a new one by editing the webhook." %}</p>
+  </section>
+{% endif %}
+
+{% comment %}
+  Said out loud, as the jobs page does: with no queue configured, a delivery runs in the
+  request that caused it, and retries wait for `manage.py vantage_webhooks`.
+{% endcomment %}
+{% if not backend.deferred %}
+  <p class="v-note" data-tone="warning">
+    {% icon "activity" %}
+    <span>
+      {% blocktranslate trimmed %}
+        No task backend is configured, so deliveries are sent during the request that
+        changed the record, and retries wait for <code class="v-mono">manage.py vantage_webhooks</code>.
+      {% endblocktranslate %}
+    </span>
+  </p>
+{% endif %}
+
+<div class="v-table-wrap">
+  {% if hooks %}
+    <table class="v-table v-table-flow v-webhooks-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Name" %}</th>
+          <th scope="col">{% translate "URL" %}</th>
+          <th scope="col">{% translate "Status" %}</th>
+          <th scope="col" class="v-webhooks-num">{% translate "Failed" %}</th>
+          <th scope="col"><span class="v-sr-only">{% translate "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for hook in hooks %}
+          <tr>
+            <th scope="row">
+              <a class="v-cell-link" href="{% url 'vantage:webhook-edit' hook.pk %}">{{ hook.name }}</a>
+            </th>
+            <td><code class="v-mono v-webhooks-url">{{ hook.url }}</code></td>
+            <td>
+              <span class="v-webhooks-status" data-status="{{ hook.active|yesno:'succeeded,pending' }}">
+                {% if hook.active %}{% translate "Active" %}{% else %}{% translate "Paused" %}{% endif %}
+              </span>
+            </td>
+            <td class="v-webhooks-num">
+              <a href="?webhook={{ hook.pk }}&amp;status=failed">{{ hook.failing }}</a>
+            </td>
+            <td class="v-cell-actions">
+              <div class="v-webhooks-actions">
+              <form method="post" action="{% url 'vantage:webhook-test' hook.pk %}">
+                {% csrf_token %}
+                <button class="v-btn v-btn-ghost v-btn-sm"
+                        aria-label="{% blocktranslate with name=hook.name %}Send a test to {{ name }}{% endblocktranslate %}">{% icon "send" %}<span>{% translate "Send test" %}</span></button>
+              </form>
+              {% if writable %}
+                <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:webhook-edit' hook.pk %}">{% icon "pencil" %}<span>{% translate "Edit" %}</span></a>
+                <a class="v-btn v-btn-ghost v-btn-sm" href="{% url 'vantage:webhook-delete' hook.pk %}"
+                   aria-label="{% blocktranslate with name=hook.name %}Delete {{ name }}{% endblocktranslate %}">{% icon "trash" %}<span>{% translate "Delete" %}</span></a>
+              {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      {% icon "send" class="v-empty-icon" %}
+      <p class="v-empty-title">{% translate "No webhooks yet." %}</p>
+      <p class="v-empty-body">
+        {% blocktranslate trimmed %}
+          A webhook sends a signed POST to an address you choose when a record is created,
+          changed or deleted, and keeps a log of every delivery.
+        {% endblocktranslate %}
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+<h2 class="v-webhooks-heading">{% translate "Deliveries" %}</h2>
+
+<form class="v-webhooks-filter" method="get">
+  <label>
+    <span class="v-sr-only">{% translate "Webhook" %}</span>
+    <select class="v-select v-input-sm" name="webhook">
+      <option value="">{% translate "All webhooks" %}</option>
+      {% for hook in hooks %}
+        <option value="{{ hook.pk }}" {% if selected == hook.pk|stringformat:"d" %}selected{% endif %}>{{ hook.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span class="v-sr-only">{% translate "Status" %}</span>
+    <select class="v-select v-input-sm" name="status">
+      <option value="">{% translate "Any status" %}</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="v-btn v-btn-secondary v-btn-sm">{% translate "Filter" %}</button>
+</form>
+
+<div class="v-table-wrap">
+  {% if page_obj.object_list %}
+    <table class="v-table v-table-flow v-webhooks-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "When" %}</th>
+          <th scope="col">{% translate "Webhook" %}</th>
+          <th scope="col">{% translate "Event" %}</th>
+          <th scope="col">{% translate "Status" %}</th>
+          <th scope="col" class="v-webhooks-num">{% translate "Code" %}</th>
+          <th scope="col" class="v-webhooks-num">{% translate "Attempts" %}</th>
+          <th scope="col" class="v-webhooks-num">{% translate "Time" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in page_obj %}
+          <tr>
+            <td class="v-webhooks-when">
+              <a class="v-cell-link" href="{% url 'vantage:webhook-delivery' d.pk %}">
+                <time datetime="{{ d.created_at|date:'c' }}">{{ d.created_at|date:"Y-m-d H:i:s" }}</time>
+              </a>
+            </td>
+            <td>{{ d.webhook.name }}</td>
+            <td>
+              {{ d.event }}
+              {% if d.resource_key %}<code class="v-mono v-webhooks-model">{{ d.resource_key }}{% if d.object_id %} #{{ d.object_id }}{% endif %}</code>{% endif %}
+            </td>
+            <td>
+              <span class="v-webhooks-status" data-status="{{ d.status }}">{{ d.get_status_display }}</span>
+              {% if d.error and d.status != "succeeded" %}<p class="v-webhooks-error">{{ d.error }}</p>{% endif %}
+            </td>
+            <td class="v-webhooks-num">{{ d.response_code|default:"—" }}</td>
+            <td class="v-webhooks-num">{{ d.attempts }}</td>
+            <td class="v-webhooks-num">{% if d.duration_ms is not None %}{{ d.duration_ms }} ms{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      <p class="v-empty-title">{% translate "No deliveries yet." %}</p>
+    </div>
+  {% endif %}
+</div>
+
+{% if page_obj.has_other_pages %}
+  <nav class="v-webhooks-pager" aria-label="{% translate 'Pages' %}">
+    {% if page_obj.has_previous %}<a class="v-btn v-btn-ghost v-btn-sm" href="?webhook={{ selected }}&amp;status={{ status }}&amp;page={{ page_obj.previous_page_number }}">{% translate "Newer" %}</a>{% endif %}
+    <span class="v-muted">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="v-btn v-btn-ghost v-btn-sm" href="?webhook={{ selected }}&amp;status={{ status }}&amp;page={{ page_obj.next_page_number }}">{% translate "Older" %}</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

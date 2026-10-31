@@ -71,4 +71,31 @@
   {% endif %}
 </div>
 <p class="v-muted v-roles-more">{% translate "Lists what the database grants through roles and directly. A custom authentication backend may grant more." %}</p>
+
+{% if field_restrictions %}
+  <section class="v-card v-roles-user-fields">
+    <div class="v-card-head"><h2 class="v-card-title">{% translate "Field access" %}</h2></div>
+    <div class="v-table-wrap">
+      <table class="v-table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Model" %}</th>
+            <th scope="col">{% translate "Hidden" %}</th>
+            <th scope="col">{% translate "Read-only" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in field_restrictions %}
+            <tr>
+              <th scope="row">{{ item.label }}</th>
+              <td class="v-roles-other">{{ item.hidden|join:", "|default:"—" }}</td>
+              <td class="v-roles-other">{{ item.readonly|join:", "|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <p class="v-muted v-roles-more">{% translate "Where two roles disagree about a field, the more permissive one applies." %}</p>
+{% endif %}
 {% endblock %}

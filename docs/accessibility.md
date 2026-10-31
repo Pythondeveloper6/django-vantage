@@ -34,6 +34,11 @@ not merely intended. If one regresses, the build fails.
 | Resizing a grid column, by drag or by keyboard, announces the column's name and its new width through the grid's own live region, debounced rather than sent on every keypress or drag frame | 4.1.3 Status Messages | `vantage-grid.js`, `tests/test_accessibility.py` |
 | The relation picker's real `<select>` is `inert`, not merely `tabindex="-1"` plus `aria-hidden`, so it does not surface as a second, nameless combobox in the accessibility tree | 4.1.2 Name, Role, Value | `combobox.js`, `tests/test_accessibility.py` |
 
+On a phone the bulk-action bar becomes a non-modal bottom sheet and the sidebar a drawer;
+both close on Escape and hand focus back, and the sheet is a `role="dialog"` only while it
+is one. The list keeps its grid roles when its rows are laid out as cards. See
+[Phones](phones.md).
+
 ### The live region, specifically
 
 `#v-toasts` is rendered **unconditionally**, even with nothing in it. A live region

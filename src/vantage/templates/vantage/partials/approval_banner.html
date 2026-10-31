@@ -1,0 +1,45 @@
+{% load i18n %}{% comment %}
+  What is waiting for approval on this record (detail and edit pages), and — on the edit
+  page, before anything is typed — which fields will wait if changed, with a box for a
+  note to whoever approves it. Context from vantage.approvalviews.banner_context.
+{% endcomment %}
+{% if approval_banner %}
+  {% if approval_banner.pending %}
+    <section class="v-approval-banner" aria-labelledby="v-approval-banner-title">
+      <h2 class="v-approval-banner-title" id="v-approval-banner-title">
+        {% blocktranslate count counter=approval_banner.pending|length trimmed %}
+          A change to this record is waiting for approval.
+        {% plural %}
+          {{ counter }} changes to this record are waiting for approval.
+        {% endblocktranslate %}
+      </h2>
+      {% for entry in approval_banner.pending %}
+        <div class="v-approval-item">
+          <p class="v-approval-meta">
+            {% translate "Someone" as unknown_actor %}
+            {% blocktranslate with who=entry.request.requested_by_repr|default:unknown_actor when=entry.request.requested_at|date:"Y-m-d H:i" trimmed %}
+              Asked by {{ who }}, {{ when }}.
+            {% endblocktranslate %}
+          </p>
+          {% include "vantage/approvals/_diff.html" with rows=entry.rows %}
+          {% if entry.request.note and not entry.words_hidden %}<p class="v-approval-note">{{ entry.request.note }}</p>{% endif %}
+          {% if entry.review_url %}
+            <a class="v-btn v-btn-secondary v-btn-sm" href="{{ entry.review_url }}">{% translate "Review" %}</a>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+  {% if editing and approval_banner.held %}
+    <section class="v-approval-held" aria-labelledby="v-approval-held-title">
+      <p class="v-approval-banner-title" id="v-approval-held-title">
+        {% blocktranslate with fields=approval_banner.held|join:", " trimmed %}
+          Changes to {{ fields }} need approval. The rest of the form saves as usual;
+          those wait for someone who can approve them.
+        {% endblocktranslate %}
+      </p>
+      <label class="v-approval-note-label" for="v-approval-note">{% translate "Note for the approver (optional)" %}</label>
+      <textarea class="v-textarea" id="v-approval-note" name="{{ approval_banner.note_field }}" rows="2" maxlength="2000"></textarea>
+    </section>
+  {% endif %}
+{% endif %}

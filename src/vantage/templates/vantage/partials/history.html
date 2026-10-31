@@ -14,6 +14,9 @@
     <div class="v-card-head">
       <h2 class="v-card-title">{% translate "History" %}</h2>
       {% if history %}<span class="v-badge">{{ history|length }}</span>{% endif %}
+      {% if history_url %}
+        <a class="v-btn v-btn-sm v-btn-ghost v-history-open" href="{{ history_url }}">{% translate "As it was…" %}</a>
+      {% endif %}
     </div>
 
     {% if history %}
@@ -30,6 +33,8 @@
             </div>
             {% if entry.revealed_field %}
               <p class="v-history-note">{% blocktranslate with name=entry.revealed_field %}Revealed <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% elif entry.restored_as_of %}
+              <p class="v-history-note">{% blocktranslate with when=entry.restored_as_of|date:"Y-m-d H:i" %}Restored from history, as of {{ when }}.{% endblocktranslate %}</p>
             {% elif entry.action_name %}
               <p class="v-history-note">{% blocktranslate with name=entry.action_name %}Ran <code>{{ name }}</code>.{% endblocktranslate %}</p>
             {% endif %}

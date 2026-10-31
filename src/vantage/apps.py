@@ -20,7 +20,9 @@ class SimpleVantageConfig(AppConfig):
     def ready(self) -> None:
         from vantage.checks import (
             DEPLOYMENT_CHECKS,
+            check_deploy_two_factor_admin,
             check_panels,
+            check_two_factor,
             check_vantage_settings,
         )
         from vantage.contrib.django_admin import check_admin_adapter
@@ -30,6 +32,7 @@ class SimpleVantageConfig(AppConfig):
 
         checks.register(check_vantage_settings, "vantage")
         checks.register(check_panels, "vantage")
+        checks.register(check_two_factor, "vantage")
         checks.register(check_nav, "vantage")
         # Tenant scoping fails closed, which is safe and invisible. This is the half
         # that makes it usable: it names every model whose pages would show nothing.
@@ -49,11 +52,27 @@ class SimpleVantageConfig(AppConfig):
         post_migrate.connect(
             ensure_reveal_permission, sender=self, dispatch_uid="vantage_reveal_permission"
         )
+        # <app>.approve_<model> for every panel with requires_approval, for the same
+        # reason: a project's own models get the permission without a migration.
+        from vantage.approvals import ensure_permissions
+
+        post_migrate.connect(
+            ensure_permissions, sender=self, dispatch_uid="vantage_approve_permissions"
+        )
+        # Primes the two-factor answer for a fresh session at sign-in, so the panel's
+        # first page does not have to query for it. Any login view, not only ours.
+        from django.contrib.auth.signals import user_logged_in
+
+        from vantage.twofactor import on_logged_in
+
+        user_logged_in.connect(on_logged_in, dispatch_uid="vantage_two_factor_login")
         # deploy=True keeps these out of the everyday `manage.py check`. Every one of
         # them is correct on a laptop, and a check that is wrong in development is a
         # check everybody learns to scroll past.
         for check in DEPLOYMENT_CHECKS:
             checks.register(check, "vantage", deploy=True)
+        # Two-factor's, in its own id range (vantage.W095) rather than the W05x family.
+        checks.register(check_deploy_two_factor_admin, "vantage", deploy=True)
 
 
 class VantageConfig(SimpleVantageConfig):
@@ -63,7 +82,18 @@ class VantageConfig(SimpleVantageConfig):
 
     def ready(self) -> None:
         super().ready()
-        from vantage.pages import DataQualityPage, HealthPage, RolesPage, SchemaPage
+        from vantage.pages import (
+            AccessReviewPage,
+            ApprovalsPage,
+            BreakGlassPage,
+            DataQualityPage,
+            HealthPage,
+            MyReportsPage,
+            ReportsPage,
+            RolesPage,
+            SchemaPage,
+            WebhooksPage,
+        )
         from vantage.plugins import load_plugins
         from vantage.sites import site
 
@@ -72,9 +102,16 @@ class VantageConfig(SimpleVantageConfig):
         site.register_page(SchemaPage)
         site.register_page(HealthPage)
         site.register_page(DataQualityPage)
+        site.register_page(WebhooksPage)
+        site.register_page(MyReportsPage)
+        site.register_page(ReportsPage)
+        # Only in the navigation of someone who can view a model with requires_approval.
+        site.register_page(ApprovalsPage)
         # Groups are a contrib.auth table, and a project without it has no roles.
         if django_apps.is_installed("django.contrib.auth"):
             site.register_page(RolesPage)
+            site.register_page(AccessReviewPage)
+            site.register_page(BreakGlassPage)
 
         # Plugins next, and before autodiscovery for the same reason: a project's
         # panel.py is its last word, so it must be able to unregister or replace

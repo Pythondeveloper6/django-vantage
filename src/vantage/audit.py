@@ -44,6 +44,7 @@ from uuid import UUID
 from django.apps import apps as django_apps
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models.fields.files import FieldFile
 
 from vantage.conf import vantage_settings
 from vantage.models import VantageLogEntry
@@ -92,23 +93,28 @@ def record(
     thing the operator can actually see and act on. The failure is logged at
     ``exception`` level so it is loud in the place where loudness is free.
     """
+    entry = None
     try:
-        if not vantage_settings.AUDIT_LOG:
-            return None
-        return VantageLogEntry.objects.create(
-            **_entry_kwargs(
-                request,
-                action,
-                obj=obj,
-                model=model,
-                changes=changes,
-                action_name=action_name,
-                object_repr=object_repr,
+        if vantage_settings.AUDIT_LOG:
+            entry = VantageLogEntry.objects.create(
+                **_entry_kwargs(
+                    request,
+                    action,
+                    obj=obj,
+                    model=model,
+                    changes=changes,
+                    action_name=action_name,
+                    object_repr=object_repr,
+                )
             )
-        )
     except Exception:  # deliberately broad: see the docstring
         logger.exception("Could not write a Vantage audit entry for %r.", action)
-        return None
+    # The same call sites, the same moment. Webhooks fire whether or not the log is on,
+    # and a failure in one is no reason to lose the other; `notify` never raises.
+    from vantage import webhooks
+
+    webhooks.notify(request, action, obj=obj, changes=changes)
+    return entry
 
 
 def _entry_kwargs(
@@ -156,17 +162,23 @@ def _content_type(model) -> ContentType | None:
     return ContentType.objects.get_for_model(model)
 
 
-def log_form_save(request, obj, form, change: bool) -> VantageLogEntry | None:
+def log_form_save(
+    request, obj, form, change: bool, *, action_name: str = ""
+) -> VantageLogEntry | None:
     """The one call the create and edit views make. ``change`` is what they already know.
 
     An edit whose form changed nothing writes no entry: a log full of "opened the form
     and pressed Save" is a log nobody reads, and the entries that matter drown in it.
+
+    ``action_name`` says where an edit came from when it was not typed — a restore from
+    the record's history is an ordinary update with the same diff, named so the log
+    can tell the two apart.
     """
     changes = diff_from_form(form)
     if change and not changes:
         return None
     action = VantageLogEntry.Action.UPDATE if change else VantageLogEntry.Action.CREATE
-    return record(request, action, obj=obj, changes=changes)
+    return record(request, action, obj=obj, changes=changes, action_name=action_name)
 
 
 def log_delete(request, obj, *, soft: bool = False) -> VantageLogEntry | None:
@@ -220,8 +232,13 @@ def diff_from_form(form) -> dict[str, dict[str, Any]]:
     moved", so the diff cannot disagree with what was saved.
     """
     sensitive = _form_sensitive(form)
+    # Fields held back for approval (see vantage.approvals.withhold) were put back
+    # before the write: the row did not change there, so neither does the diff.
+    withheld = getattr(form, "vantage_withheld", frozenset())
     changes: dict[str, dict[str, Any]] = {}
     for name in getattr(form, "changed_data", ()):
+        if name in withheld:
+            continue
         if name in sensitive:
             # Recorded as having changed, never with its value. "Someone rotated the
             # API token at 14:02" is the useful half; the token is the dangerous half.
@@ -304,7 +321,12 @@ def _jsonify(value: Any) -> Any:
         return str(value)
     if isinstance(value, models.Model):
         return _clip(_repr(value), MAX_VALUE_CHARS)
-    if hasattr(value, "name") and hasattr(value, "url"):  # FieldFile / UploadedFile
+    if isinstance(value, FieldFile):
+        # Before the duck-typed test below: ``.url`` on an empty FieldFile raises
+        # ValueError, which ``hasattr`` does not swallow, so editing a record with no
+        # file attached used to break its own audit entry.
+        return _clip(str(value.name or ""), MAX_VALUE_CHARS)
+    if hasattr(value, "name") and hasattr(value, "url"):  # UploadedFile
         return _clip(str(getattr(value, "name", "")), MAX_VALUE_CHARS)
     if hasattr(value, "all"):  # a manager or queryset, from an m2m field
         return sorted(_clip(str(item), MAX_VALUE_CHARS) for item in value.all())
@@ -370,8 +392,10 @@ def history_context(request, obj) -> dict[str, Any]:
         # Not merely hidden: "who edited this record" is itself information about
         # colleagues, and a panel that leaks it to everyone will be asked not to.
         return {"history": None}
+    from vantage.fieldperms import hide_entry_fields
+
     return {
-        "history": list(entries_for(obj)),
+        "history": hide_entry_fields(request, entries_for(obj)),
         "history_timeline": history_timeline(obj),
         "history_limit": HISTORY_LIMIT,
         # Resolved here rather than with ``{% url %}``: the audit route may not be

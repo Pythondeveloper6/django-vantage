@@ -5,10 +5,9 @@ known UI string comes back translated, and ``ngettext`` threads a count through 
 correct one of Arabic's six plural categories (zero/one/two/few/many/other), not
 just "singular or plural" the way English would hide a bug in.
 
-``locale/ar/LC_MESSAGES/django.po`` is a deliberately partial catalogue: the
-high-traffic strings used below are translated, the rest is left with an empty
-msgstr so it falls back to the English source instead of shipping a guess. See
-``docs/internationalization.md``.
+The Arabic catalogues are complete (``TestArabicCataloguesAreComplete``); a string
+added to the source after the last catalogue refresh falls back to English until it
+is translated. See ``docs/internationalization.md``.
 """
 
 from __future__ import annotations
@@ -116,13 +115,17 @@ class TestKnownStringsComeBackInArabic:
             assert gettext("Sign in") == "تسجيل الدخول"
             assert gettext("Cancel") == "إلغاء"
 
-    def test_an_untranslated_string_falls_back_to_english_not_a_blank(self):
-        """The catalogue is intentionally partial. An empty msgstr must fall back
-        cleanly to the source string, never render as empty text."""
+    def test_a_string_missing_from_the_catalogue_falls_back_to_english(self):
+        """A source string added after the last catalogue refresh is simply absent
+        from the compiled catalogue; it must render as the source text, never blank."""
         with translation.override("ar"):
-            # Deliberately not in the curated translation set (see translate_ar in
-            # the locale update tooling) — proves the fallback path, not a lucky hit.
-            assert gettext("Row density") == "Row density"
+            assert gettext("A string no catalogue has ever heard of") == (
+                "A string no catalogue has ever heard of"
+            )
+
+    def test_a_formerly_untranslated_string_is_translated_now(self):
+        with translation.override("ar"):
+            assert gettext("Row density") != "Row density"
 
 
 # ── plurals ──────────────────────────────────────────────────────────────────
@@ -227,16 +230,11 @@ class TestTheJavaScriptCatalogueTranslatesArabic:
         body = client.get(reverse("vantage:jsi18n")).content.decode()
         assert _catalog_of(body)["Selection cleared"] == "Selection cleared"
 
-    def test_an_untranslated_js_string_falls_back_to_english_not_a_blank(self, client, db):
-        """The djangojs catalogue is deliberately partial too, exactly like the
-        django domain (see TestKnownStringsComeBackInArabic above): an empty msgstr
-        is omitted from the compiled .mo entirely, and DjangoTranslation's own
-        fallback-to-LANGUAGE_CODE chain is what fills the gap with the English
-        source — never a blank string a JS caller would render as nothing."""
+    def test_a_formerly_untranslated_js_string_is_translated_now(self, client, db):
         with translation.override("ar"):
             body = client.get(reverse("vantage:jsi18n")).content.decode()
-        # "this row" (vantage-listprefs.js) is deliberately left untranslated.
-        assert _catalog_of(body)["this row"] == "this row"
+        # "this row" (vantage-listprefs.js) used to fall back to English.
+        assert _catalog_of(body)["this row"] != "this row"
 
     def test_the_flagship_plural_carries_all_six_arabic_forms(self, client, db):
         """``%(count)s change`` / ``%(count)s changes`` — the "1 changes" bug this
@@ -255,6 +253,46 @@ class TestTheJavaScriptCatalogueTranslatesArabic:
         ]
         # A regression this specific fails by collapsing every count onto one form.
         assert len(set(forms)) == 6
+
+
+# ── completeness ─────────────────────────────────────────────────────────────
+
+
+def _compiled_catalogue(locale: str, domain: str) -> dict:
+    """The compiled ``.mo`` as gettext reads it. An entry with an empty msgstr (or a
+    fuzzy one) is left out of the ``.mo`` by msgfmt, so "present and non-empty in the
+    compiled catalogue" is exactly "translated"."""
+    import gettext as gettext_module
+
+    path = REPO_ROOT / "src/vantage/locale" / locale / "LC_MESSAGES" / f"{domain}.mo"
+    with path.open("rb") as fh:
+        return gettext_module.GNUTranslations(fh)._catalog
+
+
+@pytest.mark.parametrize("domain", ["django", "djangojs"])
+class TestArabicCataloguesAreComplete:
+    """``en`` is an identity catalogue, so it lists every extracted msgid; ``ar`` has
+    to carry a real translation for each of them, and all six forms of every plural."""
+
+    def test_every_english_message_has_an_arabic_translation(self, domain):
+        def msgids(catalogue: dict) -> set[str]:
+            return {k[0] if isinstance(k, tuple) else k for k in catalogue} - {""}
+
+        missing = sorted(
+            msgids(_compiled_catalogue("en", domain)) - msgids(_compiled_catalogue("ar", domain))
+        )
+        assert not missing, f"untranslated in ar/{domain}: {missing[:5]}"
+
+    def test_every_arabic_plural_has_all_six_forms(self, domain):
+        arabic = _compiled_catalogue("ar", domain)
+        forms: dict[str, set[int]] = {}
+        for key, value in arabic.items():
+            if isinstance(key, tuple):
+                assert value.strip(), f"empty plural form {key} in ar/{domain}"
+                forms.setdefault(key[0], set()).add(key[1])
+        assert forms, "expected at least one plural entry"
+        short = {m: sorted(f) for m, f in forms.items() if f != set(range(6))}
+        assert not short, f"plurals without all six Arabic forms: {list(short)[:3]}"
 
 
 # ── graceful degradation ─────────────────────────────────────────────────────

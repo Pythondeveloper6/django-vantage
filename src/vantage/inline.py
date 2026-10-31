@@ -201,8 +201,11 @@ def inline_fields(panel, request=None) -> tuple[InlineField, ...]:
     if not declared or _has_custom_clean(panel.model):
         return ()
 
+    from vantage.fieldperms import access
+
     columns = set(panel.get_list_display(request))
     writable = set(_change_form_names(panel))
+    locked = access(request, panel).locked
     entangled = _cross_field_names(panel.model)
     link = panel.get_list_link(request)
 
@@ -224,6 +227,10 @@ def inline_fields(panel, request=None) -> tuple[InlineField, ...]:
         if name in panel.get_sensitive_fields():
             # A cell editor round-trips the value it edits, through the control and
             # back in the save response. A secret has no business in either.
+            continue
+        if name in locked:
+            # Read-only (or hidden) for this person: a plain cell, and the write path
+            # below refuses it because this allowlist is what the write is checked on.
             continue
         kind = classify(field)
         if kind not in INLINE_KINDS or not _is_short(field, kind):
@@ -420,16 +427,26 @@ class InlineWriteView(InlinePanelView):
         # Outside the transaction, deliberately: an audit failure caught inside an
         # atomic block still marks it for rollback, so logging the write there could
         # destroy the write it was recording.
-        from vantage import audit
+        from vantage import approvals, audit
 
+        pending = []
         for obj, form in saved:
             audit.log_form_save(request, obj, form, change=True)
+            change_request = getattr(form, "vantage_pending", None)
+            if change_request is not None:
+                approvals.announce(request, obj, change_request)
+                pending.append(change_request)
 
         body: dict[str, Any] = {
             "ok": True,
             "saved": len(saved),
             "rows": [self.row_result(obj) for obj, _ in saved],
         }
+        if pending:
+            # The rows above carry the stored values, so the grid shows what is really
+            # in the database; this is the sentence that says why a cell went back.
+            body["pending"] = len(pending)
+            body["pending_message"] = approvals.pending_message(self.panel, _merged(pending))
         if self.capture is not None:
             plan = self.capture.plan(self.panel, verb="change", what="inline", origin="inline")
             offered = undo.offer(request, self.panel, plan)
@@ -526,10 +543,14 @@ class InlineWriteView(InlinePanelView):
 
     def save_row(self, obj, form: forms.ModelForm):
         """Save one row through the panel's own hook, exactly as the change form does."""
+        from vantage import approvals
         from vantage.tenancy import enforce as enforce_tenant
 
         hook = getattr(self.panel, "save_model", None)
         saved = form.save(commit=False)
+        # A cell on a field that needs approval goes back to its stored value and
+        # becomes a pending request; the rest of the row saves. See vantage.approvals.
+        approvals.withhold(self.request, self.panel, saved, form)
         # The grid posts arbitrary columns, so it can post the tenant column too.
         # A no-op unless tenancy is on; a 403 when the value would cross a boundary.
         enforce_tenant(self.request, saved)
@@ -635,6 +656,18 @@ class InlineValidateView(InlinePanelView):
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
+
+
+def _merged(requests):
+    """One stand-in request naming every field held back across a changeset.
+
+    Only its ``field_names`` are read, to word one sentence for the whole save rather
+    than one per row.
+    """
+    from types import SimpleNamespace
+
+    names = list(dict.fromkeys(name for item in requests for name in item.field_names))
+    return SimpleNamespace(field_names=names)
 
 
 def form_errors(form: forms.ModelForm) -> dict[str, list[str]]:

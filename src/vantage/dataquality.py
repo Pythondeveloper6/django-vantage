@@ -886,6 +886,24 @@ class Audit:
         return sum(len(r.issues) for r in self.reports)
 
 
+def _without_hidden(report: ModelReport, request) -> ModelReport:
+    """``report`` minus the findings about fields hidden from this person."""
+    from dataclasses import replace
+
+    from django.apps import apps as django_apps
+
+    from vantage.fieldperms import hidden_names
+
+    try:
+        model = django_apps.get_model(report.model)
+    except (LookupError, ValueError):
+        return report
+    hidden = hidden_names(request, model)
+    if not hidden or not any(f.field in hidden for f in report.findings):
+        return report
+    return replace(report, findings=[f for f in report.findings if f.field not in hidden])
+
+
 def run_audit(
     site,
     request,
@@ -933,6 +951,11 @@ def run_audit(
         if use_cache and not report.error:
             cache.set(key, report, ttl)
         audit.reports.append(report)
+
+    # After the cache, not inside it: the cache key is the rows, which two people with
+    # different field rules share, and a finding about a field one of them cannot see
+    # is a statement about its values ("12% empty", "3 duplicates").
+    audit.reports = [_without_hidden(report, request) for report in audit.reports]
 
     audit.reports.sort(key=lambda r: ((r.score is None), r.score or 0, r.label.lower()))
     return audit

@@ -51,6 +51,25 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # one is a capability bound to a user and a session. A CRUD form would print
         # the first and route around the second.
         "vantage.undoentry",
+        # Two-factor secrets and recovery-code hashes. A CRUD form would print the one
+        # and let anyone with "change" on the table switch someone else's off.
+        "vantage.twofactordevice",
+        "vantage.twofactorrecoverycode",
+        # The signing secret is a column here, and the page that manages hooks decides
+        # who may see the log. A CRUD form would print one and route around the other.
+        "vantage.webhook",
+        "vantage.webhookdelivery",
+        # Subscriptions run as another person and the log names their recipients; the
+        # reports pages decide who may see which, and a CRUD form would not.
+        "vantage.reportsubscription",
+        "vantage.reportrun",
+        # A pending change is decided on the approvals page, which checks who may
+        # approve what. A CRUD form could flip a request to "approved" without applying
+        # it, or print a sensitive value it holds.
+        "vantage.changerequest",
+        # Field rules belong to a role, and the roles matrix is where every escalation
+        # check lives. A CRUD form would let "change" on this table lift a restriction.
+        "vantage.fieldpermission",
     }
 )
 
