@@ -949,3 +949,56 @@ class TestHasPermissionHook:
         request = rf.get("/")
         request.user = _boss_user(boss)
         assert NoDeleteEver().allows(request, "delete", item) is False
+
+
+class HideBigItems(PanelPermissions):
+    """Row scoping on the child model: an item of quantity 99 is not this user's."""
+
+    def filter_queryset(self, request, queryset, action="view"):
+        queryset = super().filter_queryset(request, queryset, action)
+        if queryset.model is ZInlineItem and not request.user.is_superuser:
+            return queryset.exclude(quantity=99)
+        return queryset
+
+
+class TestChildRowScope:
+    """The child formset lists and edits only rows the child model's scoping allows."""
+
+    @pytest.fixture(autouse=True)
+    def _item_inlines(self, monkeypatch, settings):
+        settings.VANTAGE = {"PERMISSIONS": "tests.test_inlines.HideBigItems"}
+        monkeypatch.setattr(order_panel, "inlines", [ItemInlineTabular])
+
+    def _staff(self, client):
+        return staff_client(
+            client,
+            (ZInlineOrder, "view"),
+            (ZInlineOrder, "change"),
+            (ZInlineItem, "view"),
+            (ZInlineItem, "change"),
+        )
+
+    def test_a_scoped_out_child_is_not_shown(self, client, order, part):
+        hidden = ZInlineItem.objects.create(
+            order=order, product=part, quantity=99, unit_price="123.45"
+        )
+        page = self._staff(client).get(change_url(order))
+        assert page.status_code == 200
+        group = page.context["inlines"][0]
+        assert hidden.pk not in [form.instance.pk for form in group.formset.forms]
+
+    def test_a_scoped_out_child_cannot_be_edited_by_naming_it(self, client, rf, order, part):
+        hidden = ZInlineItem.objects.create(
+            order=order, product=part, quantity=99, unit_price="123.45"
+        )
+        staff = self._staff(client)
+        user = User.objects.get(username="staffer")
+        prefix = formset_prefix(order_panel, ItemInlineTabular, order, rf, user)
+        data = order_payload(reference=order.reference)
+        data.update(management_form(prefix, total=1, initial=1))
+        data.update(
+            item_row(prefix, 0, part_pk=part.pk, quantity=99, unit_price="0.01", pk=hidden.pk)
+        )
+        staff.post(change_url(order), data)
+        hidden.refresh_from_db()
+        assert str(hidden.unit_price) == "123.45"
