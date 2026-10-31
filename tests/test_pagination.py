@@ -310,6 +310,7 @@ class TestKeysetSQL:
             .query.get_compiler(using="default")
             .as_sql()
         )
+        sql = sql.replace("`", '"')  # MySQL quotes with backticks
         assert '("testapp_ledgerentry"."created_at", "testapp_ledgerentry"."id") < (%s, %s)' in sql
         assert params[-1] == 7
 
@@ -342,6 +343,7 @@ class TestKeysetSQL:
             .query.get_compiler(using="default")
             .as_sql()
         )
+        sql = sql.replace("`", '"')  # MySQL quotes with backticks
         assert " OR " in sql
         assert '"bucket" > %s' in sql
         assert '"id" < %s' in sql
