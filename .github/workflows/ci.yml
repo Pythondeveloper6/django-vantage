@@ -1,8 +1,8 @@
 # Continuous integration.
 #
-# Five jobs, in rough order of how fast they tell you something useful: lint, then the
-# test matrix, then the browser layer, then the type check (advisory), then the
-# packaging check.
+# Lint, the test matrix (SQLite), the browser layer, the type check (advisory), the
+# packaging check, then the same suite on PostgreSQL and MySQL, a coverage floor and a
+# dependency vulnerability audit.
 #
 # The packaging job is the one worth explaining. `vantage` is mostly not Python — 30
 # templates, 16 static files, a templatetags module — and every one is located by path
@@ -257,3 +257,100 @@ jobs:
           name: dist
           path: dist/
           if-no-files-found: error
+
+  databases:
+    # The main matrix runs on SQLite. These two cells run the whole suite against a real
+    # PostgreSQL and MySQL, where the planner estimates, statement timeouts, keyset
+    # paging and case-sensitivity rules actually execute instead of being simulated.
+    name: ${{ matrix.database }} · py3.13 · Django 6.1
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, mysql]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vantage
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: vantage
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -proot" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+    env:
+      VANTAGE_TEST_DB: ${{ matrix.database }}
+      PGHOST: localhost
+      PGPORT: "5432"
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: "3306"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          uv venv
+          uv pip install . --group dev "django>=6.1,<6.2" "psycopg[binary]>=3.2" "mysqlclient>=2.2"
+
+      - name: pytest
+        run: uv run --no-sync pytest -p no:cacheprovider
+
+  coverage:
+    # A floor, not a target: it fails a change that deletes tests or adds a large
+    # untested module, and is raised as coverage rises.
+    name: coverage (gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+
+      - run: uv sync --group dev --frozen
+
+      - name: pytest with coverage
+        run: uv run --no-sync pytest --cov=vantage --cov-report=term-missing:skip-covered --cov-fail-under=90
+
+  audit:
+    # Known-vulnerable pins in the lockfile fail the build. The runtime dependency is
+    # Django alone; the rest are development tools, audited because they run in CI.
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "3.13"
+
+      - name: pip-audit
+        run: |
+          uv export --frozen --all-groups --no-hashes --no-emit-project > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit==2.9.0 --strict -r "$RUNNER_TEMP/requirements.txt"
