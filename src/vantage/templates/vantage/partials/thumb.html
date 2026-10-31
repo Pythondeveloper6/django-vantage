@@ -28,7 +28,7 @@ already-resolved media URL into /static/media/… and breaks every image on the 
   {% endif %}
 {% elif file_name %}
   {% if file_url %}
-    <a class="v-file-chip" href="{% asset file_url %}" target="_blank" rel="noopener noreferrer">
+    <a class="v-file-chip" href="{% asset file_url %}"{% if download %} download{% else %} target="_blank"{% endif %} rel="noopener noreferrer">
       {% icon icon %}<span class="v-file-name">{{ file_name }}</span>
       <span class="v-sr-only">{% translate "(opens in a new tab)" %}</span>
     </a>

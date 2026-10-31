@@ -78,6 +78,7 @@ __all__ = [
     "csp_context",
     "csp_nonce",
     "inspect_upload",
+    "markup_hazard",
     "nonce_attr",
     "panel_templates",
     "rate_limit_for",
@@ -874,18 +875,71 @@ _MARKUP_PREFIXES: tuple[tuple[bytes, str], ...] = (
 #: than rewriting it into safety, because a rewriter that is wrong once is worse than a
 #: refusal that is occasionally annoying.
 SVG_HAZARDS: tuple[tuple[re.Pattern[bytes], str], ...] = (
-    (re.compile(rb"<\s*(?:[a-z0-9]+:)?script\b", re.IGNORECASE), "a <script> element"),
-    (re.compile(rb"\son[a-z]+\s*=", re.IGNORECASE), "an inline event handler"),
+    # A namespace prefix is any XML name, so ``a_b:script`` and ``a-b:script`` count.
+    (re.compile(rb"<\s*(?:[\w.\-]+:)?script\b", re.IGNORECASE), "a <script> element"),
+    (re.compile(rb"[\s/\"']on[a-z]+\s*=", re.IGNORECASE), "an inline event handler"),
     (
         re.compile(rb"attributeName\s*=\s*[\"']?\s*on", re.IGNORECASE),
         "an animation that writes an event handler",
     ),
-    (re.compile(rb"javascript\s*:", re.IGNORECASE), "a javascript: URL"),
+    (re.compile(rb"(?:java|vb)script:", re.IGNORECASE), "a javascript: URL"),
+    (re.compile(rb"data:[^,;]*(?:html|xml|svg)", re.IGNORECASE), "an embedded data: document"),
     (
-        re.compile(rb"<\s*(?:[a-z0-9]+:)?(?:foreignObject|iframe|embed|object)\b", re.IGNORECASE),
+        re.compile(
+            rb"<\s*(?:[\w.\-]+:)?(?:foreignObject|iframe|embed|object|handler|listener)\b",
+            re.IGNORECASE,
+        ),
         "an embedded document",
     ),
+    # Entity declarations are how the patterns above get spelled some other way, and
+    # how a small file expands into a large one. No logo needs one.
+    (re.compile(rb"<!\s*ENTITY", re.IGNORECASE), "an entity declaration"),
 )
+
+
+def _decoded_markup(payload: bytes) -> str:
+    """The text a browser would parse, whatever encoding the bytes came in."""
+    if payload.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+        encoding = "utf-32"
+    elif payload.startswith((b"\xff\xfe", b"\xfe\xff")):
+        encoding = "utf-16"
+    elif payload[:2] in (b"<\x00", b"\x00<"):
+        # UTF-16 without a byte order mark, which an XML parser still accepts.
+        encoding = "utf-16-le" if payload[:1] == b"<" else "utf-16-be"
+    else:
+        encoding = "utf-8"
+    return payload.decode(encoding, "replace").replace("\x00", "")
+
+
+def markup_hazard(payload: bytes) -> str | None:
+    """What in this markup would run as script, or ``None``.
+
+    The patterns are matched against two normalised readings rather than the raw bytes,
+    because each of these used to get a payload past them: the file is decoded first
+    (UTF-16 and UTF-32 included); character references are expanded, so ``&#106;``
+    is a ``j``; and the URL-scheme check also sees the text with whitespace and control
+    characters removed, because a browser strips them out of a scheme before reading
+    it. Still a rejection filter, not a sanitiser — which is why active content is
+    refused outright on a plain file field unless a project opts in.
+    """
+    import html
+
+    text = _decoded_markup(payload)
+    for _round in range(3):  # &amp;#106; is two rounds of escaping; three is plenty
+        unescaped = html.unescape(text)
+        if unescaped == text:
+            break
+        text = unescaped
+    readable = text.encode("utf-8", "replace")
+    compact = re.sub(r"[\x00-\x20\x7f]+", "", text).encode("utf-8", "replace")
+    raw = payload
+    for pattern, description in SVG_HAZARDS:
+        if pattern.search(readable) or pattern.search(raw):
+            return description
+        if description == "a javascript: URL" and pattern.search(compact):
+            return description
+    return None
+
 
 #: Enough to hold every signature and to see the start of a markup document past a BOM
 #: and some whitespace. Deliberately small — this is read on every upload.
@@ -920,6 +974,13 @@ def sniff(head: bytes) -> str | None:
         if lowered.startswith(prefix):
             return content_type
     return None
+
+
+#: Extensions a browser renders as a web page, whatever the bytes look like.
+_PAGE_SUFFIXES = frozenset({".html", ".htm", ".xhtml", ".xht", ".shtml"})
+
+#: XML-family extensions: a document in the XHTML namespace runs script like a page.
+_XML_SUFFIXES = frozenset({".xml", ".xsl", ".xslt", ".svgz"})
 
 
 def inspect_upload(upload, *, name: str | None = None, max_bytes: int | None = None) -> list[str]:
@@ -962,24 +1023,23 @@ def inspect_upload(upload, *, name: str | None = None, max_bytes: int | None = N
             "The extension is a claim; the bytes are not."
         )
 
-    if found == "text/html" and suffix != ".html":
+    if found == "text/html" or suffix in _PAGE_SUFFIXES:
         problems.append(
             f"{name or 'That file'} contains HTML. Served back from the panel's own "
             "origin it would run as a page with the reader's session."
         )
 
-    if (suffix == ".svg" or found == "image/svg+xml") and not oversized:
+    if (suffix == ".svg" or suffix in _XML_SUFFIXES or found == "image/svg+xml") and not oversized:
         # The whole file, not the first kilobyte: a script tag at the end of an SVG runs
         # exactly as well as one at the start. Bounded by the size ceiling above, which
         # is why this is skipped for a file already refused for being too large.
         payload = head if len(head) >= size else _all_of(upload)
-        for pattern, description in SVG_HAZARDS:
-            if pattern.search(payload):
-                problems.append(
-                    f"{name or 'That SVG'} contains {description}, which would run as "
-                    "script on every page that shows it."
-                )
-                break
+        description = markup_hazard(payload)
+        if description:
+            problems.append(
+                f"{name or 'That SVG'} contains {description}, which would run as "
+                "script on every page that shows it."
+            )
 
     return problems
 
