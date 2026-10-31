@@ -888,6 +888,7 @@ def _as_rows(data: dict) -> list[dict]:
     return rows
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class ImpersonateView(SiteView):
     """Start or stop impersonating another user. POST only, superusers only.
 
@@ -921,7 +922,16 @@ class ImpersonateView(SiteView):
         except ImpersonationError as exc:
             messages.error(request, str(exc))
 
-        return HttpResponseRedirect(request.POST.get("next") or reverse("vantage:dashboard"))
+        # Validated like every other ``next`` in the panel: this form is posted by any
+        # staff user (the stop branch), so an unchecked value is an open redirect.
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        target = request.POST.get("next") or ""
+        if not url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            target = reverse("vantage:dashboard")
+        return HttpResponseRedirect(target)
 
 
 class UIThemeCssView(SiteView):
