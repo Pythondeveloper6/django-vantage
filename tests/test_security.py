@@ -1198,3 +1198,21 @@ class TestUrlColumnSchemes:
         obj = Author(name="a", email="a@x.io", website="https://example.com/p?q=1")
         html = str(render_cell(panel, obj, "website"))
         assert 'href="https://example.com/p?q=1"' in html
+
+
+class TestImpersonateRedirect:
+    """The impersonation form's ``next`` only ever lands back inside this site."""
+
+    @pytest.mark.parametrize("target", ["https://evil.example/", "//evil.example/x"])
+    def test_an_offsite_next_falls_back_to_the_dashboard(self, client, db, target):
+        user = User.objects.create_user("s", "s@example.com", "x", is_staff=True)
+        client.force_login(user)
+        response = client.post(reverse("vantage:impersonate"), {"next": target})
+        assert response.status_code == 302
+        assert response["Location"] == reverse("vantage:dashboard")
+
+    def test_a_local_next_is_kept(self, client, db):
+        user = User.objects.create_user("s", "s@example.com", "x", is_staff=True)
+        client.force_login(user)
+        response = client.post(reverse("vantage:impersonate"), {"next": "/admin/audit/"})
+        assert response["Location"] == "/admin/audit/"
