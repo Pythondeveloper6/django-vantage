@@ -408,6 +408,10 @@ so "why is my `panel.py` being ignored?" has a single, findable answer.
 | **System health page** | Migrations, cache, database, task backend |
 | **Streaming CSV export, CSV import** | Export honours the filters and sort you are looking at; import maps, previews and validates first |
 | **Light, dark and system themes, RTL** | All from day one, with `en` and `ar` catalogues shipped |
+| **Read-only legacy tables** | `read_only = True` with an `editable_fields` allowlist for tables another system owns, enforced for everyone. [Docs →](https://pythondeveloper6.github.io/django-vantage/permissions/#read-only-models-and-legacy-databases) |
+| **Single sign-on role mapping** | Identity-provider groups (Entra ID, Okta, Keycloak) mapped onto roles at every sign-in. [Docs →](https://pythondeveloper6.github.io/django-vantage/single-sign-on/) |
+| **Notifications and metrics** | Slack, Teams and email for approvals and failures; a Prometheus endpoint and slow-request log. [Runbook →](https://pythondeveloper6.github.io/django-vantage/runbook/) |
+| **Upgrade checks** | A written deprecation policy and `manage.py vantage_upgrade_check`. [Docs →](https://pythondeveloper6.github.io/django-vantage/api-stability/) |
 | **Query-count guarantees** | `select_related` and `prefetch_related` are derived from what the page renders, and tests assert the cost does not grow with the row count |
 
 ## Roadmap
