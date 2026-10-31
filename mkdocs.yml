@@ -132,6 +132,7 @@ nav:
       - Extending: extending.md
   - Operations:
       - Settings reference: settings.md
+      - API stability and upgrades: api-stability.md
       - Deployment: deployment.md
       - Security: security.md
       - Data quality: data-quality.md

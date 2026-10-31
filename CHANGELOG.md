@@ -45,6 +45,20 @@ upgrading.
 
 ### Added
 
+#### API stability and upgrade checks
+
+- A written [API stability and deprecation policy](docs/api-stability.md). Every
+  `VANTAGE` setting and declarative `ModelPanel` attribute is classified, in
+  `vantage.deprecation`, as *stable* (frozen; changed only through a deprecation cycle
+  of at least two minor releases) or *provisional* (new since the last release). The
+  test suite fails on an unclassified addition.
+- `VantageDeprecationWarning`, and the machinery behind it: a deprecated setting or
+  panel attribute keeps working, warns, and a renamed one is carried to its new name.
+- `manage.py vantage_upgrade_check`: unknown, deprecated and provisional settings,
+  deprecated or removed panel attributes, panel configuration errors, unapplied
+  migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
+  Text or JSON output; exits `1` at `--fail-level` for CI.
+
 #### Widget overrides
 
 - `ModelPanel.formfield_overrides`, with `django.contrib.admin`'s shape and semantics
