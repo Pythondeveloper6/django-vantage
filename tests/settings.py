@@ -44,6 +44,20 @@ else:
         }
     }
 
+if _TEST_DB != "sqlite":
+    # The test app has no migrations, so its tables are created by syncdb *before*
+    # contrib.auth's migrations run — fine on SQLite, which checks foreign keys late, but
+    # a missing "auth_user" on a server. Building every app's tables from its models in
+    # one pass sidesteps the ordering; migrations themselves are exercised on SQLite.
+    class _NoMigrations:
+        def __contains__(self, item):
+            return True
+
+        def __getitem__(self, item):
+            return None
+
+    MIGRATION_MODULES = _NoMigrations()
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",

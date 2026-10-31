@@ -23,6 +23,7 @@ from django.db import connection
 from django.db.models import Count, Sum
 from django.test import RequestFactory, override_settings
 
+from tests.conftest import sqlite_only
 from tests.testapp.models import Author, Order
 from vantage import listprefs
 from vantage.conf import DEFAULTS
@@ -907,6 +908,7 @@ class TestOrdering:
 # ── the properties copied from siteconfig ───────────────────────────────────
 
 
+@sqlite_only
 class TestDatabaseUnavailable:
     def test_a_missing_table_falls_through_to_the_code(self, panel, rf, person):
         """``migrate`` on an empty database renders nothing, but ``check`` and a

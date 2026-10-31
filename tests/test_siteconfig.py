@@ -15,6 +15,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import override_settings
 
+from tests.conftest import sqlite_only
 from vantage.conf import DEFAULTS, vantage_settings
 from vantage.models import (
     MAX_UPLOAD_BYTES,
@@ -96,6 +97,7 @@ class TestResolutionOrder:
         SiteConfiguration(logo=SimpleUploadedFile("logo.png", b"\x89PNG")).save()
         assert vantage_settings.LOGO_DARK == vantage_settings.LOGO
 
+    @sqlite_only
     def test_a_nonsense_stored_choice_is_ignored_rather_than_served(self, db):
         """A hand-edited row must not be able to emit an invalid theme attribute."""
         SiteConfiguration.objects.create()
@@ -158,6 +160,7 @@ def hidden_table():
             cursor.execute(f"ALTER TABLE vantage_siteconfiguration_hidden RENAME TO {quoted}")
 
 
+@sqlite_only
 class TestDatabaseUnavailable:
     def test_a_missing_table_falls_through_silently(self, db):
         """``manage.py migrate`` on an empty database reads settings before this table

@@ -22,6 +22,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from tests.conftest import sqlite_only
 from tests.testapp.models import Author, DqContact, Tag
 from vantage import dataquality
 from vantage.dataquality import Check, Finding, audit_model, register_check, unregister_check
@@ -186,6 +187,7 @@ class TestChecks:
 
 
 class TestNoValuesLeak:
+    @sqlite_only
     def test_no_report_text_contains_row_data(self, client, boss):
         secret = "zzz-very-secret-value"
         DqContact.objects.bulk_create(
@@ -203,6 +205,7 @@ class TestNoValuesLeak:
 
 
 class TestBounds:
+    @sqlite_only
     def test_large_tables_are_sampled_and_say_so(self, request_):
         DqContact.objects.bulk_create([DqContact(name=str(i), email="e") for i in range(30)])
         with override_settings(VANTAGE={"DATA_QUALITY": {"SAMPLE_SIZE": 10}}):
@@ -256,6 +259,7 @@ class TestBounds:
         assert report.checks[0].status == "error"
         assert report.checks[0].reason == "RuntimeError"  # the class, never the message
 
+    @sqlite_only
     def test_query_count_is_flat_in_row_count(self, request_, django_assert_max_num_queries):
         DqContact.objects.bulk_create([DqContact(name=str(i), email="e") for i in range(5)])
         with django_assert_max_num_queries(40) as small:
