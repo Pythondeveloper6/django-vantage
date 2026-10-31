@@ -153,6 +153,23 @@ class ModelPanel:
     #: Swap in a subclass to extend validation for your own panel base class.
     checks_class: type | None = None
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn when a subclass sets a deprecated attribute, and honour a rename.
+
+        At class creation rather than per request, so the warning points at the panel
+        that set it and is emitted once, not on every page view.
+        """
+        super().__init_subclass__(**kwargs)
+        from vantage.deprecation import DEPRECATED_PANEL_ATTRIBUTES, warn_deprecated
+
+        for name, deprecation in DEPRECATED_PANEL_ATTRIBUTES.items():
+            if name not in cls.__dict__:
+                continue
+            warn_deprecated(deprecation, f"{cls.__name__}: the ModelPanel attribute")
+            replacement = deprecation.replacement
+            if replacement and replacement not in cls.__dict__:
+                setattr(cls, replacement, cls.__dict__[name])
+
     def __init__(self, model: type[models.Model], site: VantageSite | None = None) -> None:
         self.model = model
         self.site = site

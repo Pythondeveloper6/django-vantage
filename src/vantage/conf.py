@@ -285,6 +285,7 @@ class VantageSettings:
         if not isinstance(user, dict):
             raise ImproperlyConfigured(f"VANTAGE must be a dict, got {type(user).__name__}.")
 
+        user = _translate_deprecated(user)
         unknown = set(user) - set(DEFAULTS)
         if unknown:
             raise ImproperlyConfigured(_unknown_key_message(sorted(unknown)))
@@ -365,6 +366,28 @@ class VantageSettings:
 
     def reset(self) -> None:
         self._cache = None
+
+
+def _translate_deprecated(user: dict[str, Any]) -> dict[str, Any]:
+    """Warn about deprecated keys, and carry a renamed key's value to its new name.
+
+    Runs before the unknown-key check, so a key that was renamed keeps working for the
+    whole deprecation period instead of becoming a typo the day it is renamed. Where
+    both names are set the new one wins: it is the one the owner wrote on purpose.
+    """
+    from vantage.deprecation import DEPRECATED_SETTINGS, warn_deprecated
+
+    used = [key for key in user if key in DEPRECATED_SETTINGS]
+    if not used:
+        return user
+    user = dict(user)
+    for key in used:
+        deprecation = DEPRECATED_SETTINGS[key]
+        warn_deprecated(deprecation, "The VANTAGE setting", stacklevel=5)
+        if deprecation.replacement and key not in DEFAULTS:
+            value = user.pop(key)
+            user.setdefault(deprecation.replacement, value)
+    return user
 
 
 def _resolve_data_quality(value: Any) -> dict[str, Any]:
