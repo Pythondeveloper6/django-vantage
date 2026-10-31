@@ -1151,3 +1151,50 @@ class TestUploadScreeningThroughTheStack:
         """The panel must not police the rest of the site's forms."""
         response = client.post(LOGIN, {"file": upload("x.png", b"<html>")})
         assert response.status_code != 400
+
+
+# ---------------------------------------------------------------------------------------
+# Findings from the full security review. Each class below was written before its fix
+# and failed against the code as it was.
+# ---------------------------------------------------------------------------------------
+
+
+class TestUrlColumnSchemes:
+    """A URL column links only to schemes a browser will not execute.
+
+    ``URLField`` validates its scheme in forms, but a row written by a script, a data
+    migration or another service never passed through one, so the stored value is
+    whatever someone put there — ``javascript:…`` included.
+    """
+
+    @pytest.fixture
+    def panel(self, db):
+        from tests.testapp.models import Author
+
+        return site.get_panel(Author)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "javascript:alert(1)",
+            " JavaScript:alert(1)",
+            "java\tscript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "vbscript:msgbox(1)",
+        ],
+    )
+    def test_an_executable_scheme_is_shown_but_not_linked(self, panel, value):
+        from tests.testapp.models import Author
+        from vantage.render import render_cell
+
+        html = str(render_cell(panel, Author(name="a", email="a@x.io", website=value), "website"))
+        assert "<a " not in html
+        assert "href" not in html
+
+    def test_an_http_url_is_still_a_link(self, panel):
+        from tests.testapp.models import Author
+        from vantage.render import render_cell
+
+        obj = Author(name="a", email="a@x.io", website="https://example.com/p?q=1")
+        html = str(render_cell(panel, obj, "website"))
+        assert 'href="https://example.com/p?q=1"' in html
