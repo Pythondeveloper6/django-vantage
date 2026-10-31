@@ -219,6 +219,10 @@ DEFAULTS: dict[str, Any] = {
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
     "DATA_QUALITY": {},
+    # ── single sign-on ──────────────────────────────────────────────────────
+    # Identity-provider groups to roles. A dict of the keys in
+    # vantage.identity.ROLE_MAPPING_DEFAULTS; empty means no mapping.
+    "ROLE_MAPPING": {},
 }
 
 #: The data quality page's own settings, nested under ``VANTAGE["DATA_QUALITY"]`` so
@@ -333,6 +337,9 @@ class VantageSettings:
 
         resolved = {**DEFAULTS, **user}
         resolved["DATA_QUALITY"] = _resolve_data_quality(resolved["DATA_QUALITY"])
+        from vantage.identity import resolve_role_mapping
+
+        resolved["ROLE_MAPPING"] = resolve_role_mapping(resolved["ROLE_MAPPING"])
 
         # The database layer goes *under* attribute access rather than beside it, so
         # every existing ``vantage_settings.X`` picks up a UI override without knowing
