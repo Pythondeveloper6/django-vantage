@@ -59,6 +59,14 @@ upgrading.
   migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
   Text or JSON output; exits `1` at `--fail-level` for CI.
 
+#### Notifications
+
+- `VANTAGE["NOTIFICATIONS"]` sends approval requests and decisions, webhook deliveries
+  out of retries and failed background jobs to Slack, Microsoft Teams or email
+  (including "everyone who may approve this model"). Messages carry no field names or
+  values, chat posts use the webhook client's network guard, and delivery happens after
+  commit without ever failing the save. See [Notifications](docs/notifications.md).
+
 #### Metrics, slow-request logging and a runbook
 
 - A Prometheus endpoint at `_/metrics/` (off until `VANTAGE["METRICS"]`; bearer

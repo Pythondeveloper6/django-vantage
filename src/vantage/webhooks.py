@@ -425,6 +425,15 @@ def _finish(
         status=status, error=error[:300], **fields
     )
     delivery.refresh_from_db()
+    if status == WebhookDelivery.Status.FAILED and delivery.event != "test":
+        from vantage.notifications import notify
+
+        # The hook's name and the error only: the payload is record data.
+        notify(
+            "webhook.failed",
+            title=f"Webhook delivery failed: {delivery.webhook.name} (#{delivery.pk})",
+            lines=[f"{delivery.event} after {delivery.attempts} attempt(s): {error[:200]}"],
+        )
     return delivery
 
 

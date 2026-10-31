@@ -510,6 +510,14 @@ def _finish(job: VantageJob, status: str, *, error: str = "") -> None:
             "errors",
         ]
     )
+    if status == VantageJob.Status.FAILED:
+        from vantage.notifications import notify
+
+        notify(
+            "job.failed",
+            title=f"Background job failed: {job.resource_key} (#{job.pk})",
+            lines=[job.summary],
+        )
 
 
 def _summary(job: VantageJob, status: str) -> str:

@@ -139,6 +139,7 @@ nav:
       - Security: security.md
       - Data quality: data-quality.md
       - Webhooks: webhooks.md
+      - Notifications: notifications.md
       - Scheduled reports: reports.md
       - Accessibility: accessibility.md
       - Browser tests: browser-tests.md
