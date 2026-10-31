@@ -906,7 +906,19 @@ def restore(request, token: str | None) -> None:
         return
     live = _resolve(request)
     if token == "*":
-        bind(request, ALL_TENANTS if live is None else live)
+        if live is None:
+            # Ambiguous in a worker: the resolver may simply have no host or header to
+            # read, or the actor may have lost the role that made them an operator.
+            # Widening the second case to every tenant is the wrong way to fail, so
+            # "all tenants" is only resumed for someone who is still a superuser.
+            user = getattr(request, "user", None)
+            if not getattr(user, "is_superuser", False):
+                raise TenantMismatch(
+                    "This job was started across all tenants, and its actor can no "
+                    "longer be confirmed as an operator, so it cannot be resumed."
+                )
+            live = ALL_TENANTS
+        bind(request, live)
         return
     if token is None:
         bind(request, live)
