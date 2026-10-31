@@ -107,9 +107,13 @@ CHUNK_SIZE = 500
 #: the mapping is right, which a handful of rows answers as well as a thousand.
 PREVIEW_DIFF_ROWS = 10
 
-#: Bytes of the file handed to the dialect sniffer, and the window scanned for the
-#: binary-content check.
+#: Bytes of the file scanned for the binary-content check.
 SNIFF_BYTES = 64 * 1024
+
+#: Characters handed to ``csv.Sniffer``. Small on purpose: its quote-and-delimiter
+#: regular expressions are super-linear on hostile input (64 KiB of ``,"a`` took tens
+#: of seconds), and a delimiter is evident from the first few lines of any real file.
+SNIFF_CHARS = 4 * 1024
 
 #: A header row wider than this is a transposed file or a corrupt one, not a table.
 MAX_COLUMNS = 200
@@ -303,7 +307,13 @@ def _sniff(text: str) -> type[csv.Dialect] | csv.Dialect:
     entirely, which is not an error — it is a one-column file.
     """
     try:
-        return csv.Sniffer().sniff(text[:SNIFF_BYTES], delimiters=",;\t|")
+        sample = text[:SNIFF_CHARS]
+        # Whole lines only, when there is more than one: a row cut in half mid-quote
+        # can talk the sniffer into the wrong delimiter.
+        cut = sample.rfind("\n")
+        if 0 < cut < len(sample) - 1:
+            sample = sample[: cut + 1]
+        return csv.Sniffer().sniff(sample, delimiters=",;\t|")
     except csv.Error:
         return csv.excel
 

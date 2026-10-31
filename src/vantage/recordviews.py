@@ -126,7 +126,11 @@ class DuplicateView(PanelFormView):
     def chosen_children(self) -> list[records.ChildGroup]:
         """The reverse relations the person ticked. Never a default — see the plan."""
         wanted = set(self.request.POST.getlist("_copy_children"))
-        return [group for group in self.plan.children if group.accessor in wanted]
+        return [
+            group
+            for group in records.copyable_children(self.request, self.plan.children)
+            if group.accessor in wanted
+        ]
 
     def save_form(self, form, *args, **kwargs):
         obj = super().save_form(form, *args, **kwargs)
@@ -170,7 +174,9 @@ class DuplicateView(PanelFormView):
             # why the notes need no change to ``form.html``.
             duplicate_notes=self.plan.notes,
             duplicate_source=self.source,
-            duplicate_children=self.plan.children,
+            # Only what this user may copy: listing a child model they cannot read,
+            # with a live count, would itself say something about the record.
+            duplicate_children=records.copyable_children(self.request, self.plan.children),
             source=self.source,
         )
         return context

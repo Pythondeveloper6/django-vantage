@@ -720,3 +720,57 @@ class TestPermissionHookIsolation:
 def test_the_adoption_dataclass_reports_its_label():
     adoption = Adoption(model=Post, admin_class=PostAdmin, panel_class=ModelPanel)
     assert adoption.label == "testapp.Post"
+
+
+# ── security-relevant hooks: honoured, or refused loudly ────────────────────
+
+
+class RestrictingOrderAdmin(admin.ModelAdmin):
+    """Editability decided per request, the three ways contrib.admin offers."""
+
+    def get_readonly_fields(self, request, obj=None):
+        return [] if request.user.is_superuser else ["total"]
+
+    def get_exclude(self, request, obj=None):
+        return ["status"]
+
+    def get_fields(self, request, obj=None):
+        return ["number", "customer", "total", "status"]
+
+
+class ChoiceLimitingOrderAdmin(admin.ModelAdmin):
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):  # pragma: no cover
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class TestRestrictiveHooks:
+    def _request(self, user):
+        from django.test import RequestFactory
+
+        request = RequestFactory().get("/")
+        request.user = user
+        return request
+
+    def test_per_request_readonly_and_exclude_become_field_rules(self, db, monkeypatch):
+        from vantage import fieldperms
+
+        adoption = panel_from_admin(Order, RestrictingOrderAdmin)
+        panel = adoption.panel_class(Order, default_site)
+        monkeypatch.setitem(default_site.registry._panels, Order, panel)
+        clerk = User.objects.create_user("clerk", "c@example.com", "x", is_staff=True)
+
+        answer = fieldperms.access(self._request(clerk), Order)
+
+        assert {"total", "status"} <= answer.readonly
+        # Nothing the admin showed is hidden by the translation.
+        assert not answer.hidden
+
+    def test_the_hooks_are_reported_as_translated(self, db):
+        adoption = panel_from_admin(Order, RestrictingOrderAdmin)
+        joined = " ".join(adoption.unmapped)
+        assert "get_readonly_fields" not in joined
+
+    def test_an_untranslatable_restrictive_hook_is_an_error(self, db):
+        panel_from_admin(Order, ChoiceLimitingOrderAdmin)
+        ids = [m.id for m in check_admin_adapter(None)]
+        assert "vantage.E041" in ids

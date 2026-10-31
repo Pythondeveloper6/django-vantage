@@ -434,7 +434,13 @@ class TableCard(QuerysetWidget):
             # the model's inferred order — newest first wherever that is knowable.
             queryset = queryset.order_by(*infer_ordering(model))
 
-        columns = self.columns or infer_list_display(model)[:MAX_TABLE_COLUMNS]
+        from vantage.fieldperms import strip_hidden
+
+        # Field permissions apply to a dashboard table as they do to the list page: a
+        # column hidden from this viewer's role is left out, declared or inferred.
+        columns = strip_hidden(
+            request, model, self.columns or infer_list_display(model)[:MAX_TABLE_COLUMNS]
+        )
         link = panel.get_list_link(request)
 
         # Five rows with a relation column is still five extra queries, and a dashboard

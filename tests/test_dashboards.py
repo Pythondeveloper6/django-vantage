@@ -1340,3 +1340,38 @@ def _request_for(user):
     request = RequestFactory().get("/")
     request.user = user
     return request
+
+
+@pytest.mark.django_db
+def test_a_table_card_leaves_out_a_column_hidden_from_the_viewer(client):
+    """Field permissions reach the dashboard's recent-records tables too."""
+    from decimal import Decimal
+
+    from django.contrib.auth.models import Group, Permission, User
+    from django.contrib.contenttypes.models import ContentType
+
+    from tests.testapp.models import Author, Order
+    from vantage.models import FieldPermission
+
+    group = Group.objects.create(name="Support")
+    group.permissions.add(
+        Permission.objects.get(codename="view_order", content_type__app_label="testapp")
+    )
+    FieldPermission.objects.create(
+        group=group,
+        content_type=ContentType.objects.get_for_model(Order),
+        field_name="total",
+        level="hidden",
+    )
+    user = User.objects.create_user("agent", "a@example.com", "x", is_staff=True)
+    user.groups.add(group)
+    client.force_login(user)
+    customer = Author.objects.create(name="Grace", email="g@example.com")
+    Order.objects.create(
+        number="A-1001", customer=customer, status="pending", total=Decimal("4321.77")
+    )
+
+    body = client.get(reverse("vantage:dashboard")).content.decode()
+
+    assert "A-1001" in body  # the card is there
+    assert "4321.77" not in body and "4,321.77" not in body

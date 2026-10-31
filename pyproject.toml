@@ -164,10 +164,14 @@ src = ["src", "tests"]
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "DJ", "C4", "RUF"]
+select = ["E", "F", "I", "UP", "B", "DJ", "C4", "RUF", "S"]
 # RUF012: declarative class attributes are the idiom in both Django and this package's
 # own ModelPanel API; annotating every one with ClassVar would be noise.
-ignore = ["B008", "RUF012"]
+# S110/S112: a swallowed exception is this package's deliberate fail-soft pattern (an
+# audit write must not fail the save it records, a broken plugin must not take a page
+# down); each one carries its reason beside it. Every other bandit rule is enforced,
+# and a reviewed exception is a line-level `noqa` with the reason next to it.
+ignore = ["B008", "RUF012", "S110", "S112"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["vantage"]
@@ -176,6 +180,8 @@ known-first-party = ["vantage"]
 # Throwaway models declared inside a test to exercise one introspection edge case
 # do not need a __str__.
 "tests/test_*.py" = ["DJ008"]
+# Tests assert, hard-code throwaway passwords and build hostile payloads on purpose.
+"tests/**/*.py" = ["S"]
 # Inline SVG path data is one long literal per icon; wrapping it would corrupt it.
 "src/vantage/templatetags/vantage.py" = ["E501", "RUF003"]
 # Migrations are generated; reformatting them by hand invites drift from what

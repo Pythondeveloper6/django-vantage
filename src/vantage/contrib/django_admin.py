@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.apps import apps as django_apps
-from django.core.checks import Warning
+from django.core.checks import Error, Warning
 from django.core.exceptions import ImproperlyConfigured
 
 from vantage.actions import Action, ActionResult
@@ -126,6 +126,20 @@ UNMAPPED_METHODS: dict[str, str] = {
     "has_module_permission": "app-level visibility — Vantage gates on the model",
 }
 
+#: Unmapped methods that *restrict* what someone may see or choose. Reported as an
+#: error (``vantage.E041``), not a warning: the panel would offer more than the admin
+#: did. Handle the restriction on the panel (or in a ``PanelPermissions`` subclass),
+#: then silence the check with ``SILENCED_SYSTEM_CHECKS = ["vantage.E041"]``.
+RESTRICTIVE_METHODS: frozenset[str] = frozenset(
+    {
+        "formfield_for_foreignkey",
+        "formfield_for_manytomany",
+        "formfield_for_choice_field",
+        "get_form",
+        "has_module_permission",
+    }
+)
+
 #: Methods that *do* come across, because the signature is the same on both sides.
 DELEGATED_METHODS: tuple[str, ...] = ("get_queryset", "save_model")
 
@@ -142,6 +156,8 @@ class Adoption:
     admin_class: type
     panel_class: type[ModelPanel]
     unmapped: tuple[str, ...] = ()
+    #: The restrictive hooks among ``unmapped`` (see :data:`RESTRICTIVE_METHODS`).
+    refused: tuple[str, ...] = ()
 
     @property
     def label(self) -> str:
@@ -202,6 +218,7 @@ def panel_from_admin(
         admin_class=type(admin_obj),
         panel_class=panel_class,
         unmapped=tuple(unmapped),
+        refused=tuple(sorted(name for name in RESTRICTIVE_METHODS if _overrides(admin_obj, name))),
     )
     _adoptions[adoption.label] = adoption
     return adoption
@@ -237,6 +254,7 @@ def from_admin(admin: Any, model: type | None = None, *, name: str | None = None
             admin_class=adoption.admin_class,
             panel_class=panel_class,
             unmapped=adoption.unmapped,
+            refused=adoption.refused,
         )
         return panel_class
 
@@ -493,6 +511,44 @@ def _translate_form(model, admin_obj, attrs: dict, unmapped: list) -> None:
     if fieldsets := _declared(admin_obj, "fieldsets"):
         attrs["layout"] = _layout_from_fieldsets(fieldsets)
 
+    _translate_dynamic_form(model, admin_obj, attrs)
+
+
+#: Per-request editability hooks, carried across as field rules rather than dropped.
+DYNAMIC_FORM_METHODS: tuple[str, ...] = ("get_readonly_fields", "get_exclude", "get_fields")
+
+
+def _translate_dynamic_form(model, admin_obj, attrs: dict) -> None:
+    """``get_readonly_fields``/``get_exclude``/``get_fields`` become read-only field rules.
+
+    These decide, per request, what a person may edit — a restriction, so silently
+    dropping them would widen access on adoption. They are answered through the
+    panel's ``get_field_access(request)`` hook, which every write path already obeys
+    (forms, inline editing, bulk edit, import, the API). Asked with ``obj=None``: the
+    rules are per model, not per row. A field the admin's form leaves out becomes
+    read-only rather than hidden, so nothing the admin displayed disappears.
+    """
+    overridden = [name for name in DYNAMIC_FORM_METHODS if _overrides(admin_obj, name)]
+    if not overridden:
+        return
+    from vantage.fieldperms import FieldAccess, rule_fields
+
+    known = [f.name for f in rule_fields(model)]
+
+    def get_field_access(self, request):
+        admin = self._admin
+        locked: set[str] = set()
+        if "get_readonly_fields" in overridden:
+            locked |= {str(n) for n in admin.get_readonly_fields(request) or ()}
+        if "get_exclude" in overridden:
+            locked |= {str(n) for n in admin.get_exclude(request) or ()}
+        if "get_fields" in overridden:
+            offered = set(_flatten(admin.get_fields(request) or ()))
+            locked |= {name for name in known if name not in offered}
+        return FieldAccess(readonly=frozenset(n for n in locked if n in known))
+
+    attrs["get_field_access"] = get_field_access
+
 
 def _layout_from_fieldsets(fieldsets):
     """Fieldsets are already Vantage's layout DSL, spelled differently.
@@ -712,6 +768,21 @@ def check_admin_adapter(app_configs, **kwargs) -> list:
     for adoption in adoptions():
         if labels is not None and adoption.model._meta.app_label not in labels:
             continue
+        if adoption.refused:
+            messages.append(
+                Error(
+                    f"{adoption.admin_class.__name__} restricts access in a way the "
+                    f"adapter cannot carry across to {adoption.label}: "
+                    f"{', '.join(f'{name}()' for name in adoption.refused)}.",
+                    hint=(
+                        "Without it the panel offers more than the admin did. Restrict the "
+                        "same thing on the panel (or in a PanelPermissions subclass), then "
+                        'add "vantage.E041" to SILENCED_SYSTEM_CHECKS.'
+                    ),
+                    obj=adoption.panel_class,
+                    id="vantage.E041",
+                )
+            )
         if not adoption.unmapped:
             continue
         listed = "\n".join(f"  · {item}" for item in adoption.unmapped)

@@ -680,10 +680,42 @@ def create_role(name: str) -> Group:
     return Group.objects.create(name=clean_role_name(name))
 
 
+def name_references(name: str) -> list[str]:
+    """Where code refers to a role by ``name``: field rules and two-factor requirements."""
+    from vantage.sites import all_sites
+    from vantage.sites import site as default_site
+    from vantage.twofactor import setting as twofactor_setting
+
+    found: list[str] = []
+    if name in set(twofactor_setting("TWO_FACTOR_REQUIRED_ROLES") or ()):
+        found.append("TWO_FACTOR_REQUIRED_ROLES")
+    seen = set()
+    for candidate in (default_site, *all_sites):
+        for panel in candidate.panels():
+            declared = getattr(panel, "field_permissions", None)
+            if isinstance(declared, dict) and name in declared and id(panel) not in seen:
+                seen.add(id(panel))
+                found.append(f"{type(panel).__name__}.field_permissions")
+    return found
+
+
 def rename_role(group: Group, name: str, *, token: str) -> tuple[str, str]:
     """Returns ``(old, new)``. Token-checked like a matrix save: renaming a role out
     from under someone halfway through reviewing it is the same clobber."""
     new = clean_role_name(name, exclude_pk=group.pk)
+    if new != group.name:
+        bound = name_references(group.name)
+        if bound:
+            # Fail closed: these bind by name, so a rename would silently drop the
+            # rule or the requirement for every member while leaving them every
+            # permission the role grants.
+            raise ValidationError(
+                gettext(
+                    "“%(name)s” is named in the project's code (%(where)s), so renaming it "
+                    "here would drop those rules for its members. Change the code first."
+                )
+                % {"name": group.name, "where": ", ".join(bound)}
+            )
     with transaction.atomic():
         locked = _lock(group)
         current = current_permission_ids(locked)

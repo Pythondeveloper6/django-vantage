@@ -218,6 +218,10 @@ upgrading.
   `'`, in the Export button and in report attachments alike. Numbers, dates and
   booleans are unchanged.
 - The model list's table rows carry `role="row"` and `role="gridcell"`.
+- **Breaking:** a plain `FileField` now refuses web pages, SVG, XML and scripts unless
+  the extension is listed in the new `VANTAGE["UPLOAD_ACTIVE_SUFFIXES"]`.
+- `records.copy_children()` now needs a request with a user, and copies only what that
+  user may add.
 
 ### Security
 
@@ -234,6 +238,28 @@ upgrading.
 - `check --deploy` warns when Django's admin is mounted without the two-factor
   middleware (`vantage.W095`) and when report links would be built from the `Host`
   header (`vantage.W115`).
+- Uploads: active content (web pages, SVG, XML, scripts) is refused on file fields
+  unless a project opts in, the SVG scan decodes and normalises a file before checking
+  it, and a stored file of such a type is linked as a download.
+- A URL column links only `http`, `https`, `ftp` and `ftps` addresses.
+- Child formsets on a parent's form respect the child model's row scoping, tenancy and
+  `requires_approval`.
+- Duplicating a record copies only children the user may view and add, and never their
+  sensitive or hidden values.
+- Dashboard table cards leave out fields hidden by field permissions.
+- Role managers cannot change their own roles or membership, and a role named in code
+  (field rules or a two-factor requirement) cannot be renamed.
+- An adopted `ModelAdmin`'s `get_readonly_fields`, `get_exclude` and `get_fields` become
+  read-only field rules; restrictive hooks that cannot be translated are a check error
+  (`vantage.E041`). New panel hook `get_field_access(request)`.
+- A background job started while impersonating is audited as the real account, and an
+  all-tenants job resumes only for an actor who is still a superuser.
+- The impersonation form validates its redirect target.
+- CSV import bounds the input it hands to the dialect sniffer.
+- Locked dependencies with published advisories were upgraded; CI actions are pinned to
+  commit hashes, checkouts keep no credentials, and the release build does not use a
+  cache.
+- `ruff`'s security rules (`S`) are enforced on the package source.
 
 ## [0.2.0a2] — 2026-10-27
 

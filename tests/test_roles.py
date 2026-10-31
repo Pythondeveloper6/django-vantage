@@ -453,11 +453,13 @@ class TestEscalation:
         assert Group.objects.count() == 1
 
     def test_may_manage_members_within_reach(self, manager_in, manager, editors):
+        # Someone else: adding yourself is refused, see TestOwnRoles.
+        colleague = User.objects.create_user("colleague", "c@example.com", "x", is_staff=True)
         response = manager_in.post(
-            reverse("vantage:role-members", args=[editors.pk]), {"add": [manager.pk]}
+            reverse("vantage:role-members", args=[editors.pk]), {"add": [colleague.pk]}
         )
         assert response.status_code == 302
-        assert manager.groups.filter(pk=editors.pk).exists()
+        assert colleague.groups.filter(pk=editors.pk).exists()
 
     def test_needs_the_group_verbs_for_each_write(self, client, editors, settings):
         settings.VANTAGE = {"ROLES_PERMISSION": lambda request: True}
@@ -618,3 +620,120 @@ class TestCustomUserModel:
     def test_membership_is_found_through_the_user_model(self):
         field = roles._membership_field()
         assert field is not None and field.related_model is Group
+
+
+# ── a role manager and their own roles ──────────────────────────────────────
+
+
+class TestOwnRoles:
+    """Somebody trusted with the roles screen still cannot use it on themselves.
+
+    Field rules combine most-permissively, so joining any role that grants the same
+    model without the rule lifts it; editing a role they hold changes their own access.
+    Both are refused for anyone but a superuser.
+    """
+
+    @pytest.fixture
+    def setup(self, db, settings):
+        from tests.test_field_permissions import perm, restrict
+        from tests.testapp.models import Order
+
+        settings.VANTAGE = {"ROLES_PERMISSION": "auth.change_group"}
+        support = Group.objects.create(name="Support")
+        support.permissions.add(perm("testapp.view_order"), perm("testapp.change_order"))
+        restrict(support, Order, total="hidden")
+        managers = Group.objects.create(name="Managers")
+        managers.permissions.add(perm("testapp.view_order"), perm("testapp.change_order"))
+        agent = User.objects.create_user("agent", "a@example.com", "x", is_staff=True)
+        agent.groups.add(support)
+        agent.user_permissions.add(
+            perm("auth.change_group"), perm("auth.add_group"), perm("auth.view_group")
+        )
+        return support, managers, User.objects.get(pk=agent.pk)
+
+    def test_joining_a_role_yourself_is_refused(self, client, setup):
+        _support, managers, agent = setup
+        client.force_login(agent)
+        response = client.post(
+            reverse("vantage:role-members", args=[managers.pk]), {"add": [str(agent.pk)]}
+        )
+        assert response.status_code == 403
+        assert not agent.groups.filter(pk=managers.pk).exists()
+
+    def test_adding_someone_else_still_works(self, client, setup):
+        _support, managers, agent = setup
+        other = User.objects.create_user("other", "o@example.com", "x", is_staff=True)
+        client.force_login(agent)
+        response = client.post(
+            reverse("vantage:role-members", args=[managers.pk]), {"add": [str(other.pk)]}
+        )
+        assert response.status_code == 302
+        assert other.groups.filter(pk=managers.pk).exists()
+
+    def test_editing_a_role_you_hold_is_refused(self, client, setup):
+        from tests.test_field_permissions import ct_id
+        from tests.testapp.models import Order
+        from vantage.models import FieldPermission
+
+        support, _managers, agent = setup
+        client.force_login(agent)
+        response = client.post(
+            reverse("vantage:role-edit", args=[support.pk]),
+            {
+                "token": roles.fingerprint(support, roles.current_permission_ids(support)),
+                "mode": "diff",
+                "fields": [f"{ct_id(Order)}:total:"],
+            },
+        )
+        assert response.status_code == 403
+        assert FieldPermission.objects.filter(group=support, field_name="total").exists()
+
+    def test_a_superuser_may_still_manage_their_own_roles(self, client, setup):
+        support, managers, _agent = setup
+        boss = User.objects.create_superuser("boss2", "b2@example.com", "x")
+        boss.groups.add(managers)
+        client.force_login(boss)
+        response = client.post(
+            reverse("vantage:role-members", args=[support.pk]), {"add": [str(boss.pk)]}
+        )
+        assert response.status_code == 302
+
+
+class TestRenamingAReferencedRole:
+    """A role named in code — field rules or a two-factor requirement — keeps its name.
+
+    Both bind by name, so a rename would silently drop the rule or the requirement for
+    every member while leaving them every permission the role grants.
+    """
+
+    def _rename(self, client, group, name):
+        return client.post(
+            reverse("vantage:role-rename", args=[group.pk]),
+            {"name": name, "token": roles.fingerprint(group, roles.current_permission_ids(group))},
+        )
+
+    def test_a_role_with_code_field_rules_cannot_be_renamed(self, client, db, monkeypatch):
+        from tests.testapp.models import Order
+        from vantage import site
+
+        panel = site.get_panel(Order)
+        monkeypatch.setattr(
+            panel, "field_permissions", {"Coders": {"number": "hidden"}}, raising=False
+        )
+        coders = Group.objects.create(name="Coders")
+        client.force_login(User.objects.create_superuser("boss3", "b3@example.com", "x"))
+        self._rename(client, coders, "Coders2")
+        assert Group.objects.get(pk=coders.pk).name == "Coders"
+
+    def test_a_role_that_requires_two_factor_cannot_be_renamed(self, client, db, settings):
+        settings.VANTAGE = {"TWO_FACTOR_REQUIRED_ROLES": ["Finance"]}
+        finance = Group.objects.create(name="Finance")
+        client.force_login(User.objects.create_superuser("boss4", "b4@example.com", "x"))
+        self._rename(client, finance, "Finance (old)")
+        assert Group.objects.get(pk=finance.pk).name == "Finance"
+
+    def test_an_unreferenced_role_renames_as_before(self, client, db):
+        plain = Group.objects.create(name="Plain")
+        client.force_login(User.objects.create_superuser("boss5", "b5@example.com", "x"))
+        self._rename(client, plain, "Plainer")
+        assert Group.objects.get(pk=plain.pk).name == "Plainer"
