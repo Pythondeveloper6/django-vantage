@@ -59,7 +59,7 @@ class PanelPermissions:
             return False
         # Before the superuser bypass: read-only mode is an operational choice about
         # the deployment, not about who is asking.
-        if self.is_read_only(action):
+        if self.is_read_only(action) or self.is_model_read_only(model, action):
             return False
         override = self.panel_override(request, model, action)
         if override is not None:
@@ -75,6 +75,21 @@ class PanelPermissions:
 
         return action in WRITE_ACTIONS and read_only_reason() is not None
 
+    @staticmethod
+    def is_model_read_only(model: type[Model], action: str) -> bool:
+        """Whether ``model`` itself refuses this action (``ModelPanel.read_only``).
+
+        Like :meth:`is_read_only`, asked before the superuser bypass and before a
+        panel's own ``has_*_permission``: a table the project does not own is not made
+        writable by who is asking.
+        """
+        from vantage.safety import WRITE_ACTIONS, model_read_only
+
+        if action not in WRITE_ACTIONS:
+            return False
+        state = model_read_only(model)
+        return state is not None and state.refuses(action)
+
     def has_object_perm(self, request, model: type[Model], action: str, obj) -> bool:
         """Whether the user may act on one specific row.
 
@@ -85,7 +100,7 @@ class PanelPermissions:
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             return False
-        if self.is_read_only(action):
+        if self.is_read_only(action) or self.is_model_read_only(model, action):
             return False
         override = self.panel_override(request, model, action, obj)
         if override is not None:

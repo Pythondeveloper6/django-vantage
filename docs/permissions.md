@@ -270,6 +270,33 @@ incident would make it decorative.
 `READ_ONLY` is also editable from the [settings screen](theming.md#the-settings-screen),
 so an operator can freeze the panel without a deploy.
 
+### Read-only models and legacy databases
+
+The same refusal, per model. For a panel over tables another system owns — a legacy
+database, a reporting replica, a schema Django did not create:
+
+```python
+@register(LegacyCustomer)
+class LegacyCustomerPanel(ModelPanel):
+    read_only = True
+    # The exception list: these stay changeable on existing rows. Nothing else does.
+    editable_fields = ["notes", "account_manager"]
+```
+
+- `read_only = True` refuses `add` and `delete` for everyone, superusers and a panel's
+  own `has_*_permission` hooks included, exactly like `READ_ONLY`.
+- With `editable_fields` set, `change` stays available (to whoever has the
+  permission) and every other field is read-only, through the same field-level layer
+  as [field permissions](field-permissions.md) — so forms, inline cell editing, bulk
+  edit, the importer and the JSON API all honour it.
+- `VANTAGE["UNMANAGED_READ_ONLY"] = True` makes every `Meta.managed = False` model
+  read-only unless its panel sets `read_only = False`. It is off by default for
+  compatibility; turn it on for a panel pointed at a database Django does not own,
+  together with a database user that has only the grants the allowlist needs.
+
+`manage.py check` reports a malformed value (`vantage.E122`) or an allowlist naming
+something that is not a field (`vantage.E123`).
+
 ## Impersonation
 
 Deliberately narrow: superusers only, never onto another superuser, loud while it is

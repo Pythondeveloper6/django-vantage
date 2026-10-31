@@ -90,6 +90,16 @@ class ModelPanel:
     inlines: list[Any] | None = None
     related_tabs: bool | None = None
 
+    # ── read-only models ────────────────────────────────────────────────────
+    #
+    # ``True`` refuses add, delete and every field change on this model, for everyone,
+    # superusers included — the shape a table owned by another system wants. ``None``
+    # follows ``VANTAGE["UNMANAGED_READ_ONLY"]`` for a ``managed = False`` model.
+    # ``editable_fields`` is the exception list: those fields stay changeable on
+    # existing rows (by whoever has ``change`` permission), and nothing else does.
+    read_only: bool | None = None
+    editable_fields: list[str] | None = None
+
     # ── widget overrides ────────────────────────────────────────────────────
     #
     # Inference picks every control; these replace it where it picked wrong, and only

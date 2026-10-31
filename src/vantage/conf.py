@@ -70,6 +70,11 @@ DEFAULTS: dict[str, Any] = {
     # Code-only for the same reason as SETTINGS_PERMISSION: editable, it is a self-grant.
     "ROLES_PERMISSION": None,
     "READ_ONLY": False,
+    # Whether a model with ``Meta.managed = False`` — a table Django did not create and
+    # does not migrate — is read-only in the panel unless its panel says otherwise
+    # (``ModelPanel.read_only``). Off by default for compatibility; recommended on for
+    # a panel over a database another system owns.
+    "UNMANAGED_READ_ONLY": False,
     "ENVIRONMENT": None,
     # ── multi-tenancy ───────────────────────────────────────────────────────
     # Off until TENANT_MODEL names a model, at which point every registered model must
