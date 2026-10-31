@@ -613,6 +613,10 @@ def may_reveal_anything(request, site=None) -> bool:
         return False
     if user.is_superuser or user.has_perm(REVEAL_PERMISSION):
         return True
+    from vantage.breakglass import holds
+
+    if holds(request, REVEAL_PERMISSION):
+        return True
     if site is None:
         return False
     from vantage.panels import ModelPanel

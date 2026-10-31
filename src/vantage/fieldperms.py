@@ -205,13 +205,15 @@ class _UserRules:
     names: dict[int, str] | None
     #: ``{content_type_id: {group_id: {action, ...}}}``, loaded on first need.
     _grants: dict[int, dict[int, set[str]]] | None = None
+    #: Roles held for now through :mod:`vantage.breakglass`, counted as memberships.
+    extra: tuple[int, ...] = ()
 
     def grants(self) -> dict[int, dict[int, set[str]]]:
         if self._grants is None:
             from django.contrib.auth.models import Group
 
             through = Group.permissions.through
-            rows = through.objects.filter(group_id__in=_membership(self.user)).values_list(
+            rows = through.objects.filter(_groups_q(self.user, self.extra)).values_list(
                 "group_id", "permission__content_type_id", "permission__codename"
             )
             grants: dict[int, dict[int, set[str]]] = {}
@@ -229,9 +231,19 @@ def _membership(user):
     return roles_of(user).order_by().values("pk")
 
 
-def _load(user) -> _UserRules:
+def _groups_q(user, extra: tuple[int, ...] = ()):
+    """``group_id`` in the user's roles, or in ``extra``. One condition, one query."""
+    from django.db.models import Q
+
+    condition = Q(group_id__in=_membership(user))
+    if extra:
+        condition |= Q(group_id__in=list(extra))
+    return condition
+
+
+def _load(user, extra: tuple[int, ...] = ()) -> _UserRules:
     try:
-        return _query(user)
+        return _query(user, tuple(extra))
     except RuntimeError as exc:
         # pytest-django blocks the connection for tests that did not ask for a database;
         # drawing a page is not a reason to fail one. Narrowed on the blocker's own
@@ -239,25 +251,29 @@ def _load(user) -> _UserRules:
         # strikes. A database that is genuinely down fails the page anyway.
         if "Database access not allowed" not in str(exc):
             raise
-        return _UserRules(user=user, stored={}, names=None)
+        return _UserRules(user=user, stored={}, names=None, extra=tuple(extra))
 
 
-def _query(user) -> _UserRules:
+def _query(user, extra: tuple[int, ...] = ()) -> _UserRules:
     from vantage.models import FieldPermission
 
     names = None
     if _sites_declare_code_rules():
+        from django.contrib.auth.models import Group
+
         from vantage.roles import roles_of
 
         names = dict(roles_of(user).order_by().values_list("pk", "name"))
+        if extra:
+            names.update(Group.objects.filter(pk__in=extra).values_list("pk", "name"))
     stored: dict[int, dict[int, dict[str, str]]] = {}
     if names is None or names:
-        rows = FieldPermission.objects.filter(group_id__in=_membership(user)).values_list(
+        rows = FieldPermission.objects.filter(_groups_q(user, extra)).values_list(
             "content_type_id", "group_id", "field_name", "level"
         )
         for ct_id, gid, name, level in rows:
             stored.setdefault(ct_id, {}).setdefault(gid, {})[name] = level
-    return _UserRules(user=user, stored=stored, names=names)
+    return _UserRules(user=user, stored=stored, names=names, extra=extra)
 
 
 def _combine(per_role: dict[int, dict[str, str]], grants: dict[int, set[str]]) -> FieldAccess:
