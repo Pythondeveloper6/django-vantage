@@ -47,6 +47,7 @@ from model_bakery import baker
 
 from vantage.models import (
     ChangeRequest,
+    ElevatedAccess,
     ReportSubscription,
     SavedView,
     VantageJob,
@@ -102,6 +103,7 @@ def _iter_requests(
     delivery=None,
     report=None,
     change_request=None,
+    elevated_access=None,
 ):
     """Every request this test will make: ``(description, url_name, kwargs)``.
 
@@ -156,6 +158,8 @@ def _iter_requests(
                     kwargs["pk"] = webhook.pk
                 elif route.startswith("_/approvals/") and change_request is not None:
                     kwargs["pk"] = change_request.pk
+                elif route.startswith("_/elevated-access/") and elevated_access is not None:
+                    kwargs["pk"] = elevated_access.pk
                 else:
                     unresolved.append(param)
             elif param == "user" and route.startswith("_/roles/") and user is not None:
@@ -275,6 +279,10 @@ def world(db):
         "change_request": ChangeRequest.objects.create(
             resource_key="testapp.post", object_id="0", changes={}
         ),
+        # A pending break-glass request, for the approve and revoke routes.
+        "elevated_access": ElevatedAccess.objects.create(
+            user=staff, reason="Smoke test request", minutes=5
+        ),
     }
 
 
@@ -329,6 +337,7 @@ class TestFullRouteWalk:
                 delivery=world["delivery"],
                 report=world["report"],
                 change_request=world["change_request"],
+                elevated_access=world["elevated_access"],
             )
         )
         failures: list[str] = []
@@ -355,6 +364,7 @@ class TestFullRouteWalk:
                 delivery=world["delivery"],
                 report=world["report"],
                 change_request=world["change_request"],
+                elevated_access=world["elevated_access"],
             )
         )
         failures: list[str] = []
