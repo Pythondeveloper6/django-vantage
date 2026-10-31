@@ -79,7 +79,8 @@ def icon_tag(name: str | None, **attrs) -> str:
     should never take a page down.
     """
     paths = ICONS.get(name or "", ICONS["box"])
-    return format_html(SVG, attrs.get("class", ""), mark_safe(paths))
+    # ``paths`` comes from the module's own ICONS table, never from input.
+    return format_html(SVG, attrs.get("class", ""), mark_safe(paths))  # noqa: S308
 
 
 @register.filter

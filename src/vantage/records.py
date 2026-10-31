@@ -1126,7 +1126,7 @@ def render_row_actions(panel, context: dict | None) -> Any:
     buttons = row_actions_for(panel, context.get("request"), obj)
     if not buttons:
         return None
-    return mark_safe(  # rendered by the template engine, which escapes
+    return mark_safe(  # noqa: S308 - rendered by the template engine, which escapes
         render_to_string(
             "vantage/partials/row_actions.html",
             {"row_actions": buttons, "object": obj, "panel": panel},
