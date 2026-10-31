@@ -905,7 +905,7 @@ def restore(request, token: str | None) -> None:
     if not enabled():
         return
     live = _resolve(request)
-    if token == "*":
+    if token == "*":  # noqa: S105 - the "all tenants" marker, not a secret
         if live is None:
             # Ambiguous in a worker: the resolver may simply have no host or header to
             # read, or the actor may have lost the role that made them an operator.

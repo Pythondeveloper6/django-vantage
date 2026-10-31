@@ -799,7 +799,8 @@ def _exchange(
         _GuardedHTTPHandler(deadline),
         _GuardedHTTPSHandler(deadline),
     )
-    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    # url_problem() has already limited the scheme to http/https.
+    request = urllib.request.Request(url, data=body, headers=headers, method="POST")  # noqa: S310
     try:
         with opener.open(request, timeout=timeout) as response:
             return response.status, _read(response)
