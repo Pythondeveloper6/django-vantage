@@ -774,3 +774,20 @@ class TestRestrictiveHooks:
         panel_from_admin(Order, ChoiceLimitingOrderAdmin)
         ids = [m.id for m in check_admin_adapter(None)]
         assert "vantage.E041" in ids
+
+
+class TestFormfieldOverrides:
+    def test_class_level_overrides_are_carried_onto_the_panel(self):
+        from django import forms
+        from django.db import models
+
+        class Wide(admin.ModelAdmin):
+            formfield_overrides = {models.TextField: {"widget": forms.Textarea(attrs={"rows": 3})}}
+
+        adoption = panel_from_admin(Post, Wide)
+        assert set(adoption.panel_class.formfield_overrides) == {models.TextField}
+        assert not any("formfield_overrides" in item for item in adoption.unmapped)
+
+    def test_the_admins_own_widget_defaults_are_not_carried(self):
+        adoption = panel_from_admin(Post, admin.ModelAdmin)
+        assert "formfield_overrides" not in vars(adoption.panel_class)
