@@ -62,6 +62,32 @@
   </div>
 {% endif %}
 
+{% if elevation %}
+  {% comment %}
+    Elevated access is on show for the same reason impersonation is: the person
+    holding it must not forget it, and whoever looks over their shoulder should see it.
+  {% endcomment %}
+  <div class="v-impersonation-banner v-elevation-banner" role="status">
+    {% icon "shield" %}
+    <span>
+      {% translate "Elevated access:" %}
+      {% for g in elevation.grants %}
+        <strong>{{ g.label }}</strong>
+        {% blocktranslate trimmed count counter=g.minutes_left with time=g.expires_at|time:"H:i" %}
+          until {{ time }} ({{ counter }} minute left)
+        {% plural %}
+          until {{ time }} ({{ counter }} minutes left)
+        {% endblocktranslate %}{% if not forloop.last %};{% endif %}
+      {% endfor %}
+    </span>
+    <form method="post" action="{% url 'vantage:break-glass-drop' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="v-btn v-btn-sm v-btn-secondary">{% translate "Drop elevation" %}</button>
+    </form>
+  </div>
+{% endif %}
+
 {% if read_only %}
   <div class="v-readonly-banner">{% icon "shield" %}<span>{{ read_only }}</span></div>
 {% endif %}
