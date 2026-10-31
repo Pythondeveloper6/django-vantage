@@ -184,6 +184,9 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "REPORTS_BASE_URL",
         "UNMANAGED_READ_ONLY",
         "ROLE_MAPPING",
+        "METRICS",
+        "METRICS_TOKEN",
+        "SLOW_REQUEST_MS",
     }
 )
 

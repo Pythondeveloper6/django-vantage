@@ -59,6 +59,18 @@ upgrading.
   migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
   Text or JSON output; exits `1` at `--fail-level` for CI.
 
+#### Metrics, slow-request logging and a runbook
+
+- A Prometheus endpoint at `_/metrics/` (off until `VANTAGE["METRICS"]`; bearer
+  `METRICS_TOKEN` compared in constant time, or a signed-in superuser): jobs, webhook
+  deliveries, report runs and approval requests by status, undo entries, and
+  per-process request counters. No new dependency.
+- `vantage.metrics.SlowRequestMiddleware` logs panel requests slower than
+  `SLOW_REQUEST_MS` to `vantage.requests` with structured fields.
+- An [operations runbook](docs/runbook.md): what to alert on, and what to do when data
+  is being changed wrongly, a credential leaks, a deletion needs reversing, or jobs and
+  webhooks are stuck.
+
 #### Single sign-on role mapping
 
 - `VANTAGE["ROLE_MAPPING"]` maps identity-provider groups (OpenID Connect claims from

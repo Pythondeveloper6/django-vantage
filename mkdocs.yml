@@ -135,6 +135,7 @@ nav:
       - Settings reference: settings.md
       - API stability and upgrades: api-stability.md
       - Deployment: deployment.md
+      - Operations runbook: runbook.md
       - Security: security.md
       - Data quality: data-quality.md
       - Webhooks: webhooks.md

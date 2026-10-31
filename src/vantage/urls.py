@@ -34,6 +34,7 @@ from vantage import (
     views,
     webhookviews,
 )
+from vantage.metrics import MetricsView
 from vantage.palette import build_urls
 
 
@@ -74,6 +75,7 @@ def build(site) -> list:
             name="impersonate",
         ),
         path("_/undo/", views.UndoView.as_view(site=site), name="undo"),
+        path("_/metrics/", MetricsView.as_view(site=site), name="metrics"),
     ]
 
     # The account page and the top-bar arrangement screen. Before the page loop for

@@ -177,6 +177,9 @@ strictness, so an item that cannot be shown is omitted.
 | `LIST_PREFS_PERMISSION` | `None` | — | Who may save a list's preferences **for everyone**. `None` means superusers only |
 | `ROLES_PERMISSION` | `None` | — | Who may open the [roles & permissions screen](roles.md). `None` means superusers only |
 | `READ_ONLY` | `False` | ✓ | `True`, or a string that doubles as the explanation shown to users |
+| `METRICS` | `False` | — | Serve Prometheus metrics at `_/metrics/` — see the [runbook](runbook.md#monitoring) |
+| `METRICS_TOKEN` | `None` | — | Bearer token a scraper sends; `None` allows signed-in superusers only |
+| `SLOW_REQUEST_MS` | `1000` | — | Log panel requests slower than this to `vantage.requests` (with `SlowRequestMiddleware`); `0` disables |
 | `ROLE_MAPPING` | `{}` | — | Identity-provider groups to roles, applied at every SSO sign-in — see [Single sign-on](single-sign-on.md) |
 | `UNMANAGED_READ_ONLY` | `False` | — | Make every `Meta.managed = False` model read-only unless its panel sets `read_only = False` — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
@@ -373,7 +376,7 @@ NAV  NAV_UNLISTED  DASHBOARD
 PLUGINS  PLUGINS_EXCLUDE
 
 PERMISSIONS  SETTINGS_PERMISSION  LIST_PREFS_PERMISSION  ROLES_PERMISSION
-READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
+READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  METRICS  METRICS_TOKEN  SLOW_REQUEST_MS  ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
