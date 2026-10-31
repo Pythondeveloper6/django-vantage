@@ -188,6 +188,11 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "METRICS_TOKEN",
         "SLOW_REQUEST_MS",
         "NOTIFICATIONS",
+        "UPLOAD_ACTIVE_SUFFIXES",
+        "ACCESS_REVIEW_PERMISSION",
+        "BREAK_GLASS_PERMISSION",
+        "BREAK_GLASS_SELF_SERVICE",
+        "BREAK_GLASS_MAX_MINUTES",
     }
 )
 

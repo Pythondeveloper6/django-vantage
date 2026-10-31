@@ -11,6 +11,7 @@ from django.views.decorators.cache import cache_page
 from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
+    accessviews,
     api,
     approvalviews,
     auditviews,
@@ -87,6 +88,8 @@ def build(site) -> list:
 
     # The roles screens hang off the roles page's path, and only exist while it does.
     urlpatterns += rolesviews.build_urls(site)
+    # The access review download and the break-glass screens, under their pages' paths.
+    urlpatterns += accessviews.build_urls(site)
 
     # Likewise the webhook screens, which hang off the webhooks page's path.
     urlpatterns += webhookviews.build_urls(site)

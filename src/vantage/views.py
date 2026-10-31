@@ -26,6 +26,7 @@ from django.views.generic import TemplateView
 
 from vantage import listprefs, listquery
 from vantage.actions import Selection, resolve_actions
+from vantage.breakglass import banner as elevation_banner
 from vantage.conf import vantage_settings
 from vantage.export import FORMATS, stream_export
 from vantage.nav import UI_THEME_COOKIE, build_nav, resolve_theme, resolve_ui_theme
@@ -92,6 +93,7 @@ class SiteView(TemplateView):
             breadcrumbs=self.get_breadcrumbs(),
             may_reveal=may_reveal_anything(self.request, self.site),
             reveal_seconds=REVEAL_SECONDS,
+            elevation=elevation_banner(self.request),
         )
         # The end of the header: the arranged controls, plus who is signed in. One
         # call rather than three keys, so authviews.shell_context cannot drift.

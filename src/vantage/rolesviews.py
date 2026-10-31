@@ -77,7 +77,22 @@ def list_context(request) -> dict:
         "can_delete": _may(request, "delete"),
         "membership": roles.supports_membership(),
         "name_limit": roles.MAX_NAME_LENGTH,
+        "access_review_url": _access_review_url(request),
     }
+
+
+def _access_review_url(request) -> str | None:
+    """The access review's address, for those allowed to open it while it is mounted."""
+    from django.urls import NoReverseMatch
+
+    from vantage.accessreview import may_review
+
+    if not may_review(request):
+        return None
+    try:
+        return reverse("vantage:page-access-review")
+    except NoReverseMatch:
+        return None
 
 
 @method_decorator(csrf_protect, name="dispatch")
