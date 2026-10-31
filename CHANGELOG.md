@@ -228,6 +228,7 @@ upgrading.
 
 ### Changed
 
+- **The Arabic catalogues are complete** (`django` and `djangojs`, all six plural forms); the English catalogue was refreshed to match. Strings added later fall back to English until translated.
 - **CSV and TSV exports neutralise spreadsheet formulas** (visible to users): a text
   cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
   `'`, in the Export button and in report attachments alike. Numbers, dates and

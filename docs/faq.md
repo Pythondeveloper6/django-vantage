@@ -111,7 +111,7 @@ An honest list. Some of these are decisions; some are gaps.
 | | Notes |
 |---|---|
 | **`panel.permissions`** | Removed outright, not merely ignored. Setting it fails `manage.py check` (`vantage.E020`). Use `VANTAGE["PERMISSIONS"]` or the per-panel `has_*_permission` hooks — see [Panels](panels.md#removed-attributes) |
-| **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (partial on purpose: the high-traffic strings — chrome, buttons, list and form pages, confirmations — with the rest falling back to English), for templates, Python and the JavaScript alike — see [Internationalization](internationalization.md) |
+| **Full translation coverage** | `locale/` ships `en` (complete) and `ar` (complete Modern Standard Arabic, including all six plural forms; strings added later fall back to English until translated), for templates, Python and the JavaScript alike — see [Internationalization](internationalization.md) |
 
 `inlines`, `row_actions`, `list_select_related`, `related_tabs`, `layout`, background
 job offload for bulk actions and per-field widget overrides (`formfield_overrides`,

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: django-vantage\n"
 "Report-Msgid-Bugs-To: https://github.com/Pythondeveloper6/django-vantage/issues\n"
-"POT-Creation-Date: 2026-08-15 12:00-0500\n"
+"POT-Creation-Date: 2026-10-31 13:10-0500\n"
 "PO-Revision-Date: 2026-08-15 12:00-0500\n"
 "Last-Translator: django-vantage contributors\n"
 "Language-Team: English <https://github.com/Pythondeveloper6/django-vantage>\n"
@@ -66,8 +66,10 @@ msgid ""
 "%(count)s result shown, and there are more. Keep typing to narrow the list."
 msgid_plural ""
 "%(count)s results shown, and there are more. Keep typing to narrow the list."
-msgstr[0] "%(count)s result shown, and there are more. Keep typing to narrow the list."
-msgstr[1] "%(count)s results shown, and there are more. Keep typing to narrow the list."
+msgstr[0] ""
+"%(count)s result shown, and there are more. Keep typing to narrow the list."
+msgstr[1] ""
+"%(count)s results shown, and there are more. Keep typing to narrow the list."
 
 #: static/vantage/combobox.js:399
 msgid "%(count)s result"
@@ -231,7 +233,7 @@ msgstr "This is the first page."
 msgid "This is the last page."
 msgstr "This is the last page."
 
-#: static/vantage/vantage-grid.js:706 static/vantage/vantage-inline.js:599
+#: static/vantage/vantage-grid.js:706 static/vantage/vantage-inline.js:653
 #, javascript-format
 msgid "Record %s"
 msgstr "Record %s"
@@ -305,99 +307,106 @@ msgstr "%(label)s: %(messages)s"
 msgid "Left cell mode."
 msgstr "Left cell mode."
 
-#: static/vantage/vantage-inline.js:419
+#: static/vantage/vantage-inline.js:426
 msgid "Cell mode. %(count)s editable cell. Escape to leave."
 msgid_plural "Cell mode. %(count)s editable cells. Escape to leave."
 msgstr[0] "Cell mode. %(count)s editable cell. Escape to leave."
 msgstr[1] "Cell mode. %(count)s editable cells. Escape to leave."
 
-#: static/vantage/vantage-inline.js:451
+#: static/vantage/vantage-inline.js:458
 msgid "Saving…"
 msgstr "Saving…"
 
-#: static/vantage/vantage-inline.js:477
+#: static/vantage/vantage-inline.js:484
 msgid "You do not have permission to change these records."
 msgstr "You do not have permission to change these records."
 
-#: static/vantage/vantage-inline.js:479
+#: static/vantage/vantage-inline.js:486
 msgid "One of these records no longer exists. Reload the page."
 msgstr "One of these records no longer exists. Reload the page."
 
-#: static/vantage/vantage-inline.js:482
+#: static/vantage/vantage-inline.js:489
 #, javascript-format
 msgid "The server refused the changeset (%s)."
 msgstr "The server refused the changeset (%s)."
 
-#: static/vantage/vantage-inline.js:494
+#: static/vantage/vantage-inline.js:501
 msgid "Could not reach the server. Your changes are still here — try again."
 msgstr "Could not reach the server. Your changes are still here — try again."
 
-#: static/vantage/vantage-inline.js:528
+#: static/vantage/vantage-inline.js:535
 msgid "%(count)s change saved."
 msgid_plural "%(count)s changes saved."
 msgstr[0] "%(count)s change saved."
 msgstr[1] "%(count)s changes saved."
 
-#: static/vantage/vantage-inline.js:556
+#: static/vantage/vantage-inline.js:610
 msgid ""
 "Nothing was saved: one value was rejected. Fix them and save again, or "
 "discard."
 msgid_plural ""
 "Nothing was saved: %(count)s values were rejected. Fix them and save again, "
 "or discard."
-msgstr[0] "Nothing was saved: one value was rejected. Fix them and save again, or discard."
-msgstr[1] "Nothing was saved: %(count)s values were rejected. Fix them and save again, or discard."
+msgstr[0] ""
+"Nothing was saved: one value was rejected. Fix them and save again, or "
+"discard."
+msgstr[1] ""
+"Nothing was saved: %(count)s values were rejected. Fix them and save again, "
+"or discard."
 
-#: static/vantage/vantage-inline.js:583
+#: static/vantage/vantage-inline.js:637
 msgid "Someone else changed these records. Reload the page."
 msgstr "Someone else changed these records. Reload the page."
 
-#: static/vantage/vantage-inline.js:614
+#: static/vantage/vantage-inline.js:668
 msgid "This record changed while you were editing. Nothing was saved."
 msgid_plural ""
 "%(count)s records changed while you were editing. Nothing was saved."
 msgstr[0] "This record changed while you were editing. Nothing was saved."
-msgstr[1] "%(count)s records changed while you were editing. Nothing was saved."
+msgstr[1] ""
+"%(count)s records changed while you were editing. Nothing was saved."
 
-#: static/vantage/vantage-inline.js:624
+#: static/vantage/vantage-inline.js:678
 msgid "The field below is shown both ways — choose a side."
 msgid_plural ""
 "The %(count)s fields below are shown both ways — choose a side for each, or "
 "take one side for all of them."
 msgstr[0] "The field below is shown both ways — choose a side."
-msgstr[1] "The %(count)s fields below are shown both ways — choose a side for each, or take one side for all of them."
+msgstr[1] ""
+"The %(count)s fields below are shown both ways — choose a side for each, or "
+"take one side for all of them."
 
-#: static/vantage/vantage-inline.js:649
+#: static/vantage/vantage-inline.js:703
 msgid "Yours"
 msgstr "Yours"
 
-#: static/vantage/vantage-inline.js:651
+#: static/vantage/vantage-inline.js:705
 msgid "Theirs"
 msgstr "Theirs"
 
-#: static/vantage/vantage-inline.js:731
+#: static/vantage/vantage-inline.js:785
 msgid "Resolved against the current version. Save again to apply."
 msgstr "Resolved against the current version. Save again to apply."
 
-#: static/vantage/vantage-inline.js:735
+#: static/vantage/vantage-inline.js:789
 msgid "Their version kept. Nothing left to save."
 msgstr "Their version kept. Nothing left to save."
 
-#: static/vantage/vantage-inline.js:756
+#: static/vantage/vantage-inline.js:810
 msgid "Still unresolved. Nothing was saved."
 msgstr "Still unresolved. Nothing was saved."
 
-#: static/vantage/vantage-inline.js:769
+#: static/vantage/vantage-inline.js:823
 msgid "Discard 1 unsaved change?"
 msgid_plural "Discard all %(count)s unsaved changes?"
 msgstr[0] "Discard 1 unsaved change?"
 msgstr[1] "Discard all %(count)s unsaved changes?"
 
-#: static/vantage/vantage-inline.js:784
+#: static/vantage/vantage-inline.js:838
 msgid "Changes discarded."
 msgstr "Changes discarded."
 
-#: static/vantage/vantage-inline.js:786
+#: static/vantage/vantage-inline.js:840
 msgid "All unsaved changes discarded."
 msgstr "All unsaved changes discarded."
 
@@ -425,6 +434,44 @@ msgstr "Move %s up"
 msgid "Move %s down"
 msgstr "Move %s down"
 
+#: static/vantage/vantage-listviews.js:59
+msgid "%(count)s record"
+msgid_plural "%(count)s records"
+msgstr[0] "%(count)s record"
+msgstr[1] "%(count)s records"
+
+#: static/vantage/vantage-listviews.js:105
+msgid "You do not have permission to move this card."
+msgstr "You do not have permission to move this card."
+
+#: static/vantage/vantage-listviews.js:106
+msgid "This record no longer exists. Reload the page."
+msgstr "This record no longer exists. Reload the page."
+
+#: static/vantage/vantage-listviews.js:108
+msgid "Somebody else changed this record a moment ago. Reload and try again."
+msgstr "Somebody else changed this record a moment ago. Reload and try again."
+
+#: static/vantage/vantage-listviews.js:119
+msgid "The card could not be moved."
+msgstr "The card could not be moved."
+
+#: static/vantage/vantage-listviews.js:151
+msgid "%(card)s was not moved: %(reason)s"
+msgstr "%(card)s was not moved: %(reason)s"
+
+#: static/vantage/vantage-listviews.js:184
+msgid "The move was sent for approval."
+msgstr "The move was sent for approval."
+
+#: static/vantage/vantage-listviews.js:191
+msgid "Moved %(card)s to %(column)s."
+msgstr "Moved %(card)s to %(column)s."
+
+#: static/vantage/vantage-listviews.js:197
+msgid "The connection failed. The card was not moved."
+msgstr "The connection failed. The card was not moved."
+
 #: static/vantage/vantage-palette.js:262
 msgid "Search"
 msgstr "Search"
@@ -445,6 +492,52 @@ msgid "%(count)s result for %(query)s"
 msgid_plural "%(count)s results for %(query)s"
 msgstr[0] "%(count)s result for %(query)s"
 msgstr[1] "%(count)s results for %(query)s"
+
+#: static/vantage/vantage-roles.js:82
+msgid "Full access"
+msgstr "Full access"
+
+#: static/vantage/vantage-roles.js:83
+msgid "Read-only"
+msgstr "Read-only"
+
+#: static/vantage/vantage-roles.js:84
+msgid "Hidden"
+msgstr "Hidden"
+
+#: static/vantage/vantage-roles.js:119
+msgid "%(count)s restricted"
+msgid_plural "%(count)s restricted"
+msgstr[0] "%(count)s restricted"
+msgstr[1] "%(count)s restricted"
+
+#: static/vantage/vantage-roles.js:120
+msgid "All fields"
+msgstr "All fields"
+
+#: static/vantage/vantage-roles.js:157
+msgid "No changes"
+msgstr "No changes"
+
+#: static/vantage/vantage-roles.js:172
+msgid "%(added)s to grant, %(removed)s to revoke"
+msgstr "%(added)s to grant, %(removed)s to revoke"
+
+#: static/vantage/vantage-roles.js:177
+msgid "%(count)s field rule"
+msgid_plural "%(count)s field rules"
+msgstr[0] "%(count)s field rule"
+msgstr[1] "%(count)s field rules"
+
+#: static/vantage/vantage-roles.js:437
+msgid "Nothing"
+msgstr "Nothing"
+
+#: static/vantage/vantage-roles.js:497
+msgid ""
+"%(added)s to grant, %(removed)s to revoke. Saved in one step, or not at all."
+msgstr ""
+"%(added)s to grant, %(removed)s to revoke. Saved in one step, or not at all."
 
 #: static/vantage/vantage-settings.js:68
 msgid "this item"
@@ -494,20 +587,45 @@ msgstr "Drag to reorder the group, or use the arrows"
 msgid "%s moved"
 msgstr "%s moved"
 
-#: static/vantage/vantage.js:329
+#: static/vantage/vantage.js:84
+msgid "The undo could not be completed."
+msgstr "The undo could not be completed."
+
+#: static/vantage/vantage.js:88
+msgid "Could not reach the server. Nothing was undone."
+msgstr "Could not reach the server. Nothing was undone."
+
+#: static/vantage/vantage.js:135
+msgid "Undo"
+msgstr "Undo"
+
+#: static/vantage/vantage.js:142
+msgid "Dismiss this message"
+msgstr "Dismiss this message"
+
+#: static/vantage/vantage.js:323
+#, javascript-format
+msgid "Look changed to %s"
+msgstr "Look changed to %s"
+
+#: static/vantage/vantage.js:607
 msgid "Expand navigation"
 msgstr "Expand navigation"
 
-#: static/vantage/vantage.js:329
+#: static/vantage/vantage.js:607
 msgid "Collapse navigation"
 msgstr "Collapse navigation"
 
-#: static/vantage/vantage.js:382
+#: static/vantage/vantage.js:699
+msgid "Actions for the selected records"
+msgstr "Actions for the selected records"
+
+#: static/vantage/vantage.js:729
 #, javascript-format
 msgid "All %s matching records selected"
 msgstr "All %s matching records selected"
 
-#: static/vantage/vantage.js:385
+#: static/vantage/vantage.js:732
 msgid "%(count)s record selected"
 msgid_plural "%(count)s records selected"
 msgstr[0] "%(count)s record selected"
