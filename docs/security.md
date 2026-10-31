@@ -13,6 +13,65 @@ surprise a security feature should never cause.
 page once, wire the two middlewares if you want them, then let the checks hold you to
 it on every deploy from then on.
 
+## Threat model
+
+What the panel protects, from whom, and where the lines are. Read it as the statement
+of what a security report is measured against.
+
+### Assets
+
+- **Records** in every registered model, and the row-level and tenant scoping that
+  decides which of them a person may see or change.
+- **Sensitive and hidden field values** — secrets masked by
+  [sensitive-field inference](sensitive-fields.md), and fields a role may not see under
+  [field permissions](field-permissions.md).
+- **Access control itself** — roles, their permissions and field rules, two-factor
+  enrolment and recovery codes, the impersonation session, and read-only mode.
+- **The audit log**, which must name the person who really acted.
+- **Webhook signing secrets**, report unsubscribe tokens and undo tokens.
+- **The panel's origin**: anything that runs script there runs with the reader's
+  session, frequently a superuser's.
+
+### Actors
+
+| Actor | Trusted with | Must not be able to |
+|---|---|---|
+| Anonymous visitor | the sign-in page, a signed report-unsubscribe link | reach any panel page, learn whether an account exists, brute-force a password or a second factor |
+| Staff with partial permissions | exactly the model, row, tenant and field permissions they hold | read or write past any of them through any surface: list, detail, forms, child formsets, bulk actions and background jobs, import, export, reports, dashboards, autocomplete, search, the JSON API, history, undo, approvals |
+| Role manager (`ROLES_PERMISSION` widened) | granting what they hold themselves to *other people* | grant a permission or lift a field rule they do not hold, change a role they are a member of, or add or remove themselves |
+| Approver | deciding other people's requests within their own scope | approve their own request, or one outside their row or tenant scope |
+| Superuser | everything, by design — including impersonation | impersonate another superuser, act without a trace in the audit log |
+| API script (session or token) | what its account holds, same rules as a person | exceed page-size caps or write a field the form would refuse |
+| Plugin and panel authors | running code in-process; they are trusted | — their code is not sandboxed. Field permissions do not reach method columns, custom templates, slots or `save_model` |
+| Webhook receiver | the payload for events it subscribed to | make the server connect to a private, loopback or link-local address, through redirects, proxies or DNS answers that change between check and connect |
+
+### Trust boundaries
+
+1. **The browser to the panel.** Every view is behind authentication and `is_staff`,
+   every state change is a CSRF-protected `POST`, every `next=` is checked to stay on
+   the site, and every value rendered is escaped. Uploads are screened at the field and
+   (with the middleware) at the request; active content is refused unless a project
+   opts in — see [Active content uploads](#active-content-uploads).
+2. **The panel to the database.** User input never becomes an identifier: sort keys and
+   filters are allow-listed against declared columns, aggregate aliases are positional,
+   and the only raw SQL is parameterised. Every queryset passes through the permission
+   resolver's `filter_queryset`, which is where tenant scoping is composed.
+3. **The request to a background job.** A job stores a query string, never row ids
+   for a select-all; it re-resolves the rows through the list page's own code as the
+   actor, re-checking the actor's account, permission and tenant before every chunk.
+4. **The panel to the network.** Webhooks only, through a client that pins the checked
+   address, follows no redirect and no proxy, and has a total deadline.
+5. **Configuration.** Settings that would weaken a control (two-factor requirements,
+   permission resolvers, field rules in code) are code-only, never editable from the
+   settings screen.
+
+### Out of scope
+
+Anything a superuser can already do, `DEBUG = True`, a deliberately granted
+permission, and the behaviour of code the project itself registers. See
+[SECURITY.md](https://github.com/Pythondeveloper6/django-vantage/blob/main/SECURITY.md)
+for how to report a finding.
+
 ## What Vantage does automatically, and what it does not
 
 Two things are always on, whatever your `MIDDLEWARE` list says:
@@ -294,6 +353,29 @@ check) is the first line of defence; it is not a reason to skip the second one:
 - Or serve media through a storage backend that sets
   `Content-Disposition: attachment`, so a browser downloads a file rather than
   executing it inline whatever its content turns out to be.
+
+## Active content uploads
+
+A plain `FileField` refuses files a browser runs rather than shows — web pages
+(`.html`, `.htm`, `.xhtml`, `.xht`, `.shtml`), SVG (`.svg`, `.svgz`), XML (`.xml`, `.xsl`,
+`.xslt`) and scripts (`.js`, `.mjs`) — by extension, and HTML or SVG by content
+whatever the extension says. A deny-list of dangerous constructs is one clever
+encoding away from stored XSS on the panel's origin, so the default does not rely on
+one.
+
+A project that needs, say, SVG attachments opts in per extension:
+
+```python
+VANTAGE = {"UPLOAD_ACTIVE_SUFFIXES": [".svg"]}
+```
+
+An opted-in file is still scanned, after decoding (UTF-16 and UTF-32 included) and
+expanding character references, for script elements under any namespace prefix, event
+handlers, `javascript:` and `data:` documents, embedded documents and entity
+declarations. The same scan guards the four branding uploads and the middleware. A
+stored file of one of these kinds — including one uploaded before this rule — is
+linked as a download rather than opened in a new tab. Serve media from a separate
+origin as well; nothing here replaces that.
 
 ## Spreadsheet formulas in exports
 

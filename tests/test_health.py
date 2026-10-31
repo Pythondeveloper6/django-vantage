@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from django.test import override_settings
 from django.urls import reverse
 
+from tests.conftest import sqlite_only
 from vantage import health
 from vantage.health import Check, _safe, run_checks
 
@@ -32,6 +33,7 @@ class TestProbes:
         check = next(c for c in run_checks() if c.label == "Migrations")
         assert check.status == "ok"
 
+    @sqlite_only
     def test_the_database_probe_names_the_backend(self, db):
         check = next(c for c in run_checks() if c.label == "Database")
         assert check.status == "ok"

@@ -83,7 +83,9 @@ class VantageConfig(SimpleVantageConfig):
     def ready(self) -> None:
         super().ready()
         from vantage.pages import (
+            AccessReviewPage,
             ApprovalsPage,
+            BreakGlassPage,
             DataQualityPage,
             HealthPage,
             MyReportsPage,
@@ -108,6 +110,8 @@ class VantageConfig(SimpleVantageConfig):
         # Groups are a contrib.auth table, and a project without it has no roles.
         if django_apps.is_installed("django.contrib.auth"):
             site.register_page(RolesPage)
+            site.register_page(AccessReviewPage)
+            site.register_page(BreakGlassPage)
 
         # Plugins next, and before autodiscovery for the same reason: a project's
         # panel.py is its last word, so it must be able to unregister or replace

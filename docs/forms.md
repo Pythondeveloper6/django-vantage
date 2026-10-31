@@ -202,10 +202,41 @@ version happily enumerates a table the caller cannot open. So:
 
 ### Overriding a widget
 
-Set the widget on the form field the ordinary Django way, by supplying your own form —
-or set `layout` and let the field render with its inferred control. Vantage does not
-have a `formfield_overrides` equivalent; if you need one specific control, that is a
-gap, and it is listed in the [FAQ](faq.md#what-it-does-not-do).
+Inference picks every control. Where it picked wrong, two panel attributes replace it
+and leave everything else inferred:
+
+```python
+from django import forms
+from django.db import models
+
+from vantage import ModelPanel, register
+
+
+@register(Article)
+class ArticlePanel(ModelPanel):
+    # By model field class, exactly like ModelAdmin.formfield_overrides — the dict of
+    # an adopted ModelAdmin carries across unchanged.
+    formfield_overrides = {
+        models.TextField: {"widget": forms.Textarea(attrs={"rows": 4})},
+    }
+    # By field name. Wins over formfield_overrides for that field.
+    widgets = {"body": MarkdownEditor}
+```
+
+`formfield_overrides` is matched along the model field's class hierarchy, so an entry
+for `CharField` also covers `SlugField` and `EmailField`, and the most specific entry
+wins. Its values are keyword arguments for `formfield()`, so `help_text`, `label` or a
+`form_class` work as well as `widget`.
+
+Neither attribute changes what a field *accepts*: the form field is still built by
+Django from the model field, so `max_length`, choices and validators hold, relation
+choices are still scoped to the current tenant, and uploads are still checked by
+content. A [sensitive field](sensitive-fields.md) keeps its write-only control whatever
+either attribute says — an override cannot turn a masked secret back into a readable
+input. A widget *instance* is copied for every form, so its `attrs` are never shared.
+
+A typo is caught by `manage.py check` (`vantage.E120`, `vantage.E121`) rather than by a
+control that quietly stayed inferred.
 
 ## Media and uploads
 
@@ -247,11 +278,12 @@ deliberately: see below), a source file over 25 MiB, a declared pixel count over
 its declared dimensions alone), or content that does not sniff as one of the supported
 raster types. Nothing here raises; a thumbnail that cannot be made degrades to a name.
 
-**There is no lightbox.** Clicking a thumbnail opens the original file in a new tab
-(`target="_blank"`), and that is the whole interaction. The template's own comment
-states the reasoning: "a chip is a worse picture and a better answer" than a broken
-image state, but a click-to-enlarge modal is simply not built yet — if you need one,
-this is a genuine gap to fill rather than a setting to flip.
+**Click to enlarge.** A plain click on an image thumbnail opens the original in a
+lightbox (a native `<dialog>`: Escape or a click outside closes it, focus returns to the
+thumbnail). The thumbnail is still an ordinary link, so without JavaScript, or with
+Ctrl/Cmd/Shift held, it opens the original in a new tab as before. The original is
+shown as an `<img>`, never navigated to, so an uploaded file cannot run script in the
+panel's origin through the lightbox.
 
 ### Upload validation
 

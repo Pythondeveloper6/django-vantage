@@ -503,6 +503,17 @@ class TestListAndDetailCells:
         assert page.status_code == 200
         assert b"v-thumb" in page.content
 
+    def test_a_linked_thumbnail_opts_into_the_lightbox(self, client, db):
+        """Click-to-enlarge is an enhancement over the link, which still works alone."""
+        pillow_or_skip()
+        client.force_login(User.objects.create_superuser("staffer", "s@example.com", "x"))
+        author = author_with(photo())
+        author.save()
+        body = client.get(reverse("vantage:testapp-author-detail", args=[author.pk])).content
+        assert b"data-lightbox" in body
+        assert b'target="_blank"' in body
+        assert b"vantage-lightbox.js" in body
+
 
 # ── the upload control ──────────────────────────────────────────────────────
 

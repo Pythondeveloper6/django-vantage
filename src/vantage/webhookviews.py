@@ -43,7 +43,7 @@ __all__ = [
 ]
 
 #: Session key for the secret that was just generated, until the list page shows it.
-SECRET_KEY = "vantage_webhook_secret"
+SECRET_KEY = "vantage_webhook_secret"  # noqa: S105 - a session key name, not a secret
 
 #: Deliveries per page of the log.
 PER_PAGE = 25

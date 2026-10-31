@@ -205,13 +205,15 @@ class _UserRules:
     names: dict[int, str] | None
     #: ``{content_type_id: {group_id: {action, ...}}}``, loaded on first need.
     _grants: dict[int, dict[int, set[str]]] | None = None
+    #: Roles held for now through :mod:`vantage.breakglass`, counted as memberships.
+    extra: tuple[int, ...] = ()
 
     def grants(self) -> dict[int, dict[int, set[str]]]:
         if self._grants is None:
             from django.contrib.auth.models import Group
 
             through = Group.permissions.through
-            rows = through.objects.filter(group_id__in=_membership(self.user)).values_list(
+            rows = through.objects.filter(_groups_q(self.user, self.extra)).values_list(
                 "group_id", "permission__content_type_id", "permission__codename"
             )
             grants: dict[int, dict[int, set[str]]] = {}
@@ -229,9 +231,19 @@ def _membership(user):
     return roles_of(user).order_by().values("pk")
 
 
-def _load(user) -> _UserRules:
+def _groups_q(user, extra: tuple[int, ...] = ()):
+    """``group_id`` in the user's roles, or in ``extra``. One condition, one query."""
+    from django.db.models import Q
+
+    condition = Q(group_id__in=_membership(user))
+    if extra:
+        condition |= Q(group_id__in=list(extra))
+    return condition
+
+
+def _load(user, extra: tuple[int, ...] = ()) -> _UserRules:
     try:
-        return _query(user)
+        return _query(user, tuple(extra))
     except RuntimeError as exc:
         # pytest-django blocks the connection for tests that did not ask for a database;
         # drawing a page is not a reason to fail one. Narrowed on the blocker's own
@@ -239,25 +251,29 @@ def _load(user) -> _UserRules:
         # strikes. A database that is genuinely down fails the page anyway.
         if "Database access not allowed" not in str(exc):
             raise
-        return _UserRules(user=user, stored={}, names=None)
+        return _UserRules(user=user, stored={}, names=None, extra=tuple(extra))
 
 
-def _query(user) -> _UserRules:
+def _query(user, extra: tuple[int, ...] = ()) -> _UserRules:
     from vantage.models import FieldPermission
 
     names = None
     if _sites_declare_code_rules():
+        from django.contrib.auth.models import Group
+
         from vantage.roles import roles_of
 
         names = dict(roles_of(user).order_by().values_list("pk", "name"))
+        if extra:
+            names.update(Group.objects.filter(pk__in=extra).values_list("pk", "name"))
     stored: dict[int, dict[int, dict[str, str]]] = {}
     if names is None or names:
-        rows = FieldPermission.objects.filter(group_id__in=_membership(user)).values_list(
+        rows = FieldPermission.objects.filter(_groups_q(user, extra)).values_list(
             "content_type_id", "group_id", "field_name", "level"
         )
         for ct_id, gid, name, level in rows:
             stored.setdefault(ct_id, {}).setdefault(gid, {})[name] = level
-    return _UserRules(user=user, stored=stored, names=names)
+    return _UserRules(user=user, stored=stored, names=names, extra=extra)
 
 
 def _combine(per_role: dict[int, dict[str, str]], grants: dict[int, set[str]]) -> FieldAccess:
@@ -343,8 +359,50 @@ def access(request, target, site=None) -> FieldAccess:
     # the default rule rather than an AttributeError on every page.
     ask = getattr(resolver, "field_access", None) or PanelPermissions().field_access
     answer = ask(request, model) or UNRESTRICTED
+    answer = _with_panel_rules(request, model, answer, site)
+    answer = _with_read_only_model(model, answer)
     cache[key] = answer
     return answer
+
+
+def _with_read_only_model(model, answer: FieldAccess) -> FieldAccess:
+    """Narrow ``answer`` to a read-only model's allowlist (``ModelPanel.editable_fields``).
+
+    Applied here, after whichever resolver answered, rather than inside
+    ``PanelPermissions.field_access``: that method bypasses superusers and may be
+    replaced by a project, and neither may make a table the project does not own
+    writable. Everything outside the allowlist becomes read-only; hidden stays hidden.
+    """
+    from vantage.safety import model_read_only
+
+    state = model_read_only(model)
+    if state is None:
+        return answer
+    locked = frozenset(f.name for f in rule_fields(model)) - state.editable - answer.hidden
+    return FieldAccess(hidden=answer.hidden, readonly=answer.readonly | locked)
+
+
+def _with_panel_rules(request, model, answer: FieldAccess, site=None) -> FieldAccess:
+    """Add the panel's own ``get_field_access(request)``, if it has one.
+
+    The hook only ever restricts further: its answer is merged with the resolver's,
+    the stricter level winning per field. Like the ``has_<action>_permission`` hooks it
+    applies to superusers too, because it is the panel's statement about the field
+    rather than about a role. The adopted ``contrib.admin`` translation uses it for
+    ``get_readonly_fields``, ``get_exclude`` and ``get_fields``.
+    """
+    panel = _panel_for(model, site)
+    hook = getattr(panel, "get_field_access", None) if panel is not None else None
+    if not callable(hook):
+        return answer
+    extra = hook(request)
+    if not extra:
+        return answer
+    hidden = frozenset(answer.hidden) | frozenset(getattr(extra, "hidden", ()) or ())
+    readonly = (
+        frozenset(answer.readonly) | frozenset(getattr(extra, "readonly", ()) or ())
+    ) - hidden
+    return FieldAccess(hidden=hidden, readonly=readonly)
 
 
 def _model_of(target) -> type[models.Model]:

@@ -1,0 +1,54 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-form.css' %}">
+<link rel="stylesheet" href="{% static 'vantage/vantage-roles.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+</div>
+
+{% if not is_superuser %}
+<form class="v-card v-access-form" method="post" action="{{ request_url }}">
+  {% csrf_token %}
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Request elevated access" %}</h2></div>
+  <div class="v-card-body">
+    {% include "vantage/access/_grant_fields.html" %}
+    <p class="v-muted">
+      {% if self_service and can_grant %}{% translate "You may grant yourself access: it starts as soon as you submit." %}{% else %}{% translate "Someone allowed to grant access has to approve it before it starts." %}{% endif %}
+    </p>
+    <button class="v-btn v-btn-primary">{% translate "Request" %}</button>
+  </div>
+</form>
+{% endif %}
+
+{% if can_grant %}
+<form class="v-card v-access-form" method="post" action="{{ grant_url }}">
+  {% csrf_token %}
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Grant elevated access" %}</h2></div>
+  <div class="v-card-body">
+    <label class="v-roles-create-field">
+      <span class="v-roles-label">{% translate "Username" %}</span>
+      <input class="v-input" type="text" name="username" required autocomplete="off">
+    </label>
+    {% include "vantage/access/_grant_fields.html" %}
+    <p class="v-muted">{% translate "You can only grant permissions you hold yourself. Access starts now." %}</p>
+    <button class="v-btn v-btn-primary">{% translate "Grant" %}</button>
+  </div>
+</form>
+{% endif %}
+
+<section class="v-card">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Active and pending" %}</h2></div>
+  {% include "vantage/access/_grants.html" with rows=open_grants %}
+</section>
+
+<section class="v-card">
+  <div class="v-card-head"><h2 class="v-card-title">{% translate "Recent" %}</h2></div>
+  {% include "vantage/access/_grants.html" with rows=recent_grants %}
+</section>
+{% endblock %}

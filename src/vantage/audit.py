@@ -44,6 +44,7 @@ from uuid import UUID
 from django.apps import apps as django_apps
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models.fields.files import FieldFile
 
 from vantage.conf import vantage_settings
 from vantage.models import VantageLogEntry
@@ -320,7 +321,12 @@ def _jsonify(value: Any) -> Any:
         return str(value)
     if isinstance(value, models.Model):
         return _clip(_repr(value), MAX_VALUE_CHARS)
-    if hasattr(value, "name") and hasattr(value, "url"):  # FieldFile / UploadedFile
+    if isinstance(value, FieldFile):
+        # Before the duck-typed test below: ``.url`` on an empty FieldFile raises
+        # ValueError, which ``hasattr`` does not swallow, so editing a record with no
+        # file attached used to break its own audit entry.
+        return _clip(str(value.name or ""), MAX_VALUE_CHARS)
+    if hasattr(value, "name") and hasattr(value, "url"):  # UploadedFile
         return _clip(str(getattr(value, "name", "")), MAX_VALUE_CHARS)
     if hasattr(value, "all"):  # a manager or queryset, from an m2m field
         return sorted(_clip(str(item), MAX_VALUE_CHARS) for item in value.all())

@@ -42,6 +42,26 @@ TONES = {
 }
 
 
+# Schemes a URL column may link to. An allow-list, not a deny-list of ``javascript:``:
+# browsers also execute ``vbscript:`` and render ``data:`` documents, and the next
+# executable scheme should not need a release to be refused.
+LINKABLE_SCHEMES = frozenset({"http", "https", "ftp", "ftps"})
+
+
+def is_linkable_url(value) -> bool:
+    """Whether a stored URL is safe to put in an ``href``.
+
+    ``URLField`` validates its scheme only in a form. A row written by a script, an
+    import, a data migration or another service on the same table never passed through
+    one, so the stored value is whatever was put there. Browsers strip ASCII whitespace
+    and control characters out of a scheme before reading it (``java\tscript:`` runs),
+    so the check does the same before comparing.
+    """
+    cleaned = "".join(ch for ch in str(value) if ord(ch) > 0x20 and ord(ch) != 0x7F)
+    scheme, sep, _ = cleaned.partition(":")
+    return bool(sep) and scheme.lower() in LINKABLE_SCHEMES
+
+
 def _tone_for(value: str) -> str | None:
     lowered = str(value).lower()
     for tone, values in TONES.items():
@@ -145,7 +165,12 @@ def _render_value(value, field, obj, first_hop):
         return format_html('<span class="v-badge">{}</span>', label)
 
     if isinstance(field, models.URLField):
-        return format_html('<a href="{}" rel="noopener" target="_blank">{}</a>', value, value)
+        if not is_linkable_url(value):
+            # Shown, never linked: see is_linkable_url.
+            return format_html('<span class="v-cell-url">{}</span>', value)
+        return format_html(
+            '<a href="{}" rel="noopener noreferrer" target="_blank">{}</a>', value, value
+        )
 
     if isinstance(field, models.EmailField):
         return format_html('<a href="mailto:{}">{}</a>', value, value)

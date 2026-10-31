@@ -201,7 +201,7 @@ class TwoFactorView(SiteView):
         return {
             "uri": uri,
             # Built from booleans alone, plus an escaped label; nothing to escape again.
-            "qr": mark_safe(code),
+            "qr": mark_safe(code),  # noqa: S308
             "key": " ".join(secret[i : i + 4] for i in range(0, len(secret), 4)),
             "issuer": twofactor.issuer(),
         }

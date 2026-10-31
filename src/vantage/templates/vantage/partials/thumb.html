@@ -14,7 +14,7 @@ already-resolved media URL into /static/media/… and breaks every image on the 
 {% endcomment %}{% spaceless %}
 {% if thumb %}
   {% if file_url %}
-    <a class="v-thumb" data-size="{{ size }}" href="{% asset file_url %}"
+    <a class="v-thumb" data-size="{{ size }}" data-lightbox href="{% asset file_url %}"
        target="_blank" rel="noopener noreferrer" title="{{ file_name }}">
       <img src="{% asset thumb.url %}" width="{{ thumb.width }}" height="{{ thumb.height }}"
            alt="{{ alt }}" loading="lazy" decoding="async">
@@ -28,7 +28,7 @@ already-resolved media URL into /static/media/… and breaks every image on the 
   {% endif %}
 {% elif file_name %}
   {% if file_url %}
-    <a class="v-file-chip" href="{% asset file_url %}" target="_blank" rel="noopener noreferrer">
+    <a class="v-file-chip" href="{% asset file_url %}"{% if download %} download{% else %} target="_blank"{% endif %} rel="noopener noreferrer">
       {% icon icon %}<span class="v-file-name">{{ file_name }}</span>
       <span class="v-sr-only">{% translate "(opens in a new tab)" %}</span>
     </a>
