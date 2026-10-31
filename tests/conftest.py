@@ -15,3 +15,8 @@ ON_SQLITE = os.environ.get("VANTAGE_TEST_DB", "sqlite") == "sqlite"
 sqlite_only = pytest.mark.skipif(
     not ON_SQLITE, reason="asserts SQLite-specific behaviour; covered by the SQLite run"
 )
+
+not_mysql = pytest.mark.skipif(
+    os.environ.get("VANTAGE_TEST_DB") == "mysql",
+    reason="builds its fixture in a way MySQL's non-transactional DDL cannot roll back",
+)

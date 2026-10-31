@@ -18,6 +18,7 @@ from django.test import Client, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from tests.conftest import not_mysql
 from vantage import roles, site
 from vantage.conf import DEFAULTS
 from vantage.models import VantageLogEntry
@@ -345,6 +346,7 @@ class TestMatrix:
 
 
 class TestQueryCount:
+    @not_mysql
     def test_the_matrix_costs_the_same_at_any_number_of_models(
         self, client_in, editors, django_assert_num_queries
     ):
