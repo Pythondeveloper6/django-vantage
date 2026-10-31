@@ -284,7 +284,7 @@ as `vantage.W040`:
   do not carry across. Vantage has its own, differently-shaped mechanism —
   [`ModelPanel.inlines`](forms.md#editable-inlines) — but it is declared by hand on the
   new panel rather than inferred from the adopted `ModelAdmin`.
-- **`formfield_overrides`** — Vantage infers widgets from the field.
+- **`formfield_overrides`** — now translated onto `ModelPanel.formfield_overrides` and no longer reported.
 - **`raw_id_fields`, `autocomplete_fields`, `filter_horizontal`, `filter_vertical`,
   `radio_fields`, `prepopulated_fields`** — widget choices; Vantage picks its own.
 - **`get_urls()`** — register a `Page` on the Vantage site instead.
