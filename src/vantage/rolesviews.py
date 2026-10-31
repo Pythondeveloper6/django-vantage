@@ -134,6 +134,22 @@ class RolesView(SiteView):
                 )
             )
 
+    def require_not_own(self) -> None:
+        """Refuse a non-superuser changing a role they hold themselves.
+
+        Field rules combine most-permissively and a role's grants are its members'
+        access, so editing, renaming or deleting a role you hold is editing your own
+        access — the one thing a delegated roles screen must not allow. A superuser is
+        unrestricted anyway, so the rule would protect nothing for them.
+        """
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return
+        if user.groups.filter(pk=self.group.pk).exists():
+            raise PermissionDenied(
+                _("You hold this role yourself, so someone else has to change it.")
+            )
+
     # ── shared rendering ────────────────────────────────────────────────────
 
     def list_url(self) -> str:
@@ -219,6 +235,7 @@ class RoleEditView(RolesView):
 
     def post(self, request, *args, **kwargs):
         self.require("change")
+        self.require_not_own()
         group = self.group
         catalogue = roles.load_catalogue()
         add, remove = self._intent(request)
@@ -361,6 +378,7 @@ class RoleRenameView(RolesView):
     def post(self, request, *args, **kwargs):
         self.require("change")
         self.require_reach()
+        self.require_not_own()
         group = self.group
         target = reverse("vantage:role-edit", args=[group.pk])
         try:
@@ -439,6 +457,7 @@ class RoleDeleteView(RolesView):
     def post(self, request, *args, **kwargs):
         self.require("delete")
         self.require_reach()
+        self.require_not_own()
         group = self.group
         labels = sorted(roles.perm_label(p) for p in self.group_permissions)
         members = list(
@@ -512,11 +531,16 @@ class RoleMembersView(RolesView):
         if not roles.supports_membership():
             raise Http404(_("This project's user model has no roles."))
         group = self.group
-        joining, leaving = roles.change_members(
-            group,
-            add=set(request.POST.getlist("add")),
-            remove=set(request.POST.getlist("remove")),
-        )
+        add = set(request.POST.getlist("add"))
+        remove = set(request.POST.getlist("remove"))
+        if not getattr(request.user, "is_superuser", False):
+            # Joining a role is the shortest route to lifting your own field rules, and
+            # leaving one is changing your own access too. Someone else does it.
+            if str(request.user.pk) in add | remove:
+                raise PermissionDenied(
+                    _("You cannot add yourself to a role or remove yourself from one.")
+                )
+        joining, leaving = roles.change_members(group, add=add, remove=remove)
         roles.audit_members(request, group, joining, leaving)
         if joining or leaving:
             messages.success(
