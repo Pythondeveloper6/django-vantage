@@ -16,6 +16,20 @@ release branch, then a security review and a visual check of the result, with ev
 finding fixed. Five migrations were added (`0016`–`0020`), so run `migrate` after
 upgrading.
 
+### Added
+
+- `manage.py vantage_adopt`: a per-model, per-attribute mapping report for a
+  `django.contrib.admin` site (`translated` / `needs panel code` / `unsupported`, with the
+  Vantage equivalent), `--format json`, `--app`, `--strict` for CI, and `--write` for
+  starter `panel.py` files that never overwrite without `--force`.
+- The contrib.admin adapter translates `formfield_overrides` onto
+  `ModelPanel.formfield_overrides`.
+- `vantage_scaffold --from-db` (unmanaged models via `inspectdb` plus read-only panels, with
+  `--table`, `--exclude-table`, `--database`, `--include-views`) and `--preset
+  crm|ecommerce|saas` with `--map role=Model` for a starter dashboard.
+- Docs: migrating from django.contrib.admin, plugin compatibility, comparison with Unfold
+  and admin themes, and benchmarks. `scripts/benchmark.py` times the main pages on N rows.
+
 ### Known limitations
 
 - **Only changes made through the panel count.** History, approvals and webhooks see
