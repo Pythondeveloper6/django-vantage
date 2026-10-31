@@ -59,6 +59,15 @@ upgrading.
   migrations and an unsupported Django, plus the upgrade notes since `--from VERSION`.
   Text or JSON output; exits `1` at `--fail-level` for CI.
 
+#### Single sign-on role mapping
+
+- `VANTAGE["ROLE_MAPPING"]` maps identity-provider groups (OpenID Connect claims from
+  Entra ID, Okta, Keycloak and others) onto roles at every sign-in, through
+  `vantage.identity.sync_roles` and adapters for mozilla-django-oidc, django-allauth and
+  python-social-auth. Only mapped roles are managed, removal follows the directory,
+  nothing becomes a superuser or creates a role, and every change is audited. See
+  [Single sign-on](docs/single-sign-on.md).
+
 #### Read-only models for databases the project does not own
 
 - `ModelPanel.read_only` refuses add, delete and field changes on one model for

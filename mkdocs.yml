@@ -125,6 +125,7 @@ nav:
       - Roles: roles.md
       - Field permissions: field-permissions.md
       - Two-factor sign-in: two-factor.md
+      - Single sign-on: single-sign-on.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
       - Multi-tenancy: tenancy.md

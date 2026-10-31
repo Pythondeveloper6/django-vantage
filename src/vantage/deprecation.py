@@ -183,6 +183,7 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "REPORTS_RETENTION_DAYS",
         "REPORTS_BASE_URL",
         "UNMANAGED_READ_ONLY",
+        "ROLE_MAPPING",
     }
 )
 
