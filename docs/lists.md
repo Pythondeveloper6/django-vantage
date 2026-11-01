@@ -417,6 +417,11 @@ view by habit. There is no superuser bypass on editing: being able to rebrand th
 is not a reason to be able to rewrite a colleague's private view, and Save-as is one
 click away.
 
+**Only the owner deletes.** An edit scope lets people refine a shared view; it does not
+let them remove it. Deleting a view takes every colleague's default and every scheduled
+report subscribed to it along with it, so the delete control is the owner's alone, on
+the page and in the API.
+
 **Save degrades to Save-as when the view is immutable to you.** Not the owner, not a
 named editor, the view is locked, the view is somebody else's — all four produce the
 same affordance, so nobody has to be told which applies before they can get their

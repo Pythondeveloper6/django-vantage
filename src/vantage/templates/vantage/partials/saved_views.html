@@ -208,7 +208,7 @@
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <button class="v-btn v-btn-ghost v-btn-sm">{% translate "Open this by default" %}</button>
           </form>
-          {% if saved_view_can_save or saved_view.owner_id == user.pk %}
+          {% if saved_view.owner_id == user.pk %}
             <form method="post" action="{{ saved_view_write_url }}">
               {% csrf_token %}
               <input type="hidden" name="intent" value="delete">

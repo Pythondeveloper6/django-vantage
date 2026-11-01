@@ -245,7 +245,7 @@ class SavedViewDetailView(_SavedBase):
 
     def delete(self, request, *args, **kwargs):
         view = self.get_view(request)
-        if not (view.owner_id == request.user.pk or savedviews.can_edit(view, request)):
-            raise ApiError(403, "You cannot delete that view.")
+        if not savedviews.can_delete(view, request):
+            raise ApiError(403, "Only the owner can delete a saved view.")
         view.delete()
         return HttpResponse(status=204)
