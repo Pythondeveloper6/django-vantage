@@ -233,7 +233,7 @@ On offer to everyone, required of nobody, until you say otherwise — see
 | `TWO_FACTOR_REQUIRED_ROLES` | `[]` | — | Role (`auth.Group`) names whose members must use it, e.g. `["Finance"]` |
 | `TWO_FACTOR_ISSUER` | `None` | — | The name an authenticator app files the code under. `None` means `SITE_TITLE`. No colons |
 | `TWO_FACTOR_MAX_ATTEMPTS` | `5` | — | Wrong codes in a row before the account's second step locks |
-| `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | — | How long that lock lasts |
+| `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | — | How long the first lock lasts; each lock in a row doubles it, up to a day |
 
 None is editable from the UI: a requirement the people it binds could switch off is not
 a requirement. A bad value is an error at `manage.py check` (`vantage.E095`, `E096`) and
