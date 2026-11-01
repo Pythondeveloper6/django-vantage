@@ -218,6 +218,8 @@ class TestWebhookView(WebhookView):
     http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
+        # A test writes a delivery row and calls out, like any other send.
+        self.require_writable()
         delivery = webhooks.send_test(request, self.hook)
         if delivery.status == WebhookDelivery.Status.SUCCEEDED:
             messages.success(
@@ -272,6 +274,7 @@ def _visible_payload(request, payload):
 
     from vantage.fieldperms import hidden_names
 
+    payload = webhooks.without_sensitive(payload)
     if not isinstance(payload, dict) or not isinstance(payload.get("changes"), dict):
         return payload
     try:
@@ -289,6 +292,7 @@ class RedeliverView(WebhookView):
     http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
+        self.require_writable()
         original = get_object_or_404(
             WebhookDelivery.objects.select_related("webhook"), pk=kwargs["pk"]
         )

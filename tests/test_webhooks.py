@@ -1002,6 +1002,49 @@ class TestPage:
         original.refresh_from_db()
         assert original.status == "failed"
 
+    def test_read_only_mode_refuses_a_test_and_a_redelivery(self, boss, hook, receiver):
+        original = WebhookDelivery.objects.create(
+            webhook=hook, event="updated", status="failed", payload={"id": "evt-1"}
+        )
+        with override_settings(VANTAGE={"READ_ONLY": True}):
+            assert boss.post(reverse("vantage:webhook-test", args=[hook.pk])).status_code == 403
+            assert (
+                boss.post(reverse("vantage:webhook-redeliver", args=[original.pk])).status_code
+                == 403
+            )
+
+        assert list(WebhookDelivery.objects.all()) == [original]
+        assert receiver.calls == []
+
+    def test_a_field_sensitive_now_is_not_resent_or_shown(
+        self, boss, hook, receiver, django_capture_on_commit_callbacks
+    ):
+        # A body stored before ``api_token`` was declared sensitive still holds it.
+        original = WebhookDelivery.objects.create(
+            webhook=hook,
+            event="updated",
+            status="failed",
+            payload={
+                "event": "updated",
+                "model": "testapp.zcredential",
+                "changes": {
+                    "name": {"from": "Old", "to": "Prod"},
+                    "api_token": {"from": "sk-live-0000", "to": "sk-live-9999"},
+                },
+            },
+        )
+
+        page = boss.get(reverse("vantage:webhook-delivery", args=[original.pk]))
+        assert b"sk-live" not in page.content
+        assert b"Prod" in page.content
+
+        with django_capture_on_commit_callbacks(execute=True):
+            boss.post(reverse("vantage:webhook-redeliver", args=[original.pk]))
+
+        body = receiver.calls[0]["body"].decode()
+        assert "sk-live" not in body and "api_token" not in body
+        assert json.loads(body)["changes"] == {"name": {"from": "Old", "to": "Prod"}}
+
     def test_the_log_filters_by_hook_and_status(self, boss, hook):
         other = Webhook.objects.create(name="Other", url="https://hooks.example.com/o")
         WebhookDelivery.objects.create(
