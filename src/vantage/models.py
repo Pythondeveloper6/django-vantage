@@ -1634,6 +1634,10 @@ class TwoFactorDevice(models.Model):
     #: before its answer is compared, so parallel requests cannot outrun the lock.
     failed_attempts = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
+    #: Lockouts in a row since the last right answer. Each one lasts twice as long as
+    #: the one before, so the lock slows guessing down for good rather than only for
+    #: a few minutes at a time.
+    lockouts = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
 
