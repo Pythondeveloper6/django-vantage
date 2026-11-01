@@ -69,6 +69,7 @@ __all__ = [
     "SavedViewApplyView",
     "SavedViewWriteView",
     "autosave",
+    "can_delete",
     "can_edit",
     "can_use",
     "capture",
@@ -407,6 +408,24 @@ def can_edit(view: SavedView, request) -> bool:
     return False
 
 
+def can_delete(view: SavedView, request) -> bool:
+    """Whether ``view`` may be deleted: by its owner, and nobody else.
+
+    Not :func:`can_edit`. Editing rewrites a filter that the next Save can put back;
+    deleting takes with it every colleague's default, and every scheduled report
+    anyone subscribed to it. An edit scope of "everyone" is an invitation to refine a
+    shared view, not to remove it from under the people relying on it.
+    """
+    user = getattr(request, "user", None)
+    return bool(
+        view is not None
+        and user is not None
+        and user.is_authenticated
+        and view.owner_id is not None
+        and view.owner_id == user.pk
+    )
+
+
 def save_mode(view: SavedView | None, request) -> str:
     """``"save"`` or ``"save_as"`` — the one rule that covers every permission case."""
     return "save" if can_edit(view, request) else "save_as"
@@ -689,7 +708,7 @@ class SavedViewWriteView(SavedViewBase):
         if intent not in self.INTENTS:
             raise PermissionDenied(_("That is not something a saved view can do."))
 
-        target = request.POST.get("next") or "/"
+        target = _safe_target(request)
         handler = getattr(self, f"_{intent}")
         try:
             return handler(request, target)
@@ -749,7 +768,7 @@ class SavedViewWriteView(SavedViewBase):
     def _delete(self, request, target: str):
         view = self._view(request)
         self.resolve(view)
-        if not (view.owner_id == request.user.pk or can_edit(view, request)):
+        if not can_delete(view, request):
             raise PermissionDenied(_("You cannot delete that view."))
         name = view.name
         view.delete()
@@ -799,6 +818,24 @@ class SavedViewWriteView(SavedViewBase):
 
 
 # ── url helpers ─────────────────────────────────────────────────────────────
+
+
+def _safe_target(request) -> str:
+    """``next`` from the form, if it stays on this site; the site's home otherwise.
+
+    Every intent redirects to it, so an unchecked value made this endpoint an open
+    redirect: a page elsewhere could post here and land the person on any address,
+    straight from the panel's own origin.
+    """
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    target = request.POST.get("next") or ""
+    if target and url_has_allowed_host_and_scheme(
+        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return target
+    match = getattr(request, "resolver_match", None)
+    return reverse("vantage:dashboard", current_app=getattr(match, "namespace", None))
 
 
 def _quote(value: str) -> str:
