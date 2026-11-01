@@ -899,6 +899,22 @@ class TestUserPassword:
         url = reverse("vantage:auth-user-set-password", args=[victim.pk])
         assert client.get(url).status_code == 403
 
+    def test_staff_who_may_edit_users_cannot_set_a_superusers_password(self, client, boss, victim):
+        """Choosing a superuser's password is becoming them."""
+        client.force_login(staff_with("view_user", "change_user", model=User))
+        pw = "a-new-Passw0rd!x"
+        url = reverse("vantage:auth-user-set-password", args=[boss.pk])
+        assert client.get(url).status_code == 403
+        response = client.post(url, {"password1": pw, "password2": pw, "usable_password": "true"})
+        assert response.status_code == 403
+        boss.refresh_from_db()
+        assert not boss.check_password(pw)
+        # An ordinary account is still theirs to reset.
+        ordinary = reverse("vantage:auth-user-set-password", args=[victim.pk])
+        client.post(ordinary, {"password1": pw, "password2": pw, "usable_password": "true"})
+        victim.refresh_from_db()
+        assert victim.check_password(pw)
+
 
 class TestSafeStr:
     def test_a_str_without_secrets_is_untouched(self, cred):
