@@ -24,7 +24,9 @@ def spread(db):
     domain date over an audit column, which is the right call for grouping.
     """
     author = Author.objects.create(name="Ada", email="ada@example.com")
-    now = timezone.now()
+    # Anchored mid-month so "this month" holds two posts whatever day the suite runs;
+    # "now minus a day" lands in the previous month on the 1st.
+    now = timezone.now().replace(day=15, hour=12)
     return [
         Post.objects.create(
             title=name,

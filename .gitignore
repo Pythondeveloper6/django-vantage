@@ -65,6 +65,6 @@ ROADMAP-INTERNAL*.md
 NOTES*.md
 docs/superpowers/
 docs/feature-backlog.md
-reports/
+/reports/
 .planning/
 .claude/
