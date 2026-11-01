@@ -352,5 +352,5 @@ jobs:
 
       - name: pip-audit
         run: |
-          uv export --frozen --all-groups --no-hashes --no-emit-project > "$RUNNER_TEMP/requirements.txt"
+          uv export --frozen --all-groups --no-hashes --no-emit-project --no-header --color never > "$RUNNER_TEMP/requirements.txt"
           uvx pip-audit==2.9.0 --strict -r "$RUNNER_TEMP/requirements.txt"
