@@ -196,6 +196,35 @@ class TestFormulaInjection:
         rows = list(csv.reader(io.StringIO(self.export("csv", ["rating", "view_count"]))))
         assert rows[1] == ["-1.50", "3"]
 
+    def test_a_value_that_is_not_a_str_is_still_quoted(self):
+        """Lazy strings and value objects print text too; only real data types pass."""
+        import datetime as dt
+        import uuid
+        from decimal import Decimal
+
+        from django.utils.functional import lazy
+
+        from vantage.export import _cell
+
+        class Money:
+            def __str__(self):
+                return "-SUM(A1:A9)"
+
+        assert _cell(Money(), armoured=True) == "'-SUM(A1:A9)"
+        assert _cell(lazy(lambda: "=cmd", str)(), armoured=True) == "'=cmd"
+        for value, text in (
+            (-3, "-3"),
+            (-1.5, "-1.5"),
+            (Decimal("-2.50"), "-2.50"),
+            (dt.timedelta(days=-1), "-1 day, 0:00:00"),
+            (uuid.UUID(int=0), "00000000-0000-0000-0000-000000000000"),
+        ):
+            assert _cell(value, armoured=True) == text
+
+    def test_a_header_that_starts_like_a_formula_is_quoted(self, hostile):
+        rows = list(csv.reader(io.StringIO(self.export("csv", ["title"], ["=Title"]))))
+        assert rows[0] == ["'=Title"]
+
     def test_ordinary_text_is_untouched(self, posts):
         rows = list(csv.reader(io.StringIO(self.export("csv", ["title"]))))
         assert sorted(row[0] for row in rows[1:]) == ["Alpha", "Beta", "Gamma"]

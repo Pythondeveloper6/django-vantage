@@ -929,6 +929,43 @@ class TestSendTimeRechecks:
         assert run_now(make_sub(ada)).status == ReportRun.Status.SENT
 
 
+class TestImpersonation:
+    """A subscription outlives the session: it keeps sending as its owner afterwards."""
+
+    def impersonate(self, client, boss, target):
+        from vantage.safety import IMPERSONATE_SESSION_KEY, IMPERSONATOR_SESSION_KEY
+
+        client.force_login(target)
+        session = client.session
+        session[IMPERSONATE_SESSION_KEY] = target.pk
+        session[IMPERSONATOR_SESSION_KEY] = boss.pk
+        session.save()
+
+    def test_subscribing_while_impersonating_is_refused(self, client, ada, boss):
+        grant_vantage(ada, "send_reports_to_others")
+        self.impersonate(client, boss, ada)
+        response = subscribe(client, make_view(ada), recipients="outside@example.net")
+        assert response.status_code == 403
+        assert not ReportSubscription.objects.exists()
+
+    def test_redirecting_a_report_while_impersonating_is_refused(self, client, ada, boss):
+        grant_vantage(ada, "send_reports_to_others")
+        sub = make_sub(ada, recipients=[])
+        self.impersonate(client, boss, ada)
+        response = client.post(
+            reverse("vantage:report-edit", args=[sub.pk]),
+            {
+                "frequency": "daily",
+                "send_time": "08:00",
+                "to_self": "on",
+                "recipients": "outside@example.net",
+            },
+        )
+        assert response.status_code == 403
+        sub.refresh_from_db()
+        assert sub.recipients == []
+
+
 class TestSendNowGuards:
     def post(self, client, user, sub):
         client.force_login(user)

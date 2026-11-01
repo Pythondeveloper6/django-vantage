@@ -169,6 +169,7 @@ class SetPasswordView(PanelView):
     def get_object(self):
         from vantage.fieldperms import access
         from vantage.formviews import get_record
+        from vantage.safety import real_user
 
         obj = get_record(self.request, self.panel, self.permissions, self.kwargs["pk"], "change")
         if sensitive.set_password_url(self.panel, obj, "password") is None:
@@ -176,6 +177,12 @@ class SetPasswordView(PanelView):
         if not access(self.request, self.panel).can_change("password"):
             # Setting a password is a write to the field, whichever form does it.
             raise PermissionDenied(_("You cannot change this field."))
+        if getattr(obj, "is_superuser", False) and not getattr(
+            real_user(self.request), "is_superuser", False
+        ):
+            # Choosing a superuser's password is signing in as them: a staff account
+            # allowed to edit users would otherwise make itself a superuser in one step.
+            raise PermissionDenied(_("Only a superuser can set a superuser's password."))
         return obj
 
     def get_form(self, obj):

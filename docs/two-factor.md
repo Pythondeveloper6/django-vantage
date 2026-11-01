@@ -73,7 +73,7 @@ The requirement covers the panel. If `django.contrib.admin` is mounted too, see
 | `TWO_FACTOR_REQUIRED_ROLES` | `[]` | Require it of members of these roles (`auth.Group` names) |
 | `TWO_FACTOR_ISSUER` | `None` | The name in the authenticator app. `None` means `SITE_TITLE` |
 | `TWO_FACTOR_MAX_ATTEMPTS` | `5` | Wrong codes in a row before the second step locks |
-| `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | How long the lock lasts |
+| `TWO_FACTOR_LOCKOUT_SECONDS` | `300` | How long the first lock lasts; each lock in a row after it lasts twice as long, up to a day |
 
 None of these is editable from the settings screen.
 
@@ -165,7 +165,14 @@ Opening fresh sessions buys an attacker nothing, and neither does sending guesse
 parallel: each attempt is counted, by one conditional `UPDATE`, *before* its answer is
 compared, so however the requests interleave no more than five answers are looked at per
 lockout. App codes, recovery codes and the password on the "switch it off" form all go
-through that same count. The password step keeps its own
+through that same count.
+
+**Each lock in a row lasts twice as long.** Five minutes, then ten, twenty and so on, up
+to a day, until a right answer starts the count again. A fixed lock only sets a steady
+guessing rate — five tries every five minutes is over a thousand a day, which a six-digit
+code does not survive for long — while doubling holds an attacker who has the password
+to a handful of guesses a day. A person locked out for longer than they can wait asks a
+superuser for a [reset](#when-someone-loses-their-phone). The password step keeps its own
 [throttle](security.md#loginthrottlemiddleware).
 
 **The secret is sealed and shown only once.** It is encrypted at rest with a key derived

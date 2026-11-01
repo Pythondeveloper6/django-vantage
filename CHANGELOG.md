@@ -16,8 +16,10 @@ release branch, then a security review and a visual check of the result, with ev
 finding fixed. On top of that, production-readiness work: an API stability policy and
 upgrade checker, access review and break-glass access, single sign-on role mapping,
 read-only legacy tables, notifications, metrics, a fuller JSON API with OpenAPI,
-adoption tooling, complete Arabic catalogues, database CI and a second security review.
-Six migrations were added (`0016`–`0021`), so run `migrate` after upgrading
+adoption tooling, complete Arabic catalogues, database CI and a second security review,
+followed by a third covering field reveal, saved views, reports and exports, webhook
+delivery and two-factor internals.
+Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 (`manage.py vantage_upgrade_check --from 0.2.0a2` lists everything).
 
 ### Known limitations
@@ -303,6 +305,23 @@ Six migrations were added (`0016`–`0021`), so run `migrate` after upgrading
   commit hashes, checkouts keep no credentials, and the release build does not use a
   cache.
 - `ruff`'s security rules (`S`) are enforced on the package source.
+- Two-factor: each lockout in a row lasts twice as long as the one before, up to a day,
+  and a right answer resets the count (migration `0022`). A fixed five-minute lock still
+  allowed over a thousand guesses a day against an account whose password was known.
+- Only a superuser can set a superuser's password from the user's detail page; a staff
+  account allowed to edit users could otherwise sign in as one.
+- Saved views: the write endpoint only redirects to addresses on the same site (it was an
+  open redirect through `next`), and only a view's owner can delete it, on the page and
+  in the API. An "everyone" edit scope let any viewer delete a shared view, and every
+  colleague's report subscription to it with it.
+- Scheduled reports cannot be created or edited while impersonating, since a
+  subscription keeps sending as the impersonated person after the session ends.
+- Exports and report attachments quote any cell that is not a number, date, time,
+  duration or UUID when it starts like a formula, rather than only `str` values, and
+  quote header cells too.
+- Webhooks: **Send test** and **Redeliver** are refused in read-only mode, and a field
+  that is sensitive now is left out of a stored body when it is sent again or shown in
+  the delivery log, even if it was not sensitive when the body was recorded.
 
 ## [0.2.0a2] — 2026-10-27
 

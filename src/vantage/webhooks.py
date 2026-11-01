@@ -93,6 +93,7 @@ __all__ = [
     "sign",
     "sweep",
     "url_problem",
+    "without_sensitive",
 ]
 
 logger = logging.getLogger("vantage.webhooks")
@@ -260,6 +261,33 @@ def build_payload(request, event: str, obj, changes: dict, *, soft: bool = False
     if soft:
         payload["soft_delete"] = True
     return payload
+
+
+def without_sensitive(payload):
+    """``payload`` minus changes to fields that are sensitive *now*.
+
+    :func:`build_payload` drops them when the body is made, but a body is stored and
+    sent again later — by a retry, a redelivery, or the delivery log — and a field
+    declared sensitive since then must not go out (or be shown) because it was not
+    sensitive yesterday. The same rule the history page follows.
+    """
+    if not isinstance(payload, dict) or not payload.get("changes"):
+        return payload
+    if not isinstance(payload["changes"], dict):
+        return payload
+    from django.apps import apps as django_apps
+
+    from vantage.sensitive import sensitive_names
+
+    try:
+        model = django_apps.get_model(str(payload.get("model", "")))
+    except (LookupError, ValueError):
+        return payload
+    hidden = sensitive_names(model)
+    if not hidden & set(payload["changes"]):
+        return payload
+    changes = {k: v for k, v in payload["changes"].items() if k not in hidden}
+    return {**payload, "changes": changes}
 
 
 def _create_delivery(hook, payload, event, resource_key, object_id, **extra) -> WebhookDelivery:
@@ -440,7 +468,8 @@ def _finish(
 def _request_for(delivery: WebhookDelivery) -> tuple[bytes, dict[str, str]]:
     """The exact bytes and headers for this attempt. The timestamp is fresh every time,
     so a retry is signed afresh rather than replaying an expired signature."""
-    body = json.dumps(delivery.payload, separators=(",", ":"), sort_keys=True).encode()
+    payload = without_sensitive(delivery.payload)
+    body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
     stamp = str(int(time.time()))
     headers = {
         "Content-Type": "application/json",

@@ -269,9 +269,9 @@ UPGRADE_NOTES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "next",
         (
-            "Run `manage.py migrate vantage` (migrations 0016-0021: two-factor "
-            "sign-in, webhooks, scheduled reports, approvals, field permissions and "
-            "elevated access).",
+            "Run `manage.py migrate vantage` (migrations 0016-0022: two-factor "
+            "sign-in and its escalating lockout, webhooks, scheduled reports, approvals, "
+            "field permissions and elevated access).",
             "Uploads of active content (SVG, HTML, XML, JavaScript) are now refused unless "
             "listed in VANTAGE['UPLOAD_ACTIVE_SUFFIXES'].",
             "Two-factor sign-in is offered to everyone from the account page by default; "

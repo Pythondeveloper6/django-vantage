@@ -641,6 +641,37 @@ class TestWriteEndpoint:
         assert response.status_code == 403
         assert SavedView.objects.filter(pk=view.pk).exists()
 
+    def test_an_editor_may_change_a_view_but_not_delete_it(self, client, owner, colleague):
+        """Deleting takes everyone's defaults and report subscriptions with it."""
+        view = make_view(
+            owner,
+            visibility=SavedView.Visibility.SHARED,
+            edit_scope=SavedView.EditScope.EVERYONE,
+        )
+        client.force_login(colleague)
+        assert savedviews.can_edit(view, request_as(colleague))
+
+        response = client.post(
+            reverse("vantage:saved-views"),
+            {"intent": "delete", "view": view.pk, "next": list_url()},
+        )
+        assert response.status_code == 403
+        assert SavedView.objects.filter(pk=view.pk).exists()
+
+    @pytest.mark.parametrize(
+        "target", ["https://evil.example/", "//evil.example/x", "http://evil.example/?view=1"]
+    )
+    def test_next_cannot_send_the_person_off_site(self, as_owner, owner, target):
+        view = make_view(owner)
+        for intent in ("default", "clear_default", "delete"):
+            response = as_owner.post(
+                reverse("vantage:saved-views"),
+                {"intent": intent, "view": view.pk, "next": target},
+            )
+            assert response.status_code == 302
+            assert "evil.example" not in response["Location"]
+            assert response["Location"].startswith("/")
+
     def test_making_a_view_default_is_personal(self, client, owner, colleague):
         view = make_view(owner, visibility=SavedView.Visibility.SHARED)
         client.force_login(colleague)

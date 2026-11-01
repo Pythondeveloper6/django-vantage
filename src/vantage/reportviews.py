@@ -50,7 +50,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect
 
 from vantage import reports, twofactor
 from vantage.models import ReportRun, ReportSubscription, SavedView, VantageLogEntry
-from vantage.safety import read_only_reason
+from vantage.safety import impersonating, read_only_reason
 from vantage.views import SiteView
 
 __all__ = [
@@ -224,6 +224,15 @@ class ReportView(SiteView):
         if reason:
             raise PermissionDenied(reason)
 
+    def refuse_impersonation(self) -> None:
+        """A subscription keeps sending as its owner after the session ends, so one
+        set up or redirected while impersonating would go on mailing that person's
+        rows, as them, long after the impersonation was over."""
+        if impersonating(self.request):
+            raise PermissionDenied(
+                gettext("Scheduled reports cannot be set up or changed while impersonating.")
+            )
+
     @cached_property
     def sub(self) -> ReportSubscription:
         return get_object_or_404(
@@ -259,6 +268,7 @@ class SubscribeView(ReportView):
         from vantage.tenancy import snapshot
 
         self.require_writable()
+        self.refuse_impersonation()
         back = _safe_next(request, self.home_url())
         view = SavedView.objects.filter(pk=_int(request.POST.get("view"))).first()
         panel = savedviews._panel_for(self.site, view.model_label) if view else None
@@ -338,6 +348,7 @@ class ReportEditView(ReportView):
 
     def post(self, request, *args, **kwargs):
         self.require_writable()
+        self.refuse_impersonation()
         form = self.get_form(request.POST)
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
