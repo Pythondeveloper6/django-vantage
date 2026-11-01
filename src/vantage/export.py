@@ -15,8 +15,11 @@ queryset is validated before the generator starts.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import json
+import uuid
 from collections.abc import Iterator
+from decimal import Decimal
 from typing import Any
 
 from django.http import StreamingHttpResponse
@@ -29,6 +32,11 @@ FORMATS = ("csv", "json", "tsv")
 #: Rows per database round trip. Large enough that the query overhead disappears,
 #: small enough that a wide model does not spike memory.
 CHUNK_SIZE = 2000
+
+#: Values that are data, never text a stranger typed: left as they are by the formula
+#: rule, so a negative number or a negative duration stays one. Everything else is
+#: treated as text, including types this module has never heard of.
+_PLAIN_TYPES = (int, float, Decimal, dt.date, dt.time, dt.timedelta, uuid.UUID)
 
 
 class _Echo:
@@ -48,12 +56,15 @@ def _cell(value: Any, *, armoured: bool = False) -> str:
     Related objects export as their ``__str__``, which is what a human reading the
     file expects, rather than a primary key they would have to join back themselves.
 
-    ``armoured`` is for the delimited-text writers. A *text* value that starts with
-    ``=``, ``+``, ``-``, ``@``, a tab or a carriage return is a formula to Excel,
-    LibreOffice and Sheets, and a stranger can type one into any free-text field, so
-    those get a leading quote (OWASP's guidance). It is decided on the Python type,
-    before flattening: a negative number, decimal or duration is data and must stay
-    one, which a check on the finished string could not tell apart.
+    ``armoured`` is for the delimited-text writers. A value that starts with ``=``,
+    ``+``, ``-``, ``@``, a tab or a carriage return is a formula to Excel, LibreOffice
+    and Sheets, and a stranger can type one into any free-text field, so those get a
+    leading quote (OWASP's guidance). It is decided on the Python type, before
+    flattening: a negative number, decimal or duration is data and must stay one, which
+    a check on the finished string could not tell apart. The exemption is an
+    allowlist (:data:`_PLAIN_TYPES`), not a check for ``str``: a lazy translation, a
+    property returning a value object or a third-party field type is not a ``str``
+    either, and prints whatever text it holds.
     """
     if value is None:
         return ""
@@ -66,9 +77,10 @@ def _cell(value: Any, *, armoured: bool = False) -> str:
 
         text = safe_str(value)
         return _defuse(text) if armoured else text
-    if armoured and isinstance(value, str):
-        return _defuse(value)
-    return str(value)
+    text = str(value)
+    if armoured and not isinstance(value, _PLAIN_TYPES):
+        return _defuse(text)
+    return text
 
 
 def _defuse(text: str) -> str:
@@ -112,7 +124,8 @@ def _resolve(obj: Any, path: str) -> Any:
 def _rows(
     queryset, columns: list[str], headers: list[str], masked: frozenset[str] = frozenset()
 ) -> Iterator[list[str]]:
-    yield headers
+    # Headers too: a column label can come from a stored list preference.
+    yield [_defuse(header) for header in headers]
     for obj in queryset.iterator(chunk_size=CHUNK_SIZE):
         yield [_value(obj, column, masked, armoured=True) for column in columns]
 
