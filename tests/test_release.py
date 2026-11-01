@@ -152,3 +152,38 @@ def test_the_version_has_one_source():
     project = _pyproject()["project"]
     assert "version" not in project
     assert "version" in project.get("dynamic", [])
+
+
+class TestNoShippedFileIsGitignored:
+    """Hatchling builds the wheel from "whatever .gitignore does not exclude", tracked
+    or not. An unanchored ignore rule (a bare ``reports/``, say) therefore drops a
+    package directory of the same name from the wheel while the editable install the
+    developer tests against keeps working; the failure shows up only in CI, which
+    installs the built package.
+    """
+
+    def test_tracked_package_files_are_not_matched_by_an_ignore_rule(self, tmp_path):
+        import shutil
+        import subprocess
+
+        git = shutil.which("git")
+        if git is None or not (REPO_ROOT / ".git").exists():
+            pytest.skip("not a git checkout")
+        listed = subprocess.run(
+            [git, "ls-files", "-z", "--", "src/vantage"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            check=True,
+        ).stdout
+        # Judged by the repository's .gitignore alone, in a scratch repository, so a
+        # developer's own .git/info/exclude or global excludes cannot colour the result.
+        shutil.copy(REPO_ROOT / ".gitignore", tmp_path / ".gitignore")
+        subprocess.run([git, "init", "-q"], cwd=tmp_path, check=True)
+        ignored = subprocess.run(
+            [git, "-c", "core.excludesFile=", "check-ignore", "-z", "--no-index", "--stdin"],
+            cwd=tmp_path,
+            input=listed,
+            capture_output=True,
+        ).stdout
+        names = [n for n in ignored.decode().split("\0") if n]
+        assert not names, f"gitignored, so left out of the wheel: {names[:5]}"
