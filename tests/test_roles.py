@@ -376,6 +376,11 @@ class TestQueryCount:
 
     def test_saving_costs_the_same_for_one_change_or_three_hundred(self, client_in, editors):
         few = list(Permission.objects.exclude(group=editors)[:1])
+        # Warm the per-process caches (content types and the like) on a save that is
+        # then undone. Without it the first save in a fresh process pays for them and
+        # the comparison passes or fails on whichever test happened to run before.
+        save(client_in, editors, add=few)
+        save(client_in, editors, remove=few)
         with CaptureQueriesContext(connection) as small:
             save(client_in, editors, add=few)
         many = list(Permission.objects.exclude(group=editors)[:300])

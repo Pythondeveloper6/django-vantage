@@ -257,6 +257,15 @@ Six migrations were added (`0016`–`0021`), so run `migrate` after upgrading
 - `records.copy_children()` now needs a request with a user, and copies only what that
   user may add.
 
+### Fixed
+
+- **The wheel left out the scheduled-reports templates.** An unanchored `reports/` ignore
+  rule also matched the package's own `templates/vantage/reports/` directory, and the
+  build skips ignored paths even when they are tracked, so an installed copy raised
+  `TemplateDoesNotExist` on every reports page. The rule is now anchored to the
+  repository root, and a test fails if any tracked package file is matched by an
+  ignore rule.
+
 ### Security
 
 - Webhooks refuse private, loopback and link-local targets by default, including IPv6
