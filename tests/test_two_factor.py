@@ -412,6 +412,56 @@ class TestVerify:
         assert device.failed_attempts == 0
         assert device.locked_until is None
 
+    def test_each_lock_in_a_row_lasts_twice_as_long(self, boss, settings):
+        """A fixed lock only sets a steady guessing rate; doubling bounds it per day."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        settings.VANTAGE = {"TWO_FACTOR_MAX_ATTEMPTS": 2, "TWO_FACTOR_LOCKOUT_SECONDS": 60}
+        device, _ = enrol(boss)
+
+        def lock_once():
+            TwoFactorDevice.objects.filter(pk=device.pk).update(
+                locked_until=timezone.now() - timedelta(seconds=1)
+            )
+            twofactor.verify(device, "000000")
+            outcome = twofactor.verify(device, "000000")
+            assert outcome.reason == "locked"
+            fresh = TwoFactorDevice.objects.get(pk=device.pk)
+            return outcome.retry_after, (fresh.locked_until - timezone.now()).total_seconds()
+
+        said, held = zip(*(lock_once() for _ in range(4)), strict=True)
+        assert list(said) == [60, 120, 240, 480]
+        for seconds, expected in zip(held, said, strict=True):
+            assert expected - 5 < seconds <= expected
+
+    def test_the_longest_lock_is_a_day(self, settings):
+        settings.VANTAGE = {"TWO_FACTOR_LOCKOUT_SECONDS": 300}
+        assert twofactor.lockout_seconds(1) == 300
+        assert twofactor.lockout_seconds(50) == twofactor.MAX_LOCKOUT_SECONDS == 86400
+
+    def test_a_right_code_starts_the_doubling_again(self, boss, settings):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        settings.VANTAGE = {"TWO_FACTOR_MAX_ATTEMPTS": 1, "TWO_FACTOR_LOCKOUT_SECONDS": 60}
+        device, _ = enrol(boss)
+        for _ in range(3):
+            TwoFactorDevice.objects.filter(pk=device.pk).update(
+                locked_until=timezone.now() - timedelta(seconds=1)
+            )
+            twofactor.verify(device, "000000")
+        assert TwoFactorDevice.objects.get(pk=device.pk).lockouts == 3
+
+        TwoFactorDevice.objects.filter(pk=device.pk).update(
+            locked_until=timezone.now() - timedelta(seconds=1)
+        )
+        assert twofactor.verify(device, code_for(device))
+        assert TwoFactorDevice.objects.get(pk=device.pk).lockouts == 0
+        assert twofactor.verify(device, "000000").retry_after == 60
+
     @pytest.mark.parametrize("kind", ["app code", "recovery code", "password"])
     def test_a_burst_compares_no_more_than_the_limit(self, boss, settings, monkeypatch, kind):
         """However requests interleave, at most MAX_ATTEMPTS answers are compared.

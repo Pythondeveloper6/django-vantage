@@ -118,6 +118,8 @@ WINDOW = 1
 PENDING_SECONDS = 300
 #: How stale the session's cached answer to "is a second step owed?" may get.
 RECHECK_SECONDS = 60
+#: The longest a second step stays locked, however many lockouts came before.
+MAX_LOCKOUT_SECONDS = 24 * 3600
 RECOVERY_CODE_COUNT = 10
 #: 32 symbols, so each one is exactly five bits: no ``0``/``o`` or ``1``/``l`` to misread
 #: off a printout. Sixteen of them make 80 bits per code.
@@ -478,12 +480,28 @@ def _locked_for(device) -> int:
     return int(remaining) + 1 if remaining > 0 else 0
 
 
+def lockout_seconds(lockouts: int) -> int:
+    """How long the ``lockouts``-th lock in a row lasts.
+
+    ``TWO_FACTOR_LOCKOUT_SECONDS`` for the first, doubling for each one after it, up to
+    :data:`MAX_LOCKOUT_SECONDS`. A fixed lock only slows guessing to a steady rate: five
+    tries every five minutes is over a thousand a day, and a six-digit code with a
+    one-step window falls to that within months. Doubling caps it at a handful a day,
+    and one right answer starts the count again.
+    """
+    base = int(setting("TWO_FACTOR_LOCKOUT_SECONDS"))
+    exponent = min(max(lockouts - 1, 0), 32)
+    return int(min(base * 2**exponent, max(MAX_LOCKOUT_SECONDS, base)))
+
+
 @dataclass(frozen=True)
 class _Attempt:
     """A reserved attempt: :func:`reserve_attempt` said yes, and counted it."""
 
     #: This attempt used up the last one, so the lock is already on.
     last: bool
+    #: How long that lock lasts, when ``last``.
+    lock_seconds: int = 0
 
 
 def reserve_attempt(device) -> _Attempt | Outcome:
@@ -502,6 +520,9 @@ def reserve_attempt(device) -> _Attempt | Outcome:
     statements share a transaction, so a crash between them cannot leave the counter
     at the limit with no lock to expire it.
 
+    Each lock in a row lasts twice as long as the one before (:func:`lockout_seconds`),
+    so the lock bounds the guesses an attacker gets per day, not only per window.
+
     Returns the reservation, or the refusal to show.
     """
     from vantage.models import TwoFactorDevice
@@ -510,6 +531,7 @@ def reserve_attempt(device) -> _Attempt | Outcome:
     seconds = setting("TWO_FACTOR_LOCKOUT_SECONDS")
     now = timezone.now()
     rows = TwoFactorDevice.objects.filter(pk=device.pk)
+    duration = 0
     with transaction.atomic():
         reserved = rows.filter(
             Q(locked_until__isnull=True) | Q(locked_until__lte=now),
@@ -519,30 +541,40 @@ def reserve_attempt(device) -> _Attempt | Outcome:
             device.refresh_from_db(fields=["locked_until", "failed_attempts"])
             return Outcome(False, "locked", _locked_for(device) or seconds)
         last = rows.filter(failed_attempts__gte=limit).update(
-            failed_attempts=0, locked_until=now + timedelta(seconds=seconds)
+            failed_attempts=0,
+            lockouts=F("lockouts") + 1,
+            locked_until=now + timedelta(seconds=seconds),
         )
+        if last:
+            # Still inside the transaction, so nobody sees the short lock in between.
+            duration = lockout_seconds(rows.values_list("lockouts", flat=True).first() or 1)
+            if duration != seconds:
+                rows.update(locked_until=now + timedelta(seconds=duration))
     if last:
         logger.warning(
-            "Vantage locked two-factor sign-in for user id=%s after %s attempts.",
+            "Vantage locked two-factor sign-in for user id=%s after %s attempts, for %s s.",
             device.user_id,
             limit,
+            duration,
         )
-    return _Attempt(last=bool(last))
+    return _Attempt(last=bool(last), lock_seconds=duration)
 
 
 def _failed(attempt: _Attempt, reason: str = "invalid") -> Outcome:
     """The answer was wrong. Already counted; all that is left is what to say."""
     if attempt.last:
-        return Outcome(False, "locked", setting("TWO_FACTOR_LOCKOUT_SECONDS"))
+        return Outcome(
+            False, "locked", attempt.lock_seconds or setting("TWO_FACTOR_LOCKOUT_SECONDS")
+        )
     return Outcome(False, reason)
 
 
 def _succeeded(device, *, where: dict | None = None, **fields) -> int:
-    """The answer was right: the count starts again and any lock it set is lifted."""
+    """The answer was right: the counts start again and any lock is lifted."""
     from vantage.models import TwoFactorDevice
 
     rows = TwoFactorDevice.objects.filter(pk=device.pk, **(where or {}))
-    return rows.update(failed_attempts=0, locked_until=None, **fields)
+    return rows.update(failed_attempts=0, lockouts=0, locked_until=None, **fields)
 
 
 def verify(

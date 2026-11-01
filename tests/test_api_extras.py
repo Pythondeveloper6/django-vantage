@@ -250,6 +250,15 @@ class TestSavedViews:
         assert patched.status_code == 403
         assert SavedView.objects.get(pk=pk).state["q"] == "abc"
 
+    def test_an_editor_of_a_shared_view_still_cannot_delete_it(self):
+        owner = staff("sv11", Post, "view_post")
+        pk = body(self.make(owner, visibility="shared", edit_scope="everyone"))["id"]
+        other = staff("sv12", Post, "view_post")
+        detail = url("api-view-detail", Post, view_pk=pk)
+        assert body(other.get(detail))["can_edit"] is True
+        assert other.delete(detail).status_code == 403
+        assert SavedView.objects.filter(pk=pk).exists()
+
     def test_no_model_permission_means_no_views(self):
         client = staff("sv6", Post)
         assert client.get(url("api-views", Post)).status_code == 403
