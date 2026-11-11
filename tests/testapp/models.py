@@ -576,3 +576,15 @@ class ZCredential(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ZArticle(models.Model):
+    """Rich-text fixtures: one HTML field, one that opts out to markdown, one required."""
+
+    title = models.CharField(max_length=80)
+    body_html = models.TextField(blank=True)
+    notes_html = models.TextField(blank=True)
+    summary_html = models.TextField()
+
+    def __str__(self):
+        return self.title
