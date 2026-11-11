@@ -19,7 +19,7 @@ from typing import Any
 
 from django.urls import NoReverseMatch, reverse
 
-from vantage import audit, jobs, listprefs, listquery
+from vantage import agents, audit, dryrun, jobs, listprefs, listquery
 from vantage.actions import Action, Selection, resolve_actions
 from vantage.api import (
     ApiError,
@@ -75,6 +75,14 @@ class ActionRunView(ModelApiView):
         # fetched earlier.
         return "view"
 
+    def writes_nothing(self, request) -> bool:
+        if agents.is_dry_run(request):
+            return True
+        try:
+            return _flag(_parse_json_body(request).get("dry_run"))
+        except ApiError:
+            return False
+
     def post(self, request, *args, **kwargs):
         available = {a.name: a for a in resolve_actions(self.panel, request)}
         chosen = available.get(self.kwargs["action_name"])
@@ -82,6 +90,11 @@ class ActionRunView(ModelApiView):
             # Unknown and not-permitted share one answer, as on the HTML page, so the
             # response cannot be used to enumerate actions the caller may not run.
             raise ApiError(403, "That action is not available.")
+
+        # An action that deletes needs the delete right, however it is dispatched: the
+        # verb of an HTTP POST is "write", so this is checked by what the action does.
+        if chosen.deletes_records:
+            agents.check_access(request, self.panel, "delete")
 
         body = _parse_json_body(request)
         selection = self._selection(body)
@@ -91,20 +104,33 @@ class ActionRunView(ModelApiView):
         listprefs.resolve(self.panel, request)
         queryset = selection.apply(listquery.build(self.panel, request, self.permissions).queryset)
         count = queryset.count()
-        dry_run = _flag(body.get("dry_run"))
+        dry_run = _flag(body.get("dry_run")) or agents.is_dry_run(request)
 
         if dry_run:
+            exceeds = chosen.max_rows is not None and count > chosen.max_rows
+            errors: dict[str, list[str]] = {}
+            if count == 0:
+                errors["__all__"] = ["Those records no longer match."]
+            if exceeds:
+                errors.setdefault("__all__", []).append(
+                    f"{chosen.label} is limited to {chosen.max_rows} records at a time; "
+                    f"{count} were selected."
+                )
             return json_response(
-                {
-                    "dry_run": True,
-                    "action": chosen.name,
-                    "count": count,
-                    "scope": selection.describe(count),
-                    "requires_confirmation": chosen.needs_confirmation(),
-                    "max_rows": chosen.max_rows,
-                    "exceeds_max_rows": chosen.max_rows is not None and count > chosen.max_rows,
-                    "background": jobs.should_enqueue(chosen, count) if count else False,
-                }
+                dryrun.payload(
+                    "run_action",
+                    valid=not errors,
+                    errors=errors,
+                    action=chosen.name,
+                    count=count,
+                    affected=count,
+                    scope=selection.describe(count),
+                    requires_confirmation=chosen.needs_confirmation(),
+                    max_rows=chosen.max_rows,
+                    exceeds_max_rows=exceeds,
+                    background=jobs.should_enqueue(chosen, count) if count else False,
+                    deletes_records=chosen.deletes_records,
+                )
             )
 
         if count == 0:
@@ -148,11 +174,13 @@ class ActionRunView(ModelApiView):
                 },
                 "scope": selection.describe(job.total),
             }
+            agents.add_rows(request, rows=count - 1, deletes=count if chosen.deletes_records else 0)
             # No worker: the job ran inside the request and is already finished.
             return json_response(payload, status=200 if job.is_terminal else 202)
 
         result = chosen.run(self.panel, request, queryset)
         audit.log_action(request, self.panel.model, chosen, count)
+        agents.add_rows(request, rows=count - 1, deletes=count if chosen.deletes_records else 0)
         payload = {
             "action": chosen.name,
             "message": str(result.message),

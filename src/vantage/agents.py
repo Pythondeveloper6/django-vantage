@@ -43,7 +43,9 @@ __all__ = [
     "enabled",
     "guard_patterns",
     "has_bearer",
+    "is_dry_run",
     "rotate_token",
+    "undo_run",
     "visible_panels",
 ]
 
@@ -361,6 +363,87 @@ def check_write_budget(request, rows: int = 1) -> None:
     if not queryset.update(**fields):
         raise _api_error(403, "This run has used its write budget.", code="write_budget_exceeded")
     run.refresh_from_db(fields=["writes", "rows_changed", "deletes"])
+
+
+def is_dry_run(request) -> bool:
+    """Whether the caller asked for a preview: ``?dry_run=1`` or ``X-Vantage-Dry-Run: 1``.
+
+    Any caller may ask, agent or person. A dry run validates and describes; it never
+    writes. See ``docs/agent-writes.md``.
+    """
+    truthy = ("1", "true", "yes", "on")
+    header = request.META.get("HTTP_X_VANTAGE_DRY_RUN", "").strip().lower()
+    query = str(request.GET.get("dry_run", "")).strip().lower()
+    return header in truthy or query in truthy
+
+
+def requires_approval(request) -> bool:
+    """Whether the request comes from an agent whose writes must wait for a person."""
+    identity = current_agent(request)
+    return bool(identity is not None and identity.require_approval)
+
+
+def approval_refusal(message: str | None = None):
+    """The 403 for an operation an approval-required identity may not do (yet)."""
+    return _api_error(
+        403,
+        message
+        or "This identity requires approval, and this operation cannot be approved yet. "
+        "Only updates to existing records can be proposed.",
+        code="approval_not_supported",
+    )
+
+
+def check_approval_route(request, *, routed: bool, writes_nothing: bool) -> None:
+    """Fail closed for an identity with ``require_approval``.
+
+    ``routed`` is True only for an endpoint that sends its write through the approval
+    machinery (an update of one record). Anything else that is not a dry run is refused.
+    """
+    if not requires_approval(request) or writes_nothing or routed:
+        return
+    raise approval_refusal()
+
+
+def add_rows(request, rows: int = 0, deletes: int = 0) -> None:
+    """Add to the run's ``rows_changed`` and ``deletes`` after a bulk action has run."""
+    from django.db.models import F
+
+    from vantage.models import AgentRun
+
+    if current_agent(request) is None or (rows <= 0 and deletes <= 0):
+        return
+    run = current_run(request)
+    AgentRun.objects.filter(pk=run.pk).update(
+        rows_changed=F("rows_changed") + max(rows, 0), deletes=F("deletes") + max(deletes, 0)
+    )
+
+
+def proposer(change_request):
+    """The identity that proposed ``change_request``, or ``None`` for a person."""
+    from vantage.models import AgentIdentity
+
+    if change_request.requested_by_id is None:
+        return None
+    if not str(change_request.requested_by_repr).startswith("Agent "):
+        return None
+    identity = AgentIdentity.objects.filter(user_id=change_request.requested_by_id).first()
+    if identity is None or not change_request.requested_by_repr.startswith(
+        actor_label(identity)[:150]
+    ):
+        return None
+    return identity
+
+
+class UndoNotAllowed(PermissionError):
+    """Only a superuser or the identity's owner may undo a run."""
+
+
+def undo_run(run, by_user, *, dry_run: bool = False) -> dict:
+    """Revert what an agent run changed. See :mod:`vantage.agentundo`."""
+    from vantage import agentundo
+
+    return agentundo.undo_run(run, by_user, dry_run=dry_run)
 
 
 # ── labels ──────────────────────────────────────────────────────────────────
