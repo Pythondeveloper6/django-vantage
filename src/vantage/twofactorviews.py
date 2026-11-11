@@ -93,6 +93,18 @@ class ConfirmForm(CodeForm):
     )
 
 
+class DeviceNameForm(forms.Form):
+    """What to call a new authenticator. Optional: blank means a default name."""
+
+    name = forms.CharField(
+        label=_("Name this device"),
+        max_length=twofactor.DEVICE_NAME_LENGTH,
+        required=False,
+        help_text=_("For telling your devices apart, such as Phone or Spare."),
+        widget=forms.TextInput(attrs={"autocomplete": "off", "placeholder": "Phone"}),
+    )
+
+
 class ProofForm(forms.Form):
     """A current code or the password: either proves the request is the account owner."""
 
@@ -173,10 +185,15 @@ class TwoFactorView(SiteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        device = twofactor.device_for(user)
-        pending = None if device else twofactor.device_for(user, confirmed=False)
+        devices = twofactor.devices_for(user)
+        device = devices[0] if devices else None
+        pending = twofactor.device_for(user, confirmed=False)
         context.update(
             device=device,
+            devices=devices,
+            pending=pending,
+            may_add=bool(device) and len(devices) < twofactor.MAX_DEVICES,
+            name_form=kwargs.get("name_form") or _style(DeviceNameForm()),
             remaining=twofactor.remaining_codes(device) if device else 0,
             required=twofactor.is_required(user),
             next=safe_next(self.request, ""),
@@ -213,6 +230,7 @@ class TwoFactorView(SiteView):
         action = request.POST.get("action", "")
         handler = {
             "start": self._start,
+            "remove": self._remove,
             "cancel": self._cancel,
             "confirm": self._confirm,
             "disable": self._disable,
@@ -232,10 +250,55 @@ class TwoFactorView(SiteView):
         return HttpResponseRedirect(url)
 
     def _start(self, request):
+        """Begin enrolling. The first device needs nothing; an extra one needs proof.
+
+        An extra authenticator is a second way into the account, so a session that
+        merely happens to be signed in may not add one without a current code or the
+        password, the same as it may not remove one.
+        """
+        name = DeviceNameForm(request.POST)
+        label = name.cleaned_data["name"] if name.is_valid() else ""
+        devices = twofactor.devices_for(request.user)
         try:
-            twofactor.start_enrolment(request.user, request)
+            if not devices:
+                twofactor.start_enrolment(request.user, request, label)
+            else:
+                form = ProofForm(request.POST)
+                if not self._proved(request, devices[0], form):
+                    return self.render_to_response(self.get_context_data(proof_form=_style(form)))
+                twofactor.add_device(request.user, request, label)
         except ValueError:
-            messages.info(request, gettext("Two-factor sign-in is already on."), fail_silently=True)
+            messages.error(
+                request,
+                gettext("This account cannot have another authenticator right now."),
+                fail_silently=True,
+            )
+        return self._back(request)
+
+    def _remove(self, request):
+        """Remove one authenticator, on proof. Removing the last switches it off."""
+        from vantage.models import TwoFactorDevice
+
+        devices = twofactor.devices_for(request.user)
+        try:
+            pk = TwoFactorDevice._meta.pk.to_python(request.POST.get("device"))
+        except ValidationError:
+            pk = None
+        # Looked up among *this person's* devices, so another person's id finds nothing.
+        target = next((d for d in devices if d.pk == pk), None)
+        if target is None:
+            return self._back(request)
+        form = ProofForm(request.POST)
+        if not self._proved(request, devices[0], form):
+            return self.render_to_response(self.get_context_data(proof_form=_style(form)))
+        still_on = twofactor.remove_device(request, target)
+        messages.success(
+            request,
+            gettext("%(name)s was removed.") % {"name": target.name}
+            if still_on
+            else gettext("Two-factor sign-in is now off."),
+            fail_silently=True,
+        )
         return self._back(request)
 
     def _cancel(self, request):
@@ -271,7 +334,8 @@ class TwoFactorView(SiteView):
         code = form.cleaned_data["code"]
         password = form.cleaned_data["password"]
         if code:
-            outcome = twofactor.verify(device, code, request=request)
+            # Any of the person's devices, or a recovery code, counted on all of them.
+            outcome, _ = twofactor.verify_any(request.user, code, request=request)
         elif password:
             outcome = twofactor.verify_password(device, request.user, password)
         else:
@@ -356,12 +420,14 @@ class TwoFactorVerifyView(TemplateView):
     def post(self, request, *args, **kwargs):
         form = CodeForm(request.POST)
         if form.is_valid():
-            outcome = twofactor.verify(self.device, form.cleaned_data["code"], request=request)
+            outcome, passed = twofactor.verify_any(
+                self.person, form.cleaned_data["code"], request=request
+            )
             if outcome:
                 # Rotated here because this session is changing what it is allowed to
                 # do, which is exactly the moment a fixed session id must stop working.
                 request.session.cycle_key()
-                twofactor.mark_verified(request, self.device)
+                twofactor.mark_verified(request, passed)
                 return HttpResponseRedirect(safe_next(request, _reverse(self.request, "dashboard")))
             form.add_error("code", outcome.message)
         return self.render_to_response(self.get_context_data(form=_style(form)))
@@ -405,7 +471,43 @@ class TwoFactorUsersView(SiteView):
             .order_by("-confirmed_at")
         )
         context["devices"] = list(devices)
+        counts: dict = {}
+        for device in context["devices"]:
+            counts[device.user_id] = counts.get(device.user_id, 0) + 1
+        for device in context["devices"]:
+            device.person_count = counts[device.user_id]
         return context
+
+    @staticmethod
+    def _reset(request, target) -> None:
+        """One device if the form names one, otherwise all of the person's.
+
+        The device is looked up among the target's own, so an id from another account
+        resets nothing. Saying how many were removed is the point: a reset must never
+        take devices away silently.
+        """
+        from vantage.models import TwoFactorDevice
+
+        device = None
+        raw = request.POST.get("device")
+        if raw:
+            try:
+                pk = TwoFactorDevice._meta.pk.to_python(raw)
+            except ValidationError:
+                pk = None
+            device = TwoFactorDevice.objects.filter(
+                pk=pk, user_id=target.pk, confirmed_at__isnull=False
+            ).first()
+            if device is None:
+                return
+        removed = twofactor.reset(request, target, device)
+        if removed:
+            messages.success(
+                request,
+                gettext("Two-factor sign-in was reset for %(name)s: %(count)s device(s) removed.")
+                % {"name": target.get_username(), "count": removed},
+                fail_silently=True,
+            )
 
     def post(self, request, *args, **kwargs):
         model = get_user_model()
@@ -420,13 +522,8 @@ class TwoFactorUsersView(SiteView):
                 gettext("Use your own two-factor page to switch yours off."),
                 fail_silently=True,
             )
-        elif twofactor.reset(request, target):
-            messages.success(
-                request,
-                gettext("Two-factor sign-in was reset for %(name)s.")
-                % {"name": target.get_username()},
-                fail_silently=True,
-            )
+        else:
+            self._reset(request, target)
         return HttpResponseRedirect(_reverse(self.request, "two_factor_users"))
 
 
