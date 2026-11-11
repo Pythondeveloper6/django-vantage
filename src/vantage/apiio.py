@@ -20,7 +20,7 @@ import json
 from typing import Any
 
 from vantage import agents, importer, listprefs
-from vantage.api import ApiError, BadRequest, ModelApiView, json_response
+from vantage.api import ApiError, BadRequest, ModelApiView, json_response, refuse_agent_hidden
 from vantage.export import FORMATS, ExportTooLarge, stream_export
 from vantage.importviews import PERMISSION_DENIED, PERMISSION_DENIED_FALLBACK
 
@@ -62,6 +62,7 @@ class ImportView(ModelApiView):
         mode = post.get("mode", "create")
         options = importer.importable_fields(self.panel, request, self.permissions)
         chosen = self._mapping(post.get("mapping"), parsed, options)
+        refuse_agent_hidden(request, self.panel, [*chosen.values(), post.get("key_field", "")])
         try:
             mapping = importer.resolve_mapping(
                 self.panel,
