@@ -8,9 +8,9 @@
 pip install --pre django-vantage
 ```
 
-`--pre` is needed while Vantage is in alpha: pip skips pre-releases unless asked. Pin
-the exact version (`django-vantage==0.2.0a2`) if you depend on it, because the API may
-still move before 1.0.
+`--pre` is needed while Vantage is in beta: pip skips pre-releases unless asked. Pin
+the exact version (`django-vantage==0.3.0b1`) if you depend on it, because provisional
+items may still change before 1.0.
 
 Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. Nothing else is.
 

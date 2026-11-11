@@ -3,7 +3,7 @@
 [← Index](index.md)
 
 What to check before pointing this at production. Vantage is
-[alpha](faq.md#how-finished-is-this); read this page as a checklist rather than as
+[beta](faq.md#how-finished-is-this); read this page as a checklist rather than as
 reassurance.
 
 ## The short list
@@ -47,7 +47,7 @@ A real run against the demo:
 [ok  ] Background tasks   Django Tasks configured.
 [ok  ] Media storage      /path/to/media
 [warn] Debug mode         DEBUG is on.
-[info] Versions           Vantage 0.2.0a2 · Django 6.1 · Python 3.13.12
+[info] Versions           Vantage 0.3.0b1 · Django 6.1 · Python 3.13.12
 ```
 
 ## Read-only mode
