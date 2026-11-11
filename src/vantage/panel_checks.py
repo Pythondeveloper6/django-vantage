@@ -57,6 +57,7 @@ class ModelPanelChecks:
             *self._check_field_permissions(panel),
             *self._check_widget_overrides(panel),
             *self._check_read_only(panel),
+            *self._check_agent_attributes(panel),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -390,6 +391,44 @@ class ModelPanelChecks:
                         f"of {panel.model._meta.label}.",
                         obj=type(panel),
                         id="vantage.E123",
+                    )
+                )
+        return errors
+
+    def _check_agent_attributes(self, panel: ModelPanel) -> list[Error]:
+        """``agent_access`` is a known level or ``None``; ``agent_hidden_fields`` names fields."""
+        errors: list[Error] = []
+        access = getattr(panel, "agent_access", None)
+        if access is not None and access not in ("none", "read", "write"):
+            errors.append(
+                Error(
+                    f"'agent_access' must be 'none', 'read', 'write' or None; got {access!r}.",
+                    hint='None follows VANTAGE["AGENT_DEFAULT_ACCESS"].',
+                    obj=type(panel),
+                    id="vantage.E124",
+                )
+            )
+        hidden = getattr(panel, "agent_hidden_fields", None)
+        if hidden is None:
+            return errors
+        if not isinstance(hidden, list | tuple) or any(not isinstance(n, str) for n in hidden):
+            return [
+                *errors,
+                Error(
+                    f"'agent_hidden_fields' must be a list of field names; got {hidden!r}.",
+                    obj=type(panel),
+                    id="vantage.E125",
+                ),
+            ]
+        names = {f.name for f in panel.model._meta.get_fields()}
+        for name in hidden:
+            if name not in names:
+                errors.append(
+                    Error(
+                        f"'agent_hidden_fields' names {name!r}, which is not a field of "
+                        f"{panel.model._meta.label}.",
+                        obj=type(panel),
+                        id="vantage.E125",
                     )
                 )
         return errors
