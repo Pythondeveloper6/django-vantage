@@ -157,7 +157,21 @@ class PanelView(SiteView):
         context = super().get_context_data(**kwargs)
         # Rendering a button the user cannot use is worse than not offering it.
         context["allowed"] = self.permissions.allowed_actions(self.request, self.panel.model)
+        # Menu order is the labels' order; a format added to ``FORMATS`` without a label
+        # still gets an entry rather than silently vanishing from the menu.
+        context["export_formats"] = [(f, EXPORT_LABELS[f]) for f in EXPORT_LABELS if f in FORMATS]
+        context["export_formats"] += [(f, f.upper()) for f in FORMATS if f not in EXPORT_LABELS]
         return context
+
+
+#: Menu wording for each of ``export.FORMATS``; the order is the menu's order.
+EXPORT_LABELS = {
+    "csv": "CSV",
+    "tsv": _("TSV (spreadsheet)"),
+    "json": _("JSON (one per line)"),
+    "xlsx": _("Excel (.xlsx)"),
+    "pdf": "PDF",
+}
 
 
 class ListView(PanelView):

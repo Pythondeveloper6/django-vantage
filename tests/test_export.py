@@ -395,3 +395,17 @@ class TestBinaryFormatsFollowTheRules:
         )
         text = text_of(client_in.get(reverse(LIST), {"export": fmt}), fmt)
         assert "Alpha" in text and "Beta" not in text and "Gamma" not in text
+
+
+def test_the_export_menu_offers_every_format_and_carries_the_filters(client_in, posts):
+    """One link per export.FORMATS entry, each with the list's own querystring."""
+    from vantage.export import FORMATS
+
+    page = client_in.get(reverse(LIST), {"status": "draft", "q": "ab", "sort": "-id"}).content
+    page = page.decode()
+    for fmt in FORMATS:
+        assert f"export={fmt}" in page
+    assert "Excel (.xlsx)" in page and ">PDF</a>" in page
+    xlsx = next(line for line in page.splitlines() if "export=xlsx" in line)
+    assert "status=draft" in xlsx and "q=ab" in xlsx and "sort=-id" in xlsx
+    assert "page=" not in xlsx
