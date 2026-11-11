@@ -530,19 +530,33 @@ def wants_html_editor(editor: str | None = None, field: Any = None) -> bool:
 
 
 def _sanitising(formfield: forms.Field) -> None:
-    """Make ``formfield`` store sanitised HTML, and treat an emptied editor as empty."""
-    original = formfield.to_python
+    """Make ``formfield`` store sanitised HTML, and treat an emptied editor as empty.
 
-    def to_python(value):
+    Applied to whatever form-field class ended up on the model field, including one a
+    panel substituted through ``formfield_overrides``. It wraps ``to_python`` (so an
+    emptied editor fails ``required``) and ``clean`` (so a field class that overrides
+    ``to_python`` or ``clean`` itself still hands back sanitised text). Only strings are
+    touched; the sanitiser is idempotent, so running twice costs nothing but time.
+    """
+    original_to_python = formfield.to_python
+    original_clean = formfield.clean
+
+    def scrub(value):
         from vantage.richtext import is_effectively_empty, sanitize_html
 
-        value = original(value)
-        if not value:
+        if not isinstance(value, str) or not value:
             return value
         cleaned = sanitize_html(value)
         return "" if is_effectively_empty(cleaned) else cleaned
 
+    def to_python(value):
+        return scrub(original_to_python(value))
+
+    def clean(value):
+        return scrub(original_clean(value))
+
     formfield.to_python = to_python
+    formfield.clean = clean
 
 
 # ── the spec ────────────────────────────────────────────────────────────────
@@ -919,7 +933,7 @@ def _formfield_callback(
 
     # Whatever widget a panel substituted, HTML from a rich-text field is cleaned on the
     # way in: the control is a convenience, the allowlist is the guarantee.
-    if is_rich and wants_html_editor(editor, db_field) and isinstance(formfield, forms.CharField):
+    if is_rich and wants_html_editor(editor, db_field) and formfield is not None:
         _sanitising(formfield)
 
     # An upload is the one input a panel accepts that the browser did not type. The
