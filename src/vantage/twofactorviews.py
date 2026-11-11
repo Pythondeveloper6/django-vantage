@@ -200,6 +200,9 @@ class TwoFactorView(SiteView):
             enrol=self._enrolment(user, pending) if pending else None,
             proof_form=kwargs.get("proof_form") or _style(ProofForm()),
             confirm_form=kwargs.get("confirm_form") or _style(ConfirmForm()),
+            # Which section a refused proof belongs to, so its error shows there and
+            # not at the top of a page that has four unrelated forms.
+            failed=kwargs.get("failed", ""),
         )
         return context
 
@@ -265,7 +268,7 @@ class TwoFactorView(SiteView):
             else:
                 form = ProofForm(request.POST)
                 if not self._proved(request, devices[0], form):
-                    return self.render_to_response(self.get_context_data(proof_form=_style(form)))
+                    return self._refused(form, "start")
                 twofactor.add_device(request.user, request, label)
         except ValueError:
             messages.error(
@@ -290,8 +293,10 @@ class TwoFactorView(SiteView):
             return self._back(request)
         form = ProofForm(request.POST)
         if not self._proved(request, devices[0], form):
-            return self.render_to_response(self.get_context_data(proof_form=_style(form)))
+            return self._refused(form, f"remove-{target.pk}")
         still_on = twofactor.remove_device(request, target)
+        if still_on and self._proof_device is not None:
+            self._rebind_session(request, target)
         messages.success(
             request,
             gettext("%(name)s was removed.") % {"name": target.name}
@@ -322,6 +327,32 @@ class TwoFactorView(SiteView):
             _style(form)
         return self.render_to_response(self.get_context_data(confirm_form=form))
 
+    #: The confirmed device a right *code* came from, once a request has proved itself
+    #: that way. Stays ``None`` for a password, which is not a second factor.
+    _proof_device = None
+
+    def _refused(self, form, action: str, **extra):
+        return self.render_to_response(
+            self.get_context_data(proof_form=_style(form), failed=action, **extra)
+        )
+
+    def _rebind_session(self, request, removed) -> None:
+        """Keep this session signed in after it removed the device it signed in with.
+
+        Removing that device correctly ends the session's proof. When the request was
+        proved by a code from a *different* confirmed device (or a recovery code, which
+        belongs to the person), the second step has just been passed again, so the
+        session is bound to a device that still exists, exactly as a sign-in does.
+        Other sessions are untouched and stay gated until they prove themselves.
+        """
+        proof = self._proof_device
+        if proof is None or proof.pk == removed.pk:
+            proof = next(
+                (d for d in twofactor.devices_for(request.user) if d.pk != removed.pk), None
+            )
+        if proof is not None:
+            twofactor.mark_verified(request, proof)
+
     def _proved(self, request, device, form) -> bool:
         """Whether the POST carries a right code or the right password.
 
@@ -335,7 +366,9 @@ class TwoFactorView(SiteView):
         password = form.cleaned_data["password"]
         if code:
             # Any of the person's devices, or a recovery code, counted on all of them.
-            outcome, _ = twofactor.verify_any(request.user, code, request=request)
+            outcome, passed = twofactor.verify_any(request.user, code, request=request)
+            if outcome:
+                self._proof_device = passed
         elif password:
             outcome = twofactor.verify_password(device, request.user, password)
         else:
@@ -355,7 +388,7 @@ class TwoFactorView(SiteView):
             return self._back(request)
         form = ProofForm(request.POST)
         if not self._proved(request, device, form):
-            return self.render_to_response(self.get_context_data(proof_form=_style(form)))
+            return self._refused(form, "disable")
         twofactor.disable(request, device)
         messages.success(request, gettext("Two-factor sign-in is now off."), fail_silently=True)
         return self._back(request)
@@ -366,7 +399,7 @@ class TwoFactorView(SiteView):
             return self._back(request)
         form = ProofForm(request.POST)
         if not self._proved(request, device, form):
-            return self.render_to_response(self.get_context_data(proof_form=_style(form)))
+            return self._refused(form, "codes")
         return self._show_codes(request, twofactor.regenerate_codes(request, device))
 
     def _show_codes(self, request, codes: list[str], *, enabled: bool = False):

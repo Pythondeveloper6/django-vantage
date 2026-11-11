@@ -24,9 +24,9 @@
     <details class="v-export">
       <summary class="v-btn v-btn-ghost">{% translate "Export" %}</summary>
       <div class="v-export-menu">
-        <a href="?{% querystring_replace export="csv" page=None %}">CSV</a>
-        <a href="?{% querystring_replace export="tsv" page=None %}">{% translate "TSV (spreadsheet)" %}</a>
-        <a href="?{% querystring_replace export="json" page=None %}">{% translate "JSON (one per line)" %}</a>
+        {% for fmt, label in export_formats %}
+          <a href="?{% querystring_replace export=fmt page=None %}">{{ label }}</a>
+        {% endfor %}
       </div>
     </details>
     {% if "add" in allowed %}
