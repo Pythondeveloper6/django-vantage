@@ -18,7 +18,7 @@ from django.urls import reverse
 from tests.testapp.models import Author, Post
 from vantage import agents
 from vantage.actions import Action, delete_selected
-from vantage.models import AgentIdentity, AgentRun, ChangeRequest, VantageLogEntry
+from vantage.models import AgentRun, ChangeRequest, VantageLogEntry
 from vantage.sites import site
 
 pytestmark = pytest.mark.django_db
@@ -129,7 +129,7 @@ def delete_action(monkeypatch):
 
 class TestDryRun:
     def test_create_validates_and_writes_nothing(self, make, author):
-        identity, token = make()
+        _identity, token = make()
         seen = []
 
         def receiver(**kwargs):
@@ -317,7 +317,7 @@ class TestDryRun:
 
 class TestDeleteGuard:
     def test_bulk_delete_needs_allow_delete(self, make, author, delete_action):
-        identity, token = make()
+        _identity, token = make()
         posts = [new_post(author, f"p{i}") for i in range(2)]
         body = {"ids": [p.pk for p in posts], "confirmed": True}
         response = send(Client(), "post", action_url("delete_selected"), body, **bearer(token))
@@ -660,7 +660,7 @@ class TestUndoRun:
         assert agents.undo_run(run, boss, dry_run=True)["reverted"]
 
     def test_the_api_is_for_people_with_a_session(self, make, owner, svc, author, boss):
-        identity, token = make()
+        _identity, token = make()
         run_agent(token, "r1", "post", api_url(), create_body(author, "fresh"))
         client = Client()
         # An agent token, even the run's own, is refused outright.
@@ -685,7 +685,7 @@ class TestUndoRun:
         assert send(client, "post", undo_url("missing")).status_code == 404
 
     def test_the_command(self, make, owner, author):
-        identity, token = make()
+        _identity, token = make()
         run_agent(token, "r1", "post", api_url(), create_body(author, "fresh"))
         out = io.StringIO()
         call_command("vantage_agent", "undo-run", "bot", "r1", "--dry-run", stdout=out)
