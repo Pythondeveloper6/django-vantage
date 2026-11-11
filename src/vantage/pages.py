@@ -27,6 +27,7 @@ from django.utils.translation import gettext_lazy as _
 
 __all__ = [
     "AccessReviewPage",
+    "AgentActivityPage",
     "ApprovalsPage",
     "BreakGlassPage",
     "DataQualityPage",
@@ -327,6 +328,38 @@ class AccessReviewPage(Page):
         from vantage.accessviews import review_context
 
         return review_context(self.site, request)
+
+
+class AgentActivityPage(Page):
+    """Which agents exist, what they have been doing, and the audit entries of each run.
+
+    Read-only: revoking or rotating an identity stays in the ``vantage_agent`` command.
+    Absent while ``VANTAGE["AGENTS"]`` is off, in the navigation and by URL (a 404), and
+    for anyone who may not read the audit log. See :mod:`vantage.agentactivityviews`.
+    """
+
+    title = _("Agent activity")
+    description = _("The agents that can reach this panel and what their runs have changed.")
+    icon = "activity"
+    group = _("System")
+    order = 95
+    path = "_/agent-activity/"
+    template_name = "vantage/agents/activity.html"
+
+    def is_available(self, request) -> bool:
+        from vantage.agents import enabled
+
+        return enabled()
+
+    def has_permission(self, request) -> bool:
+        from vantage.agentactivityviews import may_use
+
+        return may_use(request)
+
+    def get_context(self, request):
+        from vantage.agentactivityviews import list_context
+
+        return list_context(self.site, request)
 
 
 class BreakGlassPage(Page):

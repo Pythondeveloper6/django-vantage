@@ -87,7 +87,13 @@
             <td class="v-audit-when">
               <time datetime="{{ row.entry.created_at|date:'c' }}">{{ row.entry.created_at|date:"Y-m-d H:i" }}</time>
             </td>
-            <td>{{ row.entry.actor_repr|default:"—" }}</td>
+            <td>
+              {{ row.entry.actor_repr|default:"—" }}
+              {% if row.entry.agent_id %}
+                <span class="v-badge" data-tone="primary">{% translate "Agent" %}</span>
+                {% if row.entry.agent_run %}<code class="v-audit-name">{{ row.entry.agent_run.run_key }}</code>{% endif %}
+              {% endif %}
+            </td>
             <td>
               <span class="v-audit-verb" data-action="{{ row.entry.action }}">
                 {{ row.entry.get_action_display }}
