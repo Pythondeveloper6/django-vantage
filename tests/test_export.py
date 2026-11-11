@@ -2,6 +2,9 @@
 
 import csv
 import io
+import re
+import xml.etree.ElementTree as ET
+import zipfile
 
 import pytest
 from django.contrib.auth.models import User
@@ -26,6 +29,29 @@ def posts(db):
     Post.objects.create(title="Alpha", slug="a", body="b", author=ada, status="published")
     Post.objects.create(title="Beta", slug="b", body="b", author=grace, status="draft")
     Post.objects.create(title="Gamma", slug="g", body="b", author=ada, status="draft")
+
+
+def body_of(response) -> bytes:
+    return b"".join(response.streaming_content)
+
+
+def sheet_cells(data: bytes) -> list[list[str]]:
+    """Every row of the workbook's one sheet, parsed with the XML library."""
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        assert archive.testzip() is None
+        root = ET.fromstring(archive.read("xl/worksheets/sheet1.xml"))
+    ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    return [
+        ["".join(t.text or "" for t in cell.iter(f"{{{ns['m']}}}t")) for cell in row]
+        for row in root.iterfind(".//m:row", ns)
+    ]
+
+
+def text_of(response, fmt: str) -> str:
+    data = body_of(response)
+    if fmt == "xlsx":
+        return "\n".join("\t".join(row) for row in sheet_cells(data))
+    return data.decode("latin-1")
 
 
 def read(response) -> list[list[str]]:
@@ -96,7 +122,7 @@ class TestExportRespectsTheView:
 
 class TestExportGuards:
     def test_an_unknown_format_renders_the_page_instead(self, client_in, posts):
-        response = client_in.get(reverse(LIST), {"export": "xlsx"})
+        response = client_in.get(reverse(LIST), {"export": "xml"})
         assert response.status_code == 200
         assert not isinstance(response, StreamingHttpResponse)
 
@@ -138,14 +164,14 @@ class TestOtherFormats:
         assert "\t" in body.splitlines()[0]
 
     def test_every_format_honours_the_active_search(self, client_in, posts):
-        for fmt in ("csv", "tsv", "json"):
+        for fmt in ("csv", "tsv", "json", "xlsx", "pdf"):
             response = client_in.get(reverse(LIST), {"export": fmt, "q": "Alpha"})
-            body = b"".join(response.streaming_content).decode()
+            body = text_of(response, fmt)
             assert "Alpha" in body
             assert "Gamma" not in body, fmt
 
     def test_every_format_is_uncached(self, client_in, posts):
-        for fmt in ("csv", "tsv", "json"):
+        for fmt in ("csv", "tsv", "json", "xlsx", "pdf"):
             response = client_in.get(reverse(LIST), {"export": fmt})
             assert response["Cache-Control"] == "no-store", fmt
 
@@ -240,3 +266,132 @@ class TestFormulaInjection:
     def test_the_export_button_applies_it(self, client_in, hostile):
         response = client_in.get(reverse(LIST), {"export": "csv"})
         assert "'+SUM(1+1)" in b"".join(response.streaming_content).decode()
+
+
+class TestWorkbook:
+    def test_it_is_a_valid_workbook(self, client_in, posts):
+        response = client_in.get(reverse(LIST), {"export": "xlsx"})
+        assert response["Content-Type"] == (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        assert response["Content-Disposition"].endswith('.xlsx"')
+        data = body_of(response)
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            names = set(archive.namelist())
+            assert {"[Content_Types].xml", "_rels/.rels", "xl/workbook.xml"} <= names
+            for name in names:
+                ET.fromstring(archive.read(name))  # every part is well-formed XML
+            types = archive.read("[Content_Types].xml").decode()
+            assert "spreadsheetml.worksheet+xml" in types
+        rows = sheet_cells(data)
+        assert rows[0][0] == "Title"
+        assert sorted(row[0] for row in rows[1:]) == ["Alpha", "Beta", "Gamma"]
+
+    def test_it_has_the_same_cells_as_csv(self, client_in, posts):
+        csv_rows = read(client_in.get(reverse(LIST), {"export": "csv", "sort": "title"}))
+        xlsx_rows = sheet_cells(
+            body_of(client_in.get(reverse(LIST), {"export": "xlsx", "sort": "title"}))
+        )
+        assert xlsx_rows == csv_rows
+
+    def test_xml_special_and_control_characters_survive(self, client_in, db):
+        author = Author.objects.create(name="Ada", email="ada@example.com")
+        Post.objects.create(title="<b>&amp; \x01 \u00e9\u4e2d", slug="x", body="b", author=author)
+        rows = sheet_cells(body_of(client_in.get(reverse(LIST), {"export": "xlsx"})))
+        assert rows[1][0] == "<b>&amp;  \u00e9\u4e2d"
+
+    def test_an_empty_list_still_has_its_header(self, client_in, db):
+        rows = sheet_cells(body_of(client_in.get(reverse(LIST), {"export": "xlsx"})))
+        assert len(rows) == 1 and rows[0][0] == "Title"
+
+
+def pdf_objects(data: bytes) -> dict[int, int]:
+    """Parse the xref table; check every offset lands on its ``N 0 obj``."""
+    assert data.startswith(b"%PDF-1.")
+    assert data.rstrip().endswith(b"%%EOF")
+    start = int(re.search(rb"startxref\n(\d+)\n%%EOF", data).group(1))
+    assert data[start : start + 4] == b"xref"
+    lines = data[start:].split(b"\n")
+    count = int(lines[1].split()[1])
+    offsets = {}
+    for number in range(1, count):
+        offset = int(lines[2 + number].split()[0])
+        assert data[offset:].startswith(b"%d 0 obj" % number), number
+        offsets[number] = offset
+    assert b"/Size %d" % count in data
+    return offsets
+
+
+class TestPdf:
+    def test_structure_and_text(self, client_in, posts):
+        response = client_in.get(reverse(LIST), {"export": "pdf"})
+        assert response["Content-Type"] == "application/pdf"
+        assert response["Content-Disposition"].endswith('.pdf"')
+        data = body_of(response)
+        pdf_objects(data)
+        assert b"(Title)" in data and b"(Alpha)" in data and b"/Type /Page " in data
+
+    def test_the_header_repeats_on_every_page_and_offsets_stay_valid(self, client_in, db):
+        author = Author.objects.create(name="Ada", email="ada@example.com")
+        Post.objects.bulk_create(
+            [Post(title=f"Row {i}", slug=f"s{i}", body="b", author=author) for i in range(120)]
+        )
+        data = body_of(client_in.get(reverse(LIST), {"export": "pdf"}))
+        pdf_objects(data)
+        pages = data.count(b"/Type /Page ")
+        assert pages > 1
+        assert data.count(b"(Title)") == pages
+        assert f"/Count {pages}".encode() in data
+        assert b"(Row 119)" in data
+
+    def test_special_and_foreign_text_cannot_break_the_file(self, client_in, db):
+        author = Author.objects.create(name="Ada", email="ada@example.com")
+        Post.objects.create(title="a(b)c\\d \u4e2d \u00e9", slug="x", body="b", author=author)
+        data = body_of(client_in.get(reverse(LIST), {"export": "pdf"}))
+        pdf_objects(data)
+        assert b"(a\\(b\\)c\\\\d ? \xe9)" in data
+
+    def test_a_cell_longer_than_its_column_is_cut(self, client_in, db):
+        author = Author.objects.create(name="Ada", email="ada@example.com")
+        Post.objects.create(title="w" * 500, slug="x", body="b", author=author)
+        data = body_of(client_in.get(reverse(LIST), {"export": "pdf"}))
+        pdf_objects(data)
+        assert b"w" * 500 not in data and b"..." in data
+
+
+class TestBinaryFormatsFollowTheRules:
+    @pytest.mark.parametrize("fmt", ["xlsx", "pdf"])
+    def test_formulas_are_neutralised_like_csv(self, db, fmt):
+        from vantage.export import stream_export
+
+        ada = Author.objects.create(name="Ada", email="ada@example.com")
+        for i, lead in enumerate("=+-@"):
+            Post.objects.create(title=f"{lead}cmd{i}", slug=f"f{i}", body="b", author=ada)
+        response = stream_export(
+            fmt, Post.objects.order_by("pk"), ["title"], ["=Title"], "f", masked=frozenset()
+        )
+        text = text_of(response, fmt)
+        for i, lead in enumerate("=+-@"):
+            assert f"'{lead}cmd{i}" in text
+        assert "'=Title" in text
+        if fmt == "xlsx":
+            assert not any(
+                cell[:1] in "=+-@" for row in text.split("\n") for cell in row.split("\t") if cell
+            )
+
+    @pytest.mark.parametrize("fmt", ["xlsx", "pdf"])
+    def test_view_permission_is_required(self, client, db, fmt):
+        client.force_login(User.objects.create_user("plain", password="x", is_staff=True))
+        assert client.get(reverse(LIST), {"export": fmt}).status_code == 403
+
+    @pytest.mark.parametrize("fmt", ["xlsx", "pdf"])
+    def test_the_permission_row_filter_applies(self, client_in, posts, monkeypatch, fmt):
+        from vantage.permissions import PanelPermissions
+
+        monkeypatch.setattr(
+            PanelPermissions,
+            "filter_queryset",
+            lambda self, request, qs, action="view": qs.filter(status="published"),
+        )
+        text = text_of(client_in.get(reverse(LIST), {"export": fmt}), fmt)
+        assert "Alpha" in text and "Beta" not in text and "Gamma" not in text
