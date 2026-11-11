@@ -27,6 +27,7 @@
               <span class="v-audit-verb" data-action="{{ entry.action }}">{{ entry.get_action_display }}</span>
               {% translate "Someone" as unknown_actor %}
               <span class="v-history-who">{{ entry.actor_repr|default:unknown_actor }}</span>
+              {% if entry.agent_id %}<span class="v-badge" data-tone="primary">{% translate "Agent" %}</span>{% endif %}
               <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">
                 {{ entry.created_at|date:"Y-m-d H:i" }}
               </time>

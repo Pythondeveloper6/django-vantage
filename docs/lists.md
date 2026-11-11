@@ -652,6 +652,10 @@ Settings: [`JOBS`, `JOB_THRESHOLD_SECONDS`, `JOB_CHUNK_SIZE`, `JOB_MAX_STORED_ER
 Every list page exports what it is currently showing. To get a saved view by email on a
 schedule instead, see [Scheduled reports](reports.md).
 
+The **Export** menu on the list page offers every format below (CSV, TSV, JSON, Excel and
+PDF), each link carrying the current search, filters and sort. Excel and PDF are refused
+with a plain-text 413 above `EXPORT_BINARY_MAX_ROWS` rows; narrow the filters and try again.
+
 ```
 ?export=csv          orders.csv          text/csv
 ?export=tsv          orders.tsv          text/tab-separated-values

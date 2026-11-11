@@ -1,0 +1,19 @@
+{% load i18n %}{% comment %}
+  The proof a change asks for: a current code, or the password. Each form on the
+  two-factor page carries its own copy, so the fields sit in the section that needs them.
+  Needs "section" (unique on the page). A refused proof is reported only in the section
+  it was sent from.
+{% endcomment %}
+{% if failed == section and proof_form.non_field_errors %}
+  <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
+    {% for error in proof_form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+  </div>
+{% endif %}
+<div class="v-auth-field">
+  <label for="v-2fa-{{ section }}-code">{{ proof_form.code.label }}</label>
+  <input class="v-input" type="text" name="code" id="v-2fa-{{ section }}-code" maxlength="64" autocomplete="one-time-code" spellcheck="false"{% if failed == section %} aria-invalid="true" aria-describedby="v-auth-summary"{% endif %}>
+</div>
+<div class="v-auth-field">
+  <label for="v-2fa-{{ section }}-password">{{ proof_form.password.label }}</label>
+  <input class="v-input" type="password" name="password" id="v-2fa-{{ section }}-password" autocomplete="current-password"{% if failed == section %} aria-invalid="true" aria-describedby="v-auth-summary"{% endif %}>
+</div>

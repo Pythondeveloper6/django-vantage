@@ -69,7 +69,7 @@ class AuditLogView(SiteView):
     # ── the queryset ────────────────────────────────────────────────────────
 
     def get_queryset(self):
-        queryset = VantageLogEntry.objects.select_related("actor", "content_type")
+        queryset = VantageLogEntry.objects.select_related("actor", "content_type", "agent_run")
         return self._apply_filters(queryset)
 
     def _apply_filters(self, queryset):

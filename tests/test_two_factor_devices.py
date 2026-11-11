@@ -480,3 +480,96 @@ class TestPendingExpires:
         )
         assert twofactor.device_for(boss, confirmed=False) is None
         assert not TwoFactorDevice.objects.filter(pk=pending.pk).exists()
+
+
+class TestRemovingYourOwnSignInDevice:
+    """The session that removes the device it signed in with, on a code from another."""
+
+    URL = "vantage:two_factor"
+
+    @staticmethod
+    def _age(client):
+        session = client.session
+        session.pop(twofactor.SESSION_STATE, None)
+        session.save()
+
+    def _signed_in_with(self, boss, device):
+        client = Client()
+        client.force_login(boss)
+        client.post(reverse("vantage:two_factor_verify"), {"code": code_for(device)})
+        return client
+
+    def test_a_code_from_another_device_keeps_this_session_verified(self, boss, two):
+        first, second, _ = two
+        client = self._signed_in_with(boss, first)
+        client.post(
+            reverse(self.URL),
+            {"action": "remove", "device": first.pk, "code": code_for(second)},
+        )
+        assert [d.pk for d in twofactor.devices_for(boss)] == [second.pk]
+        assert client.session[twofactor.SESSION_VERIFIED]["tag"] == second.tag
+        self._age(client)
+        assert client.get(reverse("vantage:dashboard")).status_code == 200
+
+    def test_a_recovery_code_keeps_this_session_verified(self, boss, two):
+        first, second, codes = two
+        client = self._signed_in_with(boss, first)
+        client.post(
+            reverse(self.URL),
+            {"action": "remove", "device": first.pk, "code": codes[0]},
+        )
+        assert [d.pk for d in twofactor.devices_for(boss)] == [second.pk]
+        self._age(client)
+        assert client.get(reverse("vantage:dashboard")).status_code == 200
+
+    def test_the_password_alone_keeps_the_re_gate(self, boss, two):
+        first, _second, _ = two
+        client = self._signed_in_with(boss, first)
+        client.post(
+            reverse(self.URL), {"action": "remove", "device": first.pk, "password": PASSWORD}
+        )
+        assert len(twofactor.devices_for(boss)) == 1
+        self._age(client)
+        assert client.get(reverse("vantage:dashboard")).status_code == 302
+
+    def test_another_session_verified_with_the_removed_device_stays_re_gated(self, boss, two):
+        first, second, _ = two
+        client = self._signed_in_with(boss, first)
+        other = Client()
+        other.force_login(boss)
+        # The next step's code, since the first one is spent by the other session.
+        other.post(reverse("vantage:two_factor_verify"), {"code": code_for(first, 1)})
+        assert other.get(reverse("vantage:dashboard")).status_code == 200
+        client.post(
+            reverse(self.URL),
+            {"action": "remove", "device": first.pk, "code": code_for(second)},
+        )
+        self._age(other)
+        assert other.get(reverse("vantage:dashboard")).status_code == 302
+
+
+class TestManagePageSections:
+    URL = "vantage:two_factor"
+
+    def test_each_action_is_its_own_form_with_its_own_proof(self, client, boss, verified):
+        page = client.get(reverse(self.URL)).content.decode()
+        assert page.count('name="action" value="remove"') == 2
+        for action in ("start", "codes", "disable"):
+            assert page.count(f'name="action" value="{action}"') == 1
+        assert "Device to remove" not in page
+        assert page.count('name="password"') == 5
+
+    def test_a_refused_proof_is_reported_in_its_own_section(self, client, boss, verified):
+        first, _second, _ = verified
+        page = client.post(
+            reverse(self.URL), {"action": "remove", "device": first.pk, "password": "no"}
+        ).content.decode()
+        assert page.count('role="alert"') == 1
+        assert f'id="v-2fa-remove-{first.pk}-code" maxlength="64"' in page
+        assert "aria-invalid" in page
+
+    def test_the_second_device_text_does_not_ask_for_the_account_name(self, client, boss, verified):
+        client.post(reverse(self.URL), {"action": "start", "password": PASSWORD, "name": "Spare2"})
+        page = client.get(reverse(self.URL)).content.decode()
+        assert "name it" not in page
+        assert "Confirm and add device" in page
