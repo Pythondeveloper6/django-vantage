@@ -225,6 +225,7 @@ are the shortest useful reference for most of what follows.
 
 ## Where next
 
+- [Lesson projects](https://github.com/Pythondeveloper6/django-vantage/tree/main/example/lessons) — a starter and a solution to follow step by step
 - [Panels](panels.md) — every attribute you can set
 - [Inference](inference.md) — what the defaults will be, and why
 - [Lists](lists.md) — the list page in detail
