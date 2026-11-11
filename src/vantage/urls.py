@@ -25,6 +25,7 @@ from vantage import (
     jobviews,
     listprefsview,
     listviews,
+    mcp,
     recordviews,
     reportviews,
     revealviews,
@@ -79,6 +80,8 @@ def build(site) -> list:
         ),
         path("_/undo/", views.UndoView.as_view(site=site), name="undo"),
         path("_/metrics/", MetricsView.as_view(site=site), name="metrics"),
+        # The MCP endpoint: an agent surface, Bearer token only (see vantage.mcp).
+        path("_/mcp/", mcp.McpView.as_view(site=site), name="mcp"),
     ]
 
     # The account page and the top-bar arrangement screen. Before the page loop for

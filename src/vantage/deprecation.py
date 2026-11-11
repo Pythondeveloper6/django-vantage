@@ -202,6 +202,7 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "BREAK_GLASS_MAX_MINUTES",
         "AGENTS",
         "AGENT_RATE_LIMIT_PER_MINUTE",
+        "AGENT_ALLOWED_ORIGINS",
     }
 )
 
