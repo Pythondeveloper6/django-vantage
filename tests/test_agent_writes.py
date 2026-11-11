@@ -674,7 +674,7 @@ class TestUndoRun:
         # A staff member who is neither superuser nor owner.
         stranger = User.objects.create_user("carl", is_staff=True)
         client.force_login(stranger)
-        assert send(client, "post", undo_url("r1")).status_code == 403
+        assert send(client, "post", undo_url("r1")).status_code == 404
         # The owner, with ?dry_run=1 first.
         client.force_login(owner)
         preview = send(client, "post", undo_url("r1") + "?dry_run=1")

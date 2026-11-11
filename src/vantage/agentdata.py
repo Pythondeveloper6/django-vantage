@@ -60,13 +60,18 @@ ACCESS_LEVELS = ("none", "read", "write")
 # Zero-width and invisible: U+200B-200F, U+2060-2064, U+FEFF, soft hyphen. The joiners
 # U+200C/U+200D are kept only between two non-ASCII characters (see _strip), because
 # emoji sequences and Persian/Indic scripts need them.
-# Bidi controls: U+202A-202E, U+2066-2069. Tag characters: U+E0000-E007F.
+# Bidi controls: U+202A-202E, U+2066-2069, U+061C. Tag characters: U+E0000-E007F.
+# Also removed, because each hides text from a reviewer or carries data invisibly:
+# the deprecated format controls U+206A-206F, interlinear annotation U+FFF9-FFFB, the
+# Mongolian and Hangul fillers, the grapheme joiner U+034F and the variation selectors
+# (U+FE00-FE0D and U+E0100-E01EF; U+FE0E/U+FE0F, which choose text or emoji style, stay).
 # C0/C1 controls except tab and newline (carriage return is folded to a newline below).
 _STRIP_ALL = re.compile(
     "["
-    r"\u200b-\u200f\u2060-\u2064\ufeff\u00ad"
-    r"\u202a-\u202e\u2066-\u2069"
-    r"\U000e0000-\U000e007f"
+    r"\u200b-\u200f\u2060-\u206f\ufeff\u00ad"
+    r"\u202a-\u202e\u061c\u180b-\u180e\u034f\u115f\u1160\u17b4\u17b5\u3164\uffa0"
+    r"\ufe00-\ufe0d\ufff9-\ufffb"
+    r"\U000e0000-\U000e007f\U000e0100-\U000e01ef"
     r"\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f"
     "]"
 )
@@ -99,6 +104,10 @@ _BLOCK_TAGS = frozenset(
 )
 _SKIP_TAGS = frozenset({"script", "style"})
 _BLANK_RUNS = re.compile(r"\n{3,}")
+#: Text is cut to this many times the character limit before it is parsed.
+_PRECUT_FACTOR = 8
+#: Nesting deeper than this is replaced, not walked.
+_MAX_DEPTH = 64
 
 
 class _TextExtractor(HTMLParser):
@@ -147,38 +156,54 @@ def scrub_text(value: str, max_chars: int | None = None) -> str:
     """Clean one string for an agent: strip hidden characters, flatten HTML, truncate.
 
     ``max_chars`` defaults to ``VANTAGE["AGENT_MAX_FIELD_CHARS"]``. A truncated value ends with
-    ``"… [truncated, N more characters]"``.
+    ``"… [truncated, N more characters]"``. The text is cut to a multiple of the limit
+    *before* it is parsed, so a hostile megabyte-long value cannot make the HTML parser
+    do quadratic work; the count in the note is still the original's.
     """
-    text = str(value).replace("\r\n", "\n").replace("\r", "\n")
+    text = str(value)
+    limit = _max_chars(max_chars)
+    dropped = 0
+    if limit > 0 and len(text) > limit * _PRECUT_FACTOR:
+        dropped = len(text) - limit * _PRECUT_FACTOR
+        text = text[: limit * _PRECUT_FACTOR]
+    text = (
+        text.replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .replace("\u2028", "\n")
+        .replace("\u2029", "\n")
+    )
     text = _strip(text)
     if _LOOKS_HTML.search(text):
         # Entities are unescaped exactly once, by the parser: "&lt;script&gt;" comes out
         # as the literal text "<script>" and is never parsed again.
         text = _strip(_html_to_text(text))
-    limit = _max_chars(max_chars)
-    if limit > 0 and len(text) > limit:  # an explicit 0 means no limit
-        rest = len(text) - limit
+    if limit > 0 and (len(text) > limit or dropped):  # an explicit 0 means no limit
+        rest = max(len(text) - limit, 0) + dropped
         text = f"{text[:limit]}… [truncated, {rest} more characters]"
     return text
 
 
-def scrub_value(value: Any, max_chars: int | None = None) -> Any:
+def scrub_value(value: Any, max_chars: int | None = None, _depth: int = 0) -> Any:
     """:func:`scrub_text` applied to every string inside dicts, lists and tuples.
 
     Dict keys are scrubbed too. Numbers, booleans and ``None`` are returned unchanged;
-    any other type is returned unchanged as well (convert it first).
+    any other type is returned unchanged as well (convert it first). Nesting deeper than
+    64 levels is replaced by a short note rather than walked.
     """
     if isinstance(value, str):
         return scrub_text(value, max_chars)
-    if isinstance(value, dict):
-        return {
-            scrub_text(k, max_chars) if isinstance(k, str) else k: scrub_value(v, max_chars)
-            for k, v in value.items()
-        }
-    if isinstance(value, list):
-        return [scrub_value(v, max_chars) for v in value]
-    if isinstance(value, tuple):
-        return tuple(scrub_value(v, max_chars) for v in value)
+    if isinstance(value, dict | list | tuple):
+        if _depth >= _MAX_DEPTH:
+            return "[nested too deeply]"
+        if isinstance(value, dict):
+            return {
+                scrub_text(k, max_chars) if isinstance(k, str) else k: scrub_value(
+                    v, max_chars, _depth + 1
+                )
+                for k, v in value.items()
+            }
+        items = [scrub_value(v, max_chars, _depth + 1) for v in value]
+        return items if isinstance(value, list) else tuple(items)
     return value
 
 

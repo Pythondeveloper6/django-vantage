@@ -20,7 +20,7 @@ from django.db import IntegrityError, transaction
 from django.http import HttpResponse, QueryDict
 from django.urls import NoReverseMatch, reverse
 
-from vantage import savedviews
+from vantage import agents, savedviews
 from vantage.api import ApiError, BadRequest, ModelApiView, _parse_json_body, json_response
 from vantage.models import SavedView, SavedViewUserState
 
@@ -93,13 +93,20 @@ class _SavedBase(ModelApiView):
             return QueryDict(savedviews.hydrate(self.panel, state).query)
         return None
 
-    @staticmethod
-    def choice(body: dict[str, Any], key: str, choices, fallback):
+    def choice(self, body: dict[str, Any], key: str, choices, fallback):
         if key not in body:
             return fallback
         valid = {value for value, _label in choices.choices}
         if body[key] not in valid:
             raise BadRequest(f"'{key}' must be one of: {', '.join(sorted(valid))}.")
+        if (
+            key == "visibility"
+            and body[key] != SavedView.Visibility.PRIVATE
+            and agents.current_agent(self.request) is not None
+        ):
+            # A shared view puts an agent-chosen name and description in front of every
+            # person who can open the model. That is for a person to do.
+            raise ApiError(403, "An agent may only save private views.")
         return body[key]
 
     @staticmethod
