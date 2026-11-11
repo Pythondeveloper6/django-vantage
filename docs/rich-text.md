@@ -50,7 +50,9 @@ Everything else is dropped: `script` and `style` elements (with their contents),
 Where it runs:
 
 - **On save.** The form field cleans the submitted value, so the web forms, bulk edit,
-  inline rows and the JSON API all store sanitised HTML. An editor that is emptied out
+  the CSV import and the JSON API all store sanitised HTML, whatever form-field class a
+  panel's `formfield_overrides` puts on the field. (Inline cells do not edit rich text at
+  all.) An editor that is emptied out
   (or whose content is entirely removed) counts as empty, so a required field still
   complains.
 - **On render.** The detail page cleans the stored value before showing it, so a row
@@ -74,8 +76,12 @@ VANTAGE = {
 ```
 
 These settings can only add. Active content cannot be switched on: `script`, `style`,
-`iframe`, `object`, `embed`, `form` controls, `svg`, `math` and similar tags; `style`,
-`class`, `id`, `name`, `srcdoc` and every `on*` attribute; and the `javascript`, `data`,
+`iframe`, `object`, `embed`, `form` controls, `svg`, `math`, `template`, `noscript` and the
+legacy raw-text tags (`xmp`, `noembed`, `noframes`, `plaintext`, `listing`, `marquee`);
+`style`, `class`, `id`, `name`, `srcdoc`, every `on*` attribute, URL-valued attributes that
+are not scheme-checked (`srcset`, `background`, `poster`, `ping`, `action`, `formaction`,
+`data`, `xlink:href`) and focus or UI attributes (`autofocus`, `contenteditable`,
+`tabindex`, `accesskey`, `draggable`, `is`, `slot`), including through the `*` key; and the `javascript`, `data`,
 `vbscript`, `blob` and `file` schemes. Asking for one raises `ImproperlyConfigured` the
 first time settings are read. The editor itself only produces the default tags, so extra
 tags are for HTML you load from elsewhere and want to keep.
