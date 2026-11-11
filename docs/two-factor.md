@@ -41,7 +41,11 @@ account page lists them with when each was added and last used.
   recovery codes stay as they are; no new set is shown.
 - **Signing in**: a code from *any* of the person's devices is accepted, and so is a
   recovery code. The session remembers which device passed.
-- **Removing one**: pick it, confirm it is you. Sessions that signed in with that device
+- **Removing one**: use **Remove** on its row of "Your devices" and confirm it is you.
+  Each section of the page (remove, add, new recovery codes, switch off) asks for that
+  proof itself. A session that removes the device it signed in with, proving it with a code
+  from another device or a recovery code, stays signed in; with only the password it is
+  asked for a code again. Sessions that signed in with that device
   stop being trusted and are asked for a code again; sessions that used another device
   carry on. Removing the *last* one switches two-factor sign-in off, as before (a role
   that requires it sends the person to set it up again), and deletes the recovery codes.
