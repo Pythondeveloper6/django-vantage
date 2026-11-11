@@ -154,6 +154,7 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
         "LIST_STATEMENT_TIMEOUT_MS",
         "IMPORT_MAX_BYTES",
         "IMPORT_MAX_ROWS",
+        "EXPORT_BINARY_MAX_ROWS",
         "JOBS",
         "JOB_THRESHOLD_SECONDS",
         "JOB_CHUNK_SIZE",

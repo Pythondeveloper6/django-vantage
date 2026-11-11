@@ -197,6 +197,11 @@ DEFAULTS: dict[str, Any] = {
     "LIST_STATEMENT_TIMEOUT_MS": 10_000,
     "IMPORT_MAX_BYTES": 5 * 1024 * 1024,
     "IMPORT_MAX_ROWS": 5000,
+    # Most rows an Excel or PDF export may carry. Both are built completely before the
+    # first byte is sent, so a huge table would hold a worker and temp disk; over the
+    # cap the export is refused (HTTP 413) rather than truncated. CSV, TSV and JSON
+    # stream and are not capped. Excel itself stops at 1,048,575 data rows.
+    "EXPORT_BINARY_MAX_ROWS": 100_000,
     # ── background jobs ─────────────────────────────────────────────────────
     "JOBS": True,
     # The line between running in the request and writing a job row, in seconds of
@@ -312,6 +317,7 @@ MINIMUMS: dict[str, int] = {
     "UNDO_MAX_ROWS": 1,
     "TWO_FACTOR_MAX_ATTEMPTS": 1,
     "TWO_FACTOR_LOCKOUT_SECONDS": 1,
+    "EXPORT_BINARY_MAX_ROWS": 1,
 }
 
 
