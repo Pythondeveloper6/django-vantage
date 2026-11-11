@@ -138,6 +138,15 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
   multipart file uploads through the media validators, and an OpenAPI 3.1 document at
   `_/api/openapi.json` filtered per user, plus `manage.py vantage_openapi`.
 
+#### Excel and PDF export
+
+- `?export=xlsx` and `?export=pdf` on every list, and `?format=xlsx|pdf` on the JSON
+  API export endpoint. Same columns, rows, masked fields, field permissions and
+  permission checks as CSV; no new dependency (both files are written with the standard
+  library). Text cells and the header row get the same spreadsheet-formula defusing as
+  CSV. Excel files stop at the sheet limit of 1,048,576 rows; long PDF cells are cut with
+  `...`. See [Export](docs/lists.md#export).
+
 #### History with point-in-time restore
 
 - Each record has a **History** page, linked from its detail page, that lists its audit
@@ -179,6 +188,12 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 - A superuser-only screen to reset someone's two-factor sign-in, audited, and
   `manage.py vantage_two_factor_reset <username>`. Checks `vantage.E095`–`vantage.E097`
   and `vantage.W095`.
+- **Several authenticator devices per person** (up to five), each with a name. A code
+  from any confirmed device signs you in; the lockout is counted per device, and a wrong
+  answer is counted on every unlocked device before it is compared, so extra devices give
+  no extra guesses. Adding or removing a device asks for a current code or the password.
+  Recovery codes now belong to the person, not to a device. Resetting one device leaves
+  the others working; "Reset all" and `vantage_two_factor_reset` remove every device.
 
 #### Field-level permissions
 
@@ -248,6 +263,13 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 
 ### Changed
 
+- **Beta.** The package moves from alpha to beta: version `0.3.0b1` and the PyPI
+  classifier `Development Status :: 4 - Beta`. Settings and panel attributes marked
+  stable are frozen; there has still been no independent security audit.
+- **Two-factor schema change** (migrations `0023`–`0025`): a person may have several
+  devices, and recovery codes belong to the person. Existing devices and codes are
+  carried over by the migrations. `vantage.twofactor.reset()` now returns the number of
+  devices removed (still falsy when there were none) instead of a boolean.
 - **The Arabic catalogues are complete** (`django` and `djangojs`, all six plural forms); the English catalogue was refreshed to match. Strings added later fall back to English until translated.
 - **CSV and TSV exports neutralise spreadsheet formulas** (visible to users): a text
   cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
@@ -270,6 +292,15 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 
 ### Security
 
+- Two-factor, several devices: adding a device to an account that already has one, and
+  removing a device, both require proof (a current code, a recovery code or the
+  password); a wrong proof counts toward the lockout. A device is only ever looked up
+  among the caller's own, a pending device cannot sign anyone in, and removing the last
+  device switches two-factor off and deletes the recovery codes. Secrets and codes are
+  never logged.
+- Excel and PDF export go through the same query, masking and permission path as CSV
+  and defuse spreadsheet formulas the same way; neither format has its own way to skip a
+  check.
 - Webhooks refuse private, loopback and link-local targets by default, including IPv6
   forms that wrap them, checked at send time against the address actually connected
   to. Redirects and proxies are never followed, and every delivery has a total
