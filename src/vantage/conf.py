@@ -260,6 +260,9 @@ DEFAULTS: dict[str, Any] = {
     "AGENTS": False,
     # Requests per minute given to a new identity (0 = no limit).
     "AGENT_RATE_LIMIT_PER_MINUTE": 60,
+    # Extra browser origins allowed to call the MCP endpoint, e.g.
+    # ["https://tools.example.com"]. Empty: only the panel's own origin. Code-only.
+    "AGENT_ALLOWED_ORIGINS": [],
     # ── data quality ────────────────────────────────────────────────────────
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
@@ -401,6 +404,13 @@ class VantageSettings:
             user.get("RICHTEXT_URL_SCHEMES", DEFAULTS["RICHTEXT_URL_SCHEMES"]),
         )
         _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
+        origins = user.get("AGENT_ALLOWED_ORIGINS", [])
+        if not isinstance(origins, list | tuple) or any(
+            not (isinstance(o, str) and o.strip()) for o in origins
+        ):
+            raise ImproperlyConfigured(
+                f"VANTAGE['AGENT_ALLOWED_ORIGINS'] must be a list of origins; got {origins!r}."
+            )
         problem = two_factor_problem(user)
         if problem:
             raise ImproperlyConfigured(problem)
