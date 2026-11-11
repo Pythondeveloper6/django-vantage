@@ -1,0 +1,118 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-primary" href="{{ download_csv_url }}">{% icon "upload" %}<span>{% translate "Download CSV" %}</span></a>
+    <a class="v-btn v-btn-secondary" href="{{ download_ndjson_url }}">{% translate "Download NDJSON" %}</a>
+    <a class="v-btn v-btn-ghost" href="{{ download_runs_url }}">{% translate "Runs as CSV" %}</a>
+  </div>
+</div>
+
+<h2 class="v-card-title">{% translate "Agents" %}</h2>
+<div class="v-table-wrap">
+  {% if agents %}
+    <table class="v-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Name" %}</th>
+          <th scope="col">{% translate "Owner" %}</th>
+          <th scope="col">{% translate "Service user" %}</th>
+          <th scope="col">{% translate "Access" %}</th>
+          <th scope="col">{% translate "Delete" %}</th>
+          <th scope="col">{% translate "Approval" %}</th>
+          <th scope="col">{% translate "Scopes" %}</th>
+          <th scope="col">{% translate "Last used" %}</th>
+          <th scope="col">{% translate "Expires" %}</th>
+          <th scope="col">{% translate "Revoked" %}</th>
+          <th scope="col">{% translate "Runs, 7 days" %}</th>
+          <th scope="col">{% translate "Writes, 7 days" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in agents %}
+          <tr>
+            <td><a class="v-cell-link" href="?agent={{ row.identity.name|urlencode }}">{{ row.identity.name }}</a></td>
+            <td>{{ row.owner|default:"—" }}</td>
+            <td>{{ row.service_user }}</td>
+            <td>{{ row.identity.get_access_display }}</td>
+            <td>{% if row.identity.allow_delete %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
+            <td>{% if row.identity.require_approval %}{% translate "Required" %}{% else %}{% translate "No" %}{% endif %}</td>
+            <td>{% if row.scopes %}<code>{{ row.scopes }}</code>{% else %}{% translate "All the service user can see" %}{% endif %}</td>
+            <td>{% if row.identity.last_used_at %}<time datetime="{{ row.identity.last_used_at|date:'c' }}">{{ row.identity.last_used_at|date:"Y-m-d H:i" }}</time>{% else %}—{% endif %}</td>
+            <td>{{ row.identity.expires_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            <td>
+              {% if row.identity.revoked_at %}
+                <span class="v-badge" data-tone="destructive">{{ row.identity.revoked_at|date:"Y-m-d H:i" }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ row.recent_runs }}</td>
+            <td>{{ row.recent_writes }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      {% icon "activity" class="v-empty-icon" %}
+      <p class="v-empty-title">{% translate "No agents yet." %}</p>
+      <p class="v-empty-body">{% translate "Create one with manage.py vantage_agent create." %}</p>
+    </div>
+  {% endif %}
+</div>
+
+<h2 class="v-card-title">{% translate "Recent runs" %}</h2>
+<form class="v-toolbar v-audit-filters" method="get" role="search" aria-label="{% translate 'Filter runs' %}">
+  <label class="v-audit-field">
+    <span class="v-audit-label">{% translate "Agent" %}</span>
+    <select class="v-select" name="agent">
+      <option value="">{% translate "Any agent" %}</option>
+      {% for name in agent_names %}
+        <option value="{{ name }}"{% if name == selected_agent %} selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div class="v-audit-actions">
+    <button class="v-btn v-btn-secondary v-btn-sm">{% icon "filter" %}<span>{% translate "Apply" %}</span></button>
+    {% if selected_agent %}<a class="v-btn v-btn-ghost v-btn-sm" href="{{ request.path }}">{% translate "Clear" %}</a>{% endif %}
+  </div>
+</form>
+
+<div class="v-table-wrap">
+  {% if runs %}
+    <table class="v-table v-audit-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Agent" %}</th>
+          <th scope="col">{% translate "Run" %}</th>
+          <th scope="col">{% translate "Started" %}</th>
+          <th scope="col">{% translate "Writes" %}</th>
+          <th scope="col">{% translate "Deletes" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in runs %}
+          <tr>
+            <td>{{ row.run.identity.name }}</td>
+            <td><a class="v-cell-link" href="{{ row.url }}"><code>{{ row.run.run_key }}</code></a></td>
+            <td class="v-audit-when"><time datetime="{{ row.run.started_at|date:'c' }}">{{ row.run.started_at|date:"Y-m-d H:i" }}</time></td>
+            <td>{{ row.run.writes }}</td>
+            <td>{{ row.run.deletes }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      <p class="v-empty-title">{% translate "No runs recorded." %}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

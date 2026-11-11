@@ -157,7 +157,21 @@ class PanelView(SiteView):
         context = super().get_context_data(**kwargs)
         # Rendering a button the user cannot use is worse than not offering it.
         context["allowed"] = self.permissions.allowed_actions(self.request, self.panel.model)
+        # Menu order is the labels' order; a format added to ``FORMATS`` without a label
+        # still gets an entry rather than silently vanishing from the menu.
+        context["export_formats"] = [(f, EXPORT_LABELS[f]) for f in EXPORT_LABELS if f in FORMATS]
+        context["export_formats"] += [(f, f.upper()) for f in FORMATS if f not in EXPORT_LABELS]
         return context
+
+
+#: Menu wording for each of ``export.FORMATS``; the order is the menu's order.
+EXPORT_LABELS = {
+    "csv": "CSV",
+    "tsv": _("TSV (spreadsheet)"),
+    "json": _("JSON (one per line)"),
+    "xlsx": _("Excel (.xlsx)"),
+    "pdf": "PDF",
+}
 
 
 class ListView(PanelView):
@@ -836,7 +850,12 @@ class PageView(SiteView):
         return self.page_class(self.site)
 
     def check_permission(self, request):
-        if self.get_page().has_permission(request):
+        page = self.get_page()
+        # A page that only exists while a feature is on is a 404 when it is off, not a
+        # 403 that confirms the feature is there.
+        if not getattr(page, "is_available", lambda _request: True)(request):
+            raise Http404
+        if page.has_permission(request):
             return None
         raise PermissionDenied(
             _("You do not have permission to view %(page)s.")
