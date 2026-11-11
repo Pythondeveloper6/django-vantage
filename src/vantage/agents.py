@@ -28,7 +28,7 @@ from django.core.cache import cache
 from django.http import HttpResponse
 from django.utils import timezone
 
-from vantage.conf import vantage_settings
+from vantage.conf import DEFAULTS, vantage_settings
 
 __all__ = [
     "AgentAuthError",
@@ -71,7 +71,17 @@ class AgentAuthError(Exception):
 
 
 def enabled() -> bool:
-    return bool(vantage_settings.AGENTS)
+    """Whether agent identities are on.
+
+    Read from ``settings.VANTAGE`` directly rather than through ``vantage_settings``:
+    the check runs on every request, and resolving the settings object reads the
+    database layer on a cold cache, a cost an autocomplete keystroke should not pay. It
+    is also deliberately code-only: ``AGENTS`` is not in ``siteconfig.UI_EDITABLE``, so
+    nobody can switch machine access on from a settings screen.
+    """
+    from django.conf import settings
+
+    return bool((getattr(settings, "VANTAGE", None) or {}).get("AGENTS", DEFAULTS["AGENTS"]))
 
 
 # ── tokens ──────────────────────────────────────────────────────────────────
