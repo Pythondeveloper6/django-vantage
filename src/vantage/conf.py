@@ -244,6 +244,12 @@ DEFAULTS: dict[str, Any] = {
     # The most rows one undo may carry, cascades included. Past it the change still
     # happens, it just is not offered for undo: the snapshot would be the problem.
     "UNDO_MAX_ROWS": 1000,
+    # ── agents ──────────────────────────────────────────────────────────────
+    # Off by default. When on, an AgentIdentity's bearer token may call the JSON API as
+    # its service user. See docs/agents.md.
+    "AGENTS": False,
+    # Requests per minute given to a new identity (0 = no limit).
+    "AGENT_RATE_LIMIT_PER_MINUTE": 60,
     # ── data quality ────────────────────────────────────────────────────────
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
@@ -312,6 +318,7 @@ MINIMUMS: dict[str, int] = {
     "UNDO_MAX_ROWS": 1,
     "TWO_FACTOR_MAX_ATTEMPTS": 1,
     "TWO_FACTOR_LOCKOUT_SECONDS": 1,
+    "AGENT_RATE_LIMIT_PER_MINUTE": 0,
 }
 
 

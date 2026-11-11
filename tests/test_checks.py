@@ -125,7 +125,9 @@ class TestTheDeploymentFamily:
         for check in checks.DEPLOYMENT_CHECKS:
             found.update(m.id for m in _force(check))
         assert len(found) >= len(checks.DEPLOYMENT_CHECKS) - 1  # W056 is shared
-        assert all(i.startswith(("vantage.W05", "vantage.W115")) for i in found), found
+        assert all(i.startswith(("vantage.W05", "vantage.W115", "vantage.W116")) for i in found), (
+            found
+        )
 
     def test_every_one_of_them_is_silent_on_an_unmounted_project(self, unmounted, settings):
         """Being installed and being exposed are different facts. A project that never
@@ -156,7 +158,7 @@ def _force(check):
 
     with override_settings(
         ROOT_URLCONF="tests.urls",
-        DEBUG=True,
+        DEBUG=check.__name__ != "check_deploy_agents_https",
         SESSION_COOKIE_SECURE=False,
         SESSION_COOKIE_SAMESITE=None,
         SECURE_SSL_REDIRECT=False,
@@ -164,7 +166,7 @@ def _force(check):
         MIDDLEWARE=[],
         MEDIA_URL="/media/",
         CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}},
-        VANTAGE={"AUDIT_LOG": False, "IMPORT_MAX_BYTES": 0, "REPORTS": True},
+        VANTAGE={"AUDIT_LOG": False, "IMPORT_MAX_BYTES": 0, "REPORTS": True, "AGENTS": True},
         SECURE_CSP={"DIRECTIVES": {"script-src": ["'self'", "'nonce-x'"]}},
     ):
         return check(app_configs=None)

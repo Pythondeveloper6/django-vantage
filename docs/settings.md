@@ -337,6 +337,15 @@ has no button.
 
 `ModelPanel.undo = False` turns it off for one model.
 
+## Agents
+
+Bearer-token access to the JSON API for non-human callers. See [Agents](agents.md).
+
+| Key | Default | Effect |
+|---|---|---|
+| `AGENTS` | `False` | Turns agent identities on. Off, every `Authorization: Bearer` request is a 401. Warns with `vantage.W116` in production without HTTPS |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute given to a new identity. `0` means no limit |
+
 ## Scale
 
 What a list page does once the table outgrows the sample data. Everything is fast at
@@ -415,6 +424,8 @@ REPORTS  REPORTS_MAX_ATTACHMENT_MB  REPORTS_MAX_PER_USER
 REPORTS_RETENTION_DAYS  REPORTS_BASE_URL
 
 UNDO_WINDOW  UNDO_MAX_ROWS
+
+AGENTS  AGENT_RATE_LIMIT_PER_MINUTE
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS

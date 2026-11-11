@@ -70,6 +70,10 @@ DEFAULT_EXCLUDE: frozenset[str] = frozenset(
         # Field rules belong to a role, and the roles matrix is where every escalation
         # check lives. A CRUD form would let "change" on this table lift a restriction.
         "vantage.fieldpermission",
+        # The token hash lives here and a rule that narrows an agent is one an editor
+        # could widen. Identities are managed with `manage.py vantage_agent`.
+        "vantage.agentidentity",
+        "vantage.agentrun",
     }
 )
 
