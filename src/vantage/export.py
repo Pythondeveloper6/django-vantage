@@ -25,11 +25,12 @@ from collections.abc import Iterator
 from decimal import Decimal
 from typing import IO, Any
 
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.text import slugify
 
 __all__ = [
     "FORMATS",
+    "ExportTooLarge",
     "stream_csv",
     "stream_export",
     "stream_json",
@@ -141,8 +142,81 @@ def _rows(
         yield [_value(obj, column, masked, armoured=True) for column in columns]
 
 
-def stream_export(fmt: str, queryset, columns, headers, filename, *, masked=frozenset()):
-    """Dispatch to the writer for ``fmt``. ``masked`` names the sensitive columns."""
+#: Rows (header included) one worksheet can hold.
+_XLSX_MAX_ROWS = 1_048_576
+
+#: Formats that are built completely before the first byte is sent.
+_BUFFERED = ("xlsx", "pdf")
+
+
+class ExportTooLarge(Exception):
+    """A buffered format (xlsx, pdf) was asked for more rows than it may carry."""
+
+    def __init__(self, fmt: str, rows: int, cap: int, *, hard_limit: bool = False) -> None:
+        self.fmt, self.rows, self.cap, self.hard_limit = fmt, rows, cap, hard_limit
+        super().__init__(self.message())
+
+    def message(self) -> str:
+        if self.hard_limit:
+            reason = f"An Excel worksheet holds at most {self.cap} data rows."
+        else:
+            reason = (
+                f"The {self.fmt} format is limited to {self.cap} rows "
+                "(VANTAGE['EXPORT_BINARY_MAX_ROWS'])."
+            )
+        return (
+            f"{self.rows} rows match this export. {reason} "
+            "Narrow the filter, or export as CSV, which has no row limit."
+        )
+
+
+def binary_row_cap(fmt: str) -> int:
+    """The most data rows ``fmt`` may carry: the setting, and Excel's own ceiling."""
+    from vantage.conf import vantage_settings
+
+    cap = int(vantage_settings.EXPORT_BINARY_MAX_ROWS)
+    return min(cap, _XLSX_MAX_ROWS - 1) if fmt == "xlsx" else cap
+
+
+def check_binary_cap(fmt: str, queryset) -> None:
+    """Refuse, before building anything, a xlsx or pdf export over the row cap."""
+    if fmt not in _BUFFERED:
+        return
+    from vantage.conf import vantage_settings
+
+    cap = binary_row_cap(fmt)
+    rows = queryset.count()
+    if rows > cap:
+        hard = fmt == "xlsx" and cap < int(vantage_settings.EXPORT_BINARY_MAX_ROWS)
+        raise ExportTooLarge(fmt, rows, cap, hard_limit=hard)
+
+
+def stream_export(
+    fmt: str,
+    queryset,
+    columns,
+    headers,
+    filename,
+    *,
+    masked=frozenset(),
+    raise_too_large: bool = False,
+):
+    """Dispatch to the writer for ``fmt``. ``masked`` names the sensitive columns.
+
+    An xlsx or pdf export over ``EXPORT_BINARY_MAX_ROWS`` is refused before anything is
+    built: a 413 plain-text response, or :class:`ExportTooLarge` when ``raise_too_large``
+    is set (the JSON API turns it into its own error body).
+    """
+    try:
+        check_binary_cap(fmt, queryset)
+    except ExportTooLarge as exc:
+        if raise_too_large:
+            raise
+        response = HttpResponse(
+            exc.message() + "\n", status=413, content_type="text/plain; charset=utf-8"
+        )
+        response["Cache-Control"] = "no-store"
+        return response
     writers = {
         "csv": stream_csv,
         "tsv": stream_tsv,
@@ -221,18 +295,39 @@ _XML_ILLEGAL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff\ud800-\udfff]
 _READ_CHUNK = 64 * 1024
 
 
+class _SpoolChunks:
+    """Iterate a finished temporary file, closing it however the response ends.
+
+    A class rather than a generator because Django calls ``close()`` on the iterator
+    even when the client went away before the first chunk, and a generator that never
+    started would not run its ``finally``.
+    """
+
+    def __init__(self, spool: IO[bytes]) -> None:
+        spool.seek(0)
+        self._spool = spool
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> bytes:
+        try:
+            block = self._spool.read(_READ_CHUNK)
+        except BaseException:
+            self.close()
+            raise
+        if not block:
+            self.close()
+            raise StopIteration
+        return block
+
+    def close(self) -> None:
+        self._spool.close()
+
+
 def _spool_response(spool: IO[bytes], content_type: str):
     """Stream a finished temporary file, closing it when the response is done."""
-    spool.seek(0)
-
-    def chunks():
-        try:
-            while block := spool.read(_READ_CHUNK):
-                yield block
-        finally:
-            spool.close()
-
-    return StreamingHttpResponse(chunks(), content_type=content_type)
+    return StreamingHttpResponse(_SpoolChunks(spool), content_type=content_type)
 
 
 def _xml_text(text: str) -> str:
@@ -294,19 +389,23 @@ _XLSX_STYLES = (
     "</styleSheet>"
 )
 
-#: Excel's hard limit per worksheet.
-_XLSX_MAX_ROWS = 1_048_576
+#: Excel's limit on the characters in one cell; more makes it offer to repair the file.
+_XLSX_MAX_CELL = 32_767
+
+
+def _clip(text: str) -> str:
+    if len(text) <= _XLSX_MAX_CELL:
+        return text
+    return text[: _XLSX_MAX_CELL - 1] + "\u2026"
 
 
 def _sheet_rows(rows: Iterator[list[str]]) -> Iterator[bytes]:
     yield (f'{_XML_DECL}<worksheet xmlns="{_SHEET_NS}"><sheetData>'.encode())
     for number, row in enumerate(rows, start=1):
-        if number > _XLSX_MAX_ROWS:
-            break
         style = ' s="1"' if number == 1 else ""
         cells = "".join(
             f'<c r="{_column_name(i)}{number}" t="inlineStr"{style}>'
-            f'<is><t xml:space="preserve">{_xml_text(cell)}</t></is></c>'
+            f'<is><t xml:space="preserve">{_xml_text(_clip(cell))}</t></is></c>'
             for i, cell in enumerate(row)
         )
         yield f'<row r="{number}">{cells}</row>'.encode()
@@ -323,15 +422,19 @@ def stream_xlsx(
     ``+``, ``-`` or ``@`` is quoted rather than becoming a formula.
     """
     spool = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024)
-    with zipfile.ZipFile(spool, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("[Content_Types].xml", _XLSX_CONTENT_TYPES)
-        archive.writestr("_rels/.rels", _XLSX_RELS)
-        archive.writestr("xl/workbook.xml", _XLSX_WORKBOOK)
-        archive.writestr("xl/_rels/workbook.xml.rels", _XLSX_WORKBOOK_RELS)
-        archive.writestr("xl/styles.xml", _XLSX_STYLES)
-        with archive.open("xl/worksheets/sheet1.xml", "w", force_zip64=True) as sheet:
-            for chunk in _sheet_rows(_rows(queryset, columns, headers, masked)):
-                sheet.write(chunk)
+    try:
+        with zipfile.ZipFile(spool, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("[Content_Types].xml", _XLSX_CONTENT_TYPES)
+            archive.writestr("_rels/.rels", _XLSX_RELS)
+            archive.writestr("xl/workbook.xml", _XLSX_WORKBOOK)
+            archive.writestr("xl/_rels/workbook.xml.rels", _XLSX_WORKBOOK_RELS)
+            archive.writestr("xl/styles.xml", _XLSX_STYLES)
+            with archive.open("xl/worksheets/sheet1.xml", "w", force_zip64=True) as sheet:
+                for chunk in _sheet_rows(_rows(queryset, columns, headers, masked)):
+                    sheet.write(chunk)
+    except BaseException:
+        spool.close()
+        raise
     response = _spool_response(
         spool, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
@@ -455,6 +558,10 @@ def stream_pdf(
     formula quoting are identical to CSV.
     """
     spool = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024)
-    _pdf_document(_rows(queryset, columns, headers, masked), spool)
+    try:
+        _pdf_document(_rows(queryset, columns, headers, masked), spool)
+    except BaseException:
+        spool.close()
+        raise
     response = _spool_response(spool, "application/pdf")
     return _attach(response, filename, "pdf")
