@@ -465,7 +465,7 @@ uv sync --all-groups
 ./example/run.sh          # migrate, seed, and serve on :8765
 ```
 
-Sign in as `admin` / `admin12345`.
+Sign in as `admin` / `admin12345`. Step-by-step [lesson projects](https://github.com/Pythondeveloper6/django-vantage/tree/main/example/lessons) (starter and solution) sit beside it.
 
 ## Contributing
 

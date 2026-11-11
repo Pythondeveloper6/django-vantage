@@ -190,3 +190,6 @@ known-first-party = ["vantage"]
 # Migrations are generated; reformatting them by hand invites drift from what
 # makemigrations would produce next time.
 "src/vantage/migrations/*.py" = ["E501", "RUF012"]
+# The lesson projects are teaching code: demo secrets, seeded randomness and generated migrations.
+"example/**/migrations/*.py" = ["E501", "RUF012"]
+"example/lessons/**/*.py" = ["S105", "S311"]
