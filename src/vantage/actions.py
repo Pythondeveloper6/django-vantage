@@ -98,6 +98,17 @@ class Action:
     #: inside a transaction. Raise :class:`vantage.undo.UndoConflict` to refuse.
     undo: Callable | str | None = None
 
+    @property
+    def deletes_records(self) -> bool:
+        """Whether an agent needs delete rights to run this action.
+
+        True for the built-in ``delete_selected``, for an action declared
+        ``destructive=True`` and for one whose permission verb is ``"delete"``.
+        """
+        return bool(
+            self.destructive or self.permission == "delete" or self.func is _delete_selected
+        )
+
     def needs_confirmation(self) -> bool:
         return self.destructive or self.confirm is not None
 

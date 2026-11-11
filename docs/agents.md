@@ -94,3 +94,5 @@ Deleting an identity keeps its entries.
 
 Counting: a write request spends one unit of the run's budget as soon as it passes the
 permission checks, whether or not it later validates. Bulk actions count as one write.
+
+See also: [Agent writes: dry run, approval and undo](agent-writes.md).

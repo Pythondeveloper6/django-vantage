@@ -39,9 +39,19 @@ class Command(BaseCommand):
         revoke.add_argument("name")
         rotate = sub.add_parser("rotate", help="Issue a new token; the old one dies at once.")
         rotate.add_argument("name")
+        undo = sub.add_parser("undo-run", help="Revert everything one run of an agent did.")
+        undo.add_argument("name", help="The agent's name.")
+        undo.add_argument("run_key")
+        undo.add_argument("--dry-run", action="store_true", help="Report; change nothing.")
+        undo.add_argument(
+            "--as",
+            dest="as_user",
+            metavar="USERNAME",
+            help="Act as this user (default: the agent's owner). Must be a superuser or the owner.",
+        )
 
     def handle(self, *args, **options):
-        return getattr(self, f"_{options['command']}")(options)
+        return getattr(self, "_" + options["command"].replace("-", "_"))(options)
 
     def _find(self, name):
         try:
@@ -112,3 +122,41 @@ class Command(BaseCommand):
         self.stdout.write(f"Rotated the token of {identity.name!r}; the old one no longer works.")
         self.stdout.write(self.style.WARNING(WARNING))
         self.stdout.write(token)
+
+    def _undo_run(self, options):
+        from vantage.models import AgentRun
+
+        identity = self._find(options["name"])
+        try:
+            run = AgentRun.objects.select_related("identity__owner").get(
+                identity=identity, run_key=options["run_key"]
+            )
+        except AgentRun.DoesNotExist:
+            raise CommandError(
+                f"Agent {identity.name!r} has no run {options['run_key']!r}."
+            ) from None
+        User = get_user_model()
+        if options["as_user"]:
+            user = User._default_manager.filter(**{User.USERNAME_FIELD: options["as_user"]}).first()
+            if user is None:
+                raise CommandError(f"No user called {options['as_user']!r}.")
+        else:
+            user = identity.owner
+            if user is None:
+                raise CommandError("This agent has no owner. Pass --as <superuser or owner>.")
+        try:
+            report = agents.undo_run(run, user, dry_run=options["dry_run"])
+        except agents.UndoNotAllowed as exc:
+            raise CommandError(str(exc)) from None
+        mode = "Would revert" if options["dry_run"] else "Reverted"
+        self.stdout.write(
+            f"{mode} {len(report['reverted'])}, skipped {len(report['skipped'])}, "
+            f"conflicts {len(report['conflicts'])}."
+        )
+        for bucket in ("reverted", "skipped", "conflicts"):
+            for item in report[bucket]:
+                detail = (
+                    item.get("reason") or f"{item['action']} {', '.join(item['fields'])}".strip()
+                )
+                self.stdout.write(f"  {bucket}\t{item['object']}\t{detail}")
+        return None
