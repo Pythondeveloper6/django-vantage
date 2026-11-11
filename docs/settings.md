@@ -201,6 +201,7 @@ strictness, so an item that cannot be shown is omitted.
 | `UPLOAD_ACTIVE_SUFFIXES` | `()` | — | Active-content extensions (`.svg`, `.html`, `.xml`, `.js`…) a plain `FileField` may accept, e.g. `[".svg"]`. Empty refuses them all; an accepted file is still scanned for script — see [Security](security.md#active-content-uploads) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
+| `EXPORT_BINARY_MAX_ROWS` | `100000` | — | Most rows an Excel or PDF export may carry. Over it the export is refused with HTTP 413 (never truncated); CSV, TSV and JSON are not capped. Excel's own ceiling is 1,048,575 data rows |
 
 The login throttle, rate limits and upload ceiling are behaviour keys too, documented
 with their defaults in [Security](security.md#installing-the-middleware) — see
@@ -397,7 +398,7 @@ RICHTEXT_EDITOR  RICHTEXT_EXTRA_TAGS  RICHTEXT_EXTRA_ATTRIBUTES  RICHTEXT_URL_SC
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES  UPLOAD_ACTIVE_SUFFIXES
-IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
+IMPORT_MAX_BYTES  IMPORT_MAX_ROWS  EXPORT_BINARY_MAX_ROWS
 
 TWO_FACTOR  TWO_FACTOR_REQUIRED_SUPERUSERS  TWO_FACTOR_REQUIRED_ROLES
 TWO_FACTOR_ISSUER  TWO_FACTOR_MAX_ATTEMPTS  TWO_FACTOR_LOCKOUT_SECONDS

@@ -21,7 +21,7 @@ from typing import Any
 
 from vantage import importer, listprefs
 from vantage.api import ApiError, BadRequest, ModelApiView, json_response
-from vantage.export import FORMATS, stream_export
+from vantage.export import FORMATS, ExportTooLarge, stream_export
 from vantage.importviews import PERMISSION_DENIED, PERMISSION_DENIED_FALLBACK
 
 __all__ = ["ExportView", "ImportView"]
@@ -145,11 +145,15 @@ class ExportView(ModelApiView):
         view = ListView(site=self.site, panel=self.panel)
         view.request = request
         queryset, columns, headers, masked = view.export_parts(request)
-        return stream_export(
-            fmt,
-            queryset,
-            columns,
-            headers,
-            self.panel.get_label_plural(),
-            masked=masked,
-        )
+        try:
+            return stream_export(
+                fmt,
+                queryset,
+                columns,
+                headers,
+                self.panel.get_label_plural(),
+                masked=masked,
+                raise_too_large=True,
+            )
+        except ExportTooLarge as exc:
+            raise ApiError(413, exc.message(), rows=exc.rows, limit=exc.cap) from exc

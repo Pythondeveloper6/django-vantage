@@ -681,7 +681,12 @@ so exporting 400,000 rows does not put 400,000 rows in a worker's memory and the
 download starts immediately rather than appearing to hang. Excel and PDF files cannot
 be written one row at a time (a workbook and a PDF both end with an index), so they are
 built into a temporary file on disk and then sent back in 64 KB chunks: memory stays
-flat, but the download starts once the file is complete.
+flat, but the download starts once the file is complete. Because of that they are capped
+by `VANTAGE["EXPORT_BINARY_MAX_ROWS"]` (default 100,000 rows; Excel itself holds at most
+1,048,575 data rows): over the cap the export is refused with HTTP 413 and a message
+giving the number of matching rows, never silently cut short. CSV, TSV and JSON are
+unaffected, and the JSON API returns the same refusal as `{"detail": ...}`. An Excel cell
+is cut at Excel's 32,767-character limit, ending in an ellipsis.
 
 Columns are the ones on screen, headers are the column labels, and related objects
 export as their `__str__` — what a human reading the file expects, rather than a
@@ -697,7 +702,8 @@ report attachments share it with the Export button. It also means a text value t
 begins with one of those characters gains a visible `'` if the file is imported back.
 JSON (NDJSON) is not opened in a spreadsheet and is exported unchanged. The Excel export
 applies the same rule to every text cell and to the header row, and writes every cell as
-text so nothing is ever evaluated.
+text so nothing is ever evaluated. As in CSV, a text value starting with `=`, `+`, `-` or
+`@` shows a leading apostrophe in Excel and in the PDF.
 
 **Excel and PDF.** `?export=xlsx` writes a single-sheet workbook with a bold header row,
 using only the Python standard library (no extra dependency). A sheet holds at most
