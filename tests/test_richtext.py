@@ -128,6 +128,19 @@ class TestSanitiser:
         assert richtext.is_effectively_empty("<p><br></p>")
         assert not richtext.is_effectively_empty("<p>x</p>")
 
+    def test_the_blocks_the_editor_emits_round_trip_unchanged(self):
+        for html in (
+            "<ul><li>a</li><li>b</li></ul>",
+            "<ol><li>a</li></ol>",
+            "<h2>Title</h2><p>x <strong>b</strong> <em>i</em></p>",
+            "<blockquote>q</blockquote>",
+        ):
+            assert richtext.sanitize_html(html) == html
+
+    def test_the_editor_script_normalises_b_and_i(self):
+        js = (Path(richtext.__file__).parent / "static/vantage/vantage-richtext.js").read_text()
+        assert 'B: "STRONG"' in js and 'I: "EM"' in js
+
 
 class TestPolicySettings:
     def test_extra_tags_and_attributes_widen_the_allowlist(self):

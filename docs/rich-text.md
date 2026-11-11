@@ -29,7 +29,13 @@ Node.js step. It is loaded as an external script, so it works under a
 Content-Security-Policy that does not allow inline scripts.
 
 It offers bold, italic, inline code, links, a heading, bulleted and numbered lists and a
-block quote. Pasting inserts plain text. Without JavaScript the field falls back to a
+block quote. Pasting inserts plain text.
+
+The heading, list and quote buttons replace the current block rather than nesting
+inside it: a list applied to a heading turns the heading into a list, and pressing the
+same button again turns the block back into a paragraph. Bold and italic are stored as
+`<strong>` and `<em>`. The keyboard shortcuts are Cmd+B, Cmd+I and Cmd+K on macOS and
+Ctrl+B, Ctrl+I and Ctrl+K elsewhere; the button tooltips show the one that applies. Without JavaScript the field falls back to a
 textarea that holds the HTML, and the form still saves.
 
 ## What is allowed
