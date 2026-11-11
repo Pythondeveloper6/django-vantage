@@ -379,6 +379,22 @@ class TestExport:
         lines = b"".join(response.streaming_content).decode().strip().splitlines()
         assert [next(iter(json.loads(line).values())) for line in lines] == ["one"]
 
+    def test_xlsx_and_pdf_are_accepted(self, boss):
+        Promo.objects.create(headline="one")
+        sheet = boss.get(url("api-export"), {"format": "xlsx"})
+        assert sheet["Content-Type"].endswith("spreadsheetml.sheet")
+        assert b"".join(sheet.streaming_content).startswith(b"PK")
+        doc = boss.get(url("api-export"), {"format": "pdf"})
+        assert doc["Content-Type"] == "application/pdf"
+        assert b"".join(doc.streaming_content).startswith(b"%PDF-")
+
+    def test_view_permission_is_required_for_every_format(self):
+        for fmt in ("xlsx", "pdf"):
+            assert (
+                staff("exp2" + fmt, Promo).get(url("api-export"), {"format": fmt}).status_code
+                == 403
+            )
+
     def test_view_permission_is_required(self):
         assert staff("exp1", Promo).get(url("api-export")).status_code == 403
 
