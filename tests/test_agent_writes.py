@@ -26,7 +26,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture(autouse=True)
 def agents_on(settings):
-    settings.VANTAGE = {"AGENTS": True}
+    settings.VANTAGE = {"AGENTS": True, "AGENT_DEFAULT_ACCESS": "write"}
     cache.clear()
 
 
@@ -178,7 +178,7 @@ class TestDryRun:
         assert post.title == "t"
         assert not VantageLogEntry.objects.exists()
 
-    def test_a_sensitive_field_is_masked_in_the_diff(self, make, author, monkeypatch):
+    def test_a_sensitive_field_cannot_be_named_by_an_agent(self, make, author, monkeypatch):
         monkeypatch.setattr(site.get_panel(Post), "sensitive_fields", ["summary"], raising=False)
         _, token = make()
         post = new_post(author, summary="old-secret")
@@ -190,8 +190,8 @@ class TestDryRun:
             **bearer(token),
         )
         text = response.content.decode()
+        assert response.status_code == 422 and "summary" in response.json()["errors"]
         assert "old-secret" not in text and "new-secret" not in text
-        assert {"field": "summary", "changed": True, "masked": True} in response.json()["diff"]
 
     def test_a_stale_version_is_refused_as_the_real_write_would(self, make, author):
         _, token = make()
@@ -636,10 +636,11 @@ class TestUndoRun:
         assert existing.title == "after"
 
     def test_a_sensitive_field_is_never_in_the_report(self, make, owner, author, monkeypatch):
-        monkeypatch.setattr(site.get_panel(Post), "sensitive_fields", ["summary"], raising=False)
         identity, token = make()
         existing = new_post(author, "old", summary="hunter2")
         run_agent(token, "r1", "patch", detail(existing), {"fields": {"summary": "s3cret-new"}})
+        # Declared sensitive after the run: the report must still never show the value.
+        monkeypatch.setattr(site.get_panel(Post), "sensitive_fields", ["summary"], raising=False)
         run = AgentRun.objects.get(identity=identity, run_key="r1")
         report = agents.undo_run(run, owner)
         text = json.dumps(report)

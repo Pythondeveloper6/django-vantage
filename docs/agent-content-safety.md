@@ -39,9 +39,8 @@ their text to be read by it.
   envelope gains `"injection_suspected": "<reason>"`. The data is still delivered,
   scrubbed but otherwise unchanged.
 - **Hides fields.** Sensitive fields (inferred or declared, see
-  [Sensitive fields](sensitive-fields.md)) and everything in `agent_hidden_fields` are
-  absent from agent output and schemas, and a write that names one is rejected
-  (`AgentFieldError`, answered with 422).
+  [Sensitive fields](sensitive-fields.md)) and everything in `agent_hidden_fields` do not
+  exist for an agent. See [Where each rule is enforced](#where-each-rule-is-enforced).
 
 ## What Vantage does not do
 
@@ -51,6 +50,42 @@ their text to be read by it.
   and shapes. Paraphrases, other languages and payloads split across fields pass it, and
   innocent text about prompt injection trips it. Do not rely on its absence.
 - Scrubbing removes hidden characters; it cannot tell whether visible text is hostile.
+
+## Where each rule is enforced
+
+The rules below apply to every JSON API request that carries an agent token
+(`Authorization: Bearer ...`). The MCP server calls that API, so it inherits them and has
+no separate copy. A person signed in with a session is never affected: no rule here
+changes what they see or may do.
+
+| Rule | Enforced in |
+| --- | --- |
+| `agent_access = "none"` | `vantage.agents.check_access` answers 404 on every endpoint of the model (list, detail, actions, import, export, saved views); `vantage.agents.visible_panels` drops it from the schema and the OpenAPI document |
+| `agent_access = "read"` | `vantage.agents.check_access` answers 403 to every write verb, bulk action and import. The effective level is the lesser of the identity's `access` and the panel's: a panel set to `"write"` never grants more than the identity has |
+| Hidden and sensitive fields in output | `vantage.fieldperms.access` adds them to the fields hidden from the request, so records, the dry-run diff, the schema, the OpenAPI document, exports and `?fields=` all leave them out (`?fields=` naming one is a 400) |
+| Hidden fields as an oracle | The same hidden set removes them from filters, search fields and ordering, including through relations (`customer__secret`, judged by the related panel's own rules). A parameter naming one is ignored, as one naming a sensitive field already was, so it can neither match nor reorder rows |
+| Writes naming a hidden field | `vantage.api.refuse_agent_hidden` answers 422 on create, update and import column mapping, listing the field names; a dry run refuses identically |
+| Role-based `field_permissions` | Unchanged: still applied with the agent's service user, in addition to the above |
+| Activity export and run undo | `vantage_agent_activity` and `agents.undo_run` leave out the names and values of fields in `agent_hidden_fields` |
+
+A panel whose `agent_access` is unset follows `AGENT_DEFAULT_ACCESS`, which is `"read"`:
+until a panel opts in with `agent_access = "write"` (or the setting is raised), agents
+cannot write to it whatever their identity allows.
+
+Hidden fields are held in one place per request and per model, so they add no queries per
+row.
+
+### What is not covered
+
+- A human session. Panel `agent_access` and `agent_hidden_fields` do not limit people.
+- Stored audit rows. They are written exactly as before and still contain the values of
+  hidden fields; only the agent-facing outputs above leave them out.
+- The database itself, and anything that reads it without going through the panel (your
+  own views, a shell, a reporting tool).
+- Free text that repeats a hidden value in a visible field, or a record label (`__str__`)
+  that prints one.
+- A saved view stores filter state as written; the state of a view that names a hidden
+  field is shown as stored.
 
 ## What to do about it
 

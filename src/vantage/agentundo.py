@@ -344,8 +344,11 @@ def _undo_update(request, run, panel, obj, group, dry_run, row):
     if set(guarded_for(request, panel, obj)) & set(restore):
         return row.skipped("A field the run changed needs approval to change.")
 
+    # The names of fields a panel hides from agents are not part of what the report says.
+    declared = frozenset(getattr(panel, "agent_hidden_fields", None) or ())
+    shown = [name for name in restore if name not in declared]
     if dry_run:
-        return row.reverted("restored", restore)
+        return row.reverted("restored", shown)
 
     data = {}
     for name in restore:
@@ -365,4 +368,4 @@ def _undo_update(request, run, panel, obj, group, dry_run, row):
         )
     except concurrency.StaleWrite:
         return row.conflict("Someone changed this record while the undo ran.")
-    return row.reverted("restored", restore)
+    return row.reverted("restored", shown)

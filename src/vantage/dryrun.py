@@ -41,15 +41,19 @@ def payload(
     }
 
 
-def form_diff(form, *, creating: bool) -> list[dict[str, Any]]:
+def form_diff(form, *, creating: bool, hidden=frozenset()) -> list[dict[str, Any]]:
     """``[{"field", "from", "to"}]`` for a bound, valid form.
 
     Values are rendered as the audit log renders them. A sensitive field is reported as
-    ``{"field", "changed": true, "masked": true}`` with no value on either side.
+    ``{"field", "changed": true, "masked": true}`` with no value on either side. A name in
+    ``hidden`` (fields the caller may not see at all) is left out entirely: the diff does
+    not even say that it changed.
     """
     sensitive = _form_sensitive(form)
     out: list[dict[str, Any]] = []
     for name in form.fields:
+        if name in hidden:
+            continue
         after = _jsonify(form.cleaned_data.get(name))
         if creating:
             if after in (None, "", []):

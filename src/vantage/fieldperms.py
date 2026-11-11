@@ -361,6 +361,7 @@ def access(request, target, site=None) -> FieldAccess:
     answer = ask(request, model) or UNRESTRICTED
     answer = _with_panel_rules(request, model, answer, site)
     answer = _with_read_only_model(model, answer)
+    answer = _with_agent_rules(request, model, answer, site)
     cache[key] = answer
     return answer
 
@@ -380,6 +381,30 @@ def _with_read_only_model(model, answer: FieldAccess) -> FieldAccess:
         return answer
     locked = frozenset(f.name for f in rule_fields(model)) - state.editable - answer.hidden
     return FieldAccess(hidden=answer.hidden, readonly=answer.readonly | locked)
+
+
+def _with_agent_rules(request, model, answer: FieldAccess, site=None) -> FieldAccess:
+    """For a request carrying an agent identity, also hide the panel's agent-hidden fields.
+
+    ``agent_hidden_fields`` and the sensitive fields (see
+    :func:`vantage.agentdata.agent_hidden_names`) do not exist for an agent: they are
+    left out of every record, schema, export and dry run, refused as a write, and cannot
+    be filtered, searched or sorted on, because every one of those asks this module.
+    Nothing changes for a request without ``vantage_agent``, and the answer is cached
+    per model with the rest of :func:`access`, so it costs nothing per row.
+    """
+    if getattr(request, "vantage_agent", None) is None:
+        return answer
+    panel = _panel_for(model, site)
+    if panel is None:
+        return answer
+    from vantage.agentdata import agent_hidden_names
+
+    extra = agent_hidden_names(panel)
+    if not extra:
+        return answer
+    hidden = frozenset(answer.hidden) | extra
+    return FieldAccess(hidden=hidden, readonly=frozenset(answer.readonly) - hidden)
 
 
 def _with_panel_rules(request, model, answer: FieldAccess, site=None) -> FieldAccess:
