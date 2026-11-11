@@ -338,6 +338,16 @@ has no button.
 
 `ModelPanel.undo = False` turns it off for one model.
 
+## Agents
+
+Content-safety settings for anything handed to an AI agent; see
+[Agent content safety](agent-content-safety.md).
+
+| Key | Default | Effect |
+|---|---|---|
+| `AGENT_MAX_FIELD_CHARS` | `2000` | Longest text value handed to an agent. Longer values are cut and end with a `[truncated]` marker |
+| `AGENT_DEFAULT_ACCESS` | `"read"` | What agents may do with a model whose panel leaves `agent_access` unset: `"none"`, `"read"` or `"write"` |
+
 ## Scale
 
 What a list page does once the table outgrows the sample data. Everything is fast at
@@ -416,6 +426,8 @@ REPORTS  REPORTS_MAX_ATTACHMENT_MB  REPORTS_MAX_PER_USER
 REPORTS_RETENTION_DAYS  REPORTS_BASE_URL
 
 UNDO_WINDOW  UNDO_MAX_ROWS
+
+AGENT_MAX_FIELD_CHARS  AGENT_DEFAULT_ACCESS
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS

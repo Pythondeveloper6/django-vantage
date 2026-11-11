@@ -170,6 +170,8 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
 #: Settings added since the last release. They may still change before the next one.
 PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
     {
+        "AGENT_MAX_FIELD_CHARS",
+        "AGENT_DEFAULT_ACCESS",
         "TWO_FACTOR",
         "TWO_FACTOR_REQUIRED_SUPERUSERS",
         "TWO_FACTOR_REQUIRED_ROLES",
@@ -256,6 +258,8 @@ PROVISIONAL_PANEL_ATTRIBUTES: frozenset[str] = frozenset(
         "markdown_fields",
         "read_only",
         "editable_fields",
+        "agent_access",
+        "agent_hidden_fields",
     }
 )
 
