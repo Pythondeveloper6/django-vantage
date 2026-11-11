@@ -221,14 +221,41 @@ def entry_row(entry: VantageLogEntry) -> dict[str, Any]:
     }
 
 
+def _agent_hidden(entry: VantageLogEntry, cache: dict[int, frozenset[str]]) -> frozenset[str]:
+    """The fields a panel hides from agents, for the model this entry is about.
+
+    This output is the agent-facing view of the log, so those names are left out of it
+    whoever runs the command. The stored entry is not touched. One lookup per model.
+    """
+    ct_id = entry.content_type_id
+    if not ct_id:
+        return frozenset()
+    if ct_id not in cache:
+        from vantage.sensitive import _panel_for
+
+        model = entry.content_type.model_class()
+        panel = _panel_for(model) if model is not None else None
+        declared = getattr(panel, "agent_hidden_fields", None) or ()
+        # Sensitive fields keep the "changed, value not recorded" line they always had.
+        cache[ct_id] = frozenset(declared)
+    return cache[ct_id]
+
+
 def iter_entry_rows(queryset, *, request=None) -> Iterator[dict[str, Any]]:
     """One dict per entry, streamed. With ``request``, fields hidden from that person are
-    left out of the summary, exactly as the audit page leaves them out."""
+    left out of the summary, exactly as the audit page leaves them out. Fields a panel
+    hides from agents are always left out."""
     from vantage.fieldperms import hide_entry_fields
 
-    for entry in queryset.iterator(chunk_size=CHUNK):
+    hidden_by_model: dict[int, frozenset[str]] = {}
+    for entry in queryset.select_related("content_type").iterator(chunk_size=CHUNK):
         if request is not None:
             entry = hide_entry_fields(request, [entry])[0]
+        agent_hidden = _agent_hidden(entry, hidden_by_model)
+        if agent_hidden:
+            entry.vantage_hidden_fields = (
+                frozenset(getattr(entry, "vantage_hidden_fields", ())) | agent_hidden
+            )
         yield entry_row(entry)
 
 

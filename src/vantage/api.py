@@ -319,6 +319,27 @@ def _bind(form_class, values: dict[str, Any], body: WriteBody, **kwargs):
     return form_class(data=data, files=body.files, **kwargs)
 
 
+def refuse_agent_hidden(request, panel, names) -> None:
+    """422 when an agent's write names a field the panel hides from agents.
+
+    No-op for a person. The error has the shape of any validation failure, keyed by field
+    name, and the check runs before the dry-run branch so a preview refuses identically.
+    """
+    from vantage import agents
+    from vantage.agentdata import AgentFieldError, reject_hidden_writes
+
+    if agents.current_agent(request) is None:
+        return
+    try:
+        reject_hidden_writes(panel, names)
+    except AgentFieldError as exc:
+        raise ApiError(
+            422,
+            "Validation failed.",
+            errors={name: ["This field is not available to agents."] for name in exc.names},
+        ) from exc
+
+
 # ── the registry guard ──────────────────────────────────────────────────────
 
 
@@ -690,6 +711,7 @@ class ListCreateView(ModelApiView):
         body = WriteBody(request)
         submitted = body.require_fields()
 
+        refuse_agent_hidden(request, self.panel, [*submitted, *body.uploaded_names])
         editable = formviews.form_editable_names(self.panel, request)
         unknown = sorted((set(submitted) | set(body.uploaded_names)) - set(editable))
         if unknown:
@@ -712,7 +734,12 @@ class ListCreateView(ModelApiView):
         if dry:
             _dry_tenant_check(request, form)
             return json_response(
-                dryrun.payload("create", diff=dryrun.form_diff(form, creating=True))
+                dryrun.payload(
+                    "create",
+                    diff=dryrun.form_diff(
+                        form, creating=True, hidden=fieldperms.hidden_names(request, self.panel)
+                    ),
+                )
             )
 
         obj = formviews.save_form(request, self.panel, form, change=False)
@@ -786,6 +813,7 @@ class RecordDetailView(ModelApiView):
         # Per caller: a field they may only read is "read-only" here exactly as it is on
         # the edit page, and one hidden from them is "unknown" — the same answer as a
         # name that does not exist, so the error cannot be used to discover it.
+        refuse_agent_hidden(request, self.panel, [*submitted, *body.uploaded_names])
         editable = formviews.form_editable_names(self.panel, request)
         unknown = sorted((set(submitted) | set(body.uploaded_names)) - set(editable))
         if unknown:
@@ -906,7 +934,9 @@ class RecordDetailView(ModelApiView):
                 },
             )
         _dry_tenant_check(request, form)
-        diff = dryrun.form_diff(form, creating=False)
+        diff = dryrun.form_diff(
+            form, creating=False, hidden=fieldperms.hidden_names(request, self.panel)
+        )
         changed = {entry["field"] for entry in diff}
         waiting = [
             name for name in approvals.guarded_for(request, self.panel, obj) if name in changed
