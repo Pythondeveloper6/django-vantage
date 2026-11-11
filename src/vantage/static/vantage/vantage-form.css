@@ -396,6 +396,11 @@
 
 /* Sticky rather than fixed: it stays with the form's column, so it never floats over
  * the sidebar and never needs to know how wide the sidebar is. */
+/* A caret or focused field scrolled into view must stop above the bar, not under it. */
+html:has(.v-form-bar) {
+  scroll-padding-block-end: 5.5rem;
+}
+
 .v-form-bar {
   position: sticky;
   inset-block-end: 0;
