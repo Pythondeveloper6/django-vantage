@@ -44,62 +44,10 @@
     </div>
   </section>
 
-{% elif device %}
-  <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-on-title">
-    <div class="v-card-head">
-      <h2 class="v-card-title" id="v-2fa-on-title">{% translate "Two-factor sign-in is on" %}</h2>
-    </div>
-    <div class="v-card-body">
-      <p>
-        {% blocktranslate trimmed with since=device.confirmed_at|date:"DATE_FORMAT" %}
-          On since {{ since }}. After your password, you are asked for a code from your
-          authenticator app.
-        {% endblocktranslate %}
-      </p>
-      <p class="v-muted">
-        {% blocktranslate trimmed count counter=remaining %}
-          {{ counter }} recovery code left.
-        {% plural %}
-          {{ counter }} recovery codes left.
-        {% endblocktranslate %}
-      </p>
-
-      <h3 class="v-2fa-subhead">{% translate "Change it" %}</h3>
-      <p class="v-muted">
-        {% translate "To replace your recovery codes or switch two-factor sign-in off, confirm it is you." %}
-        {% if required %}
-          {% translate "Your role requires two-factor sign-in, so switching it off takes you straight back to setting it up." %}
-        {% endif %}
-      </p>
-      {% if proof_form.non_field_errors %}
-        <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
-          {% for error in proof_form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
-        </div>
-      {% endif %}
-      <form method="post" novalidate>
-        {% csrf_token %}
-        {% for field in proof_form %}
-          <div class="v-auth-field">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-          </div>
-        {% endfor %}
-        <div class="v-account-actions">
-          <button class="v-btn v-btn-secondary" type="submit" name="action" value="codes">
-            {% translate "New recovery codes" %}
-          </button>
-          <button class="v-btn v-btn-destructive" type="submit" name="action" value="disable">
-            {% translate "Switch off" %}
-          </button>
-        </div>
-      </form>
-    </div>
-  </section>
-
 {% elif enrol %}
   <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-setup-title">
     <div class="v-card-head">
-      <h2 class="v-card-title" id="v-2fa-setup-title">{% translate "Set up your authenticator app" %}</h2>
+      <h2 class="v-card-title" id="v-2fa-setup-title">{% if device %}{% blocktranslate trimmed with name=pending.name %}Add {{ name }}{% endblocktranslate %}{% else %}{% translate "Set up your authenticator app" %}{% endif %}</h2>
     </div>
     <div class="v-card-body">
       <ol class="v-2fa-steps">
@@ -145,7 +93,7 @@
                 {% endif %}
               </div>
             {% endwith %}
-            <button class="v-btn v-btn-primary" type="submit">{% translate "Turn on" %}</button>
+            <button class="v-btn v-btn-primary" type="submit">{% if device %}{% translate "Add device" %}{% else %}{% translate "Turn on" %}{% endif %}</button>
           </form>
         </li>
       </ol>
@@ -154,6 +102,102 @@
         <input type="hidden" name="action" value="cancel">
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
         <button class="v-btn v-btn-ghost v-btn-sm" type="submit">{% translate "Cancel" %}</button>
+      </form>
+    </div>
+  </section>
+
+{% elif device %}
+  <section class="v-card v-auth-narrow" aria-labelledby="v-2fa-on-title">
+    <div class="v-card-head">
+      <h2 class="v-card-title" id="v-2fa-on-title">{% translate "Two-factor sign-in is on" %}</h2>
+    </div>
+    <div class="v-card-body">
+      <p>
+        {% blocktranslate trimmed %}
+          After your password, you are asked for a code from any of your authenticator
+          apps below.
+        {% endblocktranslate %}
+      </p>
+      <table class="v-table v-2fa-table">
+        <caption class="v-sr-only">{% translate "Your authenticator apps" %}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Name" %}</th>
+            <th scope="col">{% translate "Added" %}</th>
+            <th scope="col">{% translate "Last used" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in devices %}
+            <tr>
+              <td>{{ d.name }}</td>
+              <td>{{ d.confirmed_at|date:"DATE_FORMAT" }}</td>
+              <td>{% if d.last_used_at %}{{ d.last_used_at|date:"DATETIME_FORMAT" }}{% else %}<span class="v-muted">{% translate "Never" %}</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="v-muted">
+        {% blocktranslate trimmed count counter=remaining %}
+          {{ counter }} recovery code left.
+        {% plural %}
+          {{ counter }} recovery codes left.
+        {% endblocktranslate %}
+      </p>
+
+      <h3 class="v-2fa-subhead">{% translate "Change it" %}</h3>
+      <p class="v-muted">
+        {% translate "To add or remove an authenticator, replace your recovery codes or switch two-factor sign-in off, confirm it is you." %}
+        {% if required %}
+          {% translate "Your role requires two-factor sign-in, so switching it off takes you straight back to setting it up." %}
+        {% endif %}
+      </p>
+      {% if proof_form.non_field_errors %}
+        <div class="v-auth-alert" role="alert" tabindex="-1" id="v-auth-summary">
+          {% for error in proof_form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in proof_form %}
+          <div class="v-auth-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          </div>
+        {% endfor %}
+        {% if may_add %}
+          {% with field=name_form.name %}
+            <div class="v-auth-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              <p class="v-auth-help">{{ field.help_text }}</p>
+            </div>
+          {% endwith %}
+        {% endif %}
+        {% if devices|length > 0 %}
+          <div class="v-auth-field">
+            <label for="v-2fa-remove">{% translate "Device to remove" %}</label>
+            <select id="v-2fa-remove" name="device">
+              {% for d in devices %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}
+            </select>
+          </div>
+        {% endif %}
+        <div class="v-account-actions">
+          {% if may_add %}
+            <button class="v-btn v-btn-secondary" type="submit" name="action" value="start">
+              {% translate "Add a device" %}
+            </button>
+          {% endif %}
+          <button class="v-btn v-btn-secondary" type="submit" name="action" value="remove">
+            {% translate "Remove device" %}
+          </button>
+          <button class="v-btn v-btn-secondary" type="submit" name="action" value="codes">
+            {% translate "New recovery codes" %}
+          </button>
+          <button class="v-btn v-btn-destructive" type="submit" name="action" value="disable">
+            {% translate "Switch off" %}
+          </button>
+        </div>
       </form>
     </div>
   </section>

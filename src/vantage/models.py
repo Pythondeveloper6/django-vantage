@@ -1605,21 +1605,26 @@ class UndoEntry(models.Model):
 
 
 class TwoFactorDevice(models.Model):
-    """One person's authenticator app: the shared TOTP secret and its bookkeeping.
+    """One authenticator app: the shared TOTP secret and its bookkeeping.
 
-    One row per person, and a *new* row per enrolment rather than an edit of the old
-    one: :attr:`tag` is random per row, and a session's proof that it passed the second
-    step names the tag it passed against. Re-enrolling therefore invalidates every
-    session verified against the previous authenticator without having to find them.
+    A person may have several (a phone and a spare, say), each its own row, and a
+    *new* row per enrolment rather than an edit of an old one: :attr:`tag` is random
+    per row, and a session's proof that it passed the second step names the tag it
+    passed against. Removing a device therefore invalidates every session verified
+    against it without having to find them, and leaves sessions verified against
+    another device alone. The lockout counters, the replay step and the sealed secret
+    are all per device.
 
     The secret is stored sealed (see :func:`vantage.twofactor.seal`), never shown
     again once :attr:`confirmed_at` is set, and the table is excluded from the panel's
     own CRUD screens — the only ways in are the account page and the reset screen.
     """
 
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
     )
+    #: What the person calls it ("Phone"), to tell their devices apart.
+    name = models.CharField(max_length=64, default="Authenticator")
     #: The 20-byte secret, encrypted with a key derived from ``SECRET_KEY``.
     secret = models.CharField(max_length=200)
     #: Random, not secret. What a verified session remembers it was verified against.
@@ -1654,13 +1659,18 @@ class TwoFactorDevice(models.Model):
 class TwoFactorRecoveryCode(models.Model):
     """One single-use recovery code, stored only as its SHA-256.
 
+    Kept per person, not per device: they are the way in when a phone is gone, so they
+    must outlive any one device being removed.
+
     A fast hash is enough here, unlike for a password, because the code is not chosen
     by a person: it carries 80 random bits, which no amount of hashing speed brings
     within reach of guessing. A fast, unsalted hash is also what lets a code be found
     with one indexed lookup instead of being compared against every row.
     """
 
-    device = models.ForeignKey(TwoFactorDevice, on_delete=models.CASCADE, related_name="codes")
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
     code_hash = models.CharField(max_length=64)
     used_at = models.DateTimeField(null=True, blank=True)
 
@@ -1668,11 +1678,11 @@ class TwoFactorRecoveryCode(models.Model):
         verbose_name = _("two-factor recovery code")
         verbose_name_plural = _("two-factor recovery codes")
         constraints = [
-            models.UniqueConstraint(fields=["device", "code_hash"], name="vantage_2fa_code_unique")
+            models.UniqueConstraint(fields=["user", "code_hash"], name="vantage_2fa_code_unique")
         ]
 
     def __str__(self) -> str:
-        return f"recovery code for device {self.device_id}"
+        return f"recovery code for user {self.user_id}"
 
 
 # ── changes waiting for approval ────────────────────────────────────────────
