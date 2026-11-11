@@ -12,6 +12,7 @@ from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
     accessviews,
+    agents,
     api,
     approvalviews,
     auditviews,
@@ -191,4 +192,4 @@ def build(site) -> list:
     urlpatterns += api.build_urls(site)
     # Last, and over everything: every route above, and any a later change adds, is
     # behind the two-factor gate unless its view says otherwise. See vantage.twofactor.
-    return twofactor.guard_patterns(urlpatterns)
+    return twofactor.guard_patterns(agents.guard_patterns(urlpatterns))

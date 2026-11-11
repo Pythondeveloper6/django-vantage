@@ -137,10 +137,18 @@ def _entry_kwargs(
     if actor is not None and not getattr(actor, "is_authenticated", False):
         actor = None
 
+    from vantage import agents
+
+    identity = agents.current_agent(request) if request is not None else None
+    actor_repr = actor.get_username() if actor else ""
+    if identity is not None:
+        actor_repr = agents.actor_label(identity)
     target = model if model is not None else (type(obj) if obj is not None else None)
     return {
         "actor": actor,
-        "actor_repr": _clip(actor.get_username() if actor else "", 150),
+        "actor_repr": _clip(actor_repr, 150),
+        "agent": identity,
+        "agent_run": agents.current_run(request) if identity is not None else None,
         "action": action,
         "action_name": _clip(action_name, 100),
         "content_type": _content_type(target),

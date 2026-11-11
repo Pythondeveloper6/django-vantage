@@ -490,6 +490,25 @@ class VantageLogEntry(models.Model):
     #: invoices" is not an audit trail.
     actor_repr = models.CharField(max_length=150, blank=True)
 
+    #: Set when the write came in through an agent identity's token. ``actor`` is then
+    #: the identity's service user, and ``actor_repr`` already names the agent and the
+    #: person it acted for. ``SET_NULL`` for the same reason as ``actor``: deleting an
+    #: identity must not delete what it did.
+    agent = models.ForeignKey(
+        "vantage.AgentIdentity",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    agent_run = models.ForeignKey(
+        "vantage.AgentRun",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
     # ── what ────────────────────────────────────────────────────────────────
 
     action = models.CharField(max_length=10, choices=Action.choices)
@@ -1919,3 +1938,98 @@ class ElevatedAccess(models.Model):
         if self.starts_at is not None and self.starts_at > now:
             return "scheduled"
         return "active"
+
+
+class AgentIdentity(models.Model):
+    """A non-human caller of the JSON API: a service user plus rules that narrow it.
+
+    The service user is an ordinary account with an ordinary role, so every permission
+    check, field rule and tenancy scope applies to the agent unchanged. The fields
+    below can only *remove* access from it. See :mod:`vantage.agents`.
+
+    The token is never stored: ``token_prefix`` finds the row and ``token_hash`` is the
+    SHA-256 of the secret half. Not an editable table in its own right; identities are
+    managed with the ``vantage_agent`` command.
+    """
+
+    class Access(models.TextChoices):
+        READ = "read", _("Read only")
+        WRITE = "write", _("Read and write")
+
+    name = models.CharField(max_length=100, unique=True)
+    #: ``PROTECT``: removing the account an identity runs as must be a decision, not a
+    #: side effect that silently deletes the identity and its trail.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    #: The person this agent acts on behalf of; shown in the audit log.
+    owner = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    token_prefix = models.CharField(max_length=8, unique=True)
+    token_hash = models.CharField(max_length=64)
+    access = models.CharField(max_length=10, choices=Access.choices, default=Access.READ)
+    #: ``["shop.order", ...]``. Empty means every model the service user may see.
+    allowed_models = models.JSONField(default=list, blank=True)
+    allow_delete = models.BooleanField(default=False)
+    require_approval = models.BooleanField(default=False)
+    #: Requests per minute; ``0`` means no limit.
+    rate_limit_per_minute = models.PositiveIntegerField(default=60)
+    #: Write requests per run; ``0`` means no limit.
+    max_writes_per_run = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("agent identity")
+        verbose_name_plural = _("agent identities")
+        ordering = ["name"]
+        default_permissions = ()
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def status(self) -> str:
+        """``active``, ``expired`` or ``revoked``, computed from the clock."""
+        from django.utils import timezone
+
+        if self.revoked_at is not None:
+            return "revoked"
+        if self.expires_at is not None and self.expires_at <= timezone.now():
+            return "expired"
+        return "active"
+
+
+class AgentRun(models.Model):
+    """One run of an agent: the unit a write budget and an undo apply to.
+
+    A client groups its requests with an ``X-Vantage-Run`` header; a request without one
+    gets a run of its own.
+    """
+
+    identity = models.ForeignKey(AgentIdentity, on_delete=models.CASCADE, related_name="runs")
+    run_key = models.CharField(max_length=64)
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now_add=True)
+    writes = models.PositiveIntegerField(default=0)
+    rows_changed = models.PositiveIntegerField(default=0)
+    deletes = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("agent run")
+        verbose_name_plural = _("agent runs")
+        ordering = ["-started_at", "-pk"]
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(fields=["identity", "run_key"], name="vantage_agent_run_unique")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.identity_id}:{self.run_key}"
