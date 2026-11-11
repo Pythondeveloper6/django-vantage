@@ -48,12 +48,17 @@ in memory.
 
 ## The page
 
-"Agent activity" in the System group of the navigation. It lists every identity (name,
-owner, service user, access, whether it may delete, whether it needs approval, scopes,
-last used, expiry, revocation, and its runs and writes over the last seven days), then
-the recent runs, which you can filter by agent. A run opens a view of the audit entries it
-made. The page offers CSV and NDJSON downloads built by the same functions as the
-command; each download is itself written to the audit log.
+"Agent activity" in the System group of the navigation. The agents table has one row per
+identity: the name (with the service user and the owner on a muted second line), badges for
+its access ("Read only", "Read and write"), "Can delete" and "Approval required", its scopes,
+when it was last used, when it expires (a revoked identity shows a "Revoked" badge with the
+date under the expiry), and its runs and writes over the last seven days. Below it are the
+recent runs, which you can filter by agent. A run opens a view of the audit entries it
+made. Cells wrap rather than truncate and dates are always shown whole; on a phone the
+tables scroll sideways inside their frame, like the panel's other tables. The page offers
+CSV and NDJSON downloads built by the same functions as the command; each download is itself
+written to the audit log. `?format=` takes `csv` (the default), `json` or `ndjson`; any
+other value answers `400` with a plain-text message naming the valid ones.
 
 The page is read-only. Revoking and rotating an identity stays in `vantage_agent`.
 
@@ -64,9 +69,14 @@ out fields hidden from the person downloading, as the audit page does.
 
 ## In the audit log
 
-An entry made by an agent shows an "Agent" badge next to the actor, and the run key in
-the audit list. The record history panel carries the badge too. The actor text already
-reads "Agent NAME (for OWNER)".
+An entry made by an agent shows an "Agent" badge at the start of the Who cell, then the
+actor text ("Agent NAME (for OWNER)"), which wraps if the column is narrow, and the run
+key on a second muted line ("run KEY"). The same text is the cell's tooltip. Entries made by
+people keep their one-line cell. The record history panel carries the badge too.
+
+In a declared `NAV` the page is `{"page": "agent-activity"}` and the audit log is
+`{"route": "vantage:audit"}`. An entry for the agent page is left out of the sidebar,
+without an error, while `AGENTS` is off or when the reader may not open it.
 
 ## What is recorded, and what is not
 

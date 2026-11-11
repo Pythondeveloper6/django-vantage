@@ -87,13 +87,16 @@
             <td class="v-audit-when">
               <time datetime="{{ row.entry.created_at|date:'c' }}">{{ row.entry.created_at|date:"Y-m-d H:i" }}</time>
             </td>
-            <td>
-              {{ row.entry.actor_repr|default:"—" }}
-              {% if row.entry.agent_id %}
-                <span class="v-badge" data-tone="primary">{% translate "Agent" %}</span>
-                {% if row.entry.agent_run %}<code class="v-audit-name">{{ row.entry.agent_run.run_key }}</code>{% endif %}
-              {% endif %}
-            </td>
+            {% if row.entry.agent_id %}
+              {% comment %} The badge leads, so a narrow column cannot cut it off; the cell wraps
+                 (see vantage-audit.css) and the run key sits on its own line. {% endcomment %}
+              <td class="v-audit-who-agent" title="{{ row.entry.actor_repr }}{% if row.entry.agent_run %} · {% translate 'run' %} {{ row.entry.agent_run.run_key }}{% endif %}">
+                <span class="v-audit-who-line"><span class="v-badge" data-tone="primary">{% translate "Agent" %}</span> {{ row.entry.actor_repr|default:"—" }}</span>
+                {% if row.entry.agent_run %}<code class="v-audit-name v-audit-who-run">{% translate "run" %} {{ row.entry.agent_run.run_key }}</code>{% endif %}
+              </td>
+            {% else %}
+              <td>{{ row.entry.actor_repr|default:"—" }}</td>
+            {% endif %}
             <td>
               <span class="v-audit-verb" data-action="{{ row.entry.action }}">
                 {{ row.entry.get_action_display }}

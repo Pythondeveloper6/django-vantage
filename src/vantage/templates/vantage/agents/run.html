@@ -14,7 +14,7 @@
   </div>
 </div>
 
-<p class="v-muted">
+<p class="v-muted v-agent-run-summary">
   {% blocktranslate trimmed with started=run.started_at|date:"Y-m-d H:i" seen=run.last_seen_at|date:"Y-m-d H:i" %}
     Started {{ started }}, last seen {{ seen }}.
   {% endblocktranslate %}
@@ -25,7 +25,7 @@
 
 <div class="v-table-wrap">
   {% if entries %}
-    <table class="v-table v-audit-table">
+    <table class="v-table v-table-flow v-audit-table v-run-table">
       <thead>
         <tr>
           <th scope="col">{% translate "When" %}</th>
