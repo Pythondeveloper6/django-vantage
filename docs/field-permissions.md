@@ -108,7 +108,7 @@ model, using the same resolution the pages use.
 | Child inlines on the edit page | Not a column | Disabled; Django keeps the stored value |
 | Inline cell editing | — | Not editable; a forged cell is dropped |
 | Bulk edit | Not offered | Not offered; a forged tick writes nothing |
-| CSV / TSV / JSON export | Not a column | Exported |
+| CSV / TSV / JSON / Excel / PDF export | Not a column | Exported |
 | JSON API | Left out of reads, rows and the schema; `?fields=` naming it is a 400 | Writing it is a 400; the schema marks it `readonly` |
 | Import | Not a target | Not a target |
 | History and restore | Not in the reconstruction or the timeline | Shown, never restorable, refused if posted |

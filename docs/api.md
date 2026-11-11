@@ -397,7 +397,7 @@ curl -b cookies -H "X-CSRFToken: $TOKEN" -F file=@orders.csv -F mode=create \
 curl -b cookies -H "X-CSRFToken: $TOKEN" -F file=@orders.csv -F dry_run=false \
   https://example.com/admin/_/api/shop/order/_import/
 
-# Export the filtered list (csv, tsv, or json = newline-delimited).
+# Export the filtered list (csv, tsv, xlsx, pdf, or json = newline-delimited).
 curl -b cookies "https://example.com/admin/_/api/shop/order/_export/?format=csv&status=paid"
 ```
 

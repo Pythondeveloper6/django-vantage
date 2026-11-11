@@ -656,6 +656,8 @@ schedule instead, see [Scheduled reports](reports.md).
 ?export=csv          orders.csv          text/csv
 ?export=tsv          orders.tsv          text/tab-separated-values
 ?export=json         orders.ndjson       application/x-ndjson
+?export=xlsx         orders.xlsx         application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+?export=pdf          orders.pdf          application/pdf
 ```
 
 Two properties matter more than format support.
@@ -676,7 +678,10 @@ ORD-5023,Milos Lindqvist,paid,14.41,Valencia,2026-08-07 12:00:51.817566+00:00
 
 **It streams.** `StreamingHttpResponse` over `QuerySet.iterator()` in chunks of 2,000,
 so exporting 400,000 rows does not put 400,000 rows in a worker's memory and the
-download starts immediately rather than appearing to hang.
+download starts immediately rather than appearing to hang. Excel and PDF files cannot
+be written one row at a time (a workbook and a PDF both end with an index), so they are
+built into a temporary file on disk and then sent back in 64 KB chunks: memory stays
+flat, but the download starts once the file is complete.
 
 Columns are the ones on screen, headers are the column labels, and related objects
 export as their `__str__` — what a human reading the file expects, rather than a
@@ -690,8 +695,18 @@ as text. Numbers, decimals, dates and booleans are not text and are never touche
 `-1.50` stays a number. The rule is the one the import error report uses, and scheduled
 report attachments share it with the Export button. It also means a text value that
 begins with one of those characters gains a visible `'` if the file is imported back.
-JSON (NDJSON) is not opened in a spreadsheet and is exported unchanged. There is no Excel
-export; if one is added it needs the same rule.
+JSON (NDJSON) is not opened in a spreadsheet and is exported unchanged. The Excel export
+applies the same rule to every text cell and to the header row, and writes every cell as
+text so nothing is ever evaluated.
+
+**Excel and PDF.** `?export=xlsx` writes a single-sheet workbook with a bold header row,
+using only the Python standard library (no extra dependency). A sheet holds at most
+1,048,576 rows, which is Excel's own limit. `?export=pdf` writes an A4 landscape table in
+Helvetica with equal-width columns and the header repeated on every page. A cell too long
+for its column is cut with `...`, and a character the built-in PDF font cannot draw is
+replaced with `?`: use CSV or Excel when you need the full text. Both formats use the
+same columns, rows, masked fields and field permissions as CSV, and the JSON API accepts
+`?format=xlsx` and `?format=pdf` on its export endpoint.
 
 JSON is **newline-delimited**, one object per line, rather than one big array: a
 streamed array cannot be closed if the queryset raises halfway, leaving a file that is
