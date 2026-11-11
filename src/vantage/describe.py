@@ -34,6 +34,9 @@ SCHEMA_VERSION = 1
 _SECRET_NAME = re.compile(r"secret|token|key|password|passwd|dsn", re.IGNORECASE)
 
 
+_URL_CREDENTIALS = re.compile(r"(\b[a-z][a-z0-9+.-]*://)[^/\s@]+@", re.IGNORECASE)
+
+
 def _is_secret_name(name: str) -> bool:
     from vantage.sensitive import name_is_sensitive
 
@@ -42,7 +45,10 @@ def _is_secret_name(name: str) -> bool:
 
 def _jsonable(value: Any) -> Any:
     """Reduce a setting to plain JSON data, dropping secret-looking dict keys."""
-    if value is None or isinstance(value, bool | int | float | str):
+    if isinstance(value, str):
+        # A URL can carry a credential under a name that does not look secret.
+        return _URL_CREDENTIALS.sub(r"\1***@", value)
+    if value is None or isinstance(value, bool | int | float):
         return value
     if isinstance(value, dict):
         return {

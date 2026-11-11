@@ -160,3 +160,10 @@ def test_upgrade_check_json_carries_the_agent_keys():
     assert payload["to_version"] == payload["version"]
     assert all(isinstance(line, str) for line in payload["note_lines"])
     assert isinstance(payload["deprecations"], list)
+
+
+def test_a_credential_inside_a_url_value_is_masked():
+    from vantage.describe import _jsonable
+
+    assert _jsonable("postgres://user:pw@db.example/app") == "postgres://***@db.example/app"
+    assert _jsonable({"plain": "https://example.com/x"}) == {"plain": "https://example.com/x"}
