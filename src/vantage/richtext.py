@@ -103,6 +103,13 @@ FORBIDDEN_TAGS: frozenset[str] = frozenset(
         "template",
         "noscript",
         "title",
+        "xmp",
+        "noembed",
+        "noframes",
+        "plaintext",
+        "listing",
+        "portal",
+        "marquee",
     }
 )
 
@@ -110,7 +117,41 @@ FORBIDDEN_TAGS: frozenset[str] = frozenset(
 #: click-jacking surface; the ``on*`` family are script; the rest rewrite how the
 #: surrounding page treats the element.
 FORBIDDEN_ATTRIBUTES: frozenset[str] = frozenset(
-    {"style", "srcdoc", "formaction", "id", "name", "class"}
+    {
+        "style",
+        "srcdoc",
+        "formaction",
+        "id",
+        "name",
+        "class",
+        # URL-valued attributes the sanitiser does not scheme-check.
+        "srcset",
+        "background",
+        "poster",
+        "ping",
+        "action",
+        "data",
+        "xlink:href",
+        "xlinkhref",
+        "href:xlink",
+        "dynsrc",
+        "lowsrc",
+        "manifest",
+        "codebase",
+        "archive",
+        "usemap",
+        # Focus, editing and UI hooks that change how the page treats the element.
+        "autofocus",
+        "contenteditable",
+        "tabindex",
+        "accesskey",
+        "draggable",
+        "is",
+        "slot",
+        "popover",
+        "popovertarget",
+        "inert",
+    }
 )
 
 #: Schemes that execute or embed content.
@@ -121,6 +162,7 @@ CLEAN_CONTENT_TAGS: frozenset[str] = frozenset({"script", "style"})
 
 _LINK_REL = "noopener noreferrer nofollow"
 _NAME = re.compile(r"^[a-z][a-z0-9-]*$")
+_ATTR_NAME = re.compile(r"^[a-z][a-z0-9:_-]*$")
 _SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*$")
 
 
@@ -160,7 +202,7 @@ def validate_policy(
                 f"VANTAGE['RICHTEXT_EXTRA_ATTRIBUTES'][{tag!r}] must be a list of names."
             )
         for name in names:
-            if not isinstance(name, str) or not _NAME.match(name.lower()):
+            if not isinstance(name, str) or not _ATTR_NAME.match(name.lower()):
                 raise ImproperlyConfigured(
                     f"VANTAGE['RICHTEXT_EXTRA_ATTRIBUTES'] has an invalid attribute: {name!r}."
                 )
@@ -168,7 +210,8 @@ def validate_policy(
             if lowered.startswith("on") or lowered in FORBIDDEN_ATTRIBUTES:
                 raise ImproperlyConfigured(
                     f"VANTAGE['RICHTEXT_EXTRA_ATTRIBUTES'] cannot allow {name!r}: "
-                    "event handlers and style attributes are never permitted."
+                    "event handlers, style, URL-valued and focus/UI attributes are never "
+                    "permitted."
                 )
 
     if not isinstance(schemes, (list, tuple, set, frozenset)):
