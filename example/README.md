@@ -99,6 +99,11 @@ one signs you in, and removing one leaves the other working. See
 palette, light and dark, is derived from it. The red banner across the top is
 `ENVIRONMENT`. Hit the sun/moon button in the header to switch themes.
 
+## Lesson projects
+
+[`lessons/`](lessons/README.md) holds a starter and a finished solution of a small shop, with
+six short lessons from install to agents.
+
 ## Layout
 
 ```
