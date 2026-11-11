@@ -164,8 +164,17 @@ gate: a session they sign in is sent to the second step by the panel, and by not
   way of saying "from the command line".
 
 Only superusers can reset someone else, not whoever may manage roles: switching off a
-superuser's second factor is a step towards becoming one. Nobody can reset their own from
+superuser's second factor is a step towards becoming one. A superuser can reset another
+superuser's two-factor sign-in without that person's password; that is by design, and
+it is audited under the acting superuser's name. Nobody can reset their own from
 that screen; their own page asks for proof.
+
+## Upgrading
+
+Migrations `0024` and `0025` move recovery codes from the device to the person. Reversing
+them restores the column and points each code at its owner's oldest device; codes of a
+person who has no device by then cannot be attached to one and are deleted. Back up
+before migrating backwards.
 
 ## Safety properties
 
@@ -195,11 +204,13 @@ time.
 
 **Wrong codes count against the account, not the session.** The count is kept per device,
 but a guess is not free on the others: every wrong code or password is counted against
-*each* of the person's devices that is not locked, before it is compared, so having five
-devices gives an attacker no more guesses per lockout than having one. A device that is
-locked is not compared against at all; the others still answer, and a right answer
-starts the counts again on all of them. The second step as a whole is locked when every
-device is. Five in a row (by default) lock the second step for five minutes — the right code and recovery codes included — and
+*each* of the person's devices that is not locked, before it is compared, and counts for
+as many attempts as there are such devices. A code is compared against every one of their
+secrets, so with `n` devices the second step locks after `ceil(TWO_FACTOR_MAX_ATTEMPTS / n)`
+wrong answers (at least one); the chance of guessing a code within one lockout is then no
+higher than with a single device. A device that is locked is not compared against at all;
+the others still answer, and a right answer starts the counts again on all of them. The
+second step as a whole is locked when every device is. Five in a row (by default) lock the second step for five minutes — the right code and recovery codes included — and
 throw away the half-signed-in note, so carrying on means typing the password again.
 Opening fresh sessions buys an attacker nothing, and neither does sending guesses in
 parallel: each attempt is counted, by one conditional `UPDATE`, *before* its answer is
@@ -255,11 +266,14 @@ impersonation. The set-up and reset screens refuse while impersonating.
 
 - **Five authenticators per person.** A cap, because each one is another place a code can
   be guessed against.
-- **The cached answer is up to a minute old.** Whether someone has an authenticator, and
-  whether a role requires one, is kept in their session and re-checked at least once a
-  minute — and at once when the requirement settings change — so the gate costs no
-  queries on an ordinary request. A reset or a new role membership reaches a live session
-  within that minute.
+- **A new role membership reaches a live session within a minute.** Whether someone has
+  an authenticator, and whether a role requires one, is kept in their session and
+  re-read at least once a minute — and at once when the requirement settings change.
+  Removing a device, a reset and switching two-factor off do not wait for that: each
+  request checks, with one indexed query, that the device its session passed with still
+  exists, so they take effect on the next request.
+- **A device you started but did not confirm expires after ten minutes.** Its secret is
+  discarded and the next visit to the page starts a new one.
 - **Only the panel is gated, unless you say otherwise.** A session signed in through
   another login view can still use the rest of your project before it answers — Django's
   admin included, until [`AdminTwoFactorMiddleware`](#djangos-admin) is installed. The
