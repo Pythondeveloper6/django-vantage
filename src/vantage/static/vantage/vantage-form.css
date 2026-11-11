@@ -158,6 +158,76 @@
   border-start-end-radius: 0;
 }
 
+/* ── rich-text editor (vantage-richtext.js) ───────────────────────────────── */
+
+/* The toolbar reuses .v-md-bar / .v-md-btn above. The surface is a div the script puts
+ * where the textarea was; the textarea stays in the DOM, hidden, and is what submits. */
+.v-rt-surface {
+  min-block-size: 12rem;
+  max-block-size: 32rem;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--input);
+  border-end-start-radius: var(--radius-sm);
+  border-end-end-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.v-rt-surface:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 25%, transparent);
+}
+
+.v-rt-hidden {
+  display: none;
+}
+
+.v-rt-btn[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--input);
+}
+
+.v-rt-surface :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6) {
+  margin-block: 0 0.75em;
+}
+
+.v-rt-surface :is(ul, ol) {
+  padding-inline-start: 1.5rem;
+}
+
+.v-rt-surface blockquote {
+  margin-inline: 0;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.v-rt-surface :is(code, pre) {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+}
+
+.v-rt-surface code {
+  padding: 0.0625em 0.25em;
+}
+
+.v-rt-surface pre {
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+}
+
+.v-rt-surface a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 /* ── the layout DSL (ModelPanel.layout) ───────────────────────────────────────
  *
  * Row, Section and Tabs resolve to nested vantage/partials/layout_node.html

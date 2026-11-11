@@ -53,7 +53,10 @@ classifiers = [
 ]
 # Upper-bounded on purpose: the bound moves only in the commit that adds the next Django
 # to the CI matrix, so pip can never pair this release with a Django nobody tested.
-dependencies = ["Django>=5.2,<6.2"]
+dependencies = [
+    "Django>=5.2,<6.2",
+    "nh3>=0.3.6",
+]
 
 [project.urls]
 Homepage = "https://github.com/Pythondeveloper6/django-vantage"
