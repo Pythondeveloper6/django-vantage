@@ -255,6 +255,11 @@ DEFAULTS: dict[str, Any] = {
     # What agents may do with a model whose panel leaves ``agent_access`` unset:
     # "none", "read" or "write".
     "AGENT_DEFAULT_ACCESS": "read",
+    # Off by default. When on, an AgentIdentity's bearer token may call the JSON API as
+    # its service user. See docs/agents.md.
+    "AGENTS": False,
+    # Requests per minute given to a new identity (0 = no limit).
+    "AGENT_RATE_LIMIT_PER_MINUTE": 60,
     # ── data quality ────────────────────────────────────────────────────────
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
@@ -326,6 +331,7 @@ MINIMUMS: dict[str, int] = {
     "TWO_FACTOR_MAX_ATTEMPTS": 1,
     "TWO_FACTOR_LOCKOUT_SECONDS": 1,
     "EXPORT_BINARY_MAX_ROWS": 1,
+    "AGENT_RATE_LIMIT_PER_MINUTE": 0,
 }
 
 

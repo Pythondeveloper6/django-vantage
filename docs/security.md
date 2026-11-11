@@ -392,7 +392,7 @@ rule.
 
 ## The `--deploy` checks
 
-Ten checks, all silent unless the panel is actually mounted (a project that has not
+Eleven checks, all silent unless the panel is actually mounted (a project that has not
 wired `site.urls` into any `urls.py` gets no warnings for a panel it is not running),
 all registered with `deploy=True` so they stay out of the everyday `manage.py check` —
 a check that is right on a laptop and wrong in production is a check everyone learns to
@@ -411,6 +411,7 @@ scroll past.
 | `vantage.W058` | No `PanelSecurityMiddleware` — no security headers, no autocomplete/export/import budgets |
 | `vantage.W059` | [Media served from the panel's own origin](#media-on-a-separate-origin) while at least one registered model has a `FileField` |
 | `vantage.W115` | `REPORTS` is on and `REPORTS_BASE_URL` is unset, so links in [report emails](reports.md#the-email) are built from the `Host` header of the request that created each subscription |
+| `vantage.W116` | `AGENTS` is on in production (`DEBUG` off) with neither `SECURE_SSL_REDIRECT` nor `SECURE_PROXY_SSL_HEADER` set, so [agent tokens](agents.md) could travel over plain HTTP |
 
 Two-factor sign-in adds one more in its own range, `vantage.W095`: it is required of
 someone while `django.contrib.admin` is mounted without
