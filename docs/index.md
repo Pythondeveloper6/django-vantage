@@ -279,6 +279,12 @@ django-simple-history are all used when present and never required.
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
 | [Sensitive fields](sensitive-fields.md) | Inferred masking of secrets on every surface, audited reveal, write-only inputs, the threat model |
 | [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |
+| [Agent identities](agents.md) | Bearer-token service users that can only be narrowed: access level, allowed models, rate limit, write budget, runs |
+| [Content safety for agents](agent-content-safety.md) | Hidden fields, `agent_access`, scrubbing and the untrusted-data envelope, and where each is enforced |
+| [Agent writes](agent-writes.md) | Dry run, approvals for agent changes, undo of a whole run, the delete guard |
+| [MCP server](mcp.md) | Tools for MCP clients over HTTP and stdio, all going through the JSON API |
+| [Agent activity](agent-activity.md) | The audit page and export of everything agents did |
+| [For coding agents](for-coding-agents.md) | `vantage_describe` and `llms.txt` so a coding agent can work on a Vantage project |
 | [Multi-tenancy](tenancy.md) | Scoping every registered model to a tenant, fail-closed, over both the panel and the API |
 | [Theming](theming.md) | `BRAND_COLOR`, the derived palette, tokens, light/dark, RTL, custom CSS, the settings screen |
 | [Internationalization](internationalization.md) | The shipped `en`/`ar` catalogues, activating a language, adding your own locale |

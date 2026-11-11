@@ -11,7 +11,9 @@ word *breaking*, so the log is useful either way.
 
 ## [Unreleased]
 
-The whole roadmap: seven features, each built on its own branch and merged into the
+## [0.3.0b1] — 2026-11-11
+
+First beta. The whole roadmap: seven features, each built on its own branch and merged into the
 release branch, then a security review and a visual check of the result, with every
 finding fixed. On top of that, production-readiness work: an API stability policy and
 upgrade checker, access review and break-glass access, single sign-on role mapping,
@@ -19,7 +21,7 @@ read-only legacy tables, notifications, metrics, a fuller JSON API with OpenAPI,
 adoption tooling, complete Arabic catalogues, database CI and a second security review,
 followed by a third covering field reveal, saved views, reports and exports, webhook
 delivery and two-factor internals.
-Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
+Eleven migrations were added (`0016`–`0026`), so run `migrate` after upgrading
 (`manage.py vantage_upgrade_check --from 0.2.0a2` lists everything).
 
 ### Known limitations
@@ -50,6 +52,24 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 - New strings are not yet in the `.po` catalogues.
 
 ### Added
+
+#### AI-agent access (opt-in, `VANTAGE["AGENTS"]`)
+
+- Agent identities: a service user plus a Bearer token (`vta_…`, shown once, only a
+  hash stored) that can only narrow access: read or write, allowed models, delete
+  permission, approval requirement, expiry, rate limit and a write budget per run.
+  `manage.py vantage_agent create|list|revoke|rotate|undo-run`. Migration `0026`.
+- Everything an agent does is audited with the agent, the run and the owner it acts for;
+  an Agent activity page and `vantage_agent_activity` export.
+- Panels can set `agent_access` and `agent_hidden_fields`; `AGENT_DEFAULT_ACCESS`
+  defaults to `"read"`.
+- Dry run (`?dry_run=1`) on API writes, approvals for agent updates (HTTP 202), undo of
+  a whole run, and a guard so bulk delete actions need delete permission.
+- An MCP server over HTTP (`_/mcp/`) and stdio (`manage.py vantage_mcp --agent NAME`)
+  whose tools call the JSON API; results are scrubbed and wrapped as untrusted data.
+- `manage.py vantage_describe` and `llms.txt` / `llms-full.txt` for coding agents.
+- Settings: `AGENTS`, `AGENT_RATE_LIMIT_PER_MINUTE`, `AGENT_MAX_FIELD_CHARS`,
+  `AGENT_DEFAULT_ACCESS`, `AGENT_ALLOWED_ORIGINS` (all code-only, provisional).
 
 #### Adopting from django.contrib.admin
 
@@ -315,6 +335,14 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 
 ### Security
 
+- AI-agent surface: Bearer tokens are accepted only on JSON API and MCP routes and are
+  refused on every HTML route; a bad token never falls back to a session; only the
+  prefix and a SHA-256 hash are stored and compared in constant time; a session plus a
+  Bearer header still needs CSRF. Panel `agent_access` and `agent_hidden_fields` and
+  sensitive fields are enforced in the API (reads, schema, exports, filters, sort,
+  writes, dry run), the effective access being the lesser of identity and panel. Bulk
+  delete actions need delete permission. The MCP endpoint checks `Origin`, caps the body
+  at 1 MiB and never reads a session cookie.
 - Two-factor, several devices: adding a device to an account that already has one, and
   removing a device, both require proof (a current code, a recovery code or the
   password); a wrong proof counts toward the lockout. A device is only ever looked up
@@ -860,7 +888,8 @@ Read these before deploying an alpha anywhere it matters.
 - Sensitive field names are excluded from columns, filters, search, exports and audit
   diffs.
 
-[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a2...HEAD
+[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.3.0b1...HEAD
+[0.3.0b1]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a2...v0.3.0b1
 [0.2.0a2]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a1...v0.2.0a2
 [0.2.0a1]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.1.0a1...v0.2.0a1
 [0.1.0a1]: https://github.com/Pythondeveloper6/django-vantage/releases/tag/v0.1.0a1

@@ -8,6 +8,12 @@ Full text of every page below, in one file: https://pythondeveloper6.github.io/d
 
 - [Home](https://pythondeveloper6.github.io/django-vantage/): Install it, and every model you have is already administrable — with a data grid, charts, a command palette, light and dark themes and a schema map.
 - [Features at a glance](https://pythondeveloper6.github.io/django-vantage/features/): Everything django-vantage does, one short paragraph each, with a link to the full page. Unless it says otherwise, a feature works the moment the package is installed: nothing here needs configuring before you can use it.
+- [Multi-tenancy](https://pythondeveloper6.github.io/django-vantage/tenancy/): One panel, many tenants, and a row that belongs to the wrong one is not merely a bug — it is a customer reading another customer's data.
+- [Internationalization](https://pythondeveloper6.github.io/django-vantage/internationalization/): The package is structured for i18n throughout — around 570 gettextlazy and {% translate %} call sites, and RTL that works from day one because the stylesheets use logical CSS properties rather than a mirrored build (see Theming → Right to...
+- [Extending](https://pythondeveloper6.github.io/django-vantage/extending/): Three extension points, in the order you are likely to need them.
+- [Migrating from django.contrib.admin](https://pythondeveloper6.github.io/django-vantage/migrating-from-django-admin/): A project with a hundred models and years of admin.py should not switch in one deploy. The path below keeps both panels running, moves one batch of models at a time, and leaves the old admin in place until you choose to remove it.
+- [Plugin compatibility](https://pythondeveloper6.github.io/django-vantage/plugin-compatibility/): django.contrib.admin has a large ecosystem of packages that subclass ModelAdmin, inject templates or register widgets.
+- [Vantage vs Unfold](https://pythondeveloper6.github.io/django-vantage/comparison/): This is a comparison of approach, written from the Vantage side, so read it with that in mind. It lists what is different and when each is the better choice.
 - [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/): Beta. The version is 0.3.0b1, the first beta, and the PyPI classifier is Development Status :: 4 - Beta.
 - [Roadmap](https://pythondeveloper6.github.io/django-vantage/roadmap/): Everything that was on this page is built and waiting for the next release. Each item links to its documentation, and the changelog lists the details and the known limitations.
 
@@ -40,12 +46,15 @@ Full text of every page below, in one file: https://pythondeveloper6.github.io/d
 - [Single sign-on](https://pythondeveloper6.github.io/django-vantage/single-sign-on/): Vantage signs people in through Django's own authentication, so any SSO library that logs a user into Django logs them into the panel: [mozilla-django-oidc], [django-allauth] and [python-social-auth] all work against Microsoft Entra ID...
 - [Sensitive fields](https://pythondeveloper6.github.io/django-vantage/sensitive-fields/): A field that looks like a secret is treated as one before anybody says so.
 - [The JSON API](https://pythondeveloper6.github.io/django-vantage/api/): Anything the panel's UI can do to a record, a script can do too — through the exact same permission and validation path, never a parallel one.
-- [Multi-tenancy](https://pythondeveloper6.github.io/django-vantage/tenancy/): One panel, many tenants, and a row that belongs to the wrong one is not merely a bug — it is a customer reading another customer's data.
-- [Internationalization](https://pythondeveloper6.github.io/django-vantage/internationalization/): The package is structured for i18n throughout — around 570 gettextlazy and {% translate %} call sites, and RTL that works from day one because the stylesheets use logical CSS properties rather than a mirrored build (see Theming → Right to...
-- [Extending](https://pythondeveloper6.github.io/django-vantage/extending/): Three extension points, in the order you are likely to need them.
-- [Migrating from django.contrib.admin](https://pythondeveloper6.github.io/django-vantage/migrating-from-django-admin/): A project with a hundred models and years of admin.py should not switch in one deploy. The path below keeps both panels running, moves one batch of models at a time, and leaves the old admin in place until you choose to remove it.
-- [Plugin compatibility](https://pythondeveloper6.github.io/django-vantage/plugin-compatibility/): django.contrib.admin has a large ecosystem of packages that subclass ModelAdmin, inject templates or register widgets.
-- [Vantage vs Unfold](https://pythondeveloper6.github.io/django-vantage/comparison/): This is a comparison of approach, written from the Vantage side, so read it with that in mind. It lists what is different and when each is the better choice.
+
+## AI agents
+
+- [Agent identities](https://pythondeveloper6.github.io/django-vantage/agents/): An agent identity lets a script or an automated tool call the JSON API with a bearer token instead of a person's session. It is off unless VANTAGE["AGENTS"] is True.
+- [Content safety for agents](https://pythondeveloper6.github.io/django-vantage/agent-content-safety/): This page covers what Vantage does to record data before an agent (a language model driving the panel through the API or an MCP server) sees it, and what it cannot do.
+- [Agent writes, dry run and undo](https://pythondeveloper6.github.io/django-vantage/agent-writes/): Provisional: the behaviour on this page may change before it is declared stable.
+- [MCP server](https://pythondeveloper6.github.io/django-vantage/mcp/): Provisional: the behaviour on this page may change before it is declared stable.
+- [Agent activity](https://pythondeveloper6.github.io/django-vantage/agent-activity/): What agents did, visible to the people who manage them: an export command, a read-only page, and a badge in the audit log.
+- [For coding agents](https://pythondeveloper6.github.io/django-vantage/for-coding-agents/): An AI coding agent writes better panels when it reads the real documentation and the real state of your project instead of guessing.
 
 ## Operations
 
