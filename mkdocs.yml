@@ -130,6 +130,13 @@ nav:
       - Single sign-on: single-sign-on.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
+      - AI agents:
+          - Agent identities: agents.md
+          - Content safety for agents: agent-content-safety.md
+          - Agent writes, dry run and undo: agent-writes.md
+          - MCP server: mcp.md
+          - Agent activity: agent-activity.md
+          - For coding agents: for-coding-agents.md
       - Multi-tenancy: tenancy.md
       - Internationalization: internationalization.md
       - Extending: extending.md

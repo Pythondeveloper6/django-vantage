@@ -282,10 +282,10 @@ UPGRADE_NOTES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "next",
         (
-            "Run `manage.py migrate vantage` (migrations 0016-0025: two-factor "
+            "Run `manage.py migrate vantage` (migrations 0016-0026: two-factor "
             "sign-in and its escalating lockout, webhooks, scheduled reports, approvals, "
             "field permissions, elevated access, and several two-factor devices per "
-            "person with recovery codes owned by the person).",
+            "person with recovery codes owned by the person, and agent identities and runs).",
             "Rich-text fields now open in an HTML editor and are sanitised on save; list "
             "fields that hold markdown in the panel's `markdown_fields` to keep the old "
             "toolbar. The `nh3` package is installed with Vantage for this.",
@@ -295,6 +295,9 @@ UPGRADE_NOTES: tuple[tuple[str, tuple[str, ...]], ...] = (
             "listed in VANTAGE['UPLOAD_ACTIVE_SUFFIXES'].",
             "Two-factor sign-in is offered to everyone from the account page by default; "
             "set VANTAGE['TWO_FACTOR'] = False to keep it off.",
+            "AI-agent access is off unless VANTAGE['AGENTS'] is True; agents are read-only "
+            "on a panel unless it sets `agent_access = \"write\"` or "
+            "VANTAGE['AGENT_DEFAULT_ACCESS'] is \"write\".",
             "Settings and panel attributes added in this release are provisional until "
             "the release after it; see docs/api-stability.md.",
         ),
