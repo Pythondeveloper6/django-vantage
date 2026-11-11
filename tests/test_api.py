@@ -797,7 +797,11 @@ class TestCSRF:
         assert Post.objects.filter(slug="csrf2").exists()
 
     def test_csrf_failure_is_never_exempted_at_the_view_level(self):
-        """vantage.api never decorates a view with csrf_exempt."""
+        """vantage.api never decorates a view with csrf_exempt.
+
+        The exemption lives in vantage.agents.guard_patterns, and ApiView.authenticate
+        re-checks CSRF itself for everything but a token request without a cookie.
+        """
         import inspect
 
         from vantage import api

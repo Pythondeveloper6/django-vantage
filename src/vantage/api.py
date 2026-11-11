@@ -159,6 +159,27 @@ class ApiError(Exception):
         return error_response(self.status, self.detail, **self.extra)
 
 
+class RateLimited(ApiError):
+    """429 with ``Retry-After``."""
+
+    def __init__(self, retry_after: int) -> None:
+        super().__init__(429, "Too many requests. Slow down.")
+        self.retry_after = max(1, int(retry_after))
+
+    def response(self) -> JsonResponse:
+        response = super().response()
+        response["Retry-After"] = str(self.retry_after)
+        return response
+
+
+class _EarlyResponse(Exception):
+    """Carries a ready-made response out of ``authenticate`` (a CSRF rejection)."""
+
+    def __init__(self, response) -> None:
+        super().__init__("early response")
+        self.response = response
+
+
 class BadRequest(ApiError):
     """A malformed request body. Always a 400 — this is about shape, not content."""
 
@@ -402,6 +423,8 @@ class ApiView(View):
             if handler is None:
                 return self.http_method_not_allowed(request, *args, **kwargs)
             return handler(request, *args, **kwargs)
+        except _EarlyResponse as exc:
+            return exc.response
         except ApiError as exc:
             return exc.response()
         except Http404 as exc:
@@ -428,16 +451,37 @@ class ApiView(View):
         that class, because the *response* on failure has to differ (JSON here, a
         login redirect there) even though the *rule* is identical.
         """
+        from django.conf import settings as django_settings
+
+        from vantage import agents
+
+        bearer = agents.has_bearer(request)
+        if bearer:
+            # A bearer header means an agent request: a bad token is a 401, and never
+            # falls back to whoever the session cookie says is signed in.
+            try:
+                agents.authenticate_bearer(request)
+            except agents.AgentAuthError as exc:
+                raise ApiError(exc.status, exc.detail) from None
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             raise ApiError(401, "Authentication required.")
         if not user.is_staff:
             raise ApiError(403, "Staff access is required.")
+        # API views are exempt from the CSRF middleware (see vantage.agents.guard_patterns)
+        # and checked here instead: only a valid token with no session cookie skips it.
+        if not (bearer and django_settings.SESSION_COOKIE_NAME not in request.COOKIES):
+            failure = agents.csrf_response(request)
+            if failure is not None:
+                raise _EarlyResponse(failure)
+        if bearer:
+            agents.check_rate(request)
         # Primes the CSRF cookie on every authenticated response, GET included, so a
         # script that only ever talks to this API (and never renders the login page's
         # own <form>) still has something to send back in X-CSRFToken on its first
         # write. Cheap: get_token() is idempotent once the cookie already matches.
-        get_token(request)
+        if not bearer:
+            get_token(request)
 
     def resolve(self, request, *args, **kwargs) -> None:
         """Hook: a subclass resolves whatever its URL named — a model, nothing, ..."""
@@ -483,9 +527,15 @@ class ModelApiView(ApiView):
         self.panel = self.site.get_panel(self.model)
         self.permissions = get_permissions()
 
+        from vantage import agents
+
+        # Before the permission check: a model outside the agent's list is a 404.
+        agents.check_access(request, self.panel)
         action = self.required_action(request)
         if not self.permissions.has_model_perm(request, self.model, action):
             raise ApiError(403, _model_denied_message(self.panel, action))
+        if request.method.upper() not in ("GET", "HEAD", "OPTIONS"):
+            agents.check_write_budget(request)
 
     def required_action(self, request) -> str:
         """The model-level verb this request needs before the handler is reached.
@@ -775,9 +825,13 @@ class SchemaView(ApiView):
     """
 
     def get(self, request, *args, **kwargs):
+        from vantage import agents
+
         models = {
             panel.opts.label_lower: model_schema(request, panel, self.permissions)
-            for panel in self.permissions.visible_panels(request, list(self.site.panels()))
+            for panel in agents.visible_panels(
+                request, self.permissions.visible_panels(request, list(self.site.panels()))
+            )
         }
         return json_response({"models": models})
 

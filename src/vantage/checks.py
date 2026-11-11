@@ -806,6 +806,32 @@ def check_deploy_reports_base_url(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_agents_https(app_configs, **kwargs) -> list[Warning]:
+    """Agent tokens served over plain HTTP. (``vantage.W116``)
+
+    A bearer token is a password in a header. In production, with no redirect to HTTPS
+    and no proxy header telling Django the connection was secure, it crosses the
+    network readable. Silent when agents are off or the panel is not mounted.
+    """
+    from django.conf import settings
+
+    if not panel_is_mounted() or not _vantage_setting("AGENTS"):
+        return []
+    if settings.DEBUG or settings.SECURE_SSL_REDIRECT or settings.SECURE_PROXY_SSL_HEADER:
+        return []
+    return [
+        Warning(
+            "VANTAGE['AGENTS'] is on but the site is not forced onto HTTPS.",
+            hint=(
+                "Agent bearer tokens would travel in clear text. Set SECURE_SSL_REDIRECT "
+                "(or SECURE_PROXY_SSL_HEADER behind a TLS-terminating proxy) and "
+                "SESSION_COOKIE_SECURE. See docs/agents.md."
+            ),
+            id="vantage.W116",
+        )
+    ]
+
+
 def _models_with_file_fields() -> list[str]:
     """``"app.Model"`` for every registered model that can hold an uploaded file."""
     from django.db import models as django_models
@@ -1023,4 +1049,5 @@ DEPLOYMENT_CHECKS = (
     check_deploy_panel_middleware,
     check_deploy_media_origin,
     check_deploy_reports_base_url,
+    check_deploy_agents_https,
 )

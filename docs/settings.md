@@ -348,6 +348,13 @@ Content-safety settings for anything handed to an AI agent; see
 | `AGENT_MAX_FIELD_CHARS` | `2000` | Longest text value handed to an agent. Longer values are cut and end with a `[truncated]` marker |
 | `AGENT_DEFAULT_ACCESS` | `"read"` | What agents may do with a model whose panel leaves `agent_access` unset: `"none"`, `"read"` or `"write"` |
 
+Bearer-token access to the JSON API for non-human callers. See [Agents](agents.md).
+
+| Key | Default | Effect |
+|---|---|---|
+| `AGENTS` | `False` | Turns agent identities on. Off, every `Authorization: Bearer` request is a 401. Warns with `vantage.W116` in production without HTTPS |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute given to a new identity. `0` means no limit |
+
 ## Scale
 
 What a list page does once the table outgrows the sample data. Everything is fast at
@@ -428,6 +435,8 @@ REPORTS_RETENTION_DAYS  REPORTS_BASE_URL
 UNDO_WINDOW  UNDO_MAX_ROWS
 
 AGENT_MAX_FIELD_CHARS  AGENT_DEFAULT_ACCESS
+
+AGENTS  AGENT_RATE_LIMIT_PER_MINUTE
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS

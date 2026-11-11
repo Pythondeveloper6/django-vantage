@@ -579,7 +579,11 @@ def build_document(site, request) -> dict[str, Any]:
     paths: dict[str, Any] = {}
     tags: list[dict[str, str]] = []
 
-    for panel in permissions.visible_panels(request, list(site.panels())):
+    from vantage import agents
+
+    for panel in agents.visible_panels(
+        request, permissions.visible_panels(request, list(site.panels()))
+    ):
         label = panel.opts.label_lower
         try:
             base = reverse(
