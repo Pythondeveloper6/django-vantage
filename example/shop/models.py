@@ -109,6 +109,9 @@ class Product(models.Model):
     stock = models.PositiveIntegerField("units in stock", default=0)
     is_featured = models.BooleanField("featured", default=False)
     description = models.TextField(blank=True)
+    #: A name ending ``_html`` is all it takes: Vantage edits this in the rich-text
+    #: editor and sanitises it on save and again when it is drawn.
+    details_html = models.TextField("details", blank=True)
     #: The gallery view's picture. Inferred from the field type, configured nowhere.
     image = models.ImageField(upload_to="products/", blank=True)
     created_at = models.DateTimeField(default=timezone.now)
