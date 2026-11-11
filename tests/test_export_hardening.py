@@ -10,7 +10,7 @@ import pytest
 from django.test import override_settings
 from django.urls import reverse
 
-from tests.test_export import body_of, client_in, read, sheet_cells, text_of  # noqa: F401
+from tests.test_export import InMemoryRows, body_of, client_in, read, sheet_cells, text_of  # noqa: F401
 from tests.testapp.models import Author, Post
 from vantage import export
 from vantage.export import stream_export
@@ -117,15 +117,25 @@ class TestRowCap:
 
 
 class TestCellLimit:
-    def test_a_cell_over_32767_characters_is_cut_within_the_limit(self, client_in, author):
-        Post.objects.create(title="x" * 40_000, slug="x", body="b", author=author)
-        rows = sheet_cells(body_of(client_in.get(reverse(LIST), {"export": "xlsx"})))
+    def test_a_cell_over_32767_characters_is_cut_within_the_limit(self):
+        rows = sheet_cells(
+            body_of(
+                stream_export(
+                    "xlsx", InMemoryRows(Post(title="x" * 40_000)), ["title"], ["Title"], "f"
+                )
+            )
+        )
         cell = rows[1][0]
         assert len(cell) == 32_767 and cell.endswith("…")
 
-    def test_a_cell_at_the_limit_is_untouched(self, client_in, author):
-        Post.objects.create(title="y" * 32_767, slug="x", body="b", author=author)
-        rows = sheet_cells(body_of(client_in.get(reverse(LIST), {"export": "xlsx"})))
+    def test_a_cell_at_the_limit_is_untouched(self):
+        rows = sheet_cells(
+            body_of(
+                stream_export(
+                    "xlsx", InMemoryRows(Post(title="y" * 32_767)), ["title"], ["Title"], "f"
+                )
+            )
+        )
         assert rows[1][0] == "y" * 32_767
 
 
@@ -189,16 +199,15 @@ class TestWorkbookRegressions:
         assert cells and all(c.get("t") == "inlineStr" for c in cells)
         assert b"<f>" not in data and b"<f " not in data
 
-    def test_xml_illegal_characters_are_stripped(self, client_in, author):
-        Post.objects.create(
-            title="a\x00b\x08c\x0bd\x0ce\x1ff￾g￿h", slug="x", body="b", author=author
+    def test_xml_illegal_characters_are_stripped(self):
+        # Built in memory: PostgreSQL cannot store NUL in a text column.
+        title = "a\x00b\x08c\x0bd\x0ce\x1ff￾g￿h"
+        data = body_of(
+            stream_export("xlsx", InMemoryRows(Post(title=title)), ["title"], ["Title"], "f")
         )
-        data = sheet_xml(body_of(client_in.get(reverse(LIST), {"export": "xlsx"})))
-        ET.fromstring(data)
-        assert not re.search("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]", data.decode())
-        assert sheet_cells(body_of(client_in.get(reverse(LIST), {"export": "xlsx"})))[1][0] == (
-            "abcdefgh"
-        )
+        ET.fromstring(sheet_xml(data))
+        assert not re.search("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]", sheet_xml(data).decode())
+        assert sheet_cells(data)[1][0] == "abcdefgh"
 
 
 def content_stream(data: bytes) -> bytes:
