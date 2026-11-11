@@ -14,8 +14,10 @@
     <div class="v-card-body">
       <p class="v-muted">
         {% blocktranslate trimmed %}
-          A reset switches the person's two-factor sign-in off and is recorded in the
-          audit log. They can sign in with their password alone until they set it up
+          "Reset" on a device removes that one authenticator and leaves the person's other
+          devices working. "Reset all" removes every device they have, which switches their
+          two-factor sign-in off. Each reset is recorded in the audit log, and says how many
+          devices went. After all are gone they can sign in with their password alone until they set it up
           again, which they will be asked to do at once if their role requires it.
         {% endblocktranslate %}
       </p>
@@ -33,6 +35,7 @@
       <thead>
         <tr>
           <th scope="col">{% translate "Person" %}</th>
+          <th scope="col">{% translate "Device" %}</th>
           <th scope="col">{% translate "Set up" %}</th>
           <th scope="col">{% translate "Last used" %}</th>
           <th scope="col"><span class="v-sr-only">{% translate "Reset" %}</span></th>
@@ -42,6 +45,7 @@
         {% for device in devices %}
           <tr>
             <td>{{ device.user.get_username }}</td>
+            <td>{{ device.name }}</td>
             <td><time datetime="{{ device.confirmed_at|date:"c" }}">{{ device.confirmed_at|date:"DATETIME_FORMAT" }}</time></td>
             <td>{% if device.last_used_at %}{{ device.last_used_at|date:"DATETIME_FORMAT" }}{% else %}<span class="v-muted">{% translate "Never" %}</span>{% endif %}</td>
             <td>
@@ -51,12 +55,24 @@
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="user" value="{{ device.user_id }}">
+                  <input type="hidden" name="device" value="{{ device.pk }}">
                   <button class="v-btn v-btn-secondary v-btn-sm" type="submit">
-                    {% blocktranslate trimmed with name=device.user.get_username %}
-                      Reset <span class="v-sr-only">for {{ name }}</span>
+                    {% blocktranslate trimmed with name=device.user.get_username device_name=device.name %}
+                      Reset <span class="v-sr-only">{{ device_name }} for {{ name }}</span>
                     {% endblocktranslate %}
                   </button>
                 </form>
+                {% if device.person_count > 1 %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="user" value="{{ device.user_id }}">
+                    <button class="v-btn v-btn-destructive v-btn-sm" type="submit">
+                      {% blocktranslate trimmed with name=device.user.get_username n=device.person_count %}
+                        Reset all {{ n }} <span class="v-sr-only">devices for {{ name }}</span>
+                      {% endblocktranslate %}
+                    </button>
+                  </form>
+                {% endif %}
               {% endif %}
             </td>
           </tr>

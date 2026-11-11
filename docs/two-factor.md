@@ -27,8 +27,33 @@ From **Your account → Set up two-factor sign-in** (`<panel>/_/account/two-fact
 From then on, signing in through the panel's own sign-in page (`vantage.authviews`)
 asks for a code after the password. One box takes either an app code or a recovery code.
 
-Turning it off, or replacing the recovery codes, asks for a current code (or a recovery
-code) or the password first.
+Turning it off, replacing the recovery codes, or adding or removing an authenticator asks
+for a current code (or a recovery code) or the password first.
+
+## Several authenticators
+
+A person can have up to five authenticators at once — a phone and a spare, or a phone and
+a tablet — each with a name they choose ("Phone"; blank means "Authenticator"). The
+account page lists them with when each was added and last used.
+
+- **Adding one**: type a name, confirm it is you, then scan the new QR code and type the
+  code it shows, exactly as for the first. Nothing changes until that code is right. The
+  recovery codes stay as they are; no new set is shown.
+- **Signing in**: a code from *any* of the person's devices is accepted, and so is a
+  recovery code. The session remembers which device passed.
+- **Removing one**: pick it, confirm it is you. Sessions that signed in with that device
+  stop being trusted and are asked for a code again; sessions that used another device
+  carry on. Removing the *last* one switches two-factor sign-in off, as before (a role
+  that requires it sends the person to set it up again), and deletes the recovery codes.
+  **Switch off** removes every device at once.
+- **Recovery codes are the person's, not a device's.** They survive removing any one
+  device, and a recovery code works whichever devices are left.
+
+Every device keeps its own sealed secret, its own "already used" step (so one device's
+code being spent does not spend another's) and its own lockout counters.
+
+Existing accounts need nothing: the migration keeps each person's authenticator, names it
+"Authenticator", and attaches their recovery codes to the person.
 
 The QR code is drawn by the package itself (`vantage.qr`), as inline SVG, black on white
 in both themes — a phone camera reads that reliably, and the inverted version unreliably.
@@ -55,8 +80,10 @@ owner to the set-up page. To keep that visible and undoable:
 
 - Every step is in the [audit log](permissions.md#the-audit-log) against the account:
   `two_factor.started`, `two_factor.enabled`, `two_factor.disabled`, `two_factor.codes`,
-  `two_factor.recovery_used` and `two_factor.reset`, with the address and browser of the
-  request that did it.
+  `two_factor.recovery_used` and `two_factor.reset`, and for extra devices
+  `two_factor.device_started`, `two_factor.device_added` and `two_factor.device_removed`,
+  with the address and browser of the request that did it. Device names are recorded;
+  secrets and codes never are.
 - **Two-factor sign-in for everyone** shows when each person's authenticator was last
   set up. If someone does not recognise theirs, or cannot sign in because "their"
   authenticator is not on their phone, a superuser resets it and they set it up again.
@@ -115,10 +142,17 @@ gate: a session they sign in is sent to the second step by the panel, and by not
 
 ## When someone loses their phone
 
-- **They have a recovery code**: they sign in with it, switch two-factor off on their own
-  page, and set it up again on the new phone.
+- **They have another device**: they sign in with it, remove the lost one on their own
+  page, and add the new phone.
+- **They have a recovery code**: they sign in with it, add the new phone as a device (and
+  remove the lost one), or switch two-factor off and set it up again.
 - **They do not**: a superuser opens **Your account → Two-factor sign-in for everyone**
-  (`<panel>/_/account/two-factor/people/`) and resets them. The reset is recorded in the
+  (`<panel>/_/account/two-factor/people/`) and resets them. The screen lists every
+  device. **Reset** on a device removes just that one and leaves the person's other
+  devices (and recovery codes) working; **Reset all**, and the `manage.py` command below,
+  remove every device and the recovery codes, which switches their two-factor sign-in
+  off. Resetting the last remaining device is the same as resetting all. The success
+  message says how many devices were removed, and the reset is recorded in the
   [audit log](permissions.md#the-audit-log) under the superuser's name.
 - **The only superuser has lost theirs**: on the server,
 
@@ -126,7 +160,8 @@ gate: a session they sign in is sent to the second step by the panel, and by not
   python manage.py vantage_two_factor_reset <username>
   ```
 
-  which is audited with no actor — the log's way of saying "from the command line".
+  which removes all of that account's devices and is audited with no actor — the log's
+  way of saying "from the command line".
 
 Only superusers can reset someone else, not whoever may manage roles: switching off a
 superuser's second factor is a step towards becoming one. Nobody can reset their own from
@@ -158,8 +193,13 @@ check and the update are one conditional `UPDATE`. Codes from one step either si
 are accepted, for phone clocks that drift; all three candidates are compared in constant
 time.
 
-**Wrong codes count against the account, not the session.** Five in a row (by default)
-lock the second step for five minutes — the right code and recovery codes included — and
+**Wrong codes count against the account, not the session.** The count is kept per device,
+but a guess is not free on the others: every wrong code or password is counted against
+*each* of the person's devices that is not locked, before it is compared, so having five
+devices gives an attacker no more guesses per lockout than having one. A device that is
+locked is not compared against at all; the others still answer, and a right answer
+starts the counts again on all of them. The second step as a whole is locked when every
+device is. Five in a row (by default) lock the second step for five minutes — the right code and recovery codes included — and
 throw away the half-signed-in note, so carrying on means typing the password again.
 Opening fresh sessions buys an attacker nothing, and neither does sending guesses in
 parallel: each attempt is counted, by one conditional `UPDATE`, *before* its answer is
@@ -213,8 +253,8 @@ impersonation. The set-up and reset screens refuse while impersonating.
 
 ## Limitations
 
-- **One authenticator per person.** To move to a new phone, switch it off and set it up
-  again, or add the same key to both apps while setting up.
+- **Five authenticators per person.** A cap, because each one is another place a code can
+  be guessed against.
 - **The cached answer is up to a minute old.** Whether someone has an authenticator, and
   whether a role requires one, is kept in their session and re-checked at least once a
   minute — and at once when the requirement settings change — so the gate costs no
