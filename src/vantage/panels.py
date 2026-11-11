@@ -111,6 +111,10 @@ class ModelPanel:
     # A sensitive field keeps its write-only control whatever either says.
     formfield_overrides: dict[type[models.Field], dict[str, Any]] | None = None
     widgets: dict[str, Any] | None = None
+    # Rich-text fields that keep the plain textarea with a markdown toolbar instead of
+    # the HTML editor, and are stored and shown as typed (never as HTML). Needed for a
+    # field that already holds markdown; see docs/rich-text.md.
+    markdown_fields: tuple[str, ...] = ()
 
     # ── sensitive values ────────────────────────────────────────────────────
     #

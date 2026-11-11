@@ -1043,6 +1043,48 @@ textarea {
   border-block-end: none;
 }
 
+/* ── rich-text values (vantage.richtext.render_richtext) ─────────────────────── */
+
+.v-richtext :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6) {
+  margin-block: 0 0.75em;
+}
+
+.v-richtext > :last-child {
+  margin-block-end: 0;
+}
+
+.v-richtext :is(ul, ol) {
+  padding-inline-start: 1.5rem;
+}
+
+.v-richtext blockquote {
+  margin-inline: 0;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.v-richtext :is(code, pre) {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+}
+
+.v-richtext code {
+  padding: 0.0625em 0.25em;
+}
+
+.v-richtext pre {
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+}
+
+.v-richtext a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 .v-field dt {
   color: var(--muted-foreground);
   font-weight: 500;

@@ -194,6 +194,10 @@ strictness, so an item that cannot be shown is omitted.
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
 | `MAP_TILE_URL` | `None` | — | Opt-in raster tiles for the [map view](list-views.md#map), e.g. `"https://tile.openstreetmap.org/{z}/{x}/{y}.png"`. Must contain `{z}`, `{x}` and `{y}`. `None` draws a dependency-free SVG plot and fetches nothing |
 | `RELATION_PICKER` | `"always"` | — | `"always"` or `"threshold"`. Whether a single-valued relation gets the searchable picker regardless of row count, or only above 50 — see [Relations and the search threshold](forms.md#relations-and-the-search-threshold) |
+| `RICHTEXT_EDITOR` | `"html"` | — | `"html"` or `"markdown"`. The control for rich-text fields — see [Rich-text fields](rich-text.md) |
+| `RICHTEXT_EXTRA_TAGS` | `[]` | — | Tags added to the rich-text sanitiser allowlist. Code-only |
+| `RICHTEXT_EXTRA_ATTRIBUTES` | `{}` | — | Attributes added per tag, e.g. `{"td": ["colspan"]}`. Event handlers and `style` are refused. Code-only |
+| `RICHTEXT_URL_SCHEMES` | `[]` | — | URL schemes added to `http`, `https`, `mailto` and `tel`. Code-only |
 | `UPLOAD_ACTIVE_SUFFIXES` | `()` | — | Active-content extensions (`.svg`, `.html`, `.xml`, `.js`…) a plain `FileField` may accept, e.g. `[".svg"]`. Empty refuses them all; an accepted file is still scanned for script — see [Security](security.md#active-content-uploads) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
@@ -389,6 +393,7 @@ READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  NOTIFICATIONS
 METRICS  METRICS_TOKEN  SLOW_REQUEST_MS
 ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
+RICHTEXT_EDITOR  RICHTEXT_EXTRA_TAGS  RICHTEXT_EXTRA_ATTRIBUTES  RICHTEXT_URL_SCHEMES
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES  UPLOAD_ACTIVE_SUFFIXES

@@ -143,6 +143,10 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
         "DEFAULT_PER_PAGE",
         "MAP_TILE_URL",
         "RELATION_PICKER",
+        "RICHTEXT_EDITOR",
+        "RICHTEXT_EXTRA_TAGS",
+        "RICHTEXT_EXTRA_ATTRIBUTES",
+        "RICHTEXT_URL_SCHEMES",
         "LIST_COUNT_CAP",
         "LIST_COUNT_ESTIMATES",
         "LIST_ESTIMATE_CACHE_SECONDS",
@@ -248,6 +252,7 @@ PROVISIONAL_PANEL_ATTRIBUTES: frozenset[str] = frozenset(
         "requires_approval",
         "formfield_overrides",
         "widgets",
+        "markdown_fields",
         "read_only",
         "editable_fields",
     }
