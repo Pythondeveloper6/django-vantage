@@ -84,6 +84,7 @@ class VantageConfig(SimpleVantageConfig):
         super().ready()
         from vantage.pages import (
             AccessReviewPage,
+            AgentActivityPage,
             ApprovalsPage,
             BreakGlassPage,
             DataQualityPage,
@@ -107,6 +108,8 @@ class VantageConfig(SimpleVantageConfig):
         site.register_page(ReportsPage)
         # Only in the navigation of someone who can view a model with requires_approval.
         site.register_page(ApprovalsPage)
+        # Hidden and a 404 until VANTAGE["AGENTS"] is on.
+        site.register_page(AgentActivityPage)
         # Groups are a contrib.auth table, and a project without it has no roles.
         if django_apps.is_installed("django.contrib.auth"):
             site.register_page(RolesPage)

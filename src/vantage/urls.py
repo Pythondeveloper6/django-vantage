@@ -12,6 +12,7 @@ from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
     accessviews,
+    agentactivityviews,
     agents,
     api,
     approvalviews,
@@ -91,6 +92,8 @@ def build(site) -> list:
     urlpatterns += rolesviews.build_urls(site)
     # The access review download and the break-glass screens, under their pages' paths.
     urlpatterns += accessviews.build_urls(site)
+    # Agent activity: the download and one run's entries, under that page's path.
+    urlpatterns += agentactivityviews.build_urls(site)
 
     # Likewise the webhook screens, which hang off the webhooks page's path.
     urlpatterns += webhookviews.build_urls(site)

@@ -836,7 +836,12 @@ class PageView(SiteView):
         return self.page_class(self.site)
 
     def check_permission(self, request):
-        if self.get_page().has_permission(request):
+        page = self.get_page()
+        # A page that only exists while a feature is on is a 404 when it is off, not a
+        # 403 that confirms the feature is there.
+        if not getattr(page, "is_available", lambda _request: True)(request):
+            raise Http404
+        if page.has_permission(request):
             return None
         raise PermissionDenied(
             _("You do not have permission to view %(page)s.")
