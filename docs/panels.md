@@ -499,6 +499,8 @@ defaults are skipped.
 | `vantage.E114` | `field_permissions` restricts the primary key |
 | `vantage.E122` | `read_only` is not `True`, `False` or `None` |
 | `vantage.E123` | `editable_fields` is not a list, or names something that is not an editable field |
+| `vantage.E124` | `agent_access` is not `"none"`, `"read"`, `"write"` or `None` |
+| `vantage.E125` | `agent_hidden_fields` is not a list of field names, or names something that is not a field |
 | `vantage.E120` | `formfield_overrides` is not a dict of model field class to a dict of form field arguments |
 | `vantage.E121` | `widgets` is not a dict, names something that is not a field, or maps one to something that is not a form widget |
 

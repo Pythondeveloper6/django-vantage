@@ -249,6 +249,12 @@ DEFAULTS: dict[str, Any] = {
     # The most rows one undo may carry, cascades included. Past it the change still
     # happens, it just is not offered for undo: the snapshot would be the problem.
     "UNDO_MAX_ROWS": 1000,
+    # ── agents ──────────────────────────────────────────────────────────────
+    # Longest text value handed to an agent; longer values are cut with a marker.
+    "AGENT_MAX_FIELD_CHARS": 2000,
+    # What agents may do with a model whose panel leaves ``agent_access`` unset:
+    # "none", "read" or "write".
+    "AGENT_DEFAULT_ACCESS": "read",
     # ── data quality ────────────────────────────────────────────────────────
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
@@ -307,6 +313,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "TENANT_UNSCOPED": ("deny", "allow"),
     "RELATION_PICKER": ("always", "threshold"),
     "RICHTEXT_EDITOR": ("html", "markdown"),
+    "AGENT_DEFAULT_ACCESS": ("none", "read", "write"),
 }
 
 #: Values that must be a whole number of at least this much. Checked rather than
@@ -315,6 +322,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
 MINIMUMS: dict[str, int] = {
     "UNDO_WINDOW": 0,
     "UNDO_MAX_ROWS": 1,
+    "AGENT_MAX_FIELD_CHARS": 1,
     "TWO_FACTOR_MAX_ATTEMPTS": 1,
     "TWO_FACTOR_LOCKOUT_SECONDS": 1,
     "EXPORT_BINARY_MAX_ROWS": 1,
