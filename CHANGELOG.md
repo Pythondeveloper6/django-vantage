@@ -343,6 +343,18 @@ Eleven migrations were added (`0016`–`0026`), so run `migrate` after upgrading
   writes, dry run), the effective access being the lesser of identity and panel. Bulk
   delete actions need delete permission. The MCP endpoint checks `Origin`, caps the body
   at 1 MiB and never reads a session cookie.
+- Second review of the agent surface, all fixed with regression tests: an agent's CSV
+  import preview no longer saves rows (so no hooks or signals fire for rows that never
+  exist); the undo-run endpoint is 404 when `AGENTS` is off and answers a run the caller
+  may not undo exactly like a missing one; `X-Vantage-Run` keys are normalised (odd
+  characters hashed, no truncation collisions); a service user with a usable password is
+  refused; a tenant cached from a session cookie no longer scopes a Bearer request;
+  the scrubber removes more invisible-character classes, bounds work on huge values and
+  nesting depth; agents can only save private saved views; MCP rejects malformed
+  `Content-Length`, bounds stdio lines and uses strict matches; `vantage_describe` masks
+  credentials inside URL values. Documented limits: the write budget is per caller-chosen
+  run (the rate limit is the hard ceiling), the plain JSON API is not scrubbed (MCP is),
+  and the MCP Origin check ignores the scheme.
 - Two-factor, several devices: adding a device to an account that already has one, and
   removing a device, both require proof (a current code, a recovery code or the
   password); a wrong proof counts toward the lockout. A device is only ever looked up
