@@ -78,8 +78,20 @@ class ImportView(ModelApiView):
         self._check_mode(request, mapping.mode)
 
         dry = agents.is_dry_run(request) or self._dry(post)
-        runner = importer.dry_run if dry else importer.commit
-        result = runner(self.panel, parsed, mapping, request, self.permissions)
+        if dry:
+            # For an agent a preview must be validation only. The wizard's preview saves
+            # every row and rolls back, which still runs save hooks and signal receivers
+            # (email, HTTP calls) for rows that will never exist.
+            result = importer.dry_run(
+                self.panel,
+                parsed,
+                mapping,
+                request,
+                self.permissions,
+                validate_only=agents.current_agent(request) is not None,
+            )
+        else:
+            result = importer.commit(self.panel, parsed, mapping, request, self.permissions)
         return json_response(self._payload(result, mapping, parsed))
 
     @staticmethod

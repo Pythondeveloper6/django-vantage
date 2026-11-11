@@ -33,7 +33,9 @@ python manage.py vantage_agent create --name order-sync --user svc-order-sync \
 ```
 
 If `--user` does not exist it is created with an unusable password, `is_staff` on and
-`is_superuser` off. Give that user a role (a group) that grants only what the agent
+`is_superuser` off. An existing account is accepted only if it also has no usable
+password: a person who can sign in with a password cannot be made into a service user (the
+token would carry their rights, and the account could still be signed in to). Give that user a role (a group) that grants only what the agent
 needs. `list`, `revoke NAME` and `rotate NAME` manage identities afterwards.
 
 The command prints the token once:
@@ -76,7 +78,18 @@ A token request needs no CSRF token. If the request also carries a session cooki
 token still wins (the cookie is ignored for who you are) but CSRF is enforced, so send
 tokens without cookies.
 
-`X-Vantage-Run` groups requests into a run. Without it each request is its own run.
+`X-Vantage-Run` groups requests into a run. Without it each request is its own run. The
+key is stored as sent only if it is 1 to 64 characters from `A-Z a-z 0-9 . _ : @ + = -`;
+any other value is replaced by `h-` and a digest of itself, so the same header still names
+the same run.
+
+**The write budget is per run, and the caller chooses the run.** An agent that sends a
+new `X-Vantage-Run` (or none) starts a run with a fresh budget, so `max_writes_per_run` is a
+tripwire for a well-behaved script, not a hard limit against a hostile one. The ceiling
+that holds whatever the run key is the rate limit: keep `rate_limit_per_minute` set (it is
+`60` by default; `0` means none) and use `access = read`, `require_approval` and a narrow
+role for anything you do not trust. The rate limit is counted in the cache, so with several
+processes use a shared cache backend.
 
 A bad, unknown, expired or revoked token is a `401`; it never falls back to a session.
 
@@ -85,6 +98,11 @@ A bad, unknown, expired or revoked token is a `401`; it never falls back to a se
 A token works on the JSON API only. Every HTML page refuses it with a `403`: the roles
 matrix, user and password management, the account and two-factor pages, impersonation,
 break-glass, webhooks, reports and settings. The service user is also never a superuser.
+
+**Tenancy.** The tenant is resolved from the service user (the default resolver) after the
+token is accepted; a tenant resolved earlier from a session cookie sent alongside is
+discarded. A `HeaderResolver` reads a header the caller controls, so with agents on make
+sure the proxy in front sets and strips it, or override `permitted()`.
 
 ## The audit trail
 

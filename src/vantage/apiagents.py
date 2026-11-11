@@ -15,6 +15,9 @@ __all__ = ["RunUndoView"]
 
 class RunUndoView(ApiView):
     def authenticate(self, request) -> None:
+        # With agents off this route does not exist.
+        if not agents.enabled():
+            raise ApiError(404, "No such run.")
         # Before anything else: a request carrying a bearer header is an agent's, and an
         # agent has no business here whether or not its token is valid.
         if agents.has_bearer(request):
@@ -26,6 +29,11 @@ class RunUndoView(ApiView):
 
         key = self.kwargs["run_key"]
         runs = AgentRun.objects.select_related("identity", "identity__owner").filter(run_key=key)
+        if not request.user.is_superuser:
+            # Runs the caller may not undo do not exist for them: a missing run, a run of
+            # someone else's agent and a key shared by several agents all answer 404, so
+            # the endpoint cannot be used to probe which run keys exist.
+            runs = runs.filter(identity__owner=request.user)
         name = request.GET.get("agent", "").strip()
         if name:
             runs = runs.filter(identity__name=name)
