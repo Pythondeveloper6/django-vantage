@@ -203,6 +203,43 @@ def may_approve(request, panel, obj=None) -> bool:
     ) and permissions.has_object_perm(request, panel.model, "change", obj)
 
 
+def agent_holds_all(request) -> bool:
+    """Whether the caller is an agent identity with ``require_approval``.
+
+    For such an identity every change to an existing record waits for a person, whatever
+    the panel's ``requires_approval`` says, and the identity never counts as an approver.
+    """
+    identity = getattr(request, "vantage_agent", None)
+    return bool(identity is not None and identity.require_approval)
+
+
+def holdable_fields(panel, request) -> tuple[str, ...]:
+    """The fields this caller may write that a change request can hold back."""
+    from vantage.formviews import form_editable_names
+
+    return tuple(
+        name
+        for name in form_editable_names(panel, request)
+        if _concrete(panel.model, name) is not None
+    )
+
+
+def check_holdable(request, panel, form) -> None:
+    """Refuse (403 ``approval_not_supported``) a form that writes anything not holdable.
+
+    A relation written after the row, or a file, cannot wait for approval. Fail closed:
+    for an identity that needs approval, an unholdable field is a refusal, never a write.
+    """
+    from vantage import agents
+
+    keep = set(holdable_fields(panel, request))
+    if [name for name in form.fields if name not in keep]:
+        raise agents.approval_refusal(
+            "This identity requires approval, and changes to relations and files cannot be "
+            "approved yet. Send only plain fields."
+        )
+
+
 def guarded_for(request, panel, obj=None) -> tuple[str, ...]:
     """The fields whose changes this user cannot make directly. Empty when none.
 
@@ -210,6 +247,8 @@ def guarded_for(request, panel, obj=None) -> tuple[str, ...]:
     management command calling the importer — has nobody to attribute a request to and
     nobody to tell, and it is code the project wrote, not somebody using the panel.
     """
+    if agent_holds_all(request):
+        return holdable_fields(panel, request)
     names = approvable_fields(panel)
     if not names:
         return ()
@@ -356,7 +395,13 @@ def withhold(request, panel, obj, form):
     if approving is not None:
         _claim(request, panel, obj, approving)
         return None
-    if obj.pk is None or obj._state.adding:
+    if agent_holds_all(request):
+        from vantage import agents
+
+        if obj.pk is None or obj._state.adding:
+            raise agents.approval_refusal()
+        check_holdable(request, panel, form)
+    elif obj.pk is None or obj._state.adding:
         # A new record has no approved value to protect. The add permission is the
         # gate for creating one; see docs/approvals.md.
         return None
@@ -391,6 +436,11 @@ def withhold(request, panel, obj, form):
     from vantage.sensitive import safe_str
 
     actor = real_user(request)
+    requested_by_repr = actor.get_username()[:150]
+    if agent_holds_all(request):
+        from vantage import agents
+
+        requested_by_repr = agents.actor_label(request.vantage_agent)[:150]
     change_request = ChangeRequest.objects.db_manager(using).create(
         resource_key=panel.model._meta.label_lower,
         object_id=str(obj.pk),
@@ -398,7 +448,7 @@ def withhold(request, panel, obj, form):
         changes=changes,
         note=str(getattr(form, "vantage_approval_note", "") or "").strip()[:MAX_NOTE_CHARS],
         requested_by=actor,
-        requested_by_repr=actor.get_username()[:150],
+        requested_by_repr=requested_by_repr,
     )
     form.vantage_withheld = frozenset(changes)
     form.vantage_pending = change_request
@@ -473,9 +523,25 @@ def _notify(request, model, change_request, event: str) -> None:
     )
 
 
-def _action_name(verb: str, change_request) -> str:
-    """``"requested approval of price, status (#12)"``. Names, not labels: it is a log."""
-    return f"{verb} {', '.join(change_request.field_names)} (#{change_request.pk})"
+#: Follows the ``(#id)`` in the audit entry of a change that an agent proposed.
+PROPOSED_BY = " \u00b7 proposed by agent "
+
+
+def _action_name(verb: str, change_request, proposer=None) -> str:
+    """``"requested approval of price, status (#12)"``. Names, not labels: it is a log.
+
+    With a ``proposer`` (an agent identity) the applied change says who proposed it.
+    The audit column is short, so a long field list gives way to a count rather than
+    lose the mention.
+    """
+    names = ", ".join(change_request.field_names)
+    tail = f" (#{change_request.pk})"
+    if proposer is None:
+        return f"{verb} {names}{tail}"
+    mention = f"{PROPOSED_BY}{proposer.name}"
+    if len(f"{verb} {names}{tail}{mention}") > 100:
+        names = f"{len(change_request.field_names)} fields"
+    return f"{verb} {names}{tail}{mention}"
 
 
 #: The verbs :func:`_action_name` is called with, for :func:`redact_action_name`.
@@ -498,11 +564,14 @@ def redact_action_name(name: str, hidden) -> str:
         return name
     for verb in _LOGGED_VERBS:
         prefix = f"{verb} "
-        if not name.startswith(prefix) or not name.endswith(")"):
+        if not name.startswith(prefix) or not (name.endswith(")") or PROPOSED_BY in name):
             continue
-        listed, sep, tail = name.removeprefix(prefix).rpartition(" (#")
+        body, mention_sep, mention = name.removeprefix(prefix).partition(PROPOSED_BY)
+        listed, sep, tail = body.rpartition(" (#")
         if not sep:
             return name
+        if mention_sep:
+            tail = f"{tail}{PROPOSED_BY}{mention}"
         names = listed.split(", ")
         kept = [field_name for field_name in names if field_name not in hidden]
         unseen = len(names) - len(kept)
@@ -643,7 +712,9 @@ def approve(request, panel, obj, change_request) -> ApprovalOutcome:
             panel,
             form,
             change=True,
-            action_name=_action_name("approved change to", change_request),
+            action_name=_action_name(
+                "approved change to", change_request, _proposer(change_request)
+            ),
         )
     except Stale as exc:
         return ApprovalOutcome(
@@ -664,6 +735,12 @@ def approve(request, panel, obj, change_request) -> ApprovalOutcome:
         True,
         gettext("Approved. %(fields)s is now saved.") % {"fields": _labels(panel.model, names)},
     )
+
+
+def _proposer(change_request):
+    from vantage import agents
+
+    return agents.proposer(change_request)
 
 
 def _close(request, change_request, status: str, *, reason: str = "") -> bool:
