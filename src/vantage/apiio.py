@@ -132,7 +132,8 @@ class ImportView(ModelApiView):
 
 
 class ExportView(ModelApiView):
-    """``GET`` the filtered list as ``csv``, ``tsv`` or ``json`` (newline-delimited)."""
+    """``GET`` the filtered list as ``csv``, ``tsv``, ``json`` (newline-delimited), ``xlsx``
+    or ``pdf``."""
 
     def get(self, request, *args, **kwargs):
         fmt = request.GET.get("format", "csv")
