@@ -461,7 +461,7 @@ class McpServer:
             return _rpc_error(request_id, INVALID_PARAMS, str(exc))
         except Exception:
             # Never include the exception text: it may carry request content.
-            logger.exception("MCP method %s failed", method[:50])
+            logger.exception("MCP method %r failed", method[:50])
             return _rpc_error(request_id, INTERNAL_ERROR, "Internal error.")
 
     # ── methods ─────────────────────────────────────────────────────────────
@@ -568,7 +568,7 @@ class McpServer:
 
     def _model(self, label: str):
         """``(app_label, model_name, panel)`` for a label, or a ``_ToolError``."""
-        if not _MODEL_RE.match(label):
+        if not _MODEL_RE.fullmatch(label):
             raise _InvalidParams("'model' must look like 'app_label.model_name'.")
         app_label, model_name = label.lower().split(".")
         for panel in self.site.panels():
@@ -666,7 +666,7 @@ class McpServer:
         if "search" in arguments and arguments["search"].strip():
             query["q"] = arguments["search"]
         for key, value in (arguments.get("filters") or {}).items():
-            if key in _RESERVED_QUERY or not _FILTER_KEY_RE.match(key):
+            if key in _RESERVED_QUERY or not _FILTER_KEY_RE.fullmatch(key):
                 raise _InvalidParams(f"'{key[:60]}' is not a usable filter name.")
             values = value if isinstance(value, list) else [value]
             query[key] = [
@@ -880,11 +880,11 @@ class McpView(ApiView):
         if not agents.has_bearer(request):
             return self._unauthorized("Authentication required.")
         declared = request.META.get("CONTENT_LENGTH") or "0"
-        if not declared.isdigit() or int(declared) > MAX_BODY_BYTES:
+        if not (declared.isascii() and declared.isdigit()) or int(declared) > MAX_BODY_BYTES:
             return error_response(413, "The request body is too large.")
 
         given = request.META.get("HTTP_MCP_SESSION_ID", "").strip()
-        session = given if _SESSION_RE.match(given) else uuid.uuid4().hex
+        session = given if _SESSION_RE.fullmatch(given) else uuid.uuid4().hex
         request.META["HTTP_X_VANTAGE_RUN"] = f"mcp-{session}"
         try:
             agents.authenticate_bearer(request)
@@ -968,7 +968,10 @@ def serve_stdio(server: McpServer, stdin, stdout) -> None:
         line = line.strip()
         if not line:
             continue
-        reply = server.handle_text(line)
+        if len(line) > MAX_BODY_BYTES:
+            reply = _rpc_error(None, INVALID_REQUEST, "The message is too large.")
+        else:
+            reply = server.handle_text(line)
         if reply is not None:
             stdout.write(json.dumps(reply) + "\n")
             stdout.flush()

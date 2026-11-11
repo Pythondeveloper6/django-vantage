@@ -42,6 +42,17 @@ their text to be read by it.
   [Sensitive fields](sensitive-fields.md)) and everything in `agent_hidden_fields` do not
   exist for an agent. See [Where each rule is enforced](#where-each-rule-is-enforced).
 
+Scrubbing and the envelope are applied by the MCP server. The plain JSON API with a
+bearer token returns stored values unchanged, because a client that reads a value and
+sends it back must get the same value. If you feed REST responses to a model, pass them
+through `vantage.agentdata.wrap_untrusted` yourself, or use the MCP server.
+
+Besides zero-width and bidi characters, the scrubber removes the Unicode variation
+selectors (except the text/emoji selectors U+FE0E and U+FE0F), the deprecated format
+controls, fillers and interlinear annotation marks, and line and paragraph separators
+become newlines. A value is cut to eight times `AGENT_MAX_FIELD_CHARS` before it is
+parsed, so a huge value costs little to scrub.
+
 ## What Vantage does not do
 
 - It cannot make a model obey or ignore anything. The envelope and notice are a request,
