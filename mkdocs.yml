@@ -113,6 +113,7 @@ nav:
       - List views: list-views.md
       - Analytics: analytics.md
       - Forms: forms.md
+      - Rich-text fields: rich-text.md
       - Undo: undo.md
       - History: history.md
       - Approvals: approvals.md

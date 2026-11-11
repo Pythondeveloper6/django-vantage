@@ -138,6 +138,20 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
   multipart file uploads through the media validators, and an OpenAPI 3.1 document at
   `_/api/openapi.json` filtered per user, plus `manage.py vantage_openapi`.
 
+#### Rich-text editor
+
+- Fields that hold HTML (a field class named like `richtext`, `wysiwyg` or `html`, or a
+  name ending `_html`) open in a small WYSIWYG editor: bold, italic, code, links,
+  headings, lists and quotes. One static JavaScript file ships in the wheel (no Node step)
+  and loads as an external script, so it works under a strict Content-Security-Policy.
+  Without JavaScript the field is a textarea holding the HTML.
+- The value is sanitised against an allowlist on save (web forms, bulk edit, inline rows
+  and the JSON API) and again when drawn, so rows written by a script or another
+  application cannot put markup on a page. `RICHTEXT_EXTRA_TAGS`,
+  `RICHTEXT_EXTRA_ATTRIBUTES` and `RICHTEXT_URL_SCHEMES` can only widen the list; active
+  content cannot be switched on. `RICHTEXT_EDITOR = "markdown"` or a panel's
+  `markdown_fields` keep the older markdown toolbar. See [Rich-text fields](docs/rich-text.md).
+
 #### Excel and PDF export
 
 - `?export=xlsx` and `?export=pdf` on every list, and `?format=xlsx|pdf` on the JSON
@@ -266,6 +280,15 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 - **Beta.** The package moves from alpha to beta: version `0.3.0b1` and the PyPI
   classifier `Development Status :: 4 - Beta`. Settings and panel attributes marked
   stable are frozen; there has still been no independent security audit.
+- **A first runtime dependency.** `nh3` (the Rust `ammonia` HTML sanitiser, published
+  as prebuilt wheels) is now installed with the package, for rich-text fields. A
+  hand-written sanitiser was rejected because it is the kind of code that fails to
+  mutation-based XSS.
+- **Rich-text fields use the HTML editor by default** (visible to users). A field that
+  held markdown or plain text opens in it as literal text; list such a field in the
+  panel's `markdown_fields`, or set `RICHTEXT_EDITOR = "markdown"`, to keep the old
+  toolbar. Tags outside the allowlist (images, tables, iframes) are removed the next time
+  a record is saved.
 - **Two-factor schema change** (migrations `0023`–`0025`): a person may have several
   devices, and recovery codes belong to the person. Existing devices and codes are
   carried over by the migrations. `vantage.twofactor.reset()` now returns the number of
@@ -298,6 +321,11 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
   among the caller's own, a pending device cannot sign anyone in, and removing the last
   device switches two-factor off and deletes the recovery codes. Secrets and codes are
   never logged.
+- Rich-text fields: HTML is cleaned by an allowlist sanitiser on save and on render
+  (script and style elements with their contents, event handlers, `style` attributes and
+  `javascript:`/`data:` URLs are removed; links always carry `rel="noopener noreferrer
+  nofollow"`). Settings can only widen the allowlist, and asking for active content
+  raises `ImproperlyConfigured`.
 - Excel and PDF export go through the same query, masking and permission path as CSV
   and defuse spreadsheet formulas the same way; neither format has its own way to skip a
   check.

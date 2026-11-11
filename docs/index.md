@@ -275,6 +275,7 @@ django-simple-history are all used when present and never required.
 | [Lists](lists.md) | Columns, filters, search, sorting, saved views, the per-list customisation rail, trash and restore, bulk actions, background jobs, export and import |
 | [Analytics](analytics.md) | `Stat`, `Chart`, the summary bar and the query-cost guarantees |
 | [Forms](forms.md) | Widget inference, the layout DSL, editable inlines, readonly fields, validation, delete preview |
+| [Rich-text fields](rich-text.md) | The WYSIWYG editor, the HTML allowlist, widening it, keeping the markdown toolbar |
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
 | [Sensitive fields](sensitive-fields.md) | Inferred masking of secrets on every surface, audited reveal, write-only inputs, the threat model |
 | [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |

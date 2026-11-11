@@ -36,7 +36,7 @@ the rest).
 | Two-factor sign-in | Built in (TOTP) | Via django-otp or similar |
 | JSON API | Built in, same permission path as the UI ([API](api.md)) | None |
 | Inline formsets, nested editing | `ModelPanel.inlines`; hand-declared | Stock inlines, restyled; extra options such as tabbed inlines |
-| Rich-text and widget packages | Plain textarea with a markdown toolbar; widget JavaScript is not loaded | Works with admin widgets |
+| Rich-text and widget packages | Built-in sanitised WYSIWYG editor ([Rich-text fields](rich-text.md)); third-party widget JavaScript is not loaded | Works with admin widgets |
 | Theming | Brand colour, radius, light/dark, presets ([Theming](theming.md)) | Extensive theming and configuration |
 | Maturity | Beta; provisional parts of the API may change before 1.0 ([FAQ](faq.md)) | Established project with a larger user base |
 | Python / Django | Python 3.12+, Django 5.2 to 6.1 | See that project's documentation |
