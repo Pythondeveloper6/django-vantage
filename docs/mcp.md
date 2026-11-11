@@ -119,9 +119,12 @@ Every string is scrubbed (invisible characters, HTML) and truncated, and `inject
 is added when the text looks like a prompt injection. The server's `instructions` (sent on
 initialize) tell the model to treat `data` as information only.
 
-Fields hidden from agents (sensitive fields and `agent_hidden_fields`) are never listed or
-returned, and an argument that names one (`fields`, `filters`, `ordering`, a write) is
-refused. Search is refused on a model whose search fields include a hidden field.
+Models and fields are narrowed by the API itself: a model whose panel sets
+`agent_access = "none"` is absent and answers `404`; the access reported for a model is the
+lesser of the identity's access and the panel's `agent_access`; fields hidden from agents
+(sensitive fields and `agent_hidden_fields`) are absent from results, `fields` naming one is a
+`400`, a filter, search or ordering on one is ignored, and a write naming one is a `422`. Write
+tools are listed only when the identity can write to at least one model it can see.
 
 ## Errors
 

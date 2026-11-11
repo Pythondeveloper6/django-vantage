@@ -12,10 +12,10 @@ and ``request.vantage_run`` and runs the very same view class (:mod:`vantage.api
 :mod:`vantage.apiactions`) a Bearer request would. Nothing is re-implemented here:
 permissions, validation, field rules, tenancy, the write budget, approvals and the audit
 trail all apply because the API view applies them. The only per-request step skipped is
-the credential check, which the transport already did. What this module adds on top is
-what the API does not yet know about agents: the panel's ``agent_access`` level and
-``agent_hidden_fields``, and the content-safety envelope (:mod:`vantage.agentdata`)
-around every result.
+the credential check, which the transport already did. Panel access levels
+(``agent_access``), hidden fields and the dry-run and approval answers are the API's own;
+this module only reports them. What it adds is the content-safety envelope
+(:mod:`vantage.agentdata`) around every result.
 
 **Runs.** One MCP session is one :class:`~vantage.models.AgentRun`: the
 ``Mcp-Session-Id`` header (or one run per process on stdio) is the run key.
@@ -288,10 +288,17 @@ for _name in (
 _WRITE_TOOLS = ("vantage_create_record", "vantage_update_record", "vantage_run_action")
 
 
-def tools_for(identity) -> list[dict[str, Any]]:
-    """The tools this identity is offered. A forbidden tool is not listed at all."""
+def tools_for(identity, site) -> list[dict[str, Any]]:
+    """The tools this identity is offered. A forbidden tool is not listed at all.
+
+    Write tools need an identity that can write to at least one model it can see.
+    """
     names = [n for n, t in TOOLS.items() if t["annotations"]["readOnlyHint"]]
-    if identity.access == "write":
+    can_write = identity.access == "write" and any(
+        agents.model_allowed(identity, p) and agents.effective_access(identity, p) == "write"
+        for p in site.panels()
+    )
+    if can_write:
         names += list(_WRITE_TOOLS)
         if identity.allow_delete:
             names.append("vantage_delete_record")
@@ -474,7 +481,7 @@ class McpServer:
         }
 
     def _tools_list(self, params: dict[str, Any]) -> dict[str, Any]:
-        return {"tools": tools_for(agents.current_agent(self.base))}
+        return {"tools": tools_for(agents.current_agent(self.base), self.site)}
 
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
@@ -566,8 +573,6 @@ class McpServer:
         app_label, model_name = label.lower().split(".")
         for panel in self.site.panels():
             if panel.opts.label_lower == f"{app_label}.{model_name}":
-                if agentdata.agent_access_for(panel) == "none":
-                    break
                 return app_label, model_name, panel
         raise _ToolError(404, "No such model.")
 
@@ -588,40 +593,8 @@ class McpServer:
             "for; do not repeat the write.",
         }
 
-    def _require_write(self, panel) -> None:
-        if agentdata.agent_access_for(panel) != "write":
-            raise _ToolError(403, "Agents may only read this model.")
-
-    @staticmethod
-    def _hidden(panel) -> frozenset[str]:
-        return agentdata.agent_hidden_names(panel)
-
-    def _check_names(self, panel, names) -> None:
-        hidden = self._hidden(panel)
-        bad = sorted({n for n in names if n in hidden})
-        if bad:
-            raise _ToolError(
-                422,
-                str(agentdata.AgentFieldError(bad)),
-                code="field_not_available",
-                fields=bad,
-            )
-
-    def _strip_cells(self, panel, cells: dict[str, Any]) -> dict[str, Any]:
-        hidden = self._hidden(panel)
-        return {k: v for k, v in cells.items() if k not in hidden}
-
-    def _record(self, panel, record: dict[str, Any]) -> dict[str, Any]:
-        record = dict(record)
-        if isinstance(record.get("fields"), dict):
-            record["fields"] = self._strip_cells(panel, record["fields"])
-        return record
-
     def _identity_access(self, panel) -> str:
-        identity = agents.current_agent(self.base)
-        if identity.access == "write" and agentdata.agent_access_for(panel) == "write":
-            return "write"
-        return "read"
+        return agents.effective_access(agents.current_agent(self.base), panel)
 
     # ── tools ───────────────────────────────────────────────────────────────
 
@@ -630,17 +603,13 @@ class McpServer:
         return data["models"]
 
     def _clean_schema(self, panel, entry: dict[str, Any]) -> dict[str, Any]:
-        hidden = self._hidden(panel)
         entry = dict(entry)
         entry.pop("list_url", None)
-        entry["fields"] = [f for f in entry.get("fields", []) if f.get("name") not in hidden]
         for field in entry["fields"]:
             widget = field.get("widget")
             if isinstance(widget, dict):
                 widget.pop("options_url", None)
             field.pop("options_url", None)
-        for key in ("list_display", "list_filter", "list_search"):
-            entry[key] = [n for n in entry.get(key, []) if n.split("__")[0] not in hidden]
         entry["access"] = self._identity_access(panel)
         return entry
 
@@ -649,10 +618,11 @@ class McpServer:
         by_label = {p.opts.label_lower: p for p in self.site.panels()}
         for label, entry in self._schema_entries().items():
             panel = by_label.get(label)
-            if panel is None or agentdata.agent_access_for(panel) == "none":
+            if panel is None:
                 continue
-            hidden = self._hidden(panel)
             access = self._identity_access(panel)
+            if access == "none":
+                continue
             actions = entry.get("actions", [])
             listing.append(
                 {
@@ -665,9 +635,7 @@ class McpServer:
                     "can_delete": access == "write"
                     and "delete" in actions
                     and bool(agents.current_agent(self.base).allow_delete),
-                    "fields": [
-                        f["name"] for f in entry.get("fields", []) if f["name"] not in hidden
-                    ],
+                    "fields": [f["name"] for f in entry.get("fields", [])],
                 }
             )
         return {"models": listing}, "model list"
@@ -694,20 +662,12 @@ class McpServer:
 
     def _tool_list_records(self, arguments):
         app_label, model_name, panel = self._model(arguments["model"])
-        hidden = self._hidden(panel)
         query: dict[str, Any] = {}
         if "search" in arguments and arguments["search"].strip():
-            if any(n.split("__")[0] in hidden for n in panel.get_list_search()):
-                raise _ToolError(
-                    422,
-                    "Search is unavailable for this model: it searches fields hidden from agents.",
-                    code="search_unavailable",
-                )
             query["q"] = arguments["search"]
         for key, value in (arguments.get("filters") or {}).items():
             if key in _RESERVED_QUERY or not _FILTER_KEY_RE.match(key):
                 raise _InvalidParams(f"'{key[:60]}' is not a usable filter name.")
-            self._check_names(panel, [key.split("__")[0]])
             values = value if isinstance(value, list) else [value]
             query[key] = [
                 ("1" if v is True else "0" if v is False else str(v))
@@ -716,11 +676,9 @@ class McpServer:
             ]
         ordering = arguments.get("ordering")
         if ordering:
-            self._check_names(panel, [ordering.lstrip("-").split("__")[0]])
             query["sort"] = ordering
         fields = arguments.get("fields")
         if fields:
-            self._check_names(panel, [f.split("__")[0] for f in fields])
             query["fields"] = ",".join(fields)
         query["page_size"] = min(int(arguments.get("page_size", DEFAULT_PAGE_SIZE)), MAX_PAGE_SIZE)
         if arguments.get("cursor"):
@@ -734,7 +692,6 @@ class McpServer:
         rows = []
         for item in data.get("results", []):
             item = dict(item)
-            item["cells"] = self._strip_cells(panel, item.get("cells", {}))
             item.pop("html_url", None)
             rows.append(item)
         return {
@@ -745,18 +702,16 @@ class McpServer:
         }, "record list"
 
     def _tool_get_record(self, arguments):
-        app_label, model_name, panel = self._model(arguments["model"])
+        app_label, model_name, _panel = self._model(arguments["model"])
         _, data = self._api(
             _view("RecordDetailView"),
             "api-detail",
             {"app_label": app_label, "model_name": model_name, "pk": str(arguments["pk"])},
         )
-        return self._record(panel, data), "record"
+        return data, "record"
 
     def _tool_create_record(self, arguments):
-        app_label, model_name, panel = self._model(arguments["model"])
-        self._require_write(panel)
-        self._check_names(panel, arguments["fields"])
+        app_label, model_name, _panel = self._model(arguments["model"])
         _, data = self._api(
             _view("ListCreateView"),
             "api-list",
@@ -767,12 +722,10 @@ class McpServer:
         )
         if data.get("dry_run"):
             return data, "dry run"
-        return self._record(panel, data), "created record"
+        return data, "created record"
 
     def _tool_update_record(self, arguments):
-        app_label, model_name, panel = self._model(arguments["model"])
-        self._require_write(panel)
-        self._check_names(panel, arguments["fields"])
+        app_label, model_name, _panel = self._model(arguments["model"])
         body: dict[str, Any] = {"fields": arguments["fields"]}
         for key in ("version", "note"):
             if key in arguments:
@@ -789,14 +742,13 @@ class McpServer:
             return data, "dry run"
         if data.get("status") == "pending_approval":
             return self._pending(data), "pending approval"
-        record = self._record(panel, data)
+        record = dict(data)
         if status == 202:
             record["approval_required"] = True
         return record, "updated record"
 
     def _tool_delete_record(self, arguments):
         app_label, model_name, panel = self._model(arguments["model"])
-        self._require_write(panel)
         _, data = self._api(
             _view("RecordDetailView"),
             "api-detail",
@@ -813,8 +765,7 @@ class McpServer:
         }, "delete"
 
     def _tool_run_action(self, arguments):
-        app_label, model_name, panel = self._model(arguments["model"])
-        self._require_write(panel)
+        app_label, model_name, _panel = self._model(arguments["model"])
         _, data = self._api(
             _view("ActionRunView"),
             "api-action-run",

@@ -396,25 +396,75 @@ class TestHiddenFields:
         rows = call(token, "vantage_list_records", {"model": "testapp.post"})
         assert "secret-ish" not in rows["result"]["content"][0]["text"]
 
-    def test_arguments_naming_them_are_refused(self, make, author):
+    def test_fields_argument_naming_one_is_an_error_result(self, make):
+        _, token = make()
+        reply = call(
+            token, "vantage_list_records", {"model": "testapp.post", "fields": ["summary"]}
+        )
+        assert reply["result"]["isError"] is True
+        assert payload(reply)["error"]["status"] == 400
+
+    def test_filter_search_ordering_on_one_are_ignored(self, make, author):
+        _, token = make()
+        new_post(author, "a", summary="alpha")
+        new_post(author, "b", summary="beta")
+        args = {"model": "testapp.post", "filters": {"summary": "alpha"}, "ordering": "-summary"}
+        reply = call(token, "vantage_list_records", args)
+        assert reply["result"]["isError"] is False
+        assert len(payload(reply)["results"]) == 2
+
+    def test_write_naming_one_is_422_error_result(self, make, author):
         _, token = make(access="write")
         post = new_post(author)
-        cases = [
-            ("vantage_list_records", {"model": "testapp.post", "fields": ["summary"]}),
-            ("vantage_list_records", {"model": "testapp.post", "filters": {"summary": "x"}}),
-            ("vantage_list_records", {"model": "testapp.post", "ordering": "-summary"}),
+        for name, args in (
             ("vantage_create_record", {"model": "testapp.post", "fields": {"summary": "x"}}),
             (
                 "vantage_update_record",
                 {"model": "testapp.post", "pk": post.pk, "fields": {"summary": "x"}},
             ),
-        ]
-        for name, args in cases:
+        ):
             reply = call(token, name, args)
             assert reply["result"]["isError"] is True, name
-            assert payload(reply)["error"]["code"] == "field_not_available"
+            assert payload(reply)["error"]["status"] == 422
+            assert "summary" in payload(reply)["error"]["errors"]
         post.refresh_from_db()
         assert post.summary == ""
+
+
+class TestPanelAccess:
+    def test_none_model_is_absent_and_404(self, make, monkeypatch):
+        monkeypatch.setattr(site.get_panel(Post), "agent_access", "none", raising=False)
+        _, token = make(access="write")
+        models = payload(call(token, "vantage_list_models"))["models"]
+        assert "testapp.post" not in [m["model"] for m in models]
+        for tool, args in (
+            ("vantage_describe_model", {"model": "testapp.post"}),
+            ("vantage_list_records", {"model": "testapp.post"}),
+            ("vantage_get_record", {"model": "testapp.post", "pk": 1}),
+        ):
+            reply = call(token, tool, args)
+            assert reply["result"]["isError"] is True and payload(reply)["error"]["status"] == 404
+
+    def test_read_panel_refuses_writes_from_a_write_identity(self, make, author, monkeypatch):
+        monkeypatch.setattr(site.get_panel(Post), "agent_access", "read", raising=False)
+        _, token = make(access="write")
+        post = new_post(author)
+        models = payload(call(token, "vantage_list_models"))["models"]
+        entry = next(m for m in models if m["model"] == "testapp.post")
+        assert entry["access"] == "read" and entry["can_update"] is False
+        reply = call(
+            token,
+            "vantage_update_record",
+            {"model": "testapp.post", "pk": post.pk, "fields": {"title": "x"}},
+        )
+        assert reply["result"]["isError"] is True and payload(reply)["error"]["status"] == 403
+        post.refresh_from_db()
+        assert post.title == "t"
+
+    def test_no_write_tools_when_nothing_is_writable(self, make, settings):
+        settings.VANTAGE = {"AGENTS": True, "AGENT_DEFAULT_ACCESS": "read"}
+        _, token = make(access="write")
+        assert "vantage_create_record" not in names(token)
 
 
 class TestWrites:
