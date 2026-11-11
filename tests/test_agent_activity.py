@@ -359,6 +359,76 @@ class TestBadge:
         assert "Ada" in body and ">Agent</span>" not in body
 
 
+class TestWhoCell:
+    @staticmethod
+    def who_cell(body: str, needle: str) -> str:
+        import re
+
+        cells = re.findall(r"<td[^>]*>.*?</td>", body, flags=re.S)
+        return re.sub(r"\s+", " ", next(c for c in cells if needle in c))
+
+    def test_the_badge_leads_the_name_and_the_run_key_is_on_its_own_line(self, boss, bot):
+        entry(bot, AgentRun.objects.create(identity=bot, run_key="run-xyz"))
+        cell = self.who_cell(boss.get(reverse("vantage:audit")).content.decode(), "run-xyz")
+        assert 'class="v-audit-who-agent"' in cell
+        line = cell[cell.index('<span class="v-audit-who-line">') :]
+        assert line.index(">Agent</span>") < line.index("Agent bot (for olivia)")
+        assert line.index("Agent bot (for olivia)") < line.index("run run-xyz")
+        assert 'class="v-audit-name v-audit-who-run">run run-xyz</code>' in cell
+        assert 'title="Agent bot (for olivia) · run run-xyz"' in cell
+
+    def test_a_human_cell_is_exactly_as_before(self, boss, svc):
+        VantageLogEntry.objects.create(
+            actor=svc, actor_repr="Maya", action="update", object_repr="Ada"
+        )
+        body = boss.get(reverse("vantage:audit")).content.decode()
+        assert self.who_cell(body, "Maya") == "<td>Maya</td>"
+
+
+class TestBadFormat:
+    def test_an_unknown_format_is_a_400_naming_the_valid_ones(self, boss, bot):
+        response = boss.get(reverse("vantage:agent-activity-download"), {"format": "bogus"})
+        assert response.status_code == 400
+        assert response["Content-Type"].startswith("text/plain")
+        assert response.content.decode() == "Unknown format. Valid formats: csv, json, ndjson."
+
+    def test_the_default_and_the_known_formats_still_work(self, boss, bot):
+        url = reverse("vantage:agent-activity-download")
+        assert boss.get(url).status_code == 200
+        for fmt in agentactivity.FORMATS:
+            assert boss.get(url, {"format": fmt}).status_code == 200
+
+
+class TestDeclaredNav:
+    NAV = [
+        {"route": "vantage:dashboard", "label": "Overview"},
+        {
+            "group": "System",
+            "items": [
+                {"route": "vantage:audit", "label": "Audit log"},
+                {"page": "agent-activity", "label": "Agent activity"},
+            ],
+        },
+    ]
+
+    def test_the_entry_is_listed_when_on_and_quietly_absent_when_off(self, boss, settings):
+        page_url = reverse("vantage:page-agent-activity")
+        settings.VANTAGE = {"AGENTS": True, "NAV": self.NAV}
+        on = boss.get(reverse("vantage:dashboard")).content.decode()
+        assert page_url in on and reverse("vantage:audit") in on
+        settings.VANTAGE = {"AGENTS": False, "NAV": self.NAV}
+        response = boss.get(reverse("vantage:dashboard"))
+        assert response.status_code == 200
+        off = response.content.decode()
+        assert page_url not in off and reverse("vantage:audit") in off
+
+    def test_the_demo_declares_both_entries(self):
+        text = (
+            __import__("pathlib").Path(__file__).parent.parent / "example/config/settings.py"
+        ).read_text()
+        assert '"vantage:audit"' in text and '"agent-activity"' in text
+
+
 def test_off_means_no_page_registered_routes_still_resolve():
     with override_settings(VANTAGE={"AGENTS": False}):
         assert reverse("vantage:agent-activity-download")

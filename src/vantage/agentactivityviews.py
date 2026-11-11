@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.http import Http404, StreamingHttpResponse
+from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import path, reverse
 from django.utils import timezone
@@ -80,7 +80,13 @@ class AgentActivityDownloadView(SiteView):
 
     def get(self, request, *args, **kwargs):
         fmt = request.GET.get("format", "csv")
-        fmt = fmt if fmt in agentactivity.FORMATS else "csv"
+        if fmt not in agentactivity.FORMATS:
+            valid = ", ".join(sorted(agentactivity.FORMATS))
+            return HttpResponse(
+                gettext("Unknown format. Valid formats: %(valid)s.") % {"valid": valid},
+                status=400,
+                content_type="text/plain; charset=utf-8",
+            )
         names = [name for name in request.GET.getlist("agent") if name]
         runs = request.GET.get("runs") == "1"
         try:
