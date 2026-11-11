@@ -29,7 +29,7 @@ SECRET = "sk-live-4242-do-not-leak"
 
 @pytest.fixture(autouse=True)
 def agents_on(settings):
-    settings.VANTAGE = {"AGENTS": True}
+    settings.VANTAGE = {"AGENTS": True, "AGENT_DEFAULT_ACCESS": "write"}
 
 
 @pytest.fixture
