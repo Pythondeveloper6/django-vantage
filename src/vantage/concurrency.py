@@ -50,6 +50,7 @@ __all__ = [
     "VersionColumn",
     "claim",
     "field_diff",
+    "peek",
     "token_for",
     "version_column",
 ]
@@ -215,6 +216,29 @@ def claim(obj, token: str | None) -> str | None:
     # caller reads the final token off the instance once the write is done.
     setattr(obj, column.name, advanced)
     return advanced.isoformat()
+
+
+def peek(obj, token: str | None) -> None:
+    """:func:`claim` without the write: raise :class:`StaleWrite` if ``claim`` would.
+
+    For a dry run, which must refuse a stale version exactly as the real write does but
+    must not advance the row's version.
+    """
+    column = version_column(type(obj))
+    if column is None or token_for(obj) is None:
+        return
+    current = token_for(obj)
+    if not token:
+        raise StaleWrite(obj, current)
+    try:
+        expected = _parse(column, token)
+    except (TypeError, ValueError):
+        raise StaleWrite(obj, current) from None
+    using = router.db_for_write(type(obj), instance=obj)
+    manager = type(obj)._base_manager.using(using)
+    if not manager.filter(pk=obj.pk, **{column.name: expected}).exists():
+        fresh = manager.filter(pk=obj.pk).first()
+        raise StaleWrite(fresh if fresh is not None else obj, token_for(fresh) if fresh else None)
 
 
 # ── reporting the conflict ──────────────────────────────────────────────────

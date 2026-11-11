@@ -540,7 +540,7 @@ forgetting the parentheses is the mistake everyone makes once.
 | `label` | the method name, prettified | Button text |
 | `icon` | `None` | Lucide icon name |
 | `permission` | `"change"` | The verb the user must hold. `"delete"` for destructive ones, `None` to require only the view permission the page already checked |
-| `destructive` | `False` | Confirms before running, and styles the button as dangerous |
+| `destructive` | `False` | Confirms before running, and styles the button as dangerous. An agent needs `allow_delete` to run it (see [agent writes](agent-writes.md)) |
 | `confirm` | `None` | A confirmation sentence. `{count}` is substituted |
 | `max_rows` | `None` | Refuses above this many rows, guarding against a mis-click wiping a table |
 | `keywords` | `[]` | Extra terms that match in the command palette |

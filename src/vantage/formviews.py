@@ -200,6 +200,10 @@ def save_form(
     from vantage.tenancy import enforce as enforce_tenant
 
     hook = getattr(panel, "save_model", None)
+    # An agent identity that needs approval writes nothing here: every change becomes a
+    # request (see approvals.withhold), so the row, its version and its hooks stay as
+    # they are until a person approves.
+    hold_all = change and approvals.agent_holds_all(request)
     with transaction.atomic(using=router.db_for_write(panel.model)):
         obj = form.save(commit=False)
         if version is not None:
@@ -207,7 +211,10 @@ def save_form(
 
             # Raises StaleWrite, rolling back the transaction, if the row moved under
             # us; a no-op if the model has no version column at all.
-            concurrency.claim(obj, version)
+            if hold_all:
+                concurrency.peek(obj, version)
+            else:
+                concurrency.claim(obj, version)
         # After the lock and before the hook, so ``save_model`` sees exactly what will
         # be written and never a value that is still waiting for approval.
         pending = approvals.withhold(request, panel, obj, form)
@@ -215,18 +222,24 @@ def save_form(
         # create and refuses a write that would move the record to another one —
         # scoping the read cannot catch either. A no-op unless tenancy is on.
         enforce_tenant(request, obj)
-        if callable(hook):
+        if hold_all:
+            # Every form field is held (``withhold`` refuses a form with any that cannot
+            # be), so nothing differs when there is no request: still nothing to write.
+            pass
+        elif callable(hook):
             hook(request, obj, form, change)
         else:
             obj.save()
-        form.save_m2m()
-        inlines.save(request, obj, inline_groups)
+        if not hold_all:
+            form.save_m2m()
+            inlines.save(request, obj, inline_groups)
     # Outside the transaction on purpose: catching a logging error *inside* an atomic
     # block still marks it for rollback, so a swallowed exception here would destroy
     # the write it was recording.
     from vantage import audit
 
-    audit.log_form_save(request, obj, form, change, action_name=action_name)
+    if not hold_all:
+        audit.log_form_save(request, obj, form, change, action_name=action_name)
     approvals.announce(request, obj, pending)
     inlines.log(request, inline_groups)
     return obj

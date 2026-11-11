@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from vantage import importer, listprefs
+from vantage import agents, importer, listprefs
 from vantage.api import ApiError, BadRequest, ModelApiView, json_response
 from vantage.export import FORMATS, ExportTooLarge, stream_export
 from vantage.importviews import PERMISSION_DENIED, PERMISSION_DENIED_FALLBACK
@@ -33,6 +33,16 @@ MAX_RETURNED_ERRORS = 1000
 
 class ImportView(ModelApiView):
     """``POST`` a CSV as ``multipart/form-data``."""
+
+    def writes_nothing(self, request) -> bool:
+        # An import previews unless it says ``dry_run=false``, so a request that does
+        # not commit spends no write budget and is open to an identity that needs
+        # approval; an import that commits is refused for such an identity.
+        return agents.is_dry_run(request) or self._dry(request.POST)
+
+    @staticmethod
+    def _dry(post) -> bool:
+        return (post.get("dry_run") or "true").strip().lower() not in ("false", "0", "no", "off")
 
     def post(self, request, *args, **kwargs):
         upload = request.FILES.get("file")
@@ -66,7 +76,7 @@ class ImportView(ModelApiView):
             raise ApiError(422, str(exc)) from exc
         self._check_mode(request, mapping.mode)
 
-        dry = (post.get("dry_run") or "true").strip().lower() not in ("false", "0", "no", "off")
+        dry = agents.is_dry_run(request) or self._dry(post)
         runner = importer.dry_run if dry else importer.commit
         result = runner(self.panel, parsed, mapping, request, self.permissions)
         return json_response(self._payload(result, mapping, parsed))
