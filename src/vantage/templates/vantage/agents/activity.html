@@ -10,48 +10,46 @@
     <p class="v-page-description">{{ page_description }}</p>
   </div>
   <div class="v-page-actions">
-    <a class="v-btn v-btn-primary" href="{{ download_csv_url }}">{% icon "upload" %}<span>{% translate "Download CSV" %}</span></a>
+    <a class="v-btn v-btn-primary" href="{{ download_csv_url }}">{% icon "download" %}<span>{% translate "Download CSV" %}</span></a>
     <a class="v-btn v-btn-secondary" href="{{ download_ndjson_url }}">{% translate "Download NDJSON" %}</a>
     <a class="v-btn v-btn-ghost" href="{{ download_runs_url }}">{% translate "Runs as CSV" %}</a>
   </div>
 </div>
 
-<h2 class="v-card-title">{% translate "Agents" %}</h2>
+<h2 class="v-card-title v-agent-heading">{% translate "Agents" %}</h2>
 <div class="v-table-wrap">
   {% if agents %}
-    <table class="v-table">
+    <table class="v-table v-table-flow v-agent-table">
       <thead>
         <tr>
-          <th scope="col">{% translate "Name" %}</th>
-          <th scope="col">{% translate "Owner" %}</th>
-          <th scope="col">{% translate "Service user" %}</th>
+          <th scope="col">{% translate "Agent" %}</th>
           <th scope="col">{% translate "Access" %}</th>
-          <th scope="col">{% translate "Delete" %}</th>
-          <th scope="col">{% translate "Approval" %}</th>
           <th scope="col">{% translate "Scopes" %}</th>
           <th scope="col">{% translate "Last used" %}</th>
           <th scope="col">{% translate "Expires" %}</th>
-          <th scope="col">{% translate "Revoked" %}</th>
-          <th scope="col">{% translate "Runs, 7 days" %}</th>
-          <th scope="col">{% translate "Writes, 7 days" %}</th>
+          <th scope="col">{% translate "Runs 7d" %}</th>
+          <th scope="col">{% translate "Writes 7d" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for row in agents %}
           <tr>
-            <td><a class="v-cell-link" href="?agent={{ row.identity.name|urlencode }}">{{ row.identity.name }}</a></td>
-            <td>{{ row.owner|default:"—" }}</td>
-            <td>{{ row.service_user }}</td>
-            <td>{{ row.identity.get_access_display }}</td>
-            <td>{% if row.identity.allow_delete %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
-            <td>{% if row.identity.require_approval %}{% translate "Required" %}{% else %}{% translate "No" %}{% endif %}</td>
-            <td>{% if row.scopes %}<code>{{ row.scopes }}</code>{% else %}{% translate "All the service user can see" %}{% endif %}</td>
-            <td>{% if row.identity.last_used_at %}<time datetime="{{ row.identity.last_used_at|date:'c' }}">{{ row.identity.last_used_at|date:"Y-m-d H:i" }}</time>{% else %}—{% endif %}</td>
-            <td>{{ row.identity.expires_at|date:"Y-m-d H:i"|default:"—" }}</td>
             <td>
+              <a class="v-cell-link" href="?agent={{ row.identity.name|urlencode }}">{{ row.identity.name }}</a>
+              <span class="v-audit-model">{% blocktranslate trimmed with user=row.service_user owner=row.owner|default:"—" %}runs as {{ user }}, for {{ owner }}{% endblocktranslate %}</span>
+            </td>
+            <td class="v-agent-flags">
+              <span class="v-badge" data-tone="{% if row.identity.access == 'write' %}warning{% else %}primary{% endif %}">{{ row.identity.get_access_display }}</span>
+              {% if row.identity.allow_delete %}<span class="v-badge" data-tone="destructive">{% translate "Can delete" %}</span>{% endif %}
+              {% if row.identity.require_approval %}<span class="v-badge" data-tone="success">{% translate "Approval required" %}</span>{% endif %}
+            </td>
+            <td>{% if row.scopes %}<code>{{ row.scopes }}</code>{% else %}<span class="v-muted">{% translate "All the service user can see" %}</span>{% endif %}</td>
+            <td class="v-agent-date">{% if row.identity.last_used_at %}<time datetime="{{ row.identity.last_used_at|date:'c' }}">{{ row.identity.last_used_at|date:"Y-m-d H:i" }}</time>{% else %}—{% endif %}</td>
+            <td class="v-agent-date">
+              {{ row.identity.expires_at|date:"Y-m-d H:i"|default:"—" }}
               {% if row.identity.revoked_at %}
-                <span class="v-badge" data-tone="destructive">{{ row.identity.revoked_at|date:"Y-m-d H:i" }}</span>
-              {% else %}—{% endif %}
+                <span class="v-badge v-agent-revoked" data-tone="destructive">{% blocktranslate with when=row.identity.revoked_at|date:"Y-m-d H:i" %}Revoked {{ when }}{% endblocktranslate %}</span>
+              {% endif %}
             </td>
             <td>{{ row.recent_runs }}</td>
             <td>{{ row.recent_writes }}</td>
@@ -68,7 +66,7 @@
   {% endif %}
 </div>
 
-<h2 class="v-card-title">{% translate "Recent runs" %}</h2>
+<h2 class="v-card-title v-agent-heading">{% translate "Recent runs" %}</h2>
 <form class="v-toolbar v-audit-filters" method="get" role="search" aria-label="{% translate 'Filter runs' %}">
   <label class="v-audit-field">
     <span class="v-audit-label">{% translate "Agent" %}</span>
@@ -87,7 +85,7 @@
 
 <div class="v-table-wrap">
   {% if runs %}
-    <table class="v-table v-audit-table">
+    <table class="v-table v-table-flow v-audit-table v-agent-runs">
       <thead>
         <tr>
           <th scope="col">{% translate "Agent" %}</th>
@@ -101,7 +99,7 @@
         {% for row in runs %}
           <tr>
             <td>{{ row.run.identity.name }}</td>
-            <td><a class="v-cell-link" href="{{ row.url }}"><code>{{ row.run.run_key }}</code></a></td>
+            <td class="v-agent-key"><a class="v-cell-link" href="{{ row.url }}"><code>{{ row.run.run_key }}</code></a></td>
             <td class="v-audit-when"><time datetime="{{ row.run.started_at|date:'c' }}">{{ row.run.started_at|date:"Y-m-d H:i" }}</time></td>
             <td>{{ row.run.writes }}</td>
             <td>{{ row.run.deletes }}</td>
