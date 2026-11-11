@@ -137,9 +137,9 @@ class TestPerDeviceSafety:
         first, second, _ = two
         assert not twofactor.verify_any(boss, "000000")[0]
         assert [TwoFactorDevice.objects.get(pk=d.pk).failed_attempts for d in (first, second)] == [
-            1,
-            1,
-        ]
+            2,
+            2,
+        ]  # one answer, weighted by the two devices it was compared against
 
     def test_guessing_gets_no_more_tries_with_more_devices(self, boss, two, settings):
         limit = twofactor.setting("TWO_FACTOR_MAX_ATTEMPTS")
@@ -286,7 +286,7 @@ class TestAccountPage:
     def test_a_wrong_proof_counts_toward_the_lock(self, client, boss, verified):
         _, second, _ = verified
         client.post(reverse(self.URL), {"action": "remove", "device": second.pk, "password": "no"})
-        assert [d.failed_attempts for d in TwoFactorDevice.objects.filter(user=boss)] == [1, 1]
+        assert [d.failed_attempts for d in TwoFactorDevice.objects.filter(user=boss)] == [2, 2]
 
     def test_switching_off_removes_every_device(self, client, boss, verified):
         client.post(reverse(self.URL), {"action": "disable", "password": PASSWORD})
@@ -407,3 +407,76 @@ class TestMigration:
         finally:
             executor = MigrationExecutor(connection)
             executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+@pytest.mark.django_db(transaction=True)
+class TestMigrationReverse:
+    def test_migrating_back_gives_each_code_its_owners_device(self):
+        user = User.objects.create(username="rev")
+        device = TwoFactorDevice.objects.create(
+            user_id=user.pk, secret="sealed", tag="c" * 32, confirmed_at=timezone.now()
+        )
+        TwoFactorRecoveryCode.objects.create(user_id=user.pk, code_hash="k" * 64)
+        try:
+            executor = MigrationExecutor(connection)
+            executor.migrate([("vantage", "0023_two_factor_many_devices")])
+            old = executor.loader.project_state([("vantage", "0023_two_factor_many_devices")]).apps
+            code = old.get_model("vantage", "TwoFactorRecoveryCode").objects.get()
+            assert code.device_id == device.pk
+            assert code.user_id == user.pk
+        finally:
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes())
+        assert TwoFactorRecoveryCode.objects.get().user_id == user.pk
+
+
+class TestSeveralDevicesLockout:
+    @pytest.mark.parametrize("count", [1, 2, 3, 5])
+    def test_lockout_after_ceil_max_over_devices(self, boss, count):
+        enrol(boss)
+        for number in range(count - 1):
+            add_second(boss, f"D{number}")
+        limit = twofactor.setting("TWO_FACTOR_MAX_ATTEMPTS")
+        allowed = -(-limit // count)
+        for _ in range(allowed - 1):
+            assert twofactor.verify_any(boss, "000000")[0].reason == "invalid"
+        assert twofactor.verify_any(boss, "000000")[0].reason == "locked"
+        assert all(d.locked_until for d in TwoFactorDevice.objects.filter(user=boss))
+
+
+class TestRemovalIsImmediate:
+    def test_a_session_verified_with_a_removed_device_is_regated_at_once(self, boss, two):
+        first, second, _ = two
+        one = Client()
+        one.force_login(boss)
+        one.post(reverse("vantage:two_factor_verify"), {"code": code_for(second)})
+        dashboard = reverse("vantage:dashboard")
+        assert one.get(dashboard).status_code == 200  # state now cached in the session
+        other = Client()
+        other.force_login(boss)
+        other.post(reverse("vantage:two_factor_verify"), {"code": code_for(first)})
+        twofactor.remove_device(None, second)  # as if from the other session
+        assert one.get(dashboard).status_code == 302
+
+    def test_disabling_regates_other_sessions_at_once(self, boss, two):
+        first, _second, _ = two
+        one = Client()
+        one.force_login(boss)
+        one.post(reverse("vantage:two_factor_verify"), {"code": code_for(first)})
+        dashboard = reverse("vantage:dashboard")
+        assert one.get(dashboard).status_code == 200
+        TwoFactorDevice.objects.filter(pk=first.pk).delete()
+        # Another device remains, but the one this session used is gone.
+        assert one.get(dashboard).status_code == 302
+
+
+class TestPendingExpires:
+    def test_an_old_pending_device_is_dropped(self, boss):
+        enrol(boss)
+        pending = twofactor.add_device(boss, None, "New")
+        assert twofactor.device_for(boss, confirmed=False).pk == pending.pk
+        TwoFactorDevice.objects.filter(pk=pending.pk).update(
+            created_at=timezone.now() - timezone.timedelta(minutes=11)
+        )
+        assert twofactor.device_for(boss, confirmed=False) is None
+        assert not TwoFactorDevice.objects.filter(pk=pending.pk).exists()

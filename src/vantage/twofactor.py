@@ -40,12 +40,13 @@ copied into another row is refused. ``SECRET_KEY_FALLBACKS`` are tried on the wa
 and a value only a fallback opens is sealed again under the current key at its owner's
 next sign-in, so rotating the key the documented way does not lock anybody out.
 
-**The gate costs no queries on an ordinary request.** Whether the person has an
+**The gate costs one cheap query on an ordinary request.** Whether the person has an
 authenticator and whether one is required is worked out when they sign in, stored in
-the session, and re-checked at most once a minute — or at once when the requirement
-settings change. A colleague's reset, or a new role membership, therefore takes effect
-within :data:`RECHECK_SECONDS` rather than instantly; the alternative was two queries
-on every page, autocomplete keystroke and API call.
+the session, and re-read at most once a minute — or at once when the requirement
+settings change. A new role membership therefore takes effect within
+:data:`RECHECK_SECONDS`. Removal is not left to that: each request checks, with one
+indexed lookup, that the device the session passed with still exists, so removing,
+resetting or disabling takes effect on the very next request of every session.
 """
 
 from __future__ import annotations
@@ -126,6 +127,10 @@ MAX_LOCKOUT_SECONDS = 24 * 3600
 #: Authenticators one person may have confirmed at once. A cap, because every device
 #: is one more place a six-digit code can be guessed against.
 MAX_DEVICES = 5
+
+#: How long a device that was started but not confirmed stays usable. Past this its
+#: secret is discarded the next time it is looked for and the person starts again.
+PENDING_SECONDS = 600
 DEFAULT_DEVICE_NAME = "Authenticator"
 DEVICE_NAME_LENGTH = 64
 RECOVERY_CODE_COUNT = 10
@@ -396,6 +401,14 @@ def devices_for(user, *, confirmed: bool = True) -> list:
 
     if user is None or not getattr(user, "is_authenticated", False) or user.pk is None:
         return []
+    if not confirmed:
+        # A half-finished enrolment is only good for a short while: its secret was shown
+        # on a page, so it must not stay confirmable indefinitely.
+        TwoFactorDevice.objects.filter(
+            user=user,
+            confirmed_at__isnull=True,
+            created_at__lt=timezone.now() - timedelta(seconds=PENDING_SECONDS),
+        ).delete()
     return list(
         TwoFactorDevice.objects.filter(user=user, confirmed_at__isnull=not confirmed).order_by("pk")
     )
@@ -573,7 +586,7 @@ class _Attempt:
     lock_seconds: int = 0
 
 
-def reserve_attempt(device) -> _Attempt | Outcome:
+def reserve_attempt(device, weight: int = 1) -> _Attempt | Outcome:
     """Count one attempt against the account *before* its answer is compared.
 
     The order is the whole point. Counting only after a wrong answer leaves a window
@@ -592,10 +605,17 @@ def reserve_attempt(device) -> _Attempt | Outcome:
     Each lock in a row lasts twice as long as the one before (:func:`lockout_seconds`),
     so the lock bounds the guesses an attacker gets per day, not only per window.
 
+    ``weight`` is how many of the person's devices this answer is compared against. The
+    attempt adds ``weight`` to the count, so with ``n`` devices the lock comes after
+    ``ceil(TWO_FACTOR_MAX_ATTEMPTS / n)`` wrong answers: each answer is compared against
+    ``n`` secrets, and the guesses an attacker gets per lockout stay at what one device
+    would allow.
+
     Returns the reservation, or the refusal to show.
     """
     from vantage.models import TwoFactorDevice
 
+    weight = max(int(weight), 1)
     limit = setting("TWO_FACTOR_MAX_ATTEMPTS")
     seconds = setting("TWO_FACTOR_LOCKOUT_SECONDS")
     now = timezone.now()
@@ -605,7 +625,7 @@ def reserve_attempt(device) -> _Attempt | Outcome:
         reserved = rows.filter(
             Q(locked_until__isnull=True) | Q(locked_until__lte=now),
             failed_attempts__lt=limit,
-        ).update(failed_attempts=F("failed_attempts") + 1, locked_until=None)
+        ).update(failed_attempts=F("failed_attempts") + weight, locked_until=None)
         if not reserved:
             device.refresh_from_db(fields=["locked_until", "failed_attempts"])
             return Outcome(False, "locked", _locked_for(device) or seconds)
@@ -651,8 +671,11 @@ def _reserve_all(devices: list):
     as it does for a person with a single device.
     """
     reserved, refusals = [], []
+    # An answer is compared against every unlocked device, so it counts for that many
+    # attempts on each: the lock then comes after ceil(MAX / n) wrong answers.
+    weight = max(sum(1 for d in devices if not _locked_for(d)), 1)
     for device in devices:
-        attempt = reserve_attempt(device)
+        attempt = reserve_attempt(device, weight)
         if isinstance(attempt, Outcome):
             refusals.append(attempt)
         else:
@@ -687,10 +710,12 @@ def _check(
 ) -> tuple[Outcome, object]:
     """Check one code against ``devices`` and spend it. ``(outcome, device it passed)``.
 
-    One attempt is counted against *each* device that is not locked, before the code is
-    looked at (see :func:`reserve_attempt`), so a person with several devices gets no
-    more guesses per lockout than a person with one: a wrong code costs a try on all
-    of them, and each device locks on its own count.
+    A wrong answer is counted against *each* device that is not locked, before the code
+    is looked at (see :func:`reserve_attempt`), and counts for as many attempts as there
+    are such devices. A code is compared against every one of their secrets, so with
+    ``n`` devices the lock comes after ``ceil(TWO_FACTOR_MAX_ATTEMPTS / n)`` wrong
+    answers (at least one): the chance of guessing a code within one lockout is no higher
+    than with a single device. Each device still locks on its own count.
     """
     from vantage.models import TwoFactorRecoveryCode
 
@@ -802,6 +827,11 @@ def confirm_enrolment(request, device, code: object) -> tuple[Outcome, list[str]
     none when the person already had a device, since their recovery codes stay. The
     confirming code's step is recorded, so it cannot then be replayed at sign-in.
     """
+    if device.confirmed_at is None and device.created_at < timezone.now() - timedelta(
+        seconds=PENDING_SECONDS
+    ):
+        device.delete()
+        return Outcome(False, "invalid"), []
     outcome = verify(device, code, allow_recovery=False)
     if not outcome:
         return outcome, []
@@ -871,8 +901,7 @@ def disable(request, device) -> None:
 def remove_device(request, device) -> bool:
     """Remove one authenticator. The caller has checked proof.
 
-    Sessions verified against it stop being verified, at once for the next request that
-    re-reads the state and no later than :data:`RECHECK_SECONDS`. Removing the last one
+    Sessions verified against it stop being verified on their next request. Removing the last one
     is switching two-factor sign-in off, exactly as :func:`disable` does it. Returns
     whether two-factor sign-in is still on afterwards.
     """
@@ -917,8 +946,8 @@ def reset(request, target, device=None) -> int:
     exists for the person who cannot say which phone is lost, or lost them all.
     Returns how many devices were removed, so it is falsy when there was nothing to do.
 
-    Audited under the administrator's name. Their sessions notice within
-    :data:`RECHECK_SECONDS`, and are sent to enrol again if a role requires it.
+    Audited under the administrator's name. Their sessions notice on
+    their next request, and are sent to enrol again if a role requires it.
     """
     from vantage.models import TwoFactorDevice
 
@@ -1054,6 +1083,20 @@ def is_verified(request, user, tags: str | list[str] | None) -> bool:
     return matched
 
 
+def _marker_is_live(request, user) -> bool:
+    """Whether the device this session passed the second step with still exists."""
+    from vantage.models import TwoFactorDevice
+
+    marker = request.session.get(SESSION_VERIFIED)
+    tag = str(marker.get("tag", "")) if isinstance(marker, dict) else ""
+    return (
+        bool(tag)
+        and TwoFactorDevice.objects.filter(
+            user_id=user.pk, tag=tag, confirmed_at__isnull=False
+        ).exists()
+    )
+
+
 def requirement(request) -> str | None:
     """What the gate needs from this request first: :data:`VERIFY`, :data:`ENROL`, or nothing.
 
@@ -1072,9 +1115,21 @@ def requirement(request) -> str | None:
     user = real_user(request)
     if not user.is_staff:
         return None
+    session = request.session
+    before = session.get(SESSION_STATE)
     state = _state(request, user)
     if state["tags"]:
-        return None if is_verified(request, user, state["tags"]) else VERIFY
+        if not is_verified(request, user, state["tags"]):
+            return VERIFY
+        if session.get(SESSION_STATE) is before and not _marker_is_live(request, user):
+            # The device this session passed with was removed since the state was read
+            # (here or from another session): re-read, so removal bites at once rather
+            # than after RECHECK_SECONDS. One indexed query, only when the state was cached.
+            state = refresh_state(request, user)
+            if state["tags"]:
+                return None if is_verified(request, user, state["tags"]) else VERIFY
+            return ENROL if state["required"] else None
+        return None
     return ENROL if state["required"] else None
 
 
