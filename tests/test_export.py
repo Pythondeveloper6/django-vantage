@@ -31,6 +31,23 @@ def posts(db):
     Post.objects.create(title="Gamma", slug="g", body="b", author=ada, status="draft")
 
 
+class InMemoryRows:
+    """Unsaved instances served like a queryset, for values no column may hold.
+
+    Real servers enforce ``max_length`` (MySQL, PostgreSQL) and PostgreSQL rejects NUL,
+    so a value built to stress the export is kept off the database altogether.
+    """
+
+    def __init__(self, *rows):
+        self.rows = list(rows)
+
+    def count(self):
+        return len(self.rows)
+
+    def iterator(self, chunk_size=None):
+        yield from self.rows
+
+
 def body_of(response) -> bytes:
     return b"".join(response.streaming_content)
 
@@ -351,10 +368,11 @@ class TestPdf:
         pdf_objects(data)
         assert b"(a\\(b\\)c\\\\d ? \xe9)" in data
 
-    def test_a_cell_longer_than_its_column_is_cut(self, client_in, db):
-        author = Author.objects.create(name="Ada", email="ada@example.com")
-        Post.objects.create(title="w" * 500, slug="x", body="b", author=author)
-        data = body_of(client_in.get(reverse(LIST), {"export": "pdf"}))
+    def test_a_cell_longer_than_its_column_is_cut(self):
+        from vantage.export import stream_export
+
+        rows = InMemoryRows(Post(title="w" * 500))
+        data = body_of(stream_export("pdf", rows, ["title"], ["Title"], "f"))
         pdf_objects(data)
         assert b"w" * 500 not in data and b"..." in data
 

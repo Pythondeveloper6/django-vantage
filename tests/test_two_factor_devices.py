@@ -7,6 +7,7 @@ device; and a reset never takes a device away without saying so.
 """
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
@@ -377,6 +378,16 @@ class TestReset:
         assert not TwoFactorDevice.objects.filter(user=clerk).exists()
 
 
+# On a server the suite builds tables straight from the models (see tests/settings.py), so
+# the migration graph is not in play; these run on SQLite, and the same forwards/backwards
+# path is exercised against real servers by migrating a database that has the real graph.
+needs_migrations = pytest.mark.skipif(
+    getattr(settings, "MIGRATIONS_DISABLED", False),
+    reason="migrations are bypassed on this backend's test database",
+)
+
+
+@needs_migrations
 @pytest.mark.django_db(transaction=True)
 class TestMigration:
     def test_an_existing_device_and_its_codes_carry_over(self):
@@ -409,6 +420,7 @@ class TestMigration:
             executor.migrate(executor.loader.graph.leaf_nodes())
 
 
+@needs_migrations
 @pytest.mark.django_db(transaction=True)
 class TestMigrationReverse:
     def test_migrating_back_gives_each_code_its_owners_device(self):
