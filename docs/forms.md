@@ -114,7 +114,7 @@ Verified against the demo project's models:
 | `DecimalField(max_digits=8, decimal_places=2)` | `decimal` | `NumberInput` | `step=0.01`, `min=-999999.99`, `max=999999.99` |
 | `PositiveIntegerField` | `number` | `NumberInput` | `min=0`, `max=9223372036854775807` |
 | `TextField` | `longtext` | `Textarea` | `rows=6` |
-| `TextField` named `body_html`, or a field class matching a rich-text hint | `richtext` | `Textarea` | `rows=12`, `data-markdown` |
+| `TextField` named `body_html`, or a field class matching a rich-text hint | `richtext` | `RichTextWidget` (a `Textarea` that becomes a WYSIWYG editor) | `rows=12`, `data-richtext` (`data-markdown` for a markdown field) |
 | `ForeignKey` | `relation_one` | `Select` | `data-vantage-search` |
 | `ManyToManyField` | `relation_many` | `SelectMultiple` | `data-vantage-search` |
 | `SlugField` | `slug` | `TextInput` | `pattern=[-a-zA-Z0-9_]+` |
@@ -125,14 +125,18 @@ A nullable boolean is a `<select>` rather than a checkbox because a checkbox can
 report two states and would silently rewrite every unset value to `False` on first
 save.
 
-A `richtext` field carries `data-markdown`, which `static/vantage/vantage-editors.js`
-enhances into a small formatting toolbar (bold, italic, code, link, heading, lists,
-quote — `Ctrl+B`/`Ctrl+I`/`Ctrl+K` work too) plus a character count. Vantage integrates
-no CKEditor, TinyMCE or Quill of its own — whichever package's class name is what
-triggered the `richtext` classification, what actually renders is the same plain
-`Textarea` every `longtext` field gets, just with markdown buttons above it. With
-JavaScript off, or before the script has run, it is that `Textarea`, unenhanced and
-fully usable.
+A `richtext` field carries `data-richtext`, which `static/vantage/vantage-richtext.js`
+turns into a small WYSIWYG editor (bold, italic, code, link, heading, lists, quote). The
+value is stored as HTML and sanitised against an allowlist when it is saved and again
+when it is drawn: see [Rich-text fields](rich-text.md). Vantage integrates no CKEditor,
+TinyMCE or Quill of its own, whichever package's class name triggered the `richtext`
+classification. With JavaScript off, or before the script has run, it is a plain
+`Textarea` holding the HTML, unenhanced and fully usable.
+
+A field whose class name says it holds markdown, a field listed in the panel's
+`markdown_fields`, or every rich-text field when `VANTAGE["RICHTEXT_EDITOR"] = "markdown"`,
+carries `data-markdown` instead: `static/vantage/vantage-editors.js` adds a markdown
+toolbar and a character count to the plain `Textarea`, and the value is stored as typed.
 
 Without a `step`, a browser rejects `12.50` in a `number` input as invalid, so a
 `DecimalField` has to state its scale. The bounds come from `max_digits`, because that

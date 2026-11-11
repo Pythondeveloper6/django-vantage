@@ -278,6 +278,9 @@ UPGRADE_NOTES: tuple[tuple[str, tuple[str, ...]], ...] = (
             "sign-in and its escalating lockout, webhooks, scheduled reports, approvals, "
             "field permissions, elevated access, and several two-factor devices per "
             "person with recovery codes owned by the person).",
+            "Rich-text fields now open in an HTML editor and are sanitised on save; list "
+            "fields that hold markdown in the panel's `markdown_fields` to keep the old "
+            "toolbar. The `nh3` package is installed with Vantage for this.",
             "`vantage.twofactor.reset()` now returns the number of devices removed "
             "instead of a boolean; the result is still falsy when nothing was removed.",
             "Uploads of active content (SVG, HTML, XML, JavaScript) are now refused unless "

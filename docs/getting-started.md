@@ -12,7 +12,9 @@ pip install --pre django-vantage
 the exact version (`django-vantage==0.3.0b1`) if you depend on it, because provisional
 items may still change before 1.0.
 
-Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. Nothing else is.
+Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. The only other package is `nh3`, the
+HTML sanitiser behind [rich-text fields](rich-text.md); it installs by itself as a
+prebuilt wheel, so there is nothing to compile.
 
 ## Mount it
 
