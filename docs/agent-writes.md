@@ -53,6 +53,12 @@ cannot see: database constraints the form does not check (a unique index, a trig
 a `save_model` hook or a signal receiver does, the effect of a model's `save()`, or a
 change someone else makes between the preview and the real call.
 
+**Import is the one exception to "no rolled-back transaction" for people**: the CSV import
+preview saves each row and rolls back. For an agent token it does not: an agent's import
+preview is validation only (each row is matched and run through the form, nothing is
+saved, no save hook or signal runs). It therefore cannot see two rows of the same file
+colliding, or a database constraint the form does not know about.
+
 ## Approval for agents
 
 When an identity has `require_approval`, its writes never take effect directly.
@@ -98,7 +104,8 @@ POST /admin/_/api/_agents/runs/nightly-2025-01-31/undo/        (add ?dry_run=1 t
 ```
 
 (`?agent=NAME` when two agents used the same key.) Only a superuser or the identity's owner
-may undo, and every record is checked against that person's own change or delete
+may undo; for anyone else a run does not exist (`404`, the same answer as for a key that was
+never used), and the route is `404` for everyone while `AGENTS` is off. Every record is checked against that person's own change or delete
 permission. The command acts as the owner unless `--as` names a superuser or the owner.
 
 The report is `{"reverted": [...], "skipped": [{"object", "label", "reason"}],

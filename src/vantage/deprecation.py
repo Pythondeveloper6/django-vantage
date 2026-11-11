@@ -296,7 +296,7 @@ UPGRADE_NOTES: tuple[tuple[str, tuple[str, ...]], ...] = (
             "Two-factor sign-in is offered to everyone from the account page by default; "
             "set VANTAGE['TWO_FACTOR'] = False to keep it off.",
             "AI-agent access is off unless VANTAGE['AGENTS'] is True; agents are read-only "
-            "on a panel unless it sets `agent_access = \"write\"` or "
+            'on a panel unless it sets `agent_access = "write"` or '
             "VANTAGE['AGENT_DEFAULT_ACCESS'] is \"write\".",
             "Settings and panel attributes added in this release are provisional until "
             "the release after it; see docs/api-stability.md.",

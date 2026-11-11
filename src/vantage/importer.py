@@ -866,6 +866,8 @@ class _Runner:
         #: Change requests made since the last chunk committed, with their record,
         #: announced in the audit log once that chunk is durable. See :func:`commit`.
         self.pending: list[tuple[Any, Any]] = []
+        #: Count and report rows but never save one. See :func:`dry_run`.
+        self.validate_only = False
 
         # A panel with a ``save_model`` hook may well be the thing that supplies the
         # missing value — stamping the acting user onto an ``author`` field is the
@@ -1036,6 +1038,8 @@ class _Runner:
         from vantage import approvals
         from vantage.tenancy import enforce as enforce_tenant
 
+        if self.validate_only:
+            return None
         hook = getattr(self.panel, "save_model", None)
         with transaction.atomic(using=self.db):
             obj = form.save(commit=False)
@@ -1276,8 +1280,21 @@ def _chunks(items: Iterable[Any], size: int) -> Iterator[list[Any]]:
         yield batch
 
 
-def dry_run(panel, parsed: ParsedFile, mapping: Mapping, request=None, permissions=None):
+def dry_run(
+    panel,
+    parsed: ParsedFile,
+    mapping: Mapping,
+    request=None,
+    permissions=None,
+    *,
+    validate_only: bool = False,
+):
     """Run the whole import inside a transaction that is rolled back.
+
+    With ``validate_only`` nothing is saved at all: each row is matched, resolved and run
+    through the form, then counted. No save hook, signal or sequence runs, so it cannot
+    see a collision between two rows of the same file or a constraint the form does not
+    know. The JSON API uses it for agents.
 
     Every row is validated *and saved*, then the transaction is discarded. Simulating
     instead — validating without saving — would miss exactly the failures a preview is
@@ -1302,6 +1319,11 @@ def dry_run(panel, parsed: ParsedFile, mapping: Mapping, request=None, permissio
     """
     result = ImportResult(dry_run=True)
     runner = _Runner(panel, parsed, mapping, request, permissions)
+    if validate_only:
+        runner.validate_only = True
+        for number, row in _numbered(parsed):
+            runner.row(number, row, result)
+        return result
     with transaction.atomic(using=runner.db):
         for number, row in _numbered(parsed):
             runner.row(number, row, result)

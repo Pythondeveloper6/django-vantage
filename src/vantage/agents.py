@@ -17,6 +17,7 @@ request: if the token is bad, the answer is 401, never a fall-back to the sessio
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 import string
 import time
@@ -56,6 +57,9 @@ _ALPHABET = string.ascii_letters + string.digits
 #: ``last_used_at`` and a run's ``last_seen_at`` are written at most this often.
 TOUCH_SECONDS = 60
 RUN_KEY_MAX = 64
+#: A run key is stored, shown on pages, written into audit rows and exported. Anything
+#: outside this shape is replaced by a digest of itself (see :func:`_run_key`).
+_RUN_KEY_OK = re.compile(rf"[A-Za-z0-9._:@+=-]{{1,{RUN_KEY_MAX}}}")
 
 
 class AgentError(Exception):
@@ -137,6 +141,11 @@ def create_identity(
     from vantage.models import AgentIdentity
 
     _refuse_superuser(user)
+    if user.has_usable_password():
+        raise AgentError(
+            "A service user must not be able to sign in with a password. Use an account "
+            "made for the agent (set_unusable_password()), not a person's."
+        )
     if access not in ("read", "write"):
         raise AgentError("access must be 'read' or 'write'.")
     token, prefix, digest = _new_token()
@@ -220,6 +229,12 @@ def authenticate_bearer(request):
     request.user = user
     request.vantage_agent = identity
     request.vantage_run = None
+    # A tenant resolved earlier for whoever the session named (a middleware, a cookie
+    # that rode along) must not scope the agent: resolve again for the service user.
+    from vantage import tenancy
+
+    if hasattr(request, tenancy.REQUEST_ATTR):
+        delattr(request, tenancy.REQUEST_ATTR)
     request._vantage_run_key = _run_key(request)
     # A client-named run is created now; otherwise only a write (or audit) needs one.
     if request.META.get("HTTP_X_VANTAGE_RUN", "").strip() or request.method not in (
@@ -233,8 +248,20 @@ def authenticate_bearer(request):
 
 
 def _run_key(request) -> str:
-    key = request.META.get("HTTP_X_VANTAGE_RUN", "").strip()[:RUN_KEY_MAX]
-    return key or uuid.uuid4().hex
+    """The run named by ``X-Vantage-Run``, or a fresh one.
+
+    The header is chosen by the caller, so it is never stored as sent unless it is a
+    short, plain token. Anything else (control characters, spaces, non-ASCII text, a
+    formula, more than 64 characters) becomes ``h-`` plus a digest of the raw value, so
+    the same header still names the same run and two different ones never collide.
+    """
+    key = request.META.get("HTTP_X_VANTAGE_RUN", "").strip()
+    if not key:
+        return uuid.uuid4().hex
+    if _RUN_KEY_OK.fullmatch(key):
+        return key
+    digest = hashlib.sha256(key.encode("utf-8", "replace")).hexdigest()
+    return f"h-{digest[:32]}"
 
 
 def _touch(identity) -> None:
