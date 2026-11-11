@@ -407,9 +407,10 @@ so "why is my `panel.py` being ignored?" has a single, findable answer.
 | **Cascade-delete preview** | The real tree of what a delete takes with it, counted |
 | **Read-only mode, impersonation** | Both enforced in the permission layer |
 | **System health page** | Migrations, cache, database, task backend |
-| **Streaming CSV export, CSV import** | Export honours the filters and sort you are looking at; import maps, previews and validates first |
+| **Export as CSV, TSV, JSON, Excel or PDF; CSV import** | Export honours the filters and sort you are looking at and the same masking and field permissions in every format; import maps, previews and validates first. [Docs →](https://pythondeveloper6.github.io/django-vantage/lists/#export) |
 | **Light, dark and system themes, RTL** | All from day one, with `en` and `ar` catalogues shipped |
 | **Read-only legacy tables** | `read_only = True` with an `editable_fields` allowlist for tables another system owns, enforced for everyone. [Docs →](https://pythondeveloper6.github.io/django-vantage/permissions/#read-only-models-and-legacy-databases) |
+| **Two-factor sign-in, several devices** | Authenticator-app codes with recovery codes; each person can register more than one device and remove a lost one. [Docs →](https://pythondeveloper6.github.io/django-vantage/two-factor/) |
 | **Single sign-on role mapping** | Identity-provider groups (Entra ID, Okta, Keycloak) mapped onto roles at every sign-in. [Docs →](https://pythondeveloper6.github.io/django-vantage/single-sign-on/) |
 | **Notifications and metrics** | Slack, Teams and email for approvals and failures; a Prometheus endpoint and slow-request log. [Runbook →](https://pythondeveloper6.github.io/django-vantage/runbook/) |
 | **Upgrade checks** | A written deprecation policy and `manage.py vantage_upgrade_check`. [Docs →](https://pythondeveloper6.github.io/django-vantage/api-stability/) |
