@@ -405,6 +405,7 @@ name = "django-vantage"
 source = { editable = "." }
 dependencies = [
     { name = "django" },
+    { name = "nh3" },
 ]
 
 [package.dev-dependencies]
@@ -428,7 +429,10 @@ release = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "django", specifier = ">=5.2,<6.2" }]
+requires-dist = [
+    { name = "django", specifier = ">=5.2,<6.2" },
+    { name = "nh3", specifier = ">=0.3.6" },
+]
 
 [package.metadata.requires-dev]
 browser = [{ name = "playwright", specifier = ">=1.40" }]

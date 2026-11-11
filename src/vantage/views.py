@@ -698,7 +698,7 @@ class DetailView(PanelView):
                 # at the record, so a picture on it is the point rather than a marker.
                 # A sensitive field is rendered masked rather than left out: knowing
                 # that a customer *has* an API token is the useful half.
-                "value": render_cell(panel, obj, field.name, size="lg"),
+                "value": render_cell(panel, obj, field.name, size="lg", rich=True),
                 # A password hash can never be revealed; what someone looking at it
                 # actually wants is to set a new one.
                 "set_password_url": password_url(field.name),

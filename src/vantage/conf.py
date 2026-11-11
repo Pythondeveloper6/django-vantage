@@ -110,6 +110,18 @@ DEFAULTS: dict[str, Any] = {
     "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
     "COMMAND_PALETTE": True,
+    # ── rich text ───────────────────────────────────────────────────────────
+    # "html" gives RICHTEXT fields the WYSIWYG editor and stores sanitised HTML.
+    # "markdown" keeps the plain textarea with a markdown toolbar for all of them;
+    # ModelPanel.markdown_fields opts out one field at a time. See vantage.richtext.
+    "RICHTEXT_EDITOR": "html",
+    # Tags added to the sanitiser allowlist, e.g. ["table", "tr", "td"].
+    "RICHTEXT_EXTRA_TAGS": [],
+    # Attributes added per tag, e.g. {"a": ["target"], "td": ["colspan"]}. Event
+    # handlers and style are refused. Code-only: it widens what stored markup may do.
+    "RICHTEXT_EXTRA_ATTRIBUTES": {},
+    # URL schemes added to http, https, mailto and tel, e.g. ["sms"].
+    "RICHTEXT_URL_SCHEMES": [],
     # ── sensitive values ────────────────────────────────────────────────────
     # The names that mark a field as a secret, matched as whole words. None means the
     # built-in list (vantage.sensitive.DEFAULT_PATTERNS); a list replaces it; a list
@@ -289,6 +301,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "NAV_UNLISTED": ("append", "hide"),
     "TENANT_UNSCOPED": ("deny", "allow"),
     "RELATION_PICKER": ("always", "threshold"),
+    "RICHTEXT_EDITOR": ("html", "markdown"),
 }
 
 #: Values that must be a whole number of at least this much. Checked rather than
@@ -360,6 +373,13 @@ class VantageSettings:
                     f"VANTAGE['{key}'] must be a whole number of at least {floor}; got {value!r}."
                 )
 
+        from vantage.richtext import validate_policy
+
+        validate_policy(
+            user.get("RICHTEXT_EXTRA_TAGS", DEFAULTS["RICHTEXT_EXTRA_TAGS"]),
+            user.get("RICHTEXT_EXTRA_ATTRIBUTES", DEFAULTS["RICHTEXT_EXTRA_ATTRIBUTES"]),
+            user.get("RICHTEXT_URL_SCHEMES", DEFAULTS["RICHTEXT_URL_SCHEMES"]),
+        )
         _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
         problem = two_factor_problem(user)
         if problem:

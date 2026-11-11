@@ -93,6 +93,9 @@
    combobox.js above: whether this page has one is a per-request fact the template would
    otherwise have to thread through just to skip one small file. {% endcomment %}
 <script src="{% static 'vantage/vantage-editors.js' %}" defer></script>
+{% comment %} The WYSIWYG editor for textarea[data-richtext]. An external file, never inline,
+   so it runs under a script-src without 'unsafe-inline'. {% endcomment %}
+<script src="{% static 'vantage/vantage-richtext.js' %}" defer></script>
 <script{{ csp_nonce_attr }}>
 /* Unsaved-changes guard. Compares a snapshot taken at load against the current state,
  * rather than latching on the first input event — a keystroke that was then undone is
