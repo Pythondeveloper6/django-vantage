@@ -40,6 +40,7 @@ __all__ = [
     "create_identity",
     "current_agent",
     "current_run",
+    "effective_access",
     "enabled",
     "guard_patterns",
     "has_bearer",
@@ -285,6 +286,23 @@ def _api_error(status: int, detail: str, **extra):
     return ApiError(status, detail, **extra)
 
 
+def effective_access(identity, panel) -> str:
+    """The lesser of the identity's access and the panel's ``agent_access``.
+
+    ``"none"`` when the panel hides the model from agents, ``"read"`` when either side
+    is read-only, ``"write"`` only when both allow it. A panel never grants more than
+    the identity already has.
+    """
+    from vantage.agentdata import agent_access_for
+
+    panel_level = agent_access_for(panel)
+    if panel_level == "none":
+        return "none"
+    if panel_level == "write" and identity.access == "write":
+        return "write"
+    return "read"
+
+
 def model_allowed(identity, model_or_panel) -> bool:
     allowed = identity.allowed_models or []
     if not allowed:
@@ -298,7 +316,9 @@ def visible_panels(request, panels):
     identity = current_agent(request)
     if identity is None:
         return list(panels)
-    return [p for p in panels if model_allowed(identity, p)]
+    return [
+        p for p in panels if model_allowed(identity, p) and effective_access(identity, p) != "none"
+    ]
 
 
 def check_access(request, panel, verb: str | None = None) -> None:
@@ -312,9 +332,18 @@ def check_access(request, panel, verb: str | None = None) -> None:
         return
     if not model_allowed(identity, panel):
         raise _api_error(404, "No such model.")
+    level = effective_access(identity, panel)
+    if level == "none":
+        # The panel hides the model from agents: the same 404 as an unlisted model.
+        raise _api_error(404, "No such model.")
     verb = verb or _verb(request)
-    if verb != "read" and identity.access != "write":
-        raise _api_error(403, "This agent is read-only.")
+    if verb != "read" and level != "write":
+        raise _api_error(
+            403,
+            "This agent is read-only."
+            if identity.access != "write"
+            else "This model is read-only for agents.",
+        )
     if verb == "delete" and not identity.allow_delete:
         raise _api_error(403, "This agent may not delete records.")
 

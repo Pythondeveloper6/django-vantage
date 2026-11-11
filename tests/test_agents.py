@@ -21,7 +21,7 @@ from vantage.models import AgentIdentity, AgentRun, VantageLogEntry
 
 pytestmark = pytest.mark.django_db
 
-ON = {"AGENTS": True}
+ON = {"AGENTS": True, "AGENT_DEFAULT_ACCESS": "write"}
 
 
 @pytest.fixture(autouse=True)
