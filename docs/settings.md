@@ -354,6 +354,7 @@ Bearer-token access to the JSON API for non-human callers. See [Agents](agents.m
 |---|---|---|
 | `AGENTS` | `False` | Turns agent identities on. Off, every `Authorization: Bearer` request is a 401. Warns with `vantage.W116` in production without HTTPS |
 | `AGENT_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute given to a new identity. `0` means no limit |
+| `AGENT_ALLOWED_ORIGINS` | `[]` | Extra browser origins (for example `"https://tools.example.com"`) that may call the [MCP endpoint](mcp.md). Empty allows only the panel's own origin. Code-only |
 
 ## Scale
 
@@ -436,7 +437,7 @@ UNDO_WINDOW  UNDO_MAX_ROWS
 
 AGENT_MAX_FIELD_CHARS  AGENT_DEFAULT_ACCESS
 
-AGENTS  AGENT_RATE_LIMIT_PER_MINUTE
+AGENTS  AGENT_RATE_LIMIT_PER_MINUTE  AGENT_ALLOWED_ORIGINS
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS
