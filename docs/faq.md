@@ -4,8 +4,10 @@
 
 ## How finished is this?
 
-**Alpha.** The version is `0.2.0a2`, the second published pre-release, and the PyPI
-classifier is `Development Status :: 3 - Alpha`.
+**Beta.** The version is `0.3.0b1`, the first beta, and the PyPI classifier is
+`Development Status :: 4 - Beta`. Beta means the feature set is complete for the
+package's scope and the settings and panel attributes classified *stable* are frozen;
+it does not mean the package has had an outside review.
 
 What that means in practice:
 
@@ -16,7 +18,7 @@ What that means in practice:
 - **The API has a contract.** Every setting and panel attribute is classified as
   *stable* (frozen, changed only through a deprecation cycle) or *provisional* (new
   since the last release). See [API stability](api-stability.md). Pin an exact version
-  (`django-vantage==0.2.0a2`) while it is pre-1.0, and run
+  (`django-vantage==0.3.0b1`) while it is pre-1.0, and run
   `manage.py vantage_upgrade_check` before upgrading.
 - **Several features are declared but not wired up.** They are listed below rather than
   glossed over.

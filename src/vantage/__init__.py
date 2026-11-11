@@ -14,7 +14,7 @@ One line to override anything::
 
 from __future__ import annotations
 
-__version__ = "0.2.0a2"
+__version__ = "0.3.0b1"
 
 __all__ = [
     "Chart",

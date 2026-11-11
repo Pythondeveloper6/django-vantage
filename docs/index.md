@@ -21,9 +21,9 @@ charts, a command palette, light and dark themes and a schema map.</p>
 ![The Orders list in django-vantage: stat cards, a revenue chart, a status breakdown and a filtered data grid](assets/screenshots/orders-light.webp){ .dv-shot .dv-only-light }
 ![The Orders list in django-vantage, dark theme](assets/screenshots/orders-dark.webp){ .dv-shot .dv-only-dark }
 
-!!! warning "Alpha — `0.2.0a2`"
+!!! warning "Beta — `0.3.0b1`"
 
-    Working and heavily tested — more than 5,000 tests — but the API may still move, through a [deprecation cycle](api-stability.md).
+    Feature-complete for its scope and heavily tested — more than 5,000 tests. The API is stable apart from items marked provisional, and changes go through a [deprecation cycle](api-stability.md).
     See the [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is
     not done. Use it on an internal tool; pin the exact version if you depend on it.
 
