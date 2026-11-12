@@ -107,7 +107,7 @@
             {% else %}
               <td>{{ row.entry.actor_repr|default:"—" }}</td>
             {% endif %}
-            <td>
+            <td{% if row.entry.is_outside_panel and not row.entry.restored_as_of %} class="v-audit-what-wrap"{% endif %}>
               <span class="v-audit-verb" data-action="{{ row.entry.action }}">
                 {{ row.entry.get_action_display }}
               </span>

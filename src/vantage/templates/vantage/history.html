@@ -153,8 +153,10 @@
               {% translate "Someone" as unknown_actor %}
               <span class="v-history-who">{{ entry.actor_repr|default:unknown_actor }}</span>
               {% if entry.agent_id %}<span class="v-badge" data-tone="primary">{% translate "Agent" %}</span>{% endif %}
+            </div>
+            <div class="v-history-meta">
               <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"Y-m-d H:i:s" }}</time>
-              <a class="v-btn v-btn-sm v-btn-ghost" href="{{ row.url }}">{% translate "As it was after this" %}</a>
+              <a class="v-history-asof" href="{{ row.url }}">{% translate "As it was after this" %}</a>
             </div>
             {% if entry.restored_as_of %}
               <p class="v-history-note">{% blocktranslate with when=entry.restored_as_of|date:"Y-m-d H:i" %}Restored from history, as of {{ when }}.{% endblocktranslate %}</p>
