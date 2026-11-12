@@ -228,6 +228,18 @@ None is editable from the UI. `SETTINGS_PERMISSION`, `ROLES_PERMISSION` and
 write path including ones added later — and it is checked **before** the superuser
 bypass. See [Read-only mode](permissions.md#read-only-mode).
 
+## Password reset
+
+Off unless you turn it on — see [Password reset](password-reset.md).
+
+| Key | Default | UI | Effect |
+|---|---|---|---|
+| `PASSWORD_RESET` | `False` | — | Adds "Forgot password?" to the sign-in page and serves the reset routes under `_/password-reset/`. Off, the routes are 404 |
+| `PASSWORD_RESET_TIMEOUT_MINUTES` | `60` | — | How long a reset link works. At least 5. Separate from Django's `PASSWORD_RESET_TIMEOUT`, which is left alone |
+| `PASSWORD_RESET_BASE_URL` | `""` | — | Public address links in reset emails point at, e.g. `https://panel.example.com`. Empty uses the validated request host |
+
+None is editable from the UI. Errors: `vantage.E126`; warning: `vantage.W117`.
+
 ## Two-factor sign-in
 
 On offer to everyone, required of nobody, until you say otherwise — see
@@ -420,6 +432,8 @@ LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES  UPLOAD_ACTIVE_SUFFIXES
 IMPORT_MAX_BYTES  IMPORT_MAX_ROWS  EXPORT_BINARY_MAX_ROWS
+
+PASSWORD_RESET  PASSWORD_RESET_TIMEOUT_MINUTES  PASSWORD_RESET_BASE_URL
 
 TWO_FACTOR  TWO_FACTOR_REQUIRED_SUPERUSERS  TWO_FACTOR_REQUIRED_ROLES
 TWO_FACTOR_ISSUER  TWO_FACTOR_MAX_ATTEMPTS  TWO_FACTOR_LOCKOUT_SECONDS

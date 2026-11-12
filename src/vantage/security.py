@@ -150,6 +150,15 @@ RATE_LIMITS: dict[str, tuple[int, int]] = {
     # the thirty-first. Spent by vantage.revealviews itself, so it holds without the
     # middleware installed.
     "reveal": (30, 300),
+    # Password reset requests, per address of the caller: twenty an hour. Generous for
+    # an office behind one NAT, useless for working through a list of addresses.
+    "password_reset": (20, 3600),
+    # Per target email address, whoever asks: three an hour. Stops the form being used
+    # to flood one person's inbox. Over it, the answer is unchanged and no mail is sent.
+    "password_reset_address": (3, 3600),
+    # Opening or submitting a reset link, per address of the caller. Guessing a token
+    # is hopeless; this keeps the endpoint from being asked a million times anyway.
+    "password_reset_confirm": (30, 3600),
 }
 
 

@@ -159,6 +159,17 @@ DEFAULTS: dict[str, Any] = {
     # Offered to everyone from the account page. False removes the feature: no
     # enrolment, no second step, and any codes already set up stop being asked for.
     "TWO_FACTOR": True,
+    # ── password reset ──────────────────────────────────────────────────────
+    # An opt-in "Forgot password?" flow on the sign-in page, using Django's own token
+    # generator and email backend. Off: the routes 404 and no link is shown. Code-only:
+    # a screen that could switch on email-based account recovery is a way in.
+    "PASSWORD_RESET": False,
+    # Minutes a reset link stays valid. Its own clock; Django's global
+    # PASSWORD_RESET_TIMEOUT is left alone. At least 5.
+    "PASSWORD_RESET_TIMEOUT_MINUTES": 60,
+    # The public address links in reset emails point at, e.g. "https://panel.example.com".
+    # Empty builds them from the request's host, which ALLOWED_HOSTS has validated.
+    "PASSWORD_RESET_BASE_URL": "",
     # Who may not use the panel without it. Code-only, like the permission settings:
     # a requirement the people it binds could switch off is not a requirement.
     "TWO_FACTOR_REQUIRED_SUPERUSERS": False,
@@ -341,6 +352,7 @@ MINIMUMS: dict[str, int] = {
     "TWO_FACTOR_LOCKOUT_SECONDS": 1,
     "EXPORT_BINARY_MAX_ROWS": 1,
     "AGENT_RATE_LIMIT_PER_MINUTE": 0,
+    "PASSWORD_RESET_TIMEOUT_MINUTES": 5,
 }
 
 
@@ -432,6 +444,10 @@ class VantageSettings:
             )
         if not isinstance(user.get("TRACK_EXTERNAL_WEBHOOKS", False), bool):
             raise ImproperlyConfigured("VANTAGE['TRACK_EXTERNAL_WEBHOOKS'] must be True or False.")
+        if not isinstance(user.get("PASSWORD_RESET", False), bool):
+            raise ImproperlyConfigured(
+                f"VANTAGE['PASSWORD_RESET'] must be True or False; got {user['PASSWORD_RESET']!r}."
+            )
         problem = two_factor_problem(user)
         if problem:
             raise ImproperlyConfigured(problem)
