@@ -39,6 +39,16 @@
   </label>
 
   <label class="v-audit-field">
+    <span class="v-audit-label">{% translate "Source" %}</span>
+    <select class="v-select" name="source">
+      <option value="">{% translate "Anywhere" %}</option>
+      {% for source in sources %}
+        <option value="{{ source.value }}"{% if source.selected %} selected{% endif %}>{{ source.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="v-audit-field">
     <span class="v-audit-label">{% translate "When" %}</span>
     <select class="v-select" name="window">
       <option value="">{% translate "Any time" %}</option>
@@ -103,6 +113,8 @@
               </span>
               {% if row.entry.restored_as_of %}
                 <span class="v-audit-name">{% blocktranslate with when=row.entry.restored_as_of|date:"Y-m-d H:i" %}restored as of {{ when }}{% endblocktranslate %}</span>
+              {% elif row.entry.is_outside_panel %}
+                <span class="v-badge" data-tone="warning">{% translate "Outside the panel" %}</span>
               {% elif row.entry.action_name %}
                 <code class="v-audit-name">{{ row.entry.action_name }}</code>
               {% endif %}

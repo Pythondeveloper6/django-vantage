@@ -10,8 +10,11 @@ have chosen it, :func:`history_timeline` renders its timeline next to ours.
 
 Three rules follow from that scope, and each of them rules something out.
 
-**Never a ``post_save`` signal.** A receiver cannot see who was logged in — the actor
-is the single most valuable column in this table and a signal simply does not have it.
+**Never a ``post_save`` signal for the panel's own writes.** (The opt-in
+``TRACK_EXTERNAL_CHANGES`` feature, :mod:`vantage.external`, does listen for the writes
+the panel did *not* make, labels them as such and stands down during panel writes.)
+A receiver cannot see who was logged in — the actor is
+the single most valuable column in this table and a signal simply does not have it.
 It would also faithfully log the nightly import job and every ``shell`` session, which
 is the row history we just declined to build, minus the actor, at the same cost.
 Entries are written from the two places a person's intent is actually known: the form

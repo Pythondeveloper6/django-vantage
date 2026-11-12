@@ -80,6 +80,8 @@ LOGIN_REDIRECT_URL = "/admin/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 VANTAGE = {
+    # Also record saves and deletes made outside the panel (shell, scripts, signals):
+    # "TRACK_EXTERNAL_CHANGES": ["app_label.model"],  # or "*"
     "SITE_TITLE": "Northwind Supply",
     "SITE_ACRONYM": "NS",
     "BRAND_COLOR": "#0d9488",
