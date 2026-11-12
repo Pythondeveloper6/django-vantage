@@ -67,6 +67,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
+from vantage import external
 from vantage.actions import Selection
 from vantage.models import VantageJob
 from vantage.tenancy import restore as tenancy_restore
@@ -496,7 +497,9 @@ def run_job(job_id: int) -> VantageJob | None:
 
     job = VantageJob.objects.get(pk=job_id)
     try:
-        _execute(job)
+        # The job's writes are the panel's own and carry their own audit entries.
+        with external.panel_scope():
+            _execute(job)
     except JobDenied as exc:
         _finish(job, VantageJob.Status.DENIED, error=str(exc))
     except JobBroken as exc:

@@ -189,6 +189,8 @@ strictness, so an item that cannot be shown is omitted.
 | `UNMANAGED_READ_ONLY` | `False` | — | Make every `Meta.managed = False` model read-only unless its panel sets `read_only = False` — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
+| `TRACK_EXTERNAL_CHANGES` | `False` | — | Also record saves, deletes and many-to-many changes made **outside** the panel (shell, scripts, signals, your own views): `"*"` for every registered model or a list of `"app_label.model"`. Code-only; needs `AUDIT_LOG` — see [History](history.md#changes-made-outside-the-panel) |
+| `TRACK_EXTERNAL_WEBHOOKS` | `False` | — | Let those outside changes fire [webhooks](webhooks.md) too. Off, they are logged and nothing is sent |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
 | `SENSITIVE_PATTERNS` | `None` | — | The words that mark a field as a secret. `None` is the built-in list; a list replaces it; `["...", "nhs_number"]` extends it — see [Sensitive fields](sensitive-fields.md#the-vocabulary) |
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
@@ -410,7 +412,8 @@ ACCESS_REVIEW_PERMISSION  BREAK_GLASS_PERMISSION  BREAK_GLASS_SELF_SERVICE
 BREAK_GLASS_MAX_MINUTES
 READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  NOTIFICATIONS
 METRICS  METRICS_TOKEN  SLOW_REQUEST_MS
-ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
+ENVIRONMENT  AUDIT_LOG  TRACK_EXTERNAL_CHANGES  TRACK_EXTERNAL_WEBHOOKS
+COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
 RICHTEXT_EDITOR  RICHTEXT_EXTRA_TAGS  RICHTEXT_EXTRA_ATTRIBUTES  RICHTEXT_URL_SCHEMES
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
