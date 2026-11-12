@@ -201,6 +201,9 @@ class LoginView(auth_views.LoginView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(branding_context(self.request))
+        from vantage import passwordreset
+
+        context["password_reset_url"] = passwordreset.request_url()
         return context
 
     def form_valid(self, form):
