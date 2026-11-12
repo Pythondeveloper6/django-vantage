@@ -21,9 +21,9 @@ charts, a command palette, light and dark themes and a schema map.</p>
 ![The Orders list in django-vantage: stat cards, a revenue chart, a status breakdown and a filtered data grid](assets/screenshots/orders-light.webp){ .dv-shot .dv-only-light }
 ![The Orders list in django-vantage, dark theme](assets/screenshots/orders-dark.webp){ .dv-shot .dv-only-dark }
 
-!!! warning "Alpha — `0.2.0a2`"
+!!! warning "Beta — `0.3.0b1`"
 
-    Working and heavily tested — more than 5,000 tests — but the API may still move, through a [deprecation cycle](api-stability.md).
+    Feature-complete for its scope and heavily tested — more than 5,000 tests. The API is stable apart from items marked provisional, and changes go through a [deprecation cycle](api-stability.md).
     See the [FAQ](faq.md#how-finished-is-this) for an honest account of what is and is
     not done. Use it on an internal tool; pin the exact version if you depend on it.
 
@@ -275,9 +275,17 @@ django-simple-history are all used when present and never required.
 | [Lists](lists.md) | Columns, filters, search, sorting, saved views, the per-list customisation rail, trash and restore, bulk actions, background jobs, export and import |
 | [Analytics](analytics.md) | `Stat`, `Chart`, the summary bar and the query-cost guarantees |
 | [Forms](forms.md) | Widget inference, the layout DSL, editable inlines, readonly fields, validation, delete preview |
+| [Rich-text fields](rich-text.md) | The WYSIWYG editor, the HTML allowlist, widening it, keeping the markdown toolbar |
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
+| [Password reset](password-reset.md) | The opt-in reset flow on the sign-in page: no enumeration, rate limits, single-use links, two-factor kept |
 | [Sensitive fields](sensitive-fields.md) | Inferred masking of secrets on every surface, audited reveal, write-only inputs, the threat model |
 | [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |
+| [Agent identities](agents.md) | Bearer-token service users that can only be narrowed: access level, allowed models, rate limit, write budget, runs |
+| [Content safety for agents](agent-content-safety.md) | Hidden fields, `agent_access`, scrubbing and the untrusted-data envelope, and where each is enforced |
+| [Agent writes](agent-writes.md) | Dry run, approvals for agent changes, undo of a whole run, the delete guard |
+| [MCP server](mcp.md) | Tools for MCP clients over HTTP and stdio, all going through the JSON API |
+| [Agent activity](agent-activity.md) | The audit page and export of everything agents did |
+| [For coding agents](for-coding-agents.md) | `vantage_describe` and `llms.txt` so a coding agent can work on a Vantage project |
 | [Multi-tenancy](tenancy.md) | Scoping every registered model to a tenant, fail-closed, over both the panel and the API |
 | [Theming](theming.md) | `BRAND_COLOR`, the derived palette, tokens, light/dark, RTL, custom CSS, the settings screen |
 | [Internationalization](internationalization.md) | The shipped `en`/`ar` catalogues, activating a language, adding your own locale |

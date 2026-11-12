@@ -10,8 +10,11 @@ have chosen it, :func:`history_timeline` renders its timeline next to ours.
 
 Three rules follow from that scope, and each of them rules something out.
 
-**Never a ``post_save`` signal.** A receiver cannot see who was logged in — the actor
-is the single most valuable column in this table and a signal simply does not have it.
+**Never a ``post_save`` signal for the panel's own writes.** (The opt-in
+``TRACK_EXTERNAL_CHANGES`` feature, :mod:`vantage.external`, does listen for the writes
+the panel did *not* make, labels them as such and stands down during panel writes.)
+A receiver cannot see who was logged in — the actor is
+the single most valuable column in this table and a signal simply does not have it.
 It would also faithfully log the nightly import job and every ``shell`` session, which
 is the row history we just declined to build, minus the actor, at the same cost.
 Entries are written from the two places a person's intent is actually known: the form
@@ -137,10 +140,18 @@ def _entry_kwargs(
     if actor is not None and not getattr(actor, "is_authenticated", False):
         actor = None
 
+    from vantage import agents
+
+    identity = agents.current_agent(request) if request is not None else None
+    actor_repr = actor.get_username() if actor else ""
+    if identity is not None:
+        actor_repr = agents.actor_label(identity)
     target = model if model is not None else (type(obj) if obj is not None else None)
     return {
         "actor": actor,
-        "actor_repr": _clip(actor.get_username() if actor else "", 150),
+        "actor_repr": _clip(actor_repr, 150),
+        "agent": identity,
+        "agent_run": agents.current_run(request) if identity is not None else None,
         "action": action,
         "action_name": _clip(action_name, 100),
         "content_type": _content_type(target),

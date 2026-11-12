@@ -16,6 +16,10 @@ from django.core.management.base import BaseCommand, CommandError
 from vantage import __version__
 from vantage.upgrade import LEVELS, exceeds, notes_since, run_checks
 
+#: Finding codes that mean "something you use is deprecated, renamed or removed": a
+#: deprecated setting (U002), a deprecated panel attribute (U003) or a removed one (U004).
+DEPRECATION_CODES = frozenset({"U002", "U003", "U004"})
+
 
 class Command(BaseCommand):
     help = "Report everything that needs attention before or after upgrading django-vantage."
@@ -56,9 +60,20 @@ class Command(BaseCommand):
             self.stdout.write(
                 json.dumps(
                     {
+                        "schema_version": 1,
                         "version": __version__,
+                        "from_version": options["from_version"],
+                        "to_version": __version__,
                         "findings": [finding.as_dict() for finding in findings],
+                        "deprecations": [
+                            finding.as_dict()
+                            for finding in findings
+                            if finding.code in DEPRECATION_CODES
+                        ],
                         "notes": [{"version": name, "notes": list(lines)} for name, lines in notes],
+                        "note_lines": [
+                            f"{name}: {line}" for name, lines in notes for line in lines
+                        ],
                     },
                     indent=2,
                 )

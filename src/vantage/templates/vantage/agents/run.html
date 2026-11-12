@@ -1,0 +1,70 @@
+{% extends "vantage/base.html" %}
+{% load static vantage i18n %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'vantage/vantage-audit.css' %}">{% endblock %}
+
+{% block content %}
+<div class="v-page-head">
+  <div>
+    <h1 class="v-page-title">{{ page_title }}</h1>
+    <p class="v-page-description">{{ page_description }}</p>
+  </div>
+  <div class="v-page-actions">
+    <a class="v-btn v-btn-secondary" href="{{ back_url }}">{% translate "All agent activity" %}</a>
+  </div>
+</div>
+
+<p class="v-muted v-agent-run-summary">
+  {% blocktranslate trimmed with started=run.started_at|date:"Y-m-d H:i" seen=run.last_seen_at|date:"Y-m-d H:i" %}
+    Started {{ started }}, last seen {{ seen }}.
+  {% endblocktranslate %}
+  {% blocktranslate trimmed with writes=run.writes rows=run.rows_changed deletes=run.deletes %}
+    {{ writes }} writes, {{ rows }} rows changed, {{ deletes }} deletes.
+  {% endblocktranslate %}
+</p>
+
+<div class="v-table-wrap">
+  {% if entries %}
+    <table class="v-table v-table-flow v-audit-table v-run-table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "When" %}</th>
+          <th scope="col">{% translate "What" %}</th>
+          <th scope="col">{% translate "Model" %}</th>
+          <th scope="col">{% translate "Record" %}</th>
+          <th scope="col">{% translate "Changes" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in entries %}
+          <tr>
+            <td class="v-audit-when"><time datetime="{{ row.entry.created_at|date:'c' }}">{{ row.entry.created_at|date:"Y-m-d H:i:s" }}</time></td>
+            <td><span class="v-audit-verb" data-action="{{ row.entry.action }}">{{ row.entry.get_action_display }}</span></td>
+            <td>{{ row.model|default:"—" }}</td>
+            <td>
+              {% if row.url %}<a class="v-cell-link" href="{{ row.url }}">{{ row.entry.object_repr }}</a>
+              {% else %}{{ row.entry.object_repr|default:"—" }}{% endif %}
+            </td>
+            <td>{{ row.summary|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="v-empty">
+      {% icon "activity" class="v-empty-icon" %}
+      <p class="v-empty-title">{% translate "This run has not changed anything." %}</p>
+    </div>
+  {% endif %}
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+  <div class="v-pagination">
+    <span class="v-pagination-info">{% blocktranslate with start=page.start_index end=page.end_index total=paginator.count %}{{ start }}–{{ end }} of {{ total }}{% endblocktranslate %}</span>
+    <div class="v-pagination-controls">
+      {% if page.has_previous %}<a class="v-btn v-btn-secondary v-btn-sm" href="?page={{ page.previous_page_number }}">{% translate "Previous" %}</a>{% endif %}
+      {% if page.has_next %}<a class="v-btn v-btn-secondary v-btn-sm" href="?page={{ page.next_page_number }}">{% translate "Next" %}</a>{% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

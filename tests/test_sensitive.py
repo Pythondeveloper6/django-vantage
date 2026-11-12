@@ -499,6 +499,15 @@ class TestExport:
         assert not leaks(text)
         assert MASK in text and "•••• 4242" in text
 
+    @pytest.mark.parametrize("fmt", ["xlsx", "pdf"])
+    def test_a_binary_export_carries_the_mask_not_the_value(self, panel, client_in, cred, fmt):
+        from tests.test_export import text_of
+
+        panel.list_display = ["name", "api_token", "card_number", "private_key"]
+        text = text_of(client_in.get(list_url(), {"export": fmt}), fmt)
+        assert not leaks(text)
+        assert "Production key" in text
+
     def test_an_empty_secret_exports_empty(self, panel, client_in, cred):
         cred.api_token = ""
         cred.save()

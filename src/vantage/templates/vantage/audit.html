@@ -39,6 +39,16 @@
   </label>
 
   <label class="v-audit-field">
+    <span class="v-audit-label">{% translate "Source" %}</span>
+    <select class="v-select" name="source">
+      <option value="">{% translate "Anywhere" %}</option>
+      {% for source in sources %}
+        <option value="{{ source.value }}"{% if source.selected %} selected{% endif %}>{{ source.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="v-audit-field">
     <span class="v-audit-label">{% translate "When" %}</span>
     <select class="v-select" name="window">
       <option value="">{% translate "Any time" %}</option>
@@ -87,13 +97,24 @@
             <td class="v-audit-when">
               <time datetime="{{ row.entry.created_at|date:'c' }}">{{ row.entry.created_at|date:"Y-m-d H:i" }}</time>
             </td>
-            <td>{{ row.entry.actor_repr|default:"—" }}</td>
-            <td>
+            {% if row.entry.agent_id %}
+              {% comment %} The badge leads, so a narrow column cannot cut it off; the cell wraps
+                 (see vantage-audit.css) and the run key sits on its own line. {% endcomment %}
+              <td class="v-audit-who-agent" title="{{ row.entry.actor_repr }}{% if row.entry.agent_run %} · {% translate 'run' %} {{ row.entry.agent_run.run_key }}{% endif %}">
+                <span class="v-audit-who-line"><span class="v-badge" data-tone="primary">{% translate "Agent" %}</span> {% if row.entry.actor_repr|slice:":6" == "Agent " %}{{ row.entry.actor_repr|slice:"6:" }}{% else %}{{ row.entry.actor_repr|default:"—" }}{% endif %}</span>
+                {% if row.entry.agent_run %}<code class="v-audit-name v-audit-who-run">{% translate "run" %} {{ row.entry.agent_run.run_key }}</code>{% endif %}
+              </td>
+            {% else %}
+              <td>{{ row.entry.actor_repr|default:"—" }}</td>
+            {% endif %}
+            <td{% if row.entry.is_outside_panel and not row.entry.restored_as_of %} class="v-audit-what-wrap"{% endif %}>
               <span class="v-audit-verb" data-action="{{ row.entry.action }}">
                 {{ row.entry.get_action_display }}
               </span>
               {% if row.entry.restored_as_of %}
                 <span class="v-audit-name">{% blocktranslate with when=row.entry.restored_as_of|date:"Y-m-d H:i" %}restored as of {{ when }}{% endblocktranslate %}</span>
+              {% elif row.entry.is_outside_panel %}
+                <span class="v-badge" data-tone="warning">{% translate "Outside the panel" %}</span>
               {% elif row.entry.action_name %}
                 <code class="v-audit-name">{{ row.entry.action_name }}</code>
               {% endif %}

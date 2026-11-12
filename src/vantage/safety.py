@@ -117,6 +117,8 @@ def impersonating(request) -> bool:
 def real_user(request):
     """The account actually signed in, even while impersonating someone else."""
     session = getattr(request, "session", None)
+    if getattr(request, "vantage_agent", None) is not None:
+        return request.user
     if not session or not session.get(IMPERSONATOR_SESSION_KEY):
         return request.user
     try:

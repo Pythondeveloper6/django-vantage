@@ -444,3 +444,152 @@
 .v-history-item.is-current {
   background: color-mix(in oklab, var(--primary) 8%, transparent);
 }
+
+/* ── agent activity ───────────────────────────────────────────────────────── */
+
+/* An agent's actor cell is the one cell that must not be cut: the badge says what kind of
+ * actor it is and the run key says which run. It wraps onto a second line instead, and the
+ * same text is in the cell's title. Human rows keep the table's one-line cells. */
+.v-audit-table td.v-audit-who-agent {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.v-audit-who-line {
+  display: block;
+}
+
+.v-audit-who-run {
+  display: block;
+  margin-block-start: 0.125rem;
+}
+
+/* Dates are read whole; keys and scopes wrap rather than stretch the table. */
+.v-agent-date,
+.v-agent-key {
+  white-space: nowrap;
+}
+
+.v-table-flow td.v-agent-date {
+  white-space: nowrap;
+}
+
+.v-table-flow td.v-agent-key {
+  white-space: normal;
+}
+
+.v-agent-flags .v-badge {
+  white-space: nowrap;
+  margin-inline-end: 0.25rem;
+}
+
+.v-agent-run-summary {
+  margin-block: 0 1rem;
+}
+
+.v-agent-heading {
+  margin-block: 1.5rem 0.5rem;
+}
+
+.v-agent-table td:first-child {
+  min-inline-size: 10rem;
+  overflow-wrap: break-word;
+}
+
+.v-agent-table td:nth-child(3) {
+  min-inline-size: 8rem;
+  overflow-wrap: break-word;
+}
+
+.v-agent-table td code {
+  overflow-wrap: break-word;
+}
+
+.v-agent-table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  /* Wider than the phone, scrolling inside its wrapper like the package's other tables. */
+  .v-shell .v-table.v-agent-table {
+    min-inline-size: 46rem;
+  }
+}
+
+.v-agent-revoked {
+  display: block;
+  inline-size: max-content;
+  margin-block-start: 0.25rem;
+}
+
+/* The flow table's "break anywhere" would split a word like "Product" letter by letter in a
+ * narrow cell; here words stay whole and only an unbroken key is broken. */
+.v-table-flow.v-audit-table td {
+  overflow-wrap: break-word;
+}
+
+.v-table-flow td.v-audit-when {
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .v-shell .v-table.v-run-table,
+  .v-shell .v-table.v-agent-runs {
+    min-inline-size: 44rem;
+  }
+}
+
+.v-agent-table th,
+.v-agent-table td {
+  padding-inline: 0.625rem;
+}
+
+/* An "Outside the panel" row carries a badge after the verb that the one-line cell would
+ * cut off, and it is the whole point of the row. Only those cells wrap; the badge drops to
+ * its own line when the column is narrow. */
+.v-audit-table td.v-audit-what-wrap {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* The columns are a fixed width, so on a phone the badge wraps inside its cell rather than
+ * spilling over the next one. */
+.v-audit-table td.v-audit-what-wrap .v-badge {
+  white-space: normal;
+  max-inline-size: 100%;
+  text-align: start;
+}
+
+/* A history entry's second row: the time and the link to the record as it was then sit on
+ * one baseline and stack on a phone. The link is plain text so it lines up with the rest. */
+.v-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.v-history-meta .v-history-when {
+  margin-inline-start: 0;
+}
+
+.v-history-asof {
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 40rem) {
+  .v-history-meta {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  /* Wide enough that each column keeps a readable width; it scrolls inside its wrapper. */
+  .v-shell .v-table.v-audit-table {
+    min-inline-size: 52rem;
+  }
+}

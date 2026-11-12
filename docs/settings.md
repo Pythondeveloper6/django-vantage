@@ -189,14 +189,21 @@ strictness, so an item that cannot be shown is omitted.
 | `UNMANAGED_READ_ONLY` | `False` | — | Make every `Meta.managed = False` model read-only unless its panel sets `read_only = False` — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
+| `TRACK_EXTERNAL_CHANGES` | `False` | — | Also record saves, deletes and many-to-many changes made **outside** the panel (shell, scripts, signals, your own views): `"*"` for every registered model or a list of `"app_label.model"`. Code-only; needs `AUDIT_LOG` — see [History](history.md#changes-made-outside-the-panel) |
+| `TRACK_EXTERNAL_WEBHOOKS` | `False` | — | Let those outside changes fire [webhooks](webhooks.md) too. Off, they are logged and nothing is sent |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
 | `SENSITIVE_PATTERNS` | `None` | — | The words that mark a field as a secret. `None` is the built-in list; a list replaces it; `["...", "nhs_number"]` extends it — see [Sensitive fields](sensitive-fields.md#the-vocabulary) |
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
 | `MAP_TILE_URL` | `None` | — | Opt-in raster tiles for the [map view](list-views.md#map), e.g. `"https://tile.openstreetmap.org/{z}/{x}/{y}.png"`. Must contain `{z}`, `{x}` and `{y}`. `None` draws a dependency-free SVG plot and fetches nothing |
 | `RELATION_PICKER` | `"always"` | — | `"always"` or `"threshold"`. Whether a single-valued relation gets the searchable picker regardless of row count, or only above 50 — see [Relations and the search threshold](forms.md#relations-and-the-search-threshold) |
+| `RICHTEXT_EDITOR` | `"html"` | — | `"html"` or `"markdown"`. The control for rich-text fields — see [Rich-text fields](rich-text.md) |
+| `RICHTEXT_EXTRA_TAGS` | `[]` | — | Tags added to the rich-text sanitiser allowlist. Code-only |
+| `RICHTEXT_EXTRA_ATTRIBUTES` | `{}` | — | Attributes added per tag, e.g. `{"td": ["colspan"]}`. Event handlers and `style` are refused. Code-only |
+| `RICHTEXT_URL_SCHEMES` | `[]` | — | URL schemes added to `http`, `https`, `mailto` and `tel`. Code-only |
 | `UPLOAD_ACTIVE_SUFFIXES` | `()` | — | Active-content extensions (`.svg`, `.html`, `.xml`, `.js`…) a plain `FileField` may accept, e.g. `[".svg"]`. Empty refuses them all; an accepted file is still scanned for script — see [Security](security.md#active-content-uploads) |
 | `IMPORT_MAX_BYTES` | `5242880` (5 MiB) | — | Largest file the CSV importer will read |
 | `IMPORT_MAX_ROWS` | `5000` | — | Most rows the CSV importer will read |
+| `EXPORT_BINARY_MAX_ROWS` | `100000` | — | Most rows an Excel or PDF export may carry. Over it the export is refused with HTTP 413 (never truncated); CSV, TSV and JSON are not capped. Excel's own ceiling is 1,048,575 data rows |
 
 The login throttle, rate limits and upload ceiling are behaviour keys too, documented
 with their defaults in [Security](security.md#installing-the-middleware) — see
@@ -220,6 +227,18 @@ None is editable from the UI. `SETTINGS_PERMISSION`, `ROLES_PERMISSION` and
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
 bypass. See [Read-only mode](permissions.md#read-only-mode).
+
+## Password reset
+
+Off unless you turn it on — see [Password reset](password-reset.md).
+
+| Key | Default | UI | Effect |
+|---|---|---|---|
+| `PASSWORD_RESET` | `False` | — | Adds "Forgot password?" to the sign-in page and serves the reset routes under `_/password-reset/`. Off, the routes are 404 |
+| `PASSWORD_RESET_TIMEOUT_MINUTES` | `60` | — | How long a reset link works. At least 5. Separate from Django's `PASSWORD_RESET_TIMEOUT`, which is left alone |
+| `PASSWORD_RESET_BASE_URL` | `""` | — | Public address links in reset emails point at, e.g. `https://panel.example.com`. Empty uses the validated request host |
+
+None is editable from the UI. Errors: `vantage.E126`; warning: `vantage.W117`.
 
 ## Two-factor sign-in
 
@@ -333,6 +352,24 @@ has no button.
 
 `ModelPanel.undo = False` turns it off for one model.
 
+## Agents
+
+Content-safety settings for anything handed to an AI agent; see
+[Agent content safety](agent-content-safety.md).
+
+| Key | Default | Effect |
+|---|---|---|
+| `AGENT_MAX_FIELD_CHARS` | `2000` | Longest text value handed to an agent. Longer values are cut and end with a `[truncated]` marker |
+| `AGENT_DEFAULT_ACCESS` | `"read"` | What agents may do with a model whose panel leaves `agent_access` unset: `"none"`, `"read"` or `"write"` |
+
+Bearer-token access to the JSON API for non-human callers. See [Agents](agents.md).
+
+| Key | Default | Effect |
+|---|---|---|
+| `AGENTS` | `False` | Turns agent identities on. Off, every `Authorization: Bearer` request is a 401. Warns with `vantage.W116` in production without HTTPS |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute given to a new identity. `0` means no limit |
+| `AGENT_ALLOWED_ORIGINS` | `[]` | Extra browser origins (for example `"https://tools.example.com"`) that may call the [MCP endpoint](mcp.md). Empty allows only the panel's own origin. Code-only |
+
 ## Scale
 
 What a list page does once the table outgrows the sample data. Everything is fast at
@@ -387,12 +424,16 @@ ACCESS_REVIEW_PERMISSION  BREAK_GLASS_PERMISSION  BREAK_GLASS_SELF_SERVICE
 BREAK_GLASS_MAX_MINUTES
 READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  NOTIFICATIONS
 METRICS  METRICS_TOKEN  SLOW_REQUEST_MS
-ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
+ENVIRONMENT  AUDIT_LOG  TRACK_EXTERNAL_CHANGES  TRACK_EXTERNAL_WEBHOOKS
+COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
+RICHTEXT_EDITOR  RICHTEXT_EXTRA_TAGS  RICHTEXT_EXTRA_ATTRIBUTES  RICHTEXT_URL_SCHEMES
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES  UPLOAD_ACTIVE_SUFFIXES
-IMPORT_MAX_BYTES  IMPORT_MAX_ROWS
+IMPORT_MAX_BYTES  IMPORT_MAX_ROWS  EXPORT_BINARY_MAX_ROWS
+
+PASSWORD_RESET  PASSWORD_RESET_TIMEOUT_MINUTES  PASSWORD_RESET_BASE_URL
 
 TWO_FACTOR  TWO_FACTOR_REQUIRED_SUPERUSERS  TWO_FACTOR_REQUIRED_ROLES
 TWO_FACTOR_ISSUER  TWO_FACTOR_MAX_ATTEMPTS  TWO_FACTOR_LOCKOUT_SECONDS
@@ -410,6 +451,10 @@ REPORTS  REPORTS_MAX_ATTACHMENT_MB  REPORTS_MAX_PER_USER
 REPORTS_RETENTION_DAYS  REPORTS_BASE_URL
 
 UNDO_WINDOW  UNDO_MAX_ROWS
+
+AGENT_MAX_FIELD_CHARS  AGENT_DEFAULT_ACCESS
+
+AGENTS  AGENT_RATE_LIMIT_PER_MINUTE  AGENT_ALLOWED_ORIGINS
 
 LIST_COUNT_CAP  LIST_COUNT_ESTIMATES  LIST_ESTIMATE_CACHE_SECONDS
 LIST_KEYSET_THRESHOLD  LIST_STATEMENT_TIMEOUT_MS

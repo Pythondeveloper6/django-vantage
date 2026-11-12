@@ -244,6 +244,68 @@
   display: inline;
 }
 
+/* The manage page is several cards, one job each, with the proof asked for inside the
+ * card that needs it. Switching off is set apart so it is not mistaken for a routine
+ * change. */
+.v-2fa-section {
+  margin-block-start: 1rem;
+}
+
+.v-2fa-section .v-card-body > p {
+  margin-block-end: 0.875rem;
+}
+
+.v-2fa-danger {
+  border-color: var(--destructive);
+}
+
+.v-2fa-devices {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.v-2fa-device {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block-end: 0.75rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.v-2fa-device:last-child {
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+
+.v-2fa-device-head {
+  display: grid;
+  gap: 0.125rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.v-2fa-remove {
+  flex: 0 1 18rem;
+}
+
+.v-2fa-remove[open] {
+  flex-basis: 100%;
+}
+
+.v-2fa-remove summary {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.v-2fa-remove form {
+  margin-block-start: 0.75rem;
+}
+
 /* Cancel sits under the steps, in line with the content of the list rather than the
  * card edge, so it lines up with the Turn on button above it. */
 .v-2fa-steps + .v-2fa-inline {
@@ -306,4 +368,9 @@
   gap: 0.5rem;
   justify-content: center;
   margin-block-start: 1.5rem;
+}
+
+/* Reset pages: a paragraph is followed by a button with room between them. */
+.v-auth-main .v-card-body > p + .v-auth-submit {
+  margin-block-start: 1rem;
 }

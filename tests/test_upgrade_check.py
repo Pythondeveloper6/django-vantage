@@ -8,6 +8,7 @@ import warnings
 from io import StringIO
 from pathlib import Path
 
+import django
 import pytest
 from django.core.management import CommandError, call_command
 from django.test import override_settings
@@ -20,6 +21,12 @@ from vantage.panels import ModelPanel
 from vantage.sites import VantageSite
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+needs_supported_django = pytest.mark.skipif(
+    django.VERSION[3] != "final",
+    reason="the check rightly flags an unreleased Django as unsupported",
+)
 
 
 def run(*args):
@@ -139,6 +146,7 @@ class TestDeprecatedPanelAttributes:
 
 
 class TestCommand:
+    @needs_supported_django
     def test_a_clean_project_passes(self):
         code, out = run("--skip-database")
         assert code == 0
@@ -152,6 +160,7 @@ class TestCommand:
         assert "SITE_TITLE" in out
 
     @override_settings(VANTAGE={"WEBHOOKS": False})
+    @needs_supported_django
     def test_a_provisional_setting_is_informational(self):
         code, out = run("--skip-database")
         assert code == 0

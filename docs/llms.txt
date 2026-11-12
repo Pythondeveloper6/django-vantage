@@ -1,0 +1,73 @@
+# django-vantage
+
+> A smart, beautiful admin panel for Django. Zero config to start, one line to override anything.
+
+Full text of every page below, in one file: https://pythondeveloper6.github.io/django-vantage/llms-full.txt
+
+## Overview
+
+- [Home](https://pythondeveloper6.github.io/django-vantage/): Install it, and every model you have is already administrable — with a data grid, charts, a command palette, light and dark themes and a schema map.
+- [Features at a glance](https://pythondeveloper6.github.io/django-vantage/features/): Everything django-vantage does, one short paragraph each, with a link to the full page. Unless it says otherwise, a feature works the moment the package is installed: nothing here needs configuring before you can use it.
+- [Multi-tenancy](https://pythondeveloper6.github.io/django-vantage/tenancy/): One panel, many tenants, and a row that belongs to the wrong one is not merely a bug — it is a customer reading another customer's data.
+- [Internationalization](https://pythondeveloper6.github.io/django-vantage/internationalization/): The package is structured for i18n throughout — around 570 gettextlazy and {% translate %} call sites, and RTL that works from day one because the stylesheets use logical CSS properties rather than a mirrored build (see Theming → Right to...
+- [Extending](https://pythondeveloper6.github.io/django-vantage/extending/): Three extension points, in the order you are likely to need them.
+- [Migrating from django.contrib.admin](https://pythondeveloper6.github.io/django-vantage/migrating-from-django-admin/): A project with a hundred models and years of admin.py should not switch in one deploy. The path below keeps both panels running, moves one batch of models at a time, and leaves the old admin in place until you choose to remove it.
+- [Plugin compatibility](https://pythondeveloper6.github.io/django-vantage/plugin-compatibility/): django.contrib.admin has a large ecosystem of packages that subclass ModelAdmin, inject templates or register widgets.
+- [Vantage vs Unfold](https://pythondeveloper6.github.io/django-vantage/comparison/): This is a comparison of approach, written from the Vantage side, so read it with that in mind. It lists what is different and when each is the better choice.
+- [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/): Beta. The version is 0.3.0b1, the first beta, and the PyPI classifier is Development Status :: 4 - Beta.
+- [Roadmap](https://pythondeveloper6.github.io/django-vantage/roadmap/): Everything that was on this page is built and waiting for the next release. Each item links to its documentation, and the changelog lists the details and the known limitations.
+
+## Guide
+
+- [Getting started](https://pythondeveloper6.github.io/django-vantage/getting-started/): --pre is needed while Vantage is in beta: pip skips pre-releases unless asked. Pin the exact version (django-vantage==0.3.0b1) if you depend on it, because provisional items may still change before 1.0.
+- [How configuration resolves](https://pythondeveloper6.github.io/django-vantage/configuration/): This package has two ways to configure almost everything a panel does: write Python (panel.py and the VANTAGE settings dict), or use the panel's own UI.
+- [Panels](https://pythondeveloper6.github.io/django-vantage/panels/): A ModelPanel is one model's configuration: what it is called, which columns its list page shows, how it can be filtered, what its form looks like, and what may be done to it.
+- [Inference](https://pythondeveloper6.github.io/django-vantage/inference/): Inference is the core value of the package. A project that writes no panel.py at all must still get columns worth looking at, filters that matter, search that works and a sensible order.
+- [Lists](https://pythondeveloper6.github.io/django-vantage/lists/): The list page is where people spend their time, so most of the package's effort is here.
+- [List views](https://pythondeveloper6.github.io/django-vantage/list-views/): Every list page is a table first. When a model's fields allow it, the same page can also be shown as a Kanban board, a calendar, a gallery or a map, chosen from a segmented control in the list's toolbar.
+- [Analytics](https://pythondeveloper6.github.io/django-vantage/analytics/): Numbers on a list page, declared in Python and computed in SQL against the queryset the user is actually looking at. Three things:
+- [Forms](https://pythondeveloper6.github.io/django-vantage/forms/): Create and edit pages, the widgets on them, how they are laid out, and what happens when you press Delete.
+- [Rich-text fields](https://pythondeveloper6.github.io/django-vantage/rich-text/): A rich-text field gets a small WYSIWYG editor instead of a plain textarea. The value is stored as HTML, and that HTML is sanitised twice: when it is saved, and again every time it is drawn.
+- [Undo](https://pythondeveloper6.github.io/django-vantage/undo/): After a delete or an edit, the confirmation toast carries an Undo button:
+- [History](https://pythondeveloper6.github.io/django-vantage/history/): Every record has a History page, linked from the history panel on its detail page ("As it was…").
+- [Approvals](https://pythondeveloper6.github.io/django-vantage/approvals/): Some fields need a second pair of eyes. Name them on the panel:
+- [Pages and dashboards](https://pythondeveloper6.github.io/django-vantage/pages-and-dashboards/): Two escape hatches from the model-shaped world: a screen that is not a model, and the landing page that greets everyone.
+- [Theming](https://pythondeveloper6.github.io/django-vantage/theming/): One colour drives the whole palette. Everything else is derived from it, in both themes, with the contrast checked numerically rather than by eye.
+- [UI theme presets](https://pythondeveloper6.github.io/django-vantage/ui-themes/): THEME decides light or dark. A UI theme decides the look: the greys, the corners, the shadows. Vantage ships ten, in the spirit of shadcn/ui's themes, and the default is the look it has always had.
+- [Phones](https://pythondeveloper6.github.io/django-vantage/phones/): Below 40rem (640px) the panel switches to a phone layout. There is nothing to turn on and no second template: it is the same markup, restacked by one stylesheet (vantage-mobile.css) that is linked with a media query, so a desktop never...
+
+## Platform
+
+- [Permissions](https://pythondeveloper6.github.io/django-vantage/permissions/): Every access decision in the panel goes through one object. There is no second place where a view decides for itself whether you may do something, and that is the point: a guard in the views has to be remembered on every new write path...
+- [Roles](https://pythondeveloper6.github.io/django-vantage/roles/): Vantage ships a built-in screen for Django's auth.Group, treated as what every project uses it for: a role, a named bundle of permissions you grant to people.
+- [Field permissions](https://pythondeveloper6.github.io/django-vantage/field-permissions/): Django's permissions stop at the model: someone who may change an order may change every column of it. Field permissions add one more level, per role and per field:
+- [Access review and elevated access](https://pythondeveloper6.github.io/django-vantage/access-review/): Two tools for the questions an auditor asks about an admin panel: who can see and change what, and why does anyone hold admin-wide rights all year.
+- [Two-factor sign-in](https://pythondeveloper6.github.io/django-vantage/two-factor/): After the password, a six-digit code from an authenticator app on the person's phone — Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden, or any other app that does time-based codes (TOTP, RFC 6238).
+- [Single sign-on](https://pythondeveloper6.github.io/django-vantage/single-sign-on/): Vantage signs people in through Django's own authentication, so any SSO library that logs a user into Django logs them into the panel: [mozilla-django-oidc], [django-allauth] and [python-social-auth] all work against Microsoft Entra ID...
+- [Password reset](https://pythondeveloper6.github.io/django-vantage/password-reset/): An opt-in "Forgot password?" flow on the sign-in page. It uses Django's own PasswordResetTokenGenerator and your project's email backend: no new tables, no second token scheme.
+- [Sensitive fields](https://pythondeveloper6.github.io/django-vantage/sensitive-fields/): A field that looks like a secret is treated as one before anybody says so.
+- [The JSON API](https://pythondeveloper6.github.io/django-vantage/api/): Anything the panel's UI can do to a record, a script can do too — through the exact same permission and validation path, never a parallel one.
+
+## AI agents
+
+- [Agent identities](https://pythondeveloper6.github.io/django-vantage/agents/): An agent identity lets a script or an automated tool call the JSON API with a bearer token instead of a person's session. It is off unless VANTAGE["AGENTS"] is True.
+- [Content safety for agents](https://pythondeveloper6.github.io/django-vantage/agent-content-safety/): This page covers what Vantage does to record data before an agent (a language model driving the panel through the API or an MCP server) sees it, and what it cannot do.
+- [Agent writes, dry run and undo](https://pythondeveloper6.github.io/django-vantage/agent-writes/): Provisional: the behaviour on this page may change before it is declared stable.
+- [MCP server](https://pythondeveloper6.github.io/django-vantage/mcp/): Provisional: the behaviour on this page may change before it is declared stable.
+- [Agent activity](https://pythondeveloper6.github.io/django-vantage/agent-activity/): What agents did, visible to the people who manage them: an export command, a read-only page, and a badge in the audit log.
+- [For coding agents](https://pythondeveloper6.github.io/django-vantage/for-coding-agents/): An AI coding agent writes better panels when it reads the real documentation and the real state of your project instead of guessing.
+
+## Operations
+
+- [Settings reference](https://pythondeveloper6.github.io/django-vantage/settings/): Everything a project owner can configure lives in a single VANTAGE dict in Django settings.
+- [API stability and upgrades](https://pythondeveloper6.github.io/django-vantage/api-stability/): Vantage is pre-1.0, but "pre-1.0" is not a licence to rename things under you.
+- [Deployment](https://pythondeveloper6.github.io/django-vantage/deployment/): What to check before pointing this at production. Vantage is beta; read this page as a checklist rather than as reassurance.
+- [Operations runbook](https://pythondeveloper6.github.io/django-vantage/runbook/): What to do when something is wrong with a deployed panel. Each entry is the shortest safe path; the linked pages explain why.
+- [Security](https://pythondeveloper6.github.io/django-vantage/security/): Everything on this page is opt-in, and that is a deliberate property, not an oversight: a project that installs neither of the two middlewares described here is byte-for-byte unchanged by their existence.
+- [Data quality](https://pythondeveloper6.github.io/django-vantage/data-quality/): A read-only health check of the rows in every registered model, at //data-quality/ under the System group, and as manage.py vantagedataquality.
+- [Webhooks](https://pythondeveloper6.github.io/django-vantage/webhooks/): A webhook sends a signed POST to a URL you choose when a record is created, changed or deleted in the panel, and keeps a log of every delivery. Open System → Webhooks.
+- [Notifications](https://pythondeveloper6.github.io/django-vantage/notifications/): Slack, Microsoft Teams and email for the events people otherwise miss: an approval request nobody opened the panel to see, a webhook that has run out of retries, a background job that failed.
+- [Scheduled reports](https://pythondeveloper6.github.io/django-vantage/reports/): Subscribe to a saved view and get it as a CSV by email every day, week or month. Open a saved view on a list page and choose Subscribe; your reports are under System → My reports.
+- [Accessibility](https://pythondeveloper6.github.io/django-vantage/accessibility/): The target is WCAG 2.2 Level AA. This page says three things, in order of how much they are worth: what the package guarantees and enforces in CI, what it needs from you as a panel author, and what is still broken.
+- [Browser tests](https://pythondeveloper6.github.io/django-vantage/browser-tests/): tests/testbrowser.py drives a real Chromium, through Playwright, against every other test file's blind spot: JavaScript.
+- [Benchmarks](https://pythondeveloper6.github.io/django-vantage/benchmarks/): Published numbers are pending. This page explains how to measure; it deliberately contains no results, because numbers from one machine say little about yours.

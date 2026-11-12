@@ -67,7 +67,7 @@ guessed. [History](history.md)
 wait for someone with permission to approve it; the rest of the edit saves as usual.
 A request is never applied over a newer value. [Approvals](approvals.md)
 
-**Export and import.** CSV, TSV and JSON export of exactly what you are looking at, and a
+**Export and import.** CSV, TSV, JSON, Excel and PDF export of exactly what you are looking at, and a
 CSV import wizard that maps, previews and validates before writing anything.
 [Export](lists.md#export) · [Import](lists.md#import)
 

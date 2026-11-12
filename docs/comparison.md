@@ -36,9 +36,9 @@ the rest).
 | Two-factor sign-in | Built in (TOTP) | Via django-otp or similar |
 | JSON API | Built in, same permission path as the UI ([API](api.md)) | None |
 | Inline formsets, nested editing | `ModelPanel.inlines`; hand-declared | Stock inlines, restyled; extra options such as tabbed inlines |
-| Rich-text and widget packages | Plain textarea with a markdown toolbar; widget JavaScript is not loaded | Works with admin widgets |
+| Rich-text and widget packages | Built-in sanitised WYSIWYG editor ([Rich-text fields](rich-text.md)); third-party widget JavaScript is not loaded | Works with admin widgets |
 | Theming | Brand colour, radius, light/dark, presets ([Theming](theming.md)) | Extensive theming and configuration |
-| Maturity | Alpha; the API may change before 1.0 ([FAQ](faq.md)) | Established project with a larger user base |
+| Maturity | Beta; provisional parts of the API may change before 1.0 ([FAQ](faq.md)) | Established project with a larger user base |
 | Python / Django | Python 3.12+, Django 5.2 to 6.1 | See that project's documentation |
 
 Entries in the right-hand column describe how the stock admin and typical themes work;
@@ -60,7 +60,7 @@ check the Unfold documentation for its current feature set, which changes.
   without assembling packages;
 - you are starting a new internal tool, or are willing to port the admin classes you
   actually use (start with `manage.py vantage_adopt`);
-- you accept an alpha release, a smaller ecosystem and pinning an exact version.
+- you accept a beta release, a smaller ecosystem and pinning an exact version.
 
 They are not mutually exclusive during a migration: the stock admin (themed or not) can
 stay mounted on another prefix while Vantage takes over model by model.

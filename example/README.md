@@ -45,6 +45,10 @@ runs `check`, `migrate` and `seed`, and loads the panel as the seeded admin.
 The panel gates on `is_staff`, so both accounts get in and see the same thing — the
 second one is there for when permissions land.
 
+To try the password reset flow, set `"PASSWORD_RESET": True` in `config/settings.py`
+and restart. The demo uses the console email backend, so the reset link is printed in
+the terminal running the server instead of being sent.
+
 ## What the seed creates
 
 Deterministic, from a fixed RNG seed, so two people looking at this demo are looking at
@@ -80,9 +84,29 @@ record's own date over an audit stamp.
 **Search reaches one hop.** Search Orders for `Amelia` and you get that customer's
 orders, matched through `customer__name`, which is what a human means by search.
 
+**A rich-text field with no configuration.** `Product.details_html` is a plain
+`TextField`; because its name ends `_html`, Vantage edits it in the WYSIWYG editor. Open
+any product and look at *Details*. The first product, NW-1000, has a script and an event
+handler stored in it by the seed: they are removed when the page is drawn and again when
+you save. See [Rich-text fields](../docs/rich-text.md).
+
+**Five export formats.** Open Orders, filter it, and use the export menu (or add
+`?export=xlsx` or `?export=pdf` to the URL). CSV, TSV, JSON, Excel and PDF all carry the
+same filtered rows and the same masked columns. See [Export](../docs/lists.md#export).
+
+**More than one authenticator.** Sign in as `admin`, open the account page and set up
+two-factor with an authenticator app, then add a second device under *Devices*. Either
+one signs you in, and removing one leaves the other working. See
+[Two-factor sign-in](../docs/two-factor.md).
+
 **Branding.** `VANTAGE` in `config/settings.py` sets one `BRAND_COLOR`; the whole
 palette, light and dark, is derived from it. The red banner across the top is
 `ENVIRONMENT`. Hit the sun/moon button in the header to switch themes.
+
+## Lesson projects
+
+[`lessons/`](lessons/README.md) holds a starter and a finished solution of a small shop, with
+six short lessons from install to agents.
 
 ## Layout
 

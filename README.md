@@ -28,9 +28,10 @@ Zero config to start. One line to override anything.
   <img alt="The Orders list in django-vantage: stat cards with trends, a revenue chart, a status breakdown, filters and a data grid" src="docs/assets/screenshots/orders-light.webp">
 </picture>
 
-> **Alpha (`0.2.0a2`).** Working and heavily tested — more than 5,000 tests — but the
-> API may still move
-> (through a [deprecation cycle](https://pythondeveloper6.github.io/django-vantage/api-stability/)). See the
+> **Beta (`0.3.0b1`).** Feature-complete for its scope and heavily tested — more than
+> 5,000 tests. The API is stable apart from items marked provisional, and anything that
+> changes goes through a
+> [deprecation cycle](https://pythondeveloper6.github.io/django-vantage/api-stability/). See the
 > [FAQ](https://pythondeveloper6.github.io/django-vantage/faq/#how-finished-is-this)
 > for an honest account of what is and is not done. Use it on an internal tool, and
 > pin the exact version if you depend on it.
@@ -54,7 +55,7 @@ Two rules govern the whole package:
 pip install --pre django-vantage
 ```
 
-`--pre` is needed while Vantage is in alpha, because pip skips pre-releases unless asked.
+`--pre` is needed while Vantage is in beta, because pip skips pre-releases unless asked.
 
 ```python
 # settings.py
@@ -406,9 +407,16 @@ so "why is my `panel.py` being ignored?" has a single, findable answer.
 | **Cascade-delete preview** | The real tree of what a delete takes with it, counted |
 | **Read-only mode, impersonation** | Both enforced in the permission layer |
 | **System health page** | Migrations, cache, database, task backend |
-| **Streaming CSV export, CSV import** | Export honours the filters and sort you are looking at; import maps, previews and validates first |
+| **Export as CSV, TSV, JSON, Excel or PDF; CSV import** | Export honours the filters and sort you are looking at and the same masking and field permissions in every format; import maps, previews and validates first. [Docs →](https://pythondeveloper6.github.io/django-vantage/lists/#export) |
 | **Light, dark and system themes, RTL** | All from day one, with `en` and `ar` catalogues shipped |
 | **Read-only legacy tables** | `read_only = True` with an `editable_fields` allowlist for tables another system owns, enforced for everyone. [Docs →](https://pythondeveloper6.github.io/django-vantage/permissions/#read-only-models-and-legacy-databases) |
+| **Rich-text editor** | A small WYSIWYG editor for HTML fields; the HTML is sanitised against an allowlist on save and again on render, and a project can widen the list. [Docs →](https://pythondeveloper6.github.io/django-vantage/rich-text/) |
+| **Two-factor sign-in, several devices** | Authenticator-app codes with recovery codes; each person can register more than one device and remove a lost one. [Docs →](https://pythondeveloper6.github.io/django-vantage/two-factor/) |
+| **Safe access for AI agents** | Opt-in (`AGENTS`). Bearer-token agent identities that can only be narrowed, read-only by default, with allowed models, rate limits, write budgets, hidden fields, dry run, approvals, undo of a whole run and an activity page. [Docs →](https://pythondeveloper6.github.io/django-vantage/agents/) |
+| **MCP server** | Generic tools over HTTP and stdio for any MCP client; every call goes through the JSON API, so every guard applies. [Docs →](https://pythondeveloper6.github.io/django-vantage/mcp/) |
+| **Tooling for coding agents** | `manage.py vantage_describe` and `llms.txt` describe a project's admin without row data. [Docs →](https://pythondeveloper6.github.io/django-vantage/for-coding-agents/) |
+| **Password reset** | Opt-in reset flow on the sign-in page using Django's tokens and email; no account enumeration, rate limited, two-factor stays on. [Docs →](https://pythondeveloper6.github.io/django-vantage/password-reset/) |
+| **History for changes outside the panel** | Opt-in: shell, script and signal saves of chosen models land in the same audit log and history, marked as outside the panel. [Docs →](https://pythondeveloper6.github.io/django-vantage/history/) |
 | **Single sign-on role mapping** | Identity-provider groups (Entra ID, Okta, Keycloak) mapped onto roles at every sign-in. [Docs →](https://pythondeveloper6.github.io/django-vantage/single-sign-on/) |
 | **Notifications and metrics** | Slack, Teams and email for approvals and failures; a Prometheus endpoint and slow-request log. [Runbook →](https://pythondeveloper6.github.io/django-vantage/runbook/) |
 | **Upgrade checks** | A written deprecation policy and `manage.py vantage_upgrade_check`. [Docs →](https://pythondeveloper6.github.io/django-vantage/api-stability/) |
@@ -459,7 +467,7 @@ uv sync --all-groups
 ./example/run.sh          # migrate, seed, and serve on :8765
 ```
 
-Sign in as `admin` / `admin12345`.
+Sign in as `admin` / `admin12345`. Step-by-step [lesson projects](https://github.com/Pythondeveloper6/django-vantage/tree/main/example/lessons) (starter and solution) sit beside it.
 
 ## Contributing
 

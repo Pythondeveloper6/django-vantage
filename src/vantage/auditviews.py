@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 
 from vantage.audit import may_view_audit
 from vantage.conf import vantage_settings
+from vantage.external import OUTSIDE_SUFFIX
 from vantage.fieldperms import hide_entry_fields
 from vantage.models import VantageLogEntry
 from vantage.views import SiteView
@@ -69,7 +70,7 @@ class AuditLogView(SiteView):
     # ── the queryset ────────────────────────────────────────────────────────
 
     def get_queryset(self):
-        queryset = VantageLogEntry.objects.select_related("actor", "content_type")
+        queryset = VantageLogEntry.objects.select_related("actor", "content_type", "agent_run")
         return self._apply_filters(queryset)
 
     def _apply_filters(self, queryset):
@@ -80,6 +81,12 @@ class AuditLogView(SiteView):
         action = self.request.GET.get("action", "")
         if action in VantageLogEntry.Action.values:
             queryset = queryset.filter(action=action)
+
+        source = self.request.GET.get("source", "")
+        if source == "outside":
+            queryset = queryset.filter(action_name__endswith=OUTSIDE_SUFFIX)
+        elif source == "panel":
+            queryset = queryset.exclude(action_name__endswith=OUTSIDE_SUFFIX)
 
         start, end = self._window()
         if start is not None:
@@ -123,6 +130,17 @@ class AuditLogView(SiteView):
                 }
                 for value, label in VantageLogEntry.Action.choices
             ],
+            sources=[
+                {
+                    "value": value,
+                    "label": label,
+                    "selected": self.request.GET.get("source") == value,
+                }
+                for value, label in (
+                    ("panel", _("Through the panel")),
+                    ("outside", _("Outside the panel")),
+                )
+            ],
             windows=[
                 {
                     "value": key,
@@ -137,6 +155,7 @@ class AuditLogView(SiteView):
             has_filters=bool(
                 self._actor_id() is not None
                 or self.request.GET.get("action")
+                or self.request.GET.get("source")
                 or self.request.GET.get("window")
                 or self.request.GET.get("from")
                 or self.request.GET.get("to")

@@ -49,8 +49,9 @@ version. Older minors are not backported.
 
 | Version | Supported |
 | --- | --- |
-| 0.2.x (pre-release) | ✅ current development line |
-| 0.1.x | ❌ superseded — upgrade to the latest 0.2 release |
+| 0.3.x (beta) | ✅ current development line |
+| 0.2.x | ❌ superseded — upgrade to the latest 0.3 release |
+| 0.1.x | ❌ superseded |
 | < 0.1 | ❌ never released |
 
 **The package has not had a stable release yet.** While the version is below `1.0` there

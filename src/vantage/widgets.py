@@ -495,6 +495,70 @@ class SearchSelectMultiple(SearchSelect, forms.SelectMultiple):
     """:class:`SearchSelect` for a many-to-many. Same truncation, several values."""
 
 
+# ── rich text ───────────────────────────────────────────────────────────────
+
+
+class RichTextWidget(forms.Textarea):
+    """A textarea that ``vantage-richtext.js`` upgrades to a contenteditable editor.
+
+    Without JavaScript it is still a working textarea holding HTML, so the form saves.
+    The value is sanitised on the way *in* to the markup as well as on the way out: the
+    editor script loads this text as HTML, and stored content is not trusted.
+    """
+
+    def format_value(self, value):
+        from vantage.richtext import sanitize_html
+
+        value = super().format_value(value)
+        return sanitize_html(value) if value else value
+
+
+def wants_html_editor(editor: str | None = None, field: Any = None) -> bool:
+    """Whether a rich-text field uses the HTML editor.
+
+    ``editor`` is an explicit per-field choice. Without one, a field whose class says it
+    holds markdown (``MarkdownField``) keeps the markdown toolbar, and anything else
+    follows ``VANTAGE["RICHTEXT_EDITOR"]``.
+    """
+    if editor is None and field is not None and "markdown" in type(field).__name__.lower():
+        return False
+    if editor is None:
+        from vantage.conf import vantage_settings
+
+        editor = vantage_settings.RICHTEXT_EDITOR
+    return editor == "html"
+
+
+def _sanitising(formfield: forms.Field) -> None:
+    """Make ``formfield`` store sanitised HTML, and treat an emptied editor as empty.
+
+    Applied to whatever form-field class ended up on the model field, including one a
+    panel substituted through ``formfield_overrides``. It wraps ``to_python`` (so an
+    emptied editor fails ``required``) and ``clean`` (so a field class that overrides
+    ``to_python`` or ``clean`` itself still hands back sanitised text). Only strings are
+    touched; the sanitiser is idempotent, so running twice costs nothing but time.
+    """
+    original_to_python = formfield.to_python
+    original_clean = formfield.clean
+
+    def scrub(value):
+        from vantage.richtext import is_effectively_empty, sanitize_html
+
+        if not isinstance(value, str) or not value:
+            return value
+        cleaned = sanitize_html(value)
+        return "" if is_effectively_empty(cleaned) else cleaned
+
+    def to_python(value):
+        return scrub(original_to_python(value))
+
+    def clean(value):
+        return scrub(original_clean(value))
+
+    formfield.to_python = to_python
+    formfield.clean = clean
+
+
 # ── the spec ────────────────────────────────────────────────────────────────
 
 
@@ -582,6 +646,8 @@ class WidgetSpec:
             from vantage.media import file_widget
 
             return file_widget(kind, attrs)
+        if kind is FieldKind.RICHTEXT and "data-richtext" in attrs:
+            return RichTextWidget(attrs=attrs)
         if kind in (FieldKind.LONGTEXT, FieldKind.RICHTEXT, FieldKind.JSON, FieldKind.BINARY):
             return forms.Textarea(attrs=attrs)
         if kind in (FieldKind.NUMBER, FieldKind.DECIMAL):
@@ -593,13 +659,18 @@ class WidgetSpec:
         return forms.TextInput(attrs=attrs)
 
 
-def infer_widget(field: Any, *, related_count: int | None = None) -> WidgetSpec:
+def infer_widget(
+    field: Any, *, related_count: int | None = None, editor: str | None = None
+) -> WidgetSpec:
     """Describe how to render one field.
 
     ``related_count`` is the caller's cardinality hint for a relation. It is a parameter
     rather than a lookup because counting is a query and this module does not touch the
     database. When it is omitted the answer is "use search": a search box over five rows
     is a mild inconvenience, while a ``<select>`` over fifty thousand rows is an outage.
+
+    ``editor`` picks the control for a rich-text field, ``"html"`` or ``"markdown"``;
+    ``None`` follows ``VANTAGE["RICHTEXT_EDITOR"]``.
     """
     kind = classify(field)
     attrs: dict[str, str] = {}
@@ -615,11 +686,12 @@ def infer_widget(field: Any, *, related_count: int | None = None) -> WidgetSpec:
         attrs["rows"] = str(TEXTAREA_ROWS)
     if kind is FieldKind.RICHTEXT:
         attrs["rows"] = str(RICHTEXT_ROWS)
-        # Picked up by vantage-editors.js: a plain <textarea> is what every richtext
-        # kind renders as (Vantage integrates no CKEditor/TinyMCE/Quill of its own,
-        # whichever package's class name triggered the classification), so a markdown
-        # toolbar is the one enhancement that suits all of them.
-        attrs["data-markdown"] = "1"
+        if wants_html_editor(editor, field):
+            # Picked up by vantage-richtext.js, which swaps in a contenteditable editor.
+            attrs["data-richtext"] = "1"
+        else:
+            # Picked up by vantage-editors.js: a plain <textarea> with a markdown toolbar.
+            attrs["data-markdown"] = "1"
     if kind is FieldKind.JSON:
         attrs["rows"] = str(JSON_ROWS)
     if kind in (FieldKind.FILE, FieldKind.IMAGE):
@@ -834,7 +906,9 @@ def layout(model: type[models.Model], fields: list[str] | None = None) -> list[F
 # ── the form class ──────────────────────────────────────────────────────────
 
 
-def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | None:
+def _formfield_callback(
+    db_field: models.Field, *, editor: str | None = None, **kwargs: Any
+) -> forms.Field | None:
     """Give every field the inferred widget, then let Django build the form field.
 
     Going through ``db_field.formfield()`` rather than constructing form fields directly
@@ -842,7 +916,8 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
     choice coercion, validators and ``max_length`` checks working exactly as Django
     intends. Only the widget is ours.
     """
-    kwargs.setdefault("widget", infer_widget(db_field).build_widget())
+    is_rich = classify(db_field) is FieldKind.RICHTEXT
+    kwargs.setdefault("widget", infer_widget(db_field, editor=editor).build_widget())
     # Every relation control in the package is built here, so this is the one place a
     # dropdown can be stopped from offering another tenant's records. A no-op unless
     # VANTAGE["TENANT_MODEL"] is set. See vantage.tenancy.scope_choices.
@@ -855,6 +930,11 @@ def _formfield_callback(db_field: models.Field, **kwargs: Any) -> forms.Field | 
         from vantage.sensitive import safe_str
 
         formfield.label_from_instance = safe_str
+
+    # Whatever widget a panel substituted, HTML from a rich-text field is cleaned on the
+    # way in: the control is a convenience, the allowlist is the guarantee.
+    if is_rich and wants_html_editor(editor, db_field) and formfield is not None:
+        _sanitising(formfield)
 
     # An upload is the one input a panel accepts that the browser did not type. The
     # extension is a claim, the Content-Type is a claim, and both are chosen by whoever
@@ -885,10 +965,13 @@ def formfield_callback_for(panel_or_model: Any) -> Callable[..., forms.Field | N
     """
     overrides = getattr(panel_or_model, "formfield_overrides", None) or {}
     per_field = getattr(panel_or_model, "widgets", None) or {}
-    if not overrides and not per_field:
+    markdown = frozenset(getattr(panel_or_model, "markdown_fields", None) or ())
+    if not overrides and not per_field and not markdown:
         return _formfield_callback
 
     def callback(db_field: models.Field, **kwargs: Any) -> forms.Field | None:
+        if db_field.name in markdown:
+            kwargs["editor"] = "markdown"
         for klass in type(db_field).__mro__:
             if klass in overrides:
                 kwargs = {**copy.deepcopy(overrides[klass]), **kwargs}

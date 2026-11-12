@@ -58,6 +58,8 @@ if _TEST_DB != "sqlite":
 
     MIGRATION_MODULES = _NoMigrations()
 
+MIGRATIONS_DISABLED = _TEST_DB != "sqlite"
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",

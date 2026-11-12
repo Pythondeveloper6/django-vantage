@@ -62,7 +62,7 @@ from django.middleware.csrf import get_token
 from django.urls import NoReverseMatch, path, reverse
 from django.views import View
 
-from vantage import concurrency, fieldperms, formviews, listquery
+from vantage import concurrency, dryrun, fieldperms, formviews, listquery
 from vantage.inline import form_errors, json_to_form_data
 from vantage.optimizer import plan_related
 from vantage.pagination import (
@@ -157,6 +157,27 @@ class ApiError(Exception):
 
     def response(self) -> JsonResponse:
         return error_response(self.status, self.detail, **self.extra)
+
+
+class RateLimited(ApiError):
+    """429 with ``Retry-After``."""
+
+    def __init__(self, retry_after: int) -> None:
+        super().__init__(429, "Too many requests. Slow down.")
+        self.retry_after = max(1, int(retry_after))
+
+    def response(self) -> JsonResponse:
+        response = super().response()
+        response["Retry-After"] = str(self.retry_after)
+        return response
+
+
+class _EarlyResponse(Exception):
+    """Carries a ready-made response out of ``authenticate`` (a CSRF rejection)."""
+
+    def __init__(self, response) -> None:
+        super().__init__("early response")
+        self.response = response
 
 
 class BadRequest(ApiError):
@@ -298,6 +319,27 @@ def _bind(form_class, values: dict[str, Any], body: WriteBody, **kwargs):
     return form_class(data=data, files=body.files, **kwargs)
 
 
+def refuse_agent_hidden(request, panel, names) -> None:
+    """422 when an agent's write names a field the panel hides from agents.
+
+    No-op for a person. The error has the shape of any validation failure, keyed by field
+    name, and the check runs before the dry-run branch so a preview refuses identically.
+    """
+    from vantage import agents
+    from vantage.agentdata import AgentFieldError, reject_hidden_writes
+
+    if agents.current_agent(request) is None:
+        return
+    try:
+        reject_hidden_writes(panel, names)
+    except AgentFieldError as exc:
+        raise ApiError(
+            422,
+            "Validation failed.",
+            errors={name: ["This field is not available to agents."] for name in exc.names},
+        ) from exc
+
+
 # ── the registry guard ──────────────────────────────────────────────────────
 
 
@@ -402,6 +444,8 @@ class ApiView(View):
             if handler is None:
                 return self.http_method_not_allowed(request, *args, **kwargs)
             return handler(request, *args, **kwargs)
+        except _EarlyResponse as exc:
+            return exc.response
         except ApiError as exc:
             return exc.response()
         except Http404 as exc:
@@ -428,16 +472,37 @@ class ApiView(View):
         that class, because the *response* on failure has to differ (JSON here, a
         login redirect there) even though the *rule* is identical.
         """
+        from django.conf import settings as django_settings
+
+        from vantage import agents
+
+        bearer = agents.has_bearer(request)
+        if bearer:
+            # A bearer header means an agent request: a bad token is a 401, and never
+            # falls back to whoever the session cookie says is signed in.
+            try:
+                agents.authenticate_bearer(request)
+            except agents.AgentAuthError as exc:
+                raise ApiError(exc.status, exc.detail) from None
         user = getattr(request, "user", None)
         if user is None or not user.is_authenticated:
             raise ApiError(401, "Authentication required.")
         if not user.is_staff:
             raise ApiError(403, "Staff access is required.")
+        # API views are exempt from the CSRF middleware (see vantage.agents.guard_patterns)
+        # and checked here instead: only a valid token with no session cookie skips it.
+        if not (bearer and django_settings.SESSION_COOKIE_NAME not in request.COOKIES):
+            failure = agents.csrf_response(request)
+            if failure is not None:
+                raise _EarlyResponse(failure)
+        if bearer:
+            agents.check_rate(request)
         # Primes the CSRF cookie on every authenticated response, GET included, so a
         # script that only ever talks to this API (and never renders the login page's
         # own <form>) still has something to send back in X-CSRFToken on its first
         # write. Cheap: get_token() is idempotent once the cookie already matches.
-        get_token(request)
+        if not bearer:
+            get_token(request)
 
     def resolve(self, request, *args, **kwargs) -> None:
         """Hook: a subclass resolves whatever its URL named — a model, nothing, ..."""
@@ -483,9 +548,36 @@ class ModelApiView(ApiView):
         self.panel = self.site.get_panel(self.model)
         self.permissions = get_permissions()
 
+        from vantage import agents
+
+        # Before the permission check: a model outside the agent's list is a 404.
+        agents.check_access(request, self.panel)
         action = self.required_action(request)
         if not self.permissions.has_model_perm(request, self.model, action):
             raise ApiError(403, _model_denied_message(self.panel, action))
+        if request.method.upper() not in ("GET", "HEAD", "OPTIONS"):
+            nothing = self.writes_nothing(request)
+            # Fail closed: an identity that needs approval reaches only the endpoints
+            # that send their write through it, or a dry run.
+            agents.check_approval_route(
+                request, routed=self.routes_through_approval(request), writes_nothing=nothing
+            )
+            # A dry run writes nothing, so it spends none of the write budget.
+            if not nothing:
+                agents.check_write_budget(request)
+
+    def writes_nothing(self, request) -> bool:
+        """Whether this request is a dry run (``?dry_run=1`` / ``X-Vantage-Dry-Run: 1``)."""
+        from vantage import agents
+
+        return agents.is_dry_run(request)
+
+    def routes_through_approval(self, request) -> bool:
+        """Whether this endpoint sends its write through the approval machinery.
+
+        False unless a subclass proves it does: an update of one record is the only one.
+        """
+        return False
 
     def required_action(self, request) -> str:
         """The model-level verb this request needs before the handler is reached.
@@ -614,9 +706,12 @@ class ListCreateView(ModelApiView):
     # ── create ──────────────────────────────────────────────────────────────
 
     def _create(self, request):
+        from vantage import agents
+
         body = WriteBody(request)
         submitted = body.require_fields()
 
+        refuse_agent_hidden(request, self.panel, [*submitted, *body.uploaded_names])
         editable = formviews.form_editable_names(self.panel, request)
         unknown = sorted((set(submitted) | set(body.uploaded_names)) - set(editable))
         if unknown:
@@ -629,8 +724,23 @@ class ListCreateView(ModelApiView):
         form_class = build_form_class(self.panel, editable)
         filled = _with_field_defaults(form_class, editable, submitted)
         form = _bind(form_class, filled, body)
+        dry = agents.is_dry_run(request)
         if not form.is_valid():
+            if dry:
+                return json_response(
+                    dryrun.payload("create", valid=False, errors=form_errors(form))
+                )
             return error_response(422, "Validation failed.", errors=form_errors(form))
+        if dry:
+            _dry_tenant_check(request, form)
+            return json_response(
+                dryrun.payload(
+                    "create",
+                    diff=dryrun.form_diff(
+                        form, creating=True, hidden=fieldperms.hidden_names(request, self.panel)
+                    ),
+                )
+            )
 
         obj = formviews.save_form(request, self.panel, form, change=False)
         return json_response(_record_payload(self.panel, obj, request), status=201)
@@ -646,6 +756,10 @@ class RecordDetailView(ModelApiView):
         obj = formviews.get_record(request, self.panel, self.permissions, self.kwargs["pk"], "view")
         return json_response(_record_payload(self.panel, obj, request))
 
+    def routes_through_approval(self, request) -> bool:
+        # Only an update: it ends in approvals.withhold. A DELETE does not.
+        return request.method.upper() in ("PUT", "PATCH")
+
     def put(self, request, *args, **kwargs):
         return self._write(request, partial=False)
 
@@ -657,6 +771,20 @@ class RecordDetailView(ModelApiView):
             request, self.panel, self.permissions, self.kwargs["pk"], "delete"
         )
         cascade = formviews.collect_cascade(obj)
+        from vantage import agents
+
+        if agents.is_dry_run(request):
+            # The same preview the HTML delete page shows; a blocked delete is reported
+            # as not valid rather than as the 409 the real delete answers with.
+            blocked = {"__all__": [str(cascade.blocked_by)]} if cascade.is_blocked else {}
+            return json_response(
+                dryrun.payload(
+                    "delete",
+                    valid=not cascade.is_blocked,
+                    errors=blocked,
+                    cascade=dryrun.cascade_payload(cascade),
+                )
+            )
         if cascade.is_blocked:
             # Same status the HTML confirm page answers with on the same refusal - see
             # vantage.formviews.DeleteView.post - so a client can tell "this delete is
@@ -685,6 +813,7 @@ class RecordDetailView(ModelApiView):
         # Per caller: a field they may only read is "read-only" here exactly as it is on
         # the edit page, and one hidden from them is "unknown" — the same answer as a
         # name that does not exist, so the error cannot be used to discover it.
+        refuse_agent_hidden(request, self.panel, [*submitted, *body.uploaded_names])
         editable = formviews.form_editable_names(self.panel, request)
         unknown = sorted((set(submitted) | set(body.uploaded_names)) - set(editable))
         if unknown:
@@ -704,10 +833,30 @@ class RecordDetailView(ModelApiView):
             else {name: submitted.get(name, "" if name in secret else None) for name in editable}
         )
 
+        from vantage import agents, approvals
+
+        holds_all = approvals.agent_holds_all(request)
+        if holds_all and not partial:
+            # A PUT names every editable field. The ones a change request cannot hold
+            # (relations written after the row, files) are left out rather than cleared.
+            keep = set(approvals.holdable_fields(self.panel, request))
+            names = [name for name in names if name in keep]
+            values = {name: value for name, value in values.items() if name in keep}
+
         form_class = build_form_class(self.panel, names)
         form = _bind(form_class, values, body, instance=obj)
+        dry = agents.is_dry_run(request)
         if not form.is_valid():
+            if dry:
+                return json_response(
+                    dryrun.payload("update", valid=False, errors=form_errors(form))
+                )
             return error_response(422, "Validation failed.", errors=form_errors(form))
+        if holds_all:
+            approvals.check_holdable(request, self.panel, form)
+
+        if dry:
+            return self._dry_update(request, obj, form, body, submitted, holds_all)
 
         note = body.note
         form.vantage_approval_note = note if isinstance(note, str) else ""
@@ -736,6 +885,21 @@ class RecordDetailView(ModelApiView):
                 },
             )
         pending = getattr(form, "vantage_pending", None)
+        if holds_all:
+            if pending is None:
+                # Nothing differs from what is stored: nothing was written either.
+                return json_response(_record_payload(self.panel, saved, request))
+            return json_response(
+                {
+                    "status": "pending_approval",
+                    "change_request": pending.pk,
+                    "url": _approval_url(pending),
+                    "fields": pending.field_names,
+                    "detail": "Your change was sent for approval. It is not saved until "
+                    "someone who can approve it does.",
+                },
+                status=202,
+            )
         if pending is not None:
             # 202, not 200: part of what was sent has not been saved yet. The record in
             # the body is what is stored; ``pending`` says which fields are waiting.
@@ -743,6 +907,57 @@ class RecordDetailView(ModelApiView):
             record["pending"] = _pending_payload(self.panel, pending)
             return json_response(record, status=202)
         return json_response(_record_payload(self.panel, saved, request))
+
+    def _dry_update(self, request, obj, form, body, submitted, holds_all):
+        """What this update would do, decided without saving.
+
+        Runs the checks the real save makes that do not write: the optimistic-lock
+        token (read-only), the tenancy guard, and which fields would wait for approval.
+        """
+        from vantage import approvals
+
+        version = body.version if isinstance(body.version, str) else None
+        try:
+            if version is not None:
+                concurrency.peek(obj, version)
+        except concurrency.StaleWrite as stale:
+            return error_response(
+                409,
+                "This record was changed by someone else since you read it.",
+                conflict={
+                    "pk": json_value(stale.obj.pk),
+                    "version": stale.token,
+                    "label": safe_str(stale.obj, self.panel.site),
+                    "fields": concurrency.field_diff(
+                        stale.obj, submitted, sensitive=self.panel.get_sensitive_fields()
+                    ),
+                },
+            )
+        _dry_tenant_check(request, form)
+        diff = dryrun.form_diff(
+            form, creating=False, hidden=fieldperms.hidden_names(request, self.panel)
+        )
+        changed = {entry["field"] for entry in diff}
+        waiting = [
+            name for name in approvals.guarded_for(request, self.panel, obj) if name in changed
+        ]
+        return json_response(
+            dryrun.payload("update", diff=diff, requires_approval=waiting, version=version)
+        )
+
+
+def _dry_tenant_check(request, form) -> None:
+    """The tenancy guard of a real save, applied to an unsaved copy."""
+    from vantage.tenancy import enforce as enforce_tenant
+
+    enforce_tenant(request, form.save(commit=False))
+
+
+def _approval_url(change_request) -> str | None:
+    try:
+        return reverse("vantage:approval-review", args=[change_request.pk])
+    except NoReverseMatch:  # pragma: no cover - only when the approvals page is not mounted
+        return None
 
 
 def _pending_payload(panel, change_request) -> dict[str, Any]:
@@ -775,9 +990,13 @@ class SchemaView(ApiView):
     """
 
     def get(self, request, *args, **kwargs):
+        from vantage import agents
+
         models = {
             panel.opts.label_lower: model_schema(request, panel, self.permissions)
-            for panel in self.permissions.visible_panels(request, list(self.site.panels()))
+            for panel in agents.visible_panels(
+                request, self.permissions.visible_panels(request, list(self.site.panels()))
+            )
         }
         return json_response({"models": models})
 
@@ -866,13 +1085,18 @@ def build_urls(site) -> list:
     reserved-prefix trick the HTML routes use; a record whose primary key is literally
     one of those four names is the only thing this shadows.
     """
-    from vantage import apiactions, apiio, apiopenapi, apisaved
+    from vantage import apiactions, apiagents, apiio, apiopenapi, apisaved
 
     prefix = "_/api/<str:app_label>/<str:model_name>/"
     bound = {"site": site}
     return [
         path("_/api/schema/", SchemaView.as_view(**bound), name="api-schema"),
         path("_/api/openapi.json", apiopenapi.OpenAPIView.as_view(**bound), name="api-openapi"),
+        path(
+            "_/api/_agents/runs/<path:run_key>/undo/",
+            apiagents.RunUndoView.as_view(**bound),
+            name="api-agent-run-undo",
+        ),
         path(
             f"{prefix}_actions/",
             apiactions.ActionListView.as_view(**bound),

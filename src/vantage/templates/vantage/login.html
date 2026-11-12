@@ -69,6 +69,9 @@
             <input type="hidden" name="next" value="{{ next }}">
             <button class="v-btn v-btn-primary v-auth-submit" type="submit">{% translate "Sign in" %}</button>
           </form>
+          {% if password_reset_url %}
+            <p class="v-auth-foot"><a href="{{ password_reset_url }}">{% translate "Forgot password?" %}</a></p>
+          {% endif %}
         </div>
       </div>
 

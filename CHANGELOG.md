@@ -11,7 +11,9 @@ word *breaking*, so the log is useful either way.
 
 ## [Unreleased]
 
-The whole roadmap: seven features, each built on its own branch and merged into the
+## [0.3.0b1] — 2026-11-11
+
+First beta. The whole roadmap: seven features, each built on its own branch and merged into the
 release branch, then a security review and a visual check of the result, with every
 finding fixed. On top of that, production-readiness work: an API stability policy and
 upgrade checker, access review and break-glass access, single sign-on role mapping,
@@ -19,14 +21,14 @@ read-only legacy tables, notifications, metrics, a fuller JSON API with OpenAPI,
 adoption tooling, complete Arabic catalogues, database CI and a second security review,
 followed by a third covering field reveal, saved views, reports and exports, webhook
 delivery and two-factor internals.
-Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
+Eleven migrations were added (`0016`–`0026`), so run `migrate` after upgrading
 (`manage.py vantage_upgrade_check --from 0.2.0a2` lists everything).
 
 ### Known limitations
 
-- **Only changes made through the panel count.** History, approvals and webhooks see
-  what the panel saves; the shell, scripts, signals and the project's own views are not
-  seen.
+- **Changes made outside the panel are opt-in.** With `TRACK_EXTERNAL_CHANGES` they reach
+  the audit log and history; `QuerySet.update()`, `bulk_create()` and raw SQL send no
+  signals and are never seen. Approvals still apply only to panel writes.
 - **Two-factor sign-in covers the panel.** Django's admin is held to it only when
   `vantage.twofactor.AdminTwoFactorMiddleware` is installed (`check --deploy` warns,
   `vantage.W095`), and other login views not at all. One authenticator per person,
@@ -50,6 +52,37 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 - New strings are not yet in the `.po` catalogues.
 
 ### Added
+
+#### AI-agent access (opt-in, `VANTAGE["AGENTS"]`)
+
+- Agent identities: a service user plus a Bearer token (`vta_…`, shown once, only a
+  hash stored) that can only narrow access: read or write, allowed models, delete
+  permission, approval requirement, expiry, rate limit and a write budget per run.
+  `manage.py vantage_agent create|list|revoke|rotate|undo-run`. Migration `0026`.
+- Everything an agent does is audited with the agent, the run and the owner it acts for;
+  an Agent activity page and `vantage_agent_activity` export.
+- Panels can set `agent_access` and `agent_hidden_fields`; `AGENT_DEFAULT_ACCESS`
+  defaults to `"read"`.
+- Dry run (`?dry_run=1`) on API writes, approvals for agent updates (HTTP 202), undo of
+  a whole run, and a guard so bulk delete actions need delete permission.
+- An MCP server over HTTP (`_/mcp/`) and stdio (`manage.py vantage_mcp --agent NAME`)
+  whose tools call the JSON API; results are scrubbed and wrapped as untrusted data.
+- `manage.py vantage_describe` and `llms.txt` / `llms-full.txt` for coding agents.
+- Settings: `AGENTS`, `AGENT_RATE_LIMIT_PER_MINUTE`, `AGENT_MAX_FIELD_CHARS`,
+  `AGENT_DEFAULT_ACCESS`, `AGENT_ALLOWED_ORIGINS` (all code-only, provisional).
+
+#### History outside the panel and password reset
+
+- `TRACK_EXTERNAL_CHANGES` (False, `"*"` or a list of models) records saves, deletes and
+  many-to-many changes made by the shell, scripts and signals in the audit log and
+  history, marked "outside the panel"; never recorded twice, no queries for untracked
+  models, never breaks the caller's save. `TRACK_EXTERNAL_WEBHOOKS` (off) sends them to
+  webhooks. The audit page gets a Source filter.
+- `PASSWORD_RESET` (off): a reset flow on the sign-in page with Django's token
+  generator and email backend, `PASSWORD_RESET_TIMEOUT_MINUTES`,
+  `PASSWORD_RESET_BASE_URL`, three `RATE_LIMITS` keys, checks `vantage.E126` and
+  `vantage.W117`. No account enumeration, single-use links, other sessions signed out,
+  two-factor never bypassed, audit entries without secrets.
 
 #### Adopting from django.contrib.admin
 
@@ -138,6 +171,29 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
   multipart file uploads through the media validators, and an OpenAPI 3.1 document at
   `_/api/openapi.json` filtered per user, plus `manage.py vantage_openapi`.
 
+#### Rich-text editor
+
+- Fields that hold HTML (a field class named like `richtext`, `wysiwyg` or `html`, or a
+  name ending `_html`) open in a small WYSIWYG editor: bold, italic, code, links,
+  headings, lists and quotes. One static JavaScript file ships in the wheel (no Node step)
+  and loads as an external script, so it works under a strict Content-Security-Policy.
+  Without JavaScript the field is a textarea holding the HTML.
+- The value is sanitised against an allowlist on save (web forms, bulk edit, inline rows
+  and the JSON API) and again when drawn, so rows written by a script or another
+  application cannot put markup on a page. `RICHTEXT_EXTRA_TAGS`,
+  `RICHTEXT_EXTRA_ATTRIBUTES` and `RICHTEXT_URL_SCHEMES` can only widen the list; active
+  content cannot be switched on. `RICHTEXT_EDITOR = "markdown"` or a panel's
+  `markdown_fields` keep the older markdown toolbar. See [Rich-text fields](docs/rich-text.md).
+
+#### Excel and PDF export
+
+- `?export=xlsx` and `?export=pdf` on every list, and `?format=xlsx|pdf` on the JSON
+  API export endpoint. Same columns, rows, masked fields, field permissions and
+  permission checks as CSV; no new dependency (both files are written with the standard
+  library). Text cells and the header row get the same spreadsheet-formula defusing as
+  CSV. Excel files stop at the sheet limit of 1,048,576 rows; long PDF cells are cut with
+  `...`. See [Export](docs/lists.md#export).
+
 #### History with point-in-time restore
 
 - Each record has a **History** page, linked from its detail page, that lists its audit
@@ -179,6 +235,12 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 - A superuser-only screen to reset someone's two-factor sign-in, audited, and
   `manage.py vantage_two_factor_reset <username>`. Checks `vantage.E095`–`vantage.E097`
   and `vantage.W095`.
+- **Several authenticator devices per person** (up to five), each with a name. A code
+  from any confirmed device signs you in; the lockout is counted per device, and a wrong
+  answer is counted on every unlocked device before it is compared, so extra devices give
+  no extra guesses. Adding or removing a device asks for a current code or the password.
+  Recovery codes now belong to the person, not to a device. Resetting one device leaves
+  the others working; "Reset all" and `vantage_two_factor_reset` remove every device.
 
 #### Field-level permissions
 
@@ -248,6 +310,22 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 
 ### Changed
 
+- **Beta.** The package moves from alpha to beta: version `0.3.0b1` and the PyPI
+  classifier `Development Status :: 4 - Beta`. Settings and panel attributes marked
+  stable are frozen; there has still been no independent security audit.
+- **A first runtime dependency.** `nh3` (the Rust `ammonia` HTML sanitiser, published
+  as prebuilt wheels) is now installed with the package, for rich-text fields. A
+  hand-written sanitiser was rejected because it is the kind of code that fails to
+  mutation-based XSS.
+- **Rich-text fields use the HTML editor by default** (visible to users). A field that
+  held markdown or plain text opens in it as literal text; list such a field in the
+  panel's `markdown_fields`, or set `RICHTEXT_EDITOR = "markdown"`, to keep the old
+  toolbar. Tags outside the allowlist (images, tables, iframes) are removed the next time
+  a record is saved.
+- **Two-factor schema change** (migrations `0023`–`0025`): a person may have several
+  devices, and recovery codes belong to the person. Existing devices and codes are
+  carried over by the migrations. `vantage.twofactor.reset()` now returns the number of
+  devices removed (still falsy when there were none) instead of a boolean.
 - **The Arabic catalogues are complete** (`django` and `djangojs`, all six plural forms); the English catalogue was refreshed to match. Strings added later fall back to English until translated.
 - **CSV and TSV exports neutralise spreadsheet formulas** (visible to users): a text
   cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading
@@ -270,6 +348,43 @@ Seven migrations were added (`0016`–`0022`), so run `migrate` after upgrading
 
 ### Security
 
+- AI-agent surface: Bearer tokens are accepted only on JSON API and MCP routes and are
+  refused on every HTML route; a bad token never falls back to a session; only the
+  prefix and a SHA-256 hash are stored and compared in constant time; a session plus a
+  Bearer header still needs CSRF. Panel `agent_access` and `agent_hidden_fields` and
+  sensitive fields are enforced in the API (reads, schema, exports, filters, sort,
+  writes, dry run), the effective access being the lesser of identity and panel. Bulk
+  delete actions need delete permission. The MCP endpoint checks `Origin`, caps the body
+  at 1 MiB and never reads a session cookie.
+- Second review of the agent surface, all fixed with regression tests: an agent's CSV
+  import preview no longer saves rows (so no hooks or signals fire for rows that never
+  exist); the undo-run endpoint is 404 when `AGENTS` is off and answers a run the caller
+  may not undo exactly like a missing one; `X-Vantage-Run` keys are normalised (odd
+  characters hashed, no truncation collisions); a service user with a usable password is
+  refused; a tenant cached from a session cookie no longer scopes a Bearer request;
+  the scrubber removes more invisible-character classes, bounds work on huge values and
+  nesting depth; agents can only save private saved views; MCP rejects malformed
+  `Content-Length`, bounds stdio lines and uses strict matches; `vantage_describe` masks
+  credentials inside URL values. Documented limits: the write budget is per caller-chosen
+  run (the rate limit is the hard ceiling), the plain JSON API is not scrubbed (MCP is),
+  and the MCP Origin check ignores the scheme.
+- Password reset: the answer is identical for known, unknown and rate-limited
+  addresses, the `Host` is validated before any lookup, links use their own token salt
+  and timeout, and pages send `no-store`.
+- Two-factor, several devices: adding a device to an account that already has one, and
+  removing a device, both require proof (a current code, a recovery code or the
+  password); a wrong proof counts toward the lockout. A device is only ever looked up
+  among the caller's own, a pending device cannot sign anyone in, and removing the last
+  device switches two-factor off and deletes the recovery codes. Secrets and codes are
+  never logged.
+- Rich-text fields: HTML is cleaned by an allowlist sanitiser on save and on render
+  (script and style elements with their contents, event handlers, `style` attributes and
+  `javascript:`/`data:` URLs are removed; links always carry `rel="noopener noreferrer
+  nofollow"`). Settings can only widen the allowlist, and asking for active content
+  raises `ImproperlyConfigured`.
+- Excel and PDF export go through the same query, masking and permission path as CSV
+  and defuse spreadsheet formulas the same way; neither format has its own way to skip a
+  check.
 - Webhooks refuse private, loopback and link-local targets by default, including IPv6
   forms that wrap them, checked at send time against the address actually connected
   to. Redirects and proxies are never followed, and every delivery has a total
@@ -801,7 +916,8 @@ Read these before deploying an alpha anywhere it matters.
 - Sensitive field names are excluded from columns, filters, search, exports and audit
   diffs.
 
-[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a2...HEAD
+[Unreleased]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.3.0b1...HEAD
+[0.3.0b1]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a2...v0.3.0b1
 [0.2.0a2]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.2.0a1...v0.2.0a2
 [0.2.0a1]: https://github.com/Pythondeveloper6/django-vantage/compare/v0.1.0a1...v0.2.0a1
 [0.1.0a1]: https://github.com/Pythondeveloper6/django-vantage/releases/tag/v0.1.0a1

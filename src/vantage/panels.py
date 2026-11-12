@@ -100,6 +100,15 @@ class ModelPanel:
     read_only: bool | None = None
     editable_fields: list[str] | None = None
 
+    # ── agents ──────────────────────────────────────────────────────────────
+    #
+    # What an AI agent may do with this model: ``"none"``, ``"read"`` or ``"write"``;
+    # ``None`` follows ``VANTAGE["AGENT_DEFAULT_ACCESS"]``. It can only narrow what the
+    # agent's service user is already allowed. ``agent_hidden_fields`` never reach an
+    # agent, in output or in writes; sensitive fields are always hidden as well.
+    agent_access: str | None = None
+    agent_hidden_fields: tuple[str, ...] | list[str] | None = None
+
     # ── widget overrides ────────────────────────────────────────────────────
     #
     # Inference picks every control; these replace it where it picked wrong, and only
@@ -111,6 +120,10 @@ class ModelPanel:
     # A sensitive field keeps its write-only control whatever either says.
     formfield_overrides: dict[type[models.Field], dict[str, Any]] | None = None
     widgets: dict[str, Any] | None = None
+    # Rich-text fields that keep the plain textarea with a markdown toolbar instead of
+    # the HTML editor, and are stored and shown as typed (never as HTML). Needed for a
+    # field that already holds markdown; see docs/rich-text.md.
+    markdown_fields: tuple[str, ...] = ()
 
     # ── sensitive values ────────────────────────────────────────────────────
     #

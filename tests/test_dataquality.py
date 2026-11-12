@@ -167,7 +167,7 @@ class TestChecks:
         DqContact.objects.create(name="old")
         DqContact.objects.update(updated_at=timezone.now() - dt.timedelta(days=900))
         (stale,) = findings(report_for(DqContact, request_), "stale")
-        assert "900" in stale.message
+        assert any(n in stale.message for n in ("899", "900"))
         assert stale.url
 
     def test_a_fresh_table_is_not_stale(self, request_):

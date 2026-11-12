@@ -120,6 +120,8 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
         "READ_ONLY",
         "ENVIRONMENT",
         "AUDIT_LOG",
+        "TRACK_EXTERNAL_CHANGES",
+        "TRACK_EXTERNAL_WEBHOOKS",
         "COMMAND_PALETTE",
         "SENSITIVE_PATTERNS",
         # tenancy
@@ -143,6 +145,10 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
         "DEFAULT_PER_PAGE",
         "MAP_TILE_URL",
         "RELATION_PICKER",
+        "RICHTEXT_EDITOR",
+        "RICHTEXT_EXTRA_TAGS",
+        "RICHTEXT_EXTRA_ATTRIBUTES",
+        "RICHTEXT_URL_SCHEMES",
         "LIST_COUNT_CAP",
         "LIST_COUNT_ESTIMATES",
         "LIST_ESTIMATE_CACHE_SECONDS",
@@ -150,6 +156,7 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
         "LIST_STATEMENT_TIMEOUT_MS",
         "IMPORT_MAX_BYTES",
         "IMPORT_MAX_ROWS",
+        "EXPORT_BINARY_MAX_ROWS",
         "JOBS",
         "JOB_THRESHOLD_SECONDS",
         "JOB_CHUNK_SIZE",
@@ -165,6 +172,11 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
 #: Settings added since the last release. They may still change before the next one.
 PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
     {
+        "AGENT_MAX_FIELD_CHARS",
+        "AGENT_DEFAULT_ACCESS",
+        "PASSWORD_RESET",
+        "PASSWORD_RESET_TIMEOUT_MINUTES",
+        "PASSWORD_RESET_BASE_URL",
         "TWO_FACTOR",
         "TWO_FACTOR_REQUIRED_SUPERUSERS",
         "TWO_FACTOR_REQUIRED_ROLES",
@@ -193,6 +205,9 @@ PROVISIONAL_SETTINGS: frozenset[str] = frozenset(
         "BREAK_GLASS_PERMISSION",
         "BREAK_GLASS_SELF_SERVICE",
         "BREAK_GLASS_MAX_MINUTES",
+        "AGENTS",
+        "AGENT_RATE_LIMIT_PER_MINUTE",
+        "AGENT_ALLOWED_ORIGINS",
     }
 )
 
@@ -248,8 +263,11 @@ PROVISIONAL_PANEL_ATTRIBUTES: frozenset[str] = frozenset(
         "requires_approval",
         "formfield_overrides",
         "widgets",
+        "markdown_fields",
         "read_only",
         "editable_fields",
+        "agent_access",
+        "agent_hidden_fields",
     }
 )
 
@@ -269,13 +287,22 @@ UPGRADE_NOTES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "next",
         (
-            "Run `manage.py migrate vantage` (migrations 0016-0022: two-factor "
+            "Run `manage.py migrate vantage` (migrations 0016-0026: two-factor "
             "sign-in and its escalating lockout, webhooks, scheduled reports, approvals, "
-            "field permissions and elevated access).",
+            "field permissions, elevated access, and several two-factor devices per "
+            "person with recovery codes owned by the person, and agent identities and runs).",
+            "Rich-text fields now open in an HTML editor and are sanitised on save; list "
+            "fields that hold markdown in the panel's `markdown_fields` to keep the old "
+            "toolbar. The `nh3` package is installed with Vantage for this.",
+            "`vantage.twofactor.reset()` now returns the number of devices removed "
+            "instead of a boolean; the result is still falsy when nothing was removed.",
             "Uploads of active content (SVG, HTML, XML, JavaScript) are now refused unless "
             "listed in VANTAGE['UPLOAD_ACTIVE_SUFFIXES'].",
             "Two-factor sign-in is offered to everyone from the account page by default; "
             "set VANTAGE['TWO_FACTOR'] = False to keep it off.",
+            "AI-agent access is off unless VANTAGE['AGENTS'] is True; agents are read-only "
+            'on a panel unless it sets `agent_access = "write"` or '
+            "VANTAGE['AGENT_DEFAULT_ACCESS'] is \"write\".",
             "Settings and panel attributes added in this release are provisional until "
             "the release after it; see docs/api-stability.md.",
         ),

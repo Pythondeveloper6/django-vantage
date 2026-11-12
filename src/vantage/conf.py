@@ -109,7 +109,25 @@ DEFAULTS: dict[str, Any] = {
     # "deny" shows no rows, which is the only default that makes forgetting safe.
     "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
+    # Opt-in history for changes made OUTSIDE the panel (shell, scripts, signals, the
+    # project's own views). False, or a list of "app_label.model" strings, or "*" for
+    # every registered panel model. Code-only. See vantage.external.
+    "TRACK_EXTERNAL_CHANGES": False,
+    # Whether those changes also fire webhooks. Off: they are logged and nothing is sent.
+    "TRACK_EXTERNAL_WEBHOOKS": False,
     "COMMAND_PALETTE": True,
+    # ── rich text ───────────────────────────────────────────────────────────
+    # "html" gives RICHTEXT fields the WYSIWYG editor and stores sanitised HTML.
+    # "markdown" keeps the plain textarea with a markdown toolbar for all of them;
+    # ModelPanel.markdown_fields opts out one field at a time. See vantage.richtext.
+    "RICHTEXT_EDITOR": "html",
+    # Tags added to the sanitiser allowlist, e.g. ["table", "tr", "td"].
+    "RICHTEXT_EXTRA_TAGS": [],
+    # Attributes added per tag, e.g. {"a": ["target"], "td": ["colspan"]}. Event
+    # handlers and style are refused. Code-only: it widens what stored markup may do.
+    "RICHTEXT_EXTRA_ATTRIBUTES": {},
+    # URL schemes added to http, https, mailto and tel, e.g. ["sms"].
+    "RICHTEXT_URL_SCHEMES": [],
     # ── sensitive values ────────────────────────────────────────────────────
     # The names that mark a field as a secret, matched as whole words. None means the
     # built-in list (vantage.sensitive.DEFAULT_PATTERNS); a list replaces it; a list
@@ -141,6 +159,17 @@ DEFAULTS: dict[str, Any] = {
     # Offered to everyone from the account page. False removes the feature: no
     # enrolment, no second step, and any codes already set up stop being asked for.
     "TWO_FACTOR": True,
+    # ── password reset ──────────────────────────────────────────────────────
+    # An opt-in "Forgot password?" flow on the sign-in page, using Django's own token
+    # generator and email backend. Off: the routes 404 and no link is shown. Code-only:
+    # a screen that could switch on email-based account recovery is a way in.
+    "PASSWORD_RESET": False,
+    # Minutes a reset link stays valid. Its own clock; Django's global
+    # PASSWORD_RESET_TIMEOUT is left alone. At least 5.
+    "PASSWORD_RESET_TIMEOUT_MINUTES": 60,
+    # The public address links in reset emails point at, e.g. "https://panel.example.com".
+    # Empty builds them from the request's host, which ALLOWED_HOSTS has validated.
+    "PASSWORD_RESET_BASE_URL": "",
     # Who may not use the panel without it. Code-only, like the permission settings:
     # a requirement the people it binds could switch off is not a requirement.
     "TWO_FACTOR_REQUIRED_SUPERUSERS": False,
@@ -185,6 +214,11 @@ DEFAULTS: dict[str, Any] = {
     "LIST_STATEMENT_TIMEOUT_MS": 10_000,
     "IMPORT_MAX_BYTES": 5 * 1024 * 1024,
     "IMPORT_MAX_ROWS": 5000,
+    # Most rows an Excel or PDF export may carry. Both are built completely before the
+    # first byte is sent, so a huge table would hold a worker and temp disk; over the
+    # cap the export is refused (HTTP 413) rather than truncated. CSV, TSV and JSON
+    # stream and are not capped. Excel itself stops at 1,048,575 data rows.
+    "EXPORT_BINARY_MAX_ROWS": 100_000,
     # ── background jobs ─────────────────────────────────────────────────────
     "JOBS": True,
     # The line between running in the request and writing a job row, in seconds of
@@ -232,6 +266,20 @@ DEFAULTS: dict[str, Any] = {
     # The most rows one undo may carry, cascades included. Past it the change still
     # happens, it just is not offered for undo: the snapshot would be the problem.
     "UNDO_MAX_ROWS": 1000,
+    # ── agents ──────────────────────────────────────────────────────────────
+    # Longest text value handed to an agent; longer values are cut with a marker.
+    "AGENT_MAX_FIELD_CHARS": 2000,
+    # What agents may do with a model whose panel leaves ``agent_access`` unset:
+    # "none", "read" or "write".
+    "AGENT_DEFAULT_ACCESS": "read",
+    # Off by default. When on, an AgentIdentity's bearer token may call the JSON API as
+    # its service user. See docs/agents.md.
+    "AGENTS": False,
+    # Requests per minute given to a new identity (0 = no limit).
+    "AGENT_RATE_LIMIT_PER_MINUTE": 60,
+    # Extra browser origins allowed to call the MCP endpoint, e.g.
+    # ["https://tools.example.com"]. Empty: only the panel's own origin. Code-only.
+    "AGENT_ALLOWED_ORIGINS": [],
     # ── data quality ────────────────────────────────────────────────────────
     # A dict of the keys in DATA_QUALITY_DEFAULTS; unknown keys are rejected like any
     # other typo. Empty means "the defaults".
@@ -289,6 +337,8 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "NAV_UNLISTED": ("append", "hide"),
     "TENANT_UNSCOPED": ("deny", "allow"),
     "RELATION_PICKER": ("always", "threshold"),
+    "RICHTEXT_EDITOR": ("html", "markdown"),
+    "AGENT_DEFAULT_ACCESS": ("none", "read", "write"),
 }
 
 #: Values that must be a whole number of at least this much. Checked rather than
@@ -297,8 +347,12 @@ CHOICES: dict[str, tuple[str, ...]] = {
 MINIMUMS: dict[str, int] = {
     "UNDO_WINDOW": 0,
     "UNDO_MAX_ROWS": 1,
+    "AGENT_MAX_FIELD_CHARS": 1,
     "TWO_FACTOR_MAX_ATTEMPTS": 1,
     "TWO_FACTOR_LOCKOUT_SECONDS": 1,
+    "EXPORT_BINARY_MAX_ROWS": 1,
+    "AGENT_RATE_LIMIT_PER_MINUTE": 0,
+    "PASSWORD_RESET_TIMEOUT_MINUTES": 5,
 }
 
 
@@ -360,7 +414,40 @@ class VantageSettings:
                     f"VANTAGE['{key}'] must be a whole number of at least {floor}; got {value!r}."
                 )
 
+        from vantage.richtext import validate_policy
+
+        validate_policy(
+            user.get("RICHTEXT_EXTRA_TAGS", DEFAULTS["RICHTEXT_EXTRA_TAGS"]),
+            user.get("RICHTEXT_EXTRA_ATTRIBUTES", DEFAULTS["RICHTEXT_EXTRA_ATTRIBUTES"]),
+            user.get("RICHTEXT_URL_SCHEMES", DEFAULTS["RICHTEXT_URL_SCHEMES"]),
+        )
         _validate_sensitive_patterns(user.get("SENSITIVE_PATTERNS"))
+        origins = user.get("AGENT_ALLOWED_ORIGINS", [])
+        if not isinstance(origins, list | tuple) or any(
+            not (isinstance(o, str) and o.strip()) for o in origins
+        ):
+            raise ImproperlyConfigured(
+                f"VANTAGE['AGENT_ALLOWED_ORIGINS'] must be a list of origins; got {origins!r}."
+            )
+        tracked = user.get("TRACK_EXTERNAL_CHANGES", False)
+        if not (
+            tracked is False
+            or tracked == "*"
+            or (
+                isinstance(tracked, list | tuple | set | frozenset)
+                and all(isinstance(t, str) and t.count(".") == 1 for t in tracked)
+            )
+        ):
+            raise ImproperlyConfigured(
+                "VANTAGE['TRACK_EXTERNAL_CHANGES'] must be False, \"*\" or a list of "
+                f'"app_label.model" strings; got {tracked!r}.'
+            )
+        if not isinstance(user.get("TRACK_EXTERNAL_WEBHOOKS", False), bool):
+            raise ImproperlyConfigured("VANTAGE['TRACK_EXTERNAL_WEBHOOKS'] must be True or False.")
+        if not isinstance(user.get("PASSWORD_RESET", False), bool):
+            raise ImproperlyConfigured(
+                f"VANTAGE['PASSWORD_RESET'] must be True or False; got {user['PASSWORD_RESET']!r}."
+            )
         problem = two_factor_problem(user)
         if problem:
             raise ImproperlyConfigured(problem)

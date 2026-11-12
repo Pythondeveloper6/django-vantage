@@ -149,6 +149,26 @@ def _check_reports(user: dict) -> list[Error]:
                 id="vantage.E117",
             )
         )
+    reset_url = user.get("PASSWORD_RESET_BASE_URL")
+    if "PASSWORD_RESET_BASE_URL" in user and (
+        not isinstance(reset_url, str)
+        or (reset_url and not reset_url.startswith(("http://", "https://")))
+    ):
+        errors.append(
+            Error(
+                f"VANTAGE['PASSWORD_RESET_BASE_URL'] must be empty or start with http:// or "
+                f"https://; got {reset_url!r}.",
+                hint="For example 'https://panel.example.com'.",
+                id="vantage.E126",
+            )
+        )
+    if "PASSWORD_RESET" in user and not isinstance(user["PASSWORD_RESET"], bool):
+        errors.append(
+            Error(
+                f"VANTAGE['PASSWORD_RESET'] must be True or False; got {user['PASSWORD_RESET']!r}.",
+                id="vantage.E126",
+            )
+        )
     return errors
 
 
@@ -806,6 +826,64 @@ def check_deploy_reports_base_url(app_configs, **kwargs) -> list[Warning]:
     ]
 
 
+def check_deploy_password_reset_base_url(app_configs, **kwargs) -> list[Warning]:
+    """Reset links built from a Host header that ALLOWED_HOSTS lets anything through.
+    (``vantage.W117``)
+
+    With ``PASSWORD_RESET_BASE_URL`` unset, the link in each reset email takes its host
+    from the request. ``ALLOWED_HOSTS`` is what keeps that honest, and ``"*"`` turns it
+    off: whoever can send a request can then choose where a victim's link points.
+    Silent when the flow is off, the panel is not mounted or the base URL is set.
+    """
+    from django.conf import settings
+
+    if not panel_is_mounted():
+        return []
+    if not _vantage_setting("PASSWORD_RESET") or _vantage_setting("PASSWORD_RESET_BASE_URL"):
+        return []
+    if "*" not in (getattr(settings, "ALLOWED_HOSTS", None) or []):
+        return []
+    return [
+        Warning(
+            "Password reset is on, ALLOWED_HOSTS contains '*' and "
+            "VANTAGE['PASSWORD_RESET_BASE_URL'] is not set.",
+            hint=(
+                "Links in reset emails are then built from the Host header of the request, "
+                "which a client can choose. Set PASSWORD_RESET_BASE_URL to the panel's "
+                "public address, for example 'https://panel.example.com', or list your "
+                "real hosts in ALLOWED_HOSTS. See docs/password-reset.md."
+            ),
+            id="vantage.W117",
+        )
+    ]
+
+
+def check_deploy_agents_https(app_configs, **kwargs) -> list[Warning]:
+    """Agent tokens served over plain HTTP. (``vantage.W116``)
+
+    A bearer token is a password in a header. In production, with no redirect to HTTPS
+    and no proxy header telling Django the connection was secure, it crosses the
+    network readable. Silent when agents are off or the panel is not mounted.
+    """
+    from django.conf import settings
+
+    if not panel_is_mounted() or not _vantage_setting("AGENTS"):
+        return []
+    if settings.DEBUG or settings.SECURE_SSL_REDIRECT or settings.SECURE_PROXY_SSL_HEADER:
+        return []
+    return [
+        Warning(
+            "VANTAGE['AGENTS'] is on but the site is not forced onto HTTPS.",
+            hint=(
+                "Agent bearer tokens would travel in clear text. Set SECURE_SSL_REDIRECT "
+                "(or SECURE_PROXY_SSL_HEADER behind a TLS-terminating proxy) and "
+                "SESSION_COOKIE_SECURE. See docs/agents.md."
+            ),
+            id="vantage.W116",
+        )
+    ]
+
+
 def _models_with_file_fields() -> list[str]:
     """``"app.Model"`` for every registered model that can hold an uploaded file."""
     from django.db import models as django_models
@@ -1023,4 +1101,6 @@ DEPLOYMENT_CHECKS = (
     check_deploy_panel_middleware,
     check_deploy_media_origin,
     check_deploy_reports_base_url,
+    check_deploy_password_reset_base_url,
+    check_deploy_agents_https,
 )

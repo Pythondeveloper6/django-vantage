@@ -191,8 +191,11 @@ on the signed-in account, never the address:
 | `export` | 12 requests / 300s | An export holds a database connection open for the whole download; a dozen concurrent ones is a capacity incident |
 | `import` | 10 requests / 300s | Every attempt parses an attacker-supplied file; the wizard is four requests per real import, so ten is "two imports and a mistake" |
 | `reveal` | 30 requests / 300s | One sensitive value per request. Enforced by the reveal view itself, so it holds even without this middleware — see [Sensitive fields](sensitive-fields.md#revealing-a-value) |
+| `password_reset` | 20 requests / 3600s | Reset requests per caller address ([Password reset](password-reset.md)). Over it the answer is unchanged and no email is sent |
+| `password_reset_address` | 3 requests / 3600s | Reset requests per *target* address, whoever asks, so the form cannot flood one inbox |
+| `password_reset_confirm` | 30 requests / 3600s | Opening or submitting a reset link, per caller address; refused with `429` |
 
-A refusal is `429` with `Retry-After` and `Cache-Control: no-store` — JSON for
+The three `password_reset*` surfaces are spent by the reset views themselves, so they hold without the middleware. A refusal is `429` with `Retry-After` and `Cache-Control: no-store` — JSON for
 autocomplete (`{"results": [], "more": false, "error": "..."}`, so a client's existing
 error branch renders it), plain text elsewhere.
 
@@ -390,9 +393,18 @@ changed. A text value that really begins with one of these characters will show 
 `'` if the file is imported back. Vantage has no Excel export; one would need the same
 rule.
 
+## Password reset
+
+Off by default. When switched on it adds an emailed-link flow that treats the request
+form as an account-recovery path: identical answers for known and unknown addresses,
+rate limits per caller and per target, single-use links, no token in the address bar,
+`no-referrer` and `no-store` on every page, and a reset that never bypasses two-factor
+sign-in. Set `PASSWORD_RESET_BASE_URL` rather than relying on `ALLOWED_HOSTS` alone
+(`vantage.W117` flags a wildcard). See [Password reset](password-reset.md).
+
 ## The `--deploy` checks
 
-Ten checks, all silent unless the panel is actually mounted (a project that has not
+Eleven checks, all silent unless the panel is actually mounted (a project that has not
 wired `site.urls` into any `urls.py` gets no warnings for a panel it is not running),
 all registered with `deploy=True` so they stay out of the everyday `manage.py check` —
 a check that is right on a laptop and wrong in production is a check everyone learns to
@@ -411,6 +423,7 @@ scroll past.
 | `vantage.W058` | No `PanelSecurityMiddleware` — no security headers, no autocomplete/export/import budgets |
 | `vantage.W059` | [Media served from the panel's own origin](#media-on-a-separate-origin) while at least one registered model has a `FileField` |
 | `vantage.W115` | `REPORTS` is on and `REPORTS_BASE_URL` is unset, so links in [report emails](reports.md#the-email) are built from the `Host` header of the request that created each subscription |
+| `vantage.W116` | `AGENTS` is on in production (`DEBUG` off) with neither `SECURE_SSL_REDIRECT` nor `SECURE_PROXY_SSL_HEADER` set, so [agent tokens](agents.md) could travel over plain HTTP |
 
 Two-factor sign-in adds one more in its own range, `vantage.W095`: it is required of
 someone while `django.contrib.admin` is mounted without

@@ -12,10 +12,13 @@ from django.views.i18n import JavaScriptCatalog
 
 from vantage import (
     accessviews,
+    agentactivityviews,
+    agents,
     api,
     approvalviews,
     auditviews,
     autocomplete,
+    external,
     formviews,
     historyviews,
     importviews,
@@ -23,6 +26,8 @@ from vantage import (
     jobviews,
     listprefsview,
     listviews,
+    mcp,
+    passwordreset,
     recordviews,
     reportviews,
     revealviews,
@@ -77,6 +82,8 @@ def build(site) -> list:
         ),
         path("_/undo/", views.UndoView.as_view(site=site), name="undo"),
         path("_/metrics/", MetricsView.as_view(site=site), name="metrics"),
+        # The MCP endpoint: an agent surface, Bearer token only (see vantage.mcp).
+        path("_/mcp/", mcp.McpView.as_view(site=site), name="mcp"),
     ]
 
     # The account page and the top-bar arrangement screen. Before the page loop for
@@ -85,11 +92,15 @@ def build(site) -> list:
     # Two-factor set-up and the second step for sessions signed in elsewhere. Under
     # "_/account/", so before the page loop for the same reason.
     urlpatterns += twofactorviews.build_urls(site)
+    # The opt-in password reset flow; each route 404s while PASSWORD_RESET is off.
+    urlpatterns += passwordreset.build_urls(site)
 
     # The roles screens hang off the roles page's path, and only exist while it does.
     urlpatterns += rolesviews.build_urls(site)
     # The access review download and the break-glass screens, under their pages' paths.
     urlpatterns += accessviews.build_urls(site)
+    # Agent activity: the download and one run's entries, under that page's path.
+    urlpatterns += agentactivityviews.build_urls(site)
 
     # Likewise the webhook screens, which hang off the webhooks page's path.
     urlpatterns += webhookviews.build_urls(site)
@@ -191,4 +202,4 @@ def build(site) -> list:
     urlpatterns += api.build_urls(site)
     # Last, and over everything: every route above, and any a later change adds, is
     # behind the two-factor gate unless its view says otherwise. See vantage.twofactor.
-    return twofactor.guard_patterns(urlpatterns)
+    return twofactor.guard_patterns(agents.guard_patterns(external.guard_patterns(urlpatterns)))

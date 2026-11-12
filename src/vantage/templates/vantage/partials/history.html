@@ -27,12 +27,15 @@
               <span class="v-audit-verb" data-action="{{ entry.action }}">{{ entry.get_action_display }}</span>
               {% translate "Someone" as unknown_actor %}
               <span class="v-history-who">{{ entry.actor_repr|default:unknown_actor }}</span>
+              {% if entry.agent_id %}<span class="v-badge" data-tone="primary">{% translate "Agent" %}</span>{% endif %}
               <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">
                 {{ entry.created_at|date:"Y-m-d H:i" }}
               </time>
             </div>
             {% if entry.revealed_field %}
               <p class="v-history-note">{% blocktranslate with name=entry.revealed_field %}Revealed <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% elif entry.is_outside_panel %}
+              <p class="v-history-note"><span class="v-badge" data-tone="warning">{% translate "Outside the panel" %}</span> {% translate "Made by a script, the shell or other code, not through this panel." %}</p>
             {% elif entry.restored_as_of %}
               <p class="v-history-note">{% blocktranslate with when=entry.restored_as_of|date:"Y-m-d H:i" %}Restored from history, as of {{ when }}.{% endblocktranslate %}</p>
             {% elif entry.action_name %}

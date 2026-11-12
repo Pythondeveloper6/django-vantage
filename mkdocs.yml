@@ -113,6 +113,7 @@ nav:
       - List views: list-views.md
       - Analytics: analytics.md
       - Forms: forms.md
+      - Rich-text fields: rich-text.md
       - Undo: undo.md
       - History: history.md
       - Approvals: approvals.md
@@ -127,8 +128,16 @@ nav:
       - Access review and elevated access: access-review.md
       - Two-factor sign-in: two-factor.md
       - Single sign-on: single-sign-on.md
+      - Password reset: password-reset.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
+      - AI agents:
+          - Agent identities: agents.md
+          - Content safety for agents: agent-content-safety.md
+          - Agent writes, dry run and undo: agent-writes.md
+          - MCP server: mcp.md
+          - Agent activity: agent-activity.md
+          - For coding agents: for-coding-agents.md
       - Multi-tenancy: tenancy.md
       - Internationalization: internationalization.md
       - Extending: extending.md

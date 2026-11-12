@@ -490,6 +490,25 @@ class VantageLogEntry(models.Model):
     #: invoices" is not an audit trail.
     actor_repr = models.CharField(max_length=150, blank=True)
 
+    #: Set when the write came in through an agent identity's token. ``actor`` is then
+    #: the identity's service user, and ``actor_repr`` already names the agent and the
+    #: person it acted for. ``SET_NULL`` for the same reason as ``actor``: deleting an
+    #: identity must not delete what it did.
+    agent = models.ForeignKey(
+        "vantage.AgentIdentity",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    agent_run = models.ForeignKey(
+        "vantage.AgentRun",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
     # ── what ────────────────────────────────────────────────────────────────
 
     action = models.CharField(max_length=10, choices=Action.choices)
@@ -544,6 +563,25 @@ class VantageLogEntry(models.Model):
             "did": self.action_name or _ACTION_VERBS.get(self.action, self.action),
             "what": self.object_repr or _("a record"),
         }
+
+    @property
+    def is_outside_panel(self) -> bool:
+        """True for an entry recorded from a save made outside the panel.
+
+        See :mod:`vantage.external`. Carried in ``action_name`` so it costs no column.
+        """
+        return (self.action_name or "").endswith(" outside the panel")
+
+    @property
+    def outside_label(self) -> str:
+        """``"Updated outside the panel"``, translated; empty for an ordinary entry."""
+        if not self.is_outside_panel:
+            return ""
+        return {
+            "create": _("Created outside the panel"),
+            "update": _("Updated outside the panel"),
+            "delete": _("Deleted outside the panel"),
+        }.get(self.action, _("Changed outside the panel"))
 
     @property
     def model_label(self) -> str:
@@ -1605,21 +1643,26 @@ class UndoEntry(models.Model):
 
 
 class TwoFactorDevice(models.Model):
-    """One person's authenticator app: the shared TOTP secret and its bookkeeping.
+    """One authenticator app: the shared TOTP secret and its bookkeeping.
 
-    One row per person, and a *new* row per enrolment rather than an edit of the old
-    one: :attr:`tag` is random per row, and a session's proof that it passed the second
-    step names the tag it passed against. Re-enrolling therefore invalidates every
-    session verified against the previous authenticator without having to find them.
+    A person may have several (a phone and a spare, say), each its own row, and a
+    *new* row per enrolment rather than an edit of an old one: :attr:`tag` is random
+    per row, and a session's proof that it passed the second step names the tag it
+    passed against. Removing a device therefore invalidates every session verified
+    against it without having to find them, and leaves sessions verified against
+    another device alone. The lockout counters, the replay step and the sealed secret
+    are all per device.
 
     The secret is stored sealed (see :func:`vantage.twofactor.seal`), never shown
     again once :attr:`confirmed_at` is set, and the table is excluded from the panel's
     own CRUD screens — the only ways in are the account page and the reset screen.
     """
 
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
     )
+    #: What the person calls it ("Phone"), to tell their devices apart.
+    name = models.CharField(max_length=64, default="Authenticator")
     #: The 20-byte secret, encrypted with a key derived from ``SECRET_KEY``.
     secret = models.CharField(max_length=200)
     #: Random, not secret. What a verified session remembers it was verified against.
@@ -1654,13 +1697,18 @@ class TwoFactorDevice(models.Model):
 class TwoFactorRecoveryCode(models.Model):
     """One single-use recovery code, stored only as its SHA-256.
 
+    Kept per person, not per device: they are the way in when a phone is gone, so they
+    must outlive any one device being removed.
+
     A fast hash is enough here, unlike for a password, because the code is not chosen
     by a person: it carries 80 random bits, which no amount of hashing speed brings
     within reach of guessing. A fast, unsalted hash is also what lets a code be found
     with one indexed lookup instead of being compared against every row.
     """
 
-    device = models.ForeignKey(TwoFactorDevice, on_delete=models.CASCADE, related_name="codes")
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
     code_hash = models.CharField(max_length=64)
     used_at = models.DateTimeField(null=True, blank=True)
 
@@ -1668,11 +1716,11 @@ class TwoFactorRecoveryCode(models.Model):
         verbose_name = _("two-factor recovery code")
         verbose_name_plural = _("two-factor recovery codes")
         constraints = [
-            models.UniqueConstraint(fields=["device", "code_hash"], name="vantage_2fa_code_unique")
+            models.UniqueConstraint(fields=["user", "code_hash"], name="vantage_2fa_code_unique")
         ]
 
     def __str__(self) -> str:
-        return f"recovery code for device {self.device_id}"
+        return f"recovery code for user {self.user_id}"
 
 
 # ── changes waiting for approval ────────────────────────────────────────────
@@ -1909,3 +1957,98 @@ class ElevatedAccess(models.Model):
         if self.starts_at is not None and self.starts_at > now:
             return "scheduled"
         return "active"
+
+
+class AgentIdentity(models.Model):
+    """A non-human caller of the JSON API: a service user plus rules that narrow it.
+
+    The service user is an ordinary account with an ordinary role, so every permission
+    check, field rule and tenancy scope applies to the agent unchanged. The fields
+    below can only *remove* access from it. See :mod:`vantage.agents`.
+
+    The token is never stored: ``token_prefix`` finds the row and ``token_hash`` is the
+    SHA-256 of the secret half. Not an editable table in its own right; identities are
+    managed with the ``vantage_agent`` command.
+    """
+
+    class Access(models.TextChoices):
+        READ = "read", _("Read only")
+        WRITE = "write", _("Read and write")
+
+    name = models.CharField(max_length=100, unique=True)
+    #: ``PROTECT``: removing the account an identity runs as must be a decision, not a
+    #: side effect that silently deletes the identity and its trail.
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    #: The person this agent acts on behalf of; shown in the audit log.
+    owner = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    token_prefix = models.CharField(max_length=8, unique=True)
+    token_hash = models.CharField(max_length=64)
+    access = models.CharField(max_length=10, choices=Access.choices, default=Access.READ)
+    #: ``["shop.order", ...]``. Empty means every model the service user may see.
+    allowed_models = models.JSONField(default=list, blank=True)
+    allow_delete = models.BooleanField(default=False)
+    require_approval = models.BooleanField(default=False)
+    #: Requests per minute; ``0`` means no limit.
+    rate_limit_per_minute = models.PositiveIntegerField(default=60)
+    #: Write requests per run; ``0`` means no limit.
+    max_writes_per_run = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("agent identity")
+        verbose_name_plural = _("agent identities")
+        ordering = ["name"]
+        default_permissions = ()
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def status(self) -> str:
+        """``active``, ``expired`` or ``revoked``, computed from the clock."""
+        from django.utils import timezone
+
+        if self.revoked_at is not None:
+            return "revoked"
+        if self.expires_at is not None and self.expires_at <= timezone.now():
+            return "expired"
+        return "active"
+
+
+class AgentRun(models.Model):
+    """One run of an agent: the unit a write budget and an undo apply to.
+
+    A client groups its requests with an ``X-Vantage-Run`` header; a request without one
+    gets a run of its own.
+    """
+
+    identity = models.ForeignKey(AgentIdentity, on_delete=models.CASCADE, related_name="runs")
+    run_key = models.CharField(max_length=64)
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now_add=True)
+    writes = models.PositiveIntegerField(default=0)
+    rows_changed = models.PositiveIntegerField(default=0)
+    deletes = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("agent run")
+        verbose_name_plural = _("agent runs")
+        ordering = ["-started_at", "-pk"]
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(fields=["identity", "run_key"], name="vantage_agent_run_unique")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.identity_id}:{self.run_key}"

@@ -66,6 +66,16 @@ class SimpleVantageConfig(AppConfig):
         from vantage.twofactor import on_logged_in
 
         user_logged_in.connect(on_logged_in, dispatch_uid="vantage_two_factor_login")
+        # Opt-in history for changes made outside the panel. Receivers exist only for the
+        # models TRACK_EXTERNAL_CHANGES names, so Django's fast paths stay on for the rest.
+        from vantage import external
+
+        external.connect()
+        from django.test.signals import setting_changed
+
+        setting_changed.connect(
+            external.reconnect_on_change, dispatch_uid="vantage_external_reconnect"
+        )
         # deploy=True keeps these out of the everyday `manage.py check`. Every one of
         # them is correct on a laptop, and a check that is wrong in development is a
         # check everybody learns to scroll past.
@@ -84,6 +94,7 @@ class VantageConfig(SimpleVantageConfig):
         super().ready()
         from vantage.pages import (
             AccessReviewPage,
+            AgentActivityPage,
             ApprovalsPage,
             BreakGlassPage,
             DataQualityPage,
@@ -107,6 +118,8 @@ class VantageConfig(SimpleVantageConfig):
         site.register_page(ReportsPage)
         # Only in the navigation of someone who can view a model with requires_approval.
         site.register_page(ApprovalsPage)
+        # Hidden and a 404 until VANTAGE["AGENTS"] is on.
+        site.register_page(AgentActivityPage)
         # Groups are a contrib.auth table, and a project without it has no roles.
         if django_apps.is_installed("django.contrib.auth"):
             site.register_page(RolesPage)

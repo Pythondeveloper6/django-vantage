@@ -540,7 +540,7 @@ forgetting the parentheses is the mistake everyone makes once.
 | `label` | the method name, prettified | Button text |
 | `icon` | `None` | Lucide icon name |
 | `permission` | `"change"` | The verb the user must hold. `"delete"` for destructive ones, `None` to require only the view permission the page already checked |
-| `destructive` | `False` | Confirms before running, and styles the button as dangerous |
+| `destructive` | `False` | Confirms before running, and styles the button as dangerous. An agent needs `allow_delete` to run it (see [agent writes](agent-writes.md)) |
 | `confirm` | `None` | A confirmation sentence. `{count}` is substituted |
 | `max_rows` | `None` | Refuses above this many rows, guarding against a mis-click wiping a table |
 | `keywords` | `[]` | Extra terms that match in the command palette |
@@ -652,10 +652,16 @@ Settings: [`JOBS`, `JOB_THRESHOLD_SECONDS`, `JOB_CHUNK_SIZE`, `JOB_MAX_STORED_ER
 Every list page exports what it is currently showing. To get a saved view by email on a
 schedule instead, see [Scheduled reports](reports.md).
 
+The **Export** menu on the list page offers every format below (CSV, TSV, JSON, Excel and
+PDF), each link carrying the current search, filters and sort. Excel and PDF are refused
+with a plain-text 413 above `EXPORT_BINARY_MAX_ROWS` rows; narrow the filters and try again.
+
 ```
 ?export=csv          orders.csv          text/csv
 ?export=tsv          orders.tsv          text/tab-separated-values
 ?export=json         orders.ndjson       application/x-ndjson
+?export=xlsx         orders.xlsx         application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+?export=pdf          orders.pdf          application/pdf
 ```
 
 Two properties matter more than format support.
@@ -676,7 +682,15 @@ ORD-5023,Milos Lindqvist,paid,14.41,Valencia,2026-08-07 12:00:51.817566+00:00
 
 **It streams.** `StreamingHttpResponse` over `QuerySet.iterator()` in chunks of 2,000,
 so exporting 400,000 rows does not put 400,000 rows in a worker's memory and the
-download starts immediately rather than appearing to hang.
+download starts immediately rather than appearing to hang. Excel and PDF files cannot
+be written one row at a time (a workbook and a PDF both end with an index), so they are
+built into a temporary file on disk and then sent back in 64 KB chunks: memory stays
+flat, but the download starts once the file is complete. Because of that they are capped
+by `VANTAGE["EXPORT_BINARY_MAX_ROWS"]` (default 100,000 rows; Excel itself holds at most
+1,048,575 data rows): over the cap the export is refused with HTTP 413 and a message
+giving the number of matching rows, never silently cut short. CSV, TSV and JSON are
+unaffected, and the JSON API returns the same refusal as `{"detail": ...}`. An Excel cell
+is cut at Excel's 32,767-character limit, ending in an ellipsis.
 
 Columns are the ones on screen, headers are the column labels, and related objects
 export as their `__str__` — what a human reading the file expects, rather than a
@@ -690,8 +704,19 @@ as text. Numbers, decimals, dates and booleans are not text and are never touche
 `-1.50` stays a number. The rule is the one the import error report uses, and scheduled
 report attachments share it with the Export button. It also means a text value that
 begins with one of those characters gains a visible `'` if the file is imported back.
-JSON (NDJSON) is not opened in a spreadsheet and is exported unchanged. There is no Excel
-export; if one is added it needs the same rule.
+JSON (NDJSON) is not opened in a spreadsheet and is exported unchanged. The Excel export
+applies the same rule to every text cell and to the header row, and writes every cell as
+text so nothing is ever evaluated. As in CSV, a text value starting with `=`, `+`, `-` or
+`@` shows a leading apostrophe in Excel and in the PDF.
+
+**Excel and PDF.** `?export=xlsx` writes a single-sheet workbook with a bold header row,
+using only the Python standard library (no extra dependency). A sheet holds at most
+1,048,576 rows, which is Excel's own limit. `?export=pdf` writes an A4 landscape table in
+Helvetica with equal-width columns and the header repeated on every page. A cell too long
+for its column is cut with `...`, and a character the built-in PDF font cannot draw is
+replaced with `?`: use CSV or Excel when you need the full text. Both formats use the
+same columns, rows, masked fields and field permissions as CSV, and the JSON API accepts
+`?format=xlsx` and `?format=pdf` on its export endpoint.
 
 JSON is **newline-delimited**, one object per line, rather than one big array: a
 streamed array cannot be closed if the queryset raises halfway, leaving a file that is

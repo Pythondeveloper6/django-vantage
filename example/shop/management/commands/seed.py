@@ -270,12 +270,28 @@ class Command(BaseCommand):
                         f"Trade pack of {name.lower()}. Sold by the case; "
                         "price shown is per case excluding VAT."
                     ),
+                    "details_html": self._details_html(name, hostile=index == 0),
                     "created_at": now - timedelta(days=rng.randint(200, 900)),
                 },
             )
             product.tags.set(chosen_tags)
             products.append(product)
         return products
+
+    @staticmethod
+    def _details_html(name, *, hostile=False):
+        """Rich-text sample. The first product also carries a script and an event handler,
+        which the panel strips when it draws the page, to show the sanitiser at work."""
+        html = (
+            f"<p>Sold by the <strong>case</strong>: <em>{name}</em>.</p>"
+            "<ul><li>Case of 24</li><li>Store in a cool, dry place</li></ul>"
+        )
+        if hostile:
+            html += (
+                '<p><a href="javascript:void(0)" onclick="void(0)">Spec sheet</a></p>'
+                "<script>void(0)</script>"
+            )
+        return html
 
     # ── people ──────────────────────────────────────────────────────────────
 

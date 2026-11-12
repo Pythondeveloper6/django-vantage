@@ -79,13 +79,17 @@ def _money_fields(panel) -> dict[str, int]:
     return cached
 
 
-def render_cell(panel, obj, name: str, *, size: str = "sm") -> SafeString | str:
+def render_cell(panel, obj, name: str, *, size: str = "sm", rich: bool = False) -> SafeString | str:
     """Render one cell of ``obj`` for the column ``name``.
 
     ``size`` is the thumbnail box a file column uses, and is the one thing about a cell
     that depends on where the cell is: a 40-pixel thumbnail is right in a table row and
     is not a detail page's idea of showing you the picture. It is keyword-only and
     defaults to the table size, so every existing caller keeps its behaviour.
+
+    ``rich`` asks for a rich-text value as formatted HTML, which only a page that has room
+    for it wants; everywhere else the same value is its visible text, truncated. Either way
+    the markup is sanitised here, at render time, whatever was stored.
     """
     # A panel method wins, so a project can always override rendering in Python.
     method = getattr(panel, name, None)
@@ -137,7 +141,27 @@ def render_cell(panel, obj, name: str, *, size: str = "sm") -> SafeString | str:
 
         return render_file(value, obj=obj, size=size)
 
+    if isinstance(field, models.TextField) and value and _is_html_richtext(panel, field):
+        if rich:
+            from vantage.richtext import render_richtext
+
+            return format_html('<div class="v-richtext">{}</div>', render_richtext(value))
+        from vantage.richtext import to_text
+
+        return Truncator(to_text(value)).chars(80)
+
     return _render_value(value, field, obj, hops[0])
+
+
+def _is_html_richtext(panel, field) -> bool:
+    """Whether ``field`` holds sanitised HTML rather than text or markdown."""
+    from vantage.widgets import FieldKind, classify, wants_html_editor
+
+    if classify(field) is not FieldKind.RICHTEXT:
+        return False
+    if field.name in (getattr(panel, "markdown_fields", None) or ()):
+        return False
+    return wants_html_editor(None, field)
 
 
 def _render_value(value, field, obj, first_hop):

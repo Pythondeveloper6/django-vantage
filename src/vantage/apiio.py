@@ -19,9 +19,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from vantage import importer, listprefs
-from vantage.api import ApiError, BadRequest, ModelApiView, json_response
-from vantage.export import FORMATS, stream_export
+from vantage import agents, importer, listprefs
+from vantage.api import ApiError, BadRequest, ModelApiView, json_response, refuse_agent_hidden
+from vantage.export import FORMATS, ExportTooLarge, stream_export
 from vantage.importviews import PERMISSION_DENIED, PERMISSION_DENIED_FALLBACK
 
 __all__ = ["ExportView", "ImportView"]
@@ -33,6 +33,16 @@ MAX_RETURNED_ERRORS = 1000
 
 class ImportView(ModelApiView):
     """``POST`` a CSV as ``multipart/form-data``."""
+
+    def writes_nothing(self, request) -> bool:
+        # An import previews unless it says ``dry_run=false``, so a request that does
+        # not commit spends no write budget and is open to an identity that needs
+        # approval; an import that commits is refused for such an identity.
+        return agents.is_dry_run(request) or self._dry(request.POST)
+
+    @staticmethod
+    def _dry(post) -> bool:
+        return (post.get("dry_run") or "true").strip().lower() not in ("false", "0", "no", "off")
 
     def post(self, request, *args, **kwargs):
         upload = request.FILES.get("file")
@@ -52,6 +62,7 @@ class ImportView(ModelApiView):
         mode = post.get("mode", "create")
         options = importer.importable_fields(self.panel, request, self.permissions)
         chosen = self._mapping(post.get("mapping"), parsed, options)
+        refuse_agent_hidden(request, self.panel, [*chosen.values(), post.get("key_field", "")])
         try:
             mapping = importer.resolve_mapping(
                 self.panel,
@@ -66,9 +77,21 @@ class ImportView(ModelApiView):
             raise ApiError(422, str(exc)) from exc
         self._check_mode(request, mapping.mode)
 
-        dry = (post.get("dry_run") or "true").strip().lower() not in ("false", "0", "no", "off")
-        runner = importer.dry_run if dry else importer.commit
-        result = runner(self.panel, parsed, mapping, request, self.permissions)
+        dry = agents.is_dry_run(request) or self._dry(post)
+        if dry:
+            # For an agent a preview must be validation only. The wizard's preview saves
+            # every row and rolls back, which still runs save hooks and signal receivers
+            # (email, HTTP calls) for rows that will never exist.
+            result = importer.dry_run(
+                self.panel,
+                parsed,
+                mapping,
+                request,
+                self.permissions,
+                validate_only=agents.current_agent(request) is not None,
+            )
+        else:
+            result = importer.commit(self.panel, parsed, mapping, request, self.permissions)
         return json_response(self._payload(result, mapping, parsed))
 
     @staticmethod
@@ -132,7 +155,8 @@ class ImportView(ModelApiView):
 
 
 class ExportView(ModelApiView):
-    """``GET`` the filtered list as ``csv``, ``tsv`` or ``json`` (newline-delimited)."""
+    """``GET`` the filtered list as ``csv``, ``tsv``, ``json`` (newline-delimited), ``xlsx``
+    or ``pdf``."""
 
     def get(self, request, *args, **kwargs):
         fmt = request.GET.get("format", "csv")
@@ -144,11 +168,15 @@ class ExportView(ModelApiView):
         view = ListView(site=self.site, panel=self.panel)
         view.request = request
         queryset, columns, headers, masked = view.export_parts(request)
-        return stream_export(
-            fmt,
-            queryset,
-            columns,
-            headers,
-            self.panel.get_label_plural(),
-            masked=masked,
-        )
+        try:
+            return stream_export(
+                fmt,
+                queryset,
+                columns,
+                headers,
+                self.panel.get_label_plural(),
+                masked=masked,
+                raise_too_large=True,
+            )
+        except ExportTooLarge as exc:
+            raise ApiError(413, exc.message(), rows=exc.rows, limit=exc.cap) from exc

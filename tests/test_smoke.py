@@ -166,6 +166,10 @@ def _iter_requests(
                     kwargs["pk"] = change_request.pk
                 elif route.startswith("_/elevated-access/") and elevated_access is not None:
                     kwargs["pk"] = elevated_access.pk
+                elif entry.name == "agent-activity-run":
+                    # No agent run exists in this fixture (agents are off by default);
+                    # a nonexistent run is a supported answer (404), never a crash.
+                    kwargs["pk"] = 0
                 else:
                     unresolved.append(param)
             elif param == "user" and route.startswith("_/roles/") and user is not None:
@@ -178,6 +182,13 @@ def _iter_requests(
                 # redirect back to step one), and exercising that path is as valid a
                 # smoke check as a happy one.
                 kwargs["token"] = "smoke-test-token"
+            elif param == "uidb64" and entry.name == "password_reset_confirm":
+                # PASSWORD_RESET is off by default, so the route answers 404; a bad link
+                # is never a crash either way.
+                kwargs["uidb64"] = "MQ"
+            elif param == "run_key" and entry.name == "api-agent-run-undo":
+                # A GET is refused (405) / an unknown run is a 404; neither may 500.
+                kwargs["run_key"] = "smoke-test-run"
             elif param == "field":
                 # The reveal endpoint's field name. A GET is refused (405) whatever
                 # field it names, so any name exercises the route without revealing.

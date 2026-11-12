@@ -79,12 +79,24 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/admin/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 VANTAGE = {
+    # Also record saves and deletes made outside the panel (shell, scripts, signals):
+    # "TRACK_EXTERNAL_CHANGES": ["app_label.model"],  # or "*"
     "SITE_TITLE": "Northwind Supply",
     "SITE_ACRONYM": "NS",
     "BRAND_COLOR": "#0d9488",
     "BRAND_RADIUS": "0.625rem",
     "THEME": "system",
+    # Agent identities (tokens for scripts and automation) are off in the demo. Set this
+    # to True to try them: it turns on `manage.py vantage_agent` and the "Agent activity"
+    # page in the System group.
+    "AGENTS": False,
+    # "Forgot password?" on the sign-in page. Off by default. To try it, set this to True
+    # and use the console email backend below, which prints the reset link in the
+    # terminal running the server.
+    "PASSWORD_RESET": False,
     "ENVIRONMENT": "Demo data — nothing here is real",
     # The sidebar, stated rather than derived: groups in the order you want them,
     # items in the order you want them, renamed where the model name is not the word
@@ -118,6 +130,9 @@ VANTAGE = {
                 {"page": "schema", "label": "Schema", "icon": "share-2"},
                 {"page": "roles", "label": "Roles", "icon": "shield"},
                 {"page": "data-quality", "label": "Data quality", "icon": "database"},
+                {"route": "vantage:audit", "label": "Audit log", "icon": "file-text"},
+                # Left out of the sidebar while AGENTS is off (see below).
+                {"page": "agent-activity", "label": "Agent activity", "icon": "activity"},
             ],
         },
         {

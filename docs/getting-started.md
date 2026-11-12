@@ -8,11 +8,13 @@
 pip install --pre django-vantage
 ```
 
-`--pre` is needed while Vantage is in alpha: pip skips pre-releases unless asked. Pin
-the exact version (`django-vantage==0.2.0a2`) if you depend on it, because the API may
-still move before 1.0.
+`--pre` is needed while Vantage is in beta: pip skips pre-releases unless asked. Pin
+the exact version (`django-vantage==0.3.0b1`) if you depend on it, because provisional
+items may still change before 1.0.
 
-Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. Nothing else is.
+Python 3.12+ and Django 5.2, 6.0 or 6.1 are required. The only other package is `nh3`, the
+HTML sanitiser behind [rich-text fields](rich-text.md); it installs by itself as a
+prebuilt wheel, so there is nothing to compile.
 
 ## Mount it
 
@@ -223,6 +225,7 @@ are the shortest useful reference for most of what follows.
 
 ## Where next
 
+- [Lesson projects](https://github.com/Pythondeveloper6/django-vantage/tree/main/example/lessons) — a starter and a solution to follow step by step
 - [Panels](panels.md) — every attribute you can set
 - [Inference](inference.md) — what the defaults will be, and why
 - [Lists](lists.md) — the list page in detail

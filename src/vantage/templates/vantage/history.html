@@ -152,13 +152,18 @@
               <span class="v-audit-verb" data-action="{{ entry.action }}">{{ entry.get_action_display }}</span>
               {% translate "Someone" as unknown_actor %}
               <span class="v-history-who">{{ entry.actor_repr|default:unknown_actor }}</span>
+              {% if entry.agent_id %}<span class="v-badge" data-tone="primary">{% translate "Agent" %}</span>{% endif %}
+            </div>
+            <div class="v-history-meta">
               <time class="v-history-when" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"Y-m-d H:i:s" }}</time>
-              <a class="v-btn v-btn-sm v-btn-ghost" href="{{ row.url }}">{% translate "As it was after this" %}</a>
+              <a class="v-history-asof" href="{{ row.url }}">{% translate "As it was after this" %}</a>
             </div>
             {% if entry.restored_as_of %}
               <p class="v-history-note">{% blocktranslate with when=entry.restored_as_of|date:"Y-m-d H:i" %}Restored from history, as of {{ when }}.{% endblocktranslate %}</p>
             {% elif entry.revealed_field %}
               <p class="v-history-note">{% blocktranslate with name=entry.revealed_field %}Revealed <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% elif entry.is_outside_panel %}
+              <p class="v-history-note"><span class="v-badge" data-tone="warning">{% translate "Outside the panel" %}</span></p>
             {% elif entry.action_name %}
               <p class="v-history-note">{% blocktranslate with name=entry.action_name %}Ran <code>{{ name }}</code>.{% endblocktranslate %}</p>
             {% endif %}
