@@ -277,6 +277,7 @@ django-simple-history are all used when present and never required.
 | [Forms](forms.md) | Widget inference, the layout DSL, editable inlines, readonly fields, validation, delete preview |
 | [Rich-text fields](rich-text.md) | The WYSIWYG editor, the HTML allowlist, widening it, keeping the markdown toolbar |
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
+| [Password reset](password-reset.md) | The opt-in reset flow on the sign-in page: no enumeration, rate limits, single-use links, two-factor kept |
 | [Sensitive fields](sensitive-fields.md) | Inferred masking of secrets on every surface, audited reveal, write-only inputs, the threat model |
 | [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |
 | [Agent identities](agents.md) | Bearer-token service users that can only be narrowed: access level, allowed models, rate limit, write budget, runs |
