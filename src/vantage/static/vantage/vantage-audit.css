@@ -545,3 +545,51 @@
 .v-agent-table td {
   padding-inline: 0.625rem;
 }
+
+/* An "Outside the panel" row carries a badge after the verb that the one-line cell would
+ * cut off, and it is the whole point of the row. Only those cells wrap; the badge drops to
+ * its own line when the column is narrow. */
+.v-audit-table td.v-audit-what-wrap {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* The columns are a fixed width, so on a phone the badge wraps inside its cell rather than
+ * spilling over the next one. */
+.v-audit-table td.v-audit-what-wrap .v-badge {
+  white-space: normal;
+  max-inline-size: 100%;
+  text-align: start;
+}
+
+/* A history entry's second row: the time and the link to the record as it was then sit on
+ * one baseline and stack on a phone. The link is plain text so it lines up with the rest. */
+.v-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.v-history-meta .v-history-when {
+  margin-inline-start: 0;
+}
+
+.v-history-asof {
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 40rem) {
+  .v-history-meta {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  /* Wide enough that each column keeps a readable width; it scrolls inside its wrapper. */
+  .v-shell .v-table.v-audit-table {
+    min-inline-size: 52rem;
+  }
+}

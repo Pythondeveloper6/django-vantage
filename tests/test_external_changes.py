@@ -351,11 +351,40 @@ class TestSurfaces:
         panel_only = boss.get(url, {"source": "panel"})
         assert [r["entry"].object_repr for r in panel_only.context["entries"]] == ["panel"]
 
+    def test_only_the_outside_rows_get_the_wrapping_cell(self, tracked, boss):
+        import re
+
+        Preference.objects.create(key="shell", value="v")
+        boss.post(reverse("vantage:testapp-preference-add"), {"key": "panel", "value": "v"})
+        body = boss.get(reverse("vantage:audit")).content.decode()
+        cells = re.findall(
+            r"<td(?: class=\"v-audit-what-wrap\")?>\s*<span class=\"v-audit-verb\".*?</td>",
+            body,
+            flags=re.S,
+        )
+        wrapped = [c for c in cells if "Outside the panel" in c]
+        plain = [c for c in cells if "Outside the panel" not in c]
+        assert len(wrapped) == 1 and wrapped[0].startswith('<td class="v-audit-what-wrap">')
+        assert len(plain) == 1 and plain[0].startswith(
+            '<td>\n              <span class="v-audit-verb"'
+        )
+        assert body.count("v-audit-what-wrap") == 1
+
     def test_the_record_history_panel_shows_the_badge(self, tracked, boss):
         pref = Preference.objects.create(key="theme", value="dark")
         page = boss.get(reverse("vantage:testapp-preference-history", args=[pref.pk]))
         assert page.status_code == 200
         assert b"Outside the panel" in page.content
+
+    def test_a_history_entry_keeps_its_time_and_link_on_one_meta_row(self, tracked, boss):
+        pref = Preference.objects.create(key="theme", value="dark")
+        page = boss.get(reverse("vantage:testapp-preference-history", args=[pref.pk]))
+        body = page.content.decode()
+        head_end = body.index('<div class="v-history-meta">')
+        assert body.index("</div>", body.index('class="v-history-head"')) < head_end
+        meta = body[head_end : body.index("</div>", head_end)]
+        assert "<time" in meta and 'class="v-history-asof"' in meta
+        assert "v-btn" not in meta
 
 
 def _audit_mounted() -> bool:
