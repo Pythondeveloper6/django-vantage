@@ -28,8 +28,9 @@ made **through the panel** — the form views, inline edits, the JSON API's dele
 moves on a board. A soft delete (trash) is a `deleted` event with `"soft_delete": true`.
 An edit that changed nothing sends nothing.
 
-Out of scope, deliberately: changes made by `manage.py shell`, signals, imports and
-other code, and bulk-action runs (which the audit log also records as one entry, not one
+Out of scope by default: changes made by `manage.py shell`, signals, imports and
+other code (opt in with `TRACK_EXTERNAL_CHANGES` and `TRACK_EXTERNAL_WEBHOOKS`, see
+[History](history.md#changes-made-outside-the-panel)), and bulk-action runs (which the audit log also records as one entry, not one
 per row). A webhook fires whether or not `AUDIT_LOG` is on. The package's own tables
 never fire one.
 

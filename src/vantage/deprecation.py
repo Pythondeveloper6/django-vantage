@@ -120,6 +120,8 @@ STABLE_SETTINGS: frozenset[str] = frozenset(
         "READ_ONLY",
         "ENVIRONMENT",
         "AUDIT_LOG",
+        "TRACK_EXTERNAL_CHANGES",
+        "TRACK_EXTERNAL_WEBHOOKS",
         "COMMAND_PALETTE",
         "SENSITIVE_PATTERNS",
         # tenancy

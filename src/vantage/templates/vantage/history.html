@@ -160,6 +160,8 @@
               <p class="v-history-note">{% blocktranslate with when=entry.restored_as_of|date:"Y-m-d H:i" %}Restored from history, as of {{ when }}.{% endblocktranslate %}</p>
             {% elif entry.revealed_field %}
               <p class="v-history-note">{% blocktranslate with name=entry.revealed_field %}Revealed <code>{{ name }}</code>.{% endblocktranslate %}</p>
+            {% elif entry.is_outside_panel %}
+              <p class="v-history-note"><span class="v-badge" data-tone="warning">{% translate "Outside the panel" %}</span></p>
             {% elif entry.action_name %}
               <p class="v-history-note">{% blocktranslate with name=entry.action_name %}Ran <code>{{ name }}</code>.{% endblocktranslate %}</p>
             {% endif %}

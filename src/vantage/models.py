@@ -565,6 +565,25 @@ class VantageLogEntry(models.Model):
         }
 
     @property
+    def is_outside_panel(self) -> bool:
+        """True for an entry recorded from a save made outside the panel.
+
+        See :mod:`vantage.external`. Carried in ``action_name`` so it costs no column.
+        """
+        return (self.action_name or "").endswith(" outside the panel")
+
+    @property
+    def outside_label(self) -> str:
+        """``"Updated outside the panel"``, translated; empty for an ordinary entry."""
+        if not self.is_outside_panel:
+            return ""
+        return {
+            "create": _("Created outside the panel"),
+            "update": _("Updated outside the panel"),
+            "delete": _("Deleted outside the panel"),
+        }.get(self.action, _("Changed outside the panel"))
+
+    @property
     def model_label(self) -> str:
         """``"shop.order"``, or an empty string once the content type is gone."""
         return self.content_type.model if self.content_type_id else ""

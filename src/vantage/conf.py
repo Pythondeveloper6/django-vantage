@@ -109,6 +109,12 @@ DEFAULTS: dict[str, Any] = {
     # "deny" shows no rows, which is the only default that makes forgetting safe.
     "TENANT_UNSCOPED": "deny",
     "AUDIT_LOG": True,
+    # Opt-in history for changes made OUTSIDE the panel (shell, scripts, signals, the
+    # project's own views). False, or a list of "app_label.model" strings, or "*" for
+    # every registered panel model. Code-only. See vantage.external.
+    "TRACK_EXTERNAL_CHANGES": False,
+    # Whether those changes also fire webhooks. Off: they are logged and nothing is sent.
+    "TRACK_EXTERNAL_WEBHOOKS": False,
     "COMMAND_PALETTE": True,
     # ── rich text ───────────────────────────────────────────────────────────
     # "html" gives RICHTEXT fields the WYSIWYG editor and stores sanitised HTML.
@@ -411,6 +417,21 @@ class VantageSettings:
             raise ImproperlyConfigured(
                 f"VANTAGE['AGENT_ALLOWED_ORIGINS'] must be a list of origins; got {origins!r}."
             )
+        tracked = user.get("TRACK_EXTERNAL_CHANGES", False)
+        if not (
+            tracked is False
+            or tracked == "*"
+            or (
+                isinstance(tracked, list | tuple | set | frozenset)
+                and all(isinstance(t, str) and t.count(".") == 1 for t in tracked)
+            )
+        ):
+            raise ImproperlyConfigured(
+                "VANTAGE['TRACK_EXTERNAL_CHANGES'] must be False, \"*\" or a list of "
+                f'"app_label.model" strings; got {tracked!r}.'
+            )
+        if not isinstance(user.get("TRACK_EXTERNAL_WEBHOOKS", False), bool):
+            raise ImproperlyConfigured("VANTAGE['TRACK_EXTERNAL_WEBHOOKS'] must be True or False.")
         problem = two_factor_problem(user)
         if problem:
             raise ImproperlyConfigured(problem)
