@@ -423,6 +423,17 @@ class TestNewPassword:
         assert reverse("login") in response.content.decode()
         assert response["Referrer-Policy"] == "same-origin"
 
+    def test_the_complete_page_spaces_the_button_from_the_text(self, client, clerk):
+        from pathlib import Path
+
+        import vantage
+
+        set_password(client, reset_link(client))
+        body = client.get(reverse("vantage:password_reset_complete")).content.decode()
+        assert '</p>\n  <a class="v-btn v-btn-primary v-auth-submit"' in body
+        css = (Path(vantage.__file__).parent / "static/vantage/vantage-auth.css").read_text()
+        assert ".v-auth-main .v-card-body > p + .v-auth-submit" in css
+
     def test_other_sessions_are_signed_out(self, client, clerk):
         elsewhere = Client()
         elsewhere.force_login(clerk)

@@ -369,3 +369,8 @@
   justify-content: center;
   margin-block-start: 1.5rem;
 }
+
+/* Reset pages: a paragraph is followed by a button with room between them. */
+.v-auth-main .v-card-body > p + .v-auth-submit {
+  margin-block-start: 1rem;
+}
