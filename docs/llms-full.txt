@@ -278,6 +278,7 @@ django-simple-history are all used when present and never required.
 | [Forms](forms.md) | Widget inference, the layout DSL, editable inlines, readonly fields, validation, delete preview |
 | [Rich-text fields](rich-text.md) | The WYSIWYG editor, the HTML allowlist, widening it, keeping the markdown toolbar |
 | [Permissions](permissions.md) | The three-layer model, bulk row scoping, guardian, read-only, impersonation |
+| [Password reset](password-reset.md) | The opt-in reset flow on the sign-in page: no enumeration, rate limits, single-use links, two-factor kept |
 | [Sensitive fields](sensitive-fields.md) | Inferred masking of secrets on every surface, audited reveal, write-only inputs, the threat model |
 | [The JSON API](api.md) | Read/write endpoints over every panel, cursor pagination, concurrency, errors as data |
 | [Agent identities](agents.md) | Bearer-token service users that can only be narrowed: access level, allowed models, rate limit, write budget, runs |
@@ -4257,9 +4258,9 @@ Each change the log records carries the value it replaced and the value it wrote
 Starting from the record as it stands now, the page walks those changes backwards to
 the point you chose.
 
-That only tells the truth about changes made **through the panel**. The audit log is
-not row history: a script, an import, a data migration or a `shell` session writes
-nothing to it. So a value is only shown as known when the log is consistent with
+That only tells the truth about changes the log saw. By default that means changes made
+**through the panel**: a script, an import, a data migration or a `shell` session writes
+nothing to it unless you [opt in](#changes-made-outside-the-panel). So a value is only shown as known when the log is consistent with
 itself — every change's "from" matches the previous change's "to", and the last "to"
 matches what the record holds today. If something the panel never saw moved the field
 in between, the chain breaks, and the page says the value **cannot be worked out**
@@ -4350,6 +4351,51 @@ The log is "what people did in the panel". If you need every write from every so
 workers, imports, the shell — install
 [django-simple-history](https://django-simple-history.readthedocs.io/); its timeline
 renders next to Vantage's own on the detail page.
+
+## Changes made outside the panel
+
+By default the log records what people do **in the panel** and nothing else. If you want
+saves and deletes made by the shell, scripts, signal handlers, your own views or another
+admin to show up too, opt in per model (code-only; not editable from the settings
+screen):
+
+```python
+VANTAGE = {
+    "TRACK_EXTERNAL_CHANGES": ["shop.order", "shop.invoice"],   # or "*" for every registered model
+    "TRACK_EXTERNAL_WEBHOOKS": False,                           # default: logged, nothing sent
+}
+```
+
+Those changes become ordinary entries in the same timeline, so the point-in-time view
+above works across them. They are marked **Outside the panel** (a badge on the record's
+history and on the audit page, which also gains a *Source* filter) and are named
+"Created / Updated / Deleted outside the panel".
+
+How it behaves:
+
+* **Never twice.** Every panel route, and every background job the panel runs, is marked
+  as the panel writing; the receivers stand down for it and the panel records its own
+  entry with the real actor and form diff. A side effect the panel triggers on a
+  different model (a signal that saves a second row) is therefore not recorded either.
+* **The actor.** If the project's own view runs under `vantage.tenancy.TenantMiddleware`
+  (which publishes the request, and can be installed without tenancy), the signed-in
+  user is the actor. Otherwise the entry reads "system / unknown".
+* **Secrets.** A [sensitive field](sensitive-fields.md) is noted as changed and its value
+  is never stored; field permissions apply when the log is read, as for any entry.
+* **Cheap and safe.** A model that is not tracked costs a settings read and a lookup, no
+  query. A tracked update reads the stored row once to get the "before" values. The
+  entry is written in its own savepoint; any error is logged and the caller's save is
+  never affected. `AUDIT_LOG = False` records nothing.
+* **Skipped.** Fixture loads (`loaddata`, `raw=True`), historical models inside
+  migrations, and the package's own tables.
+* **Webhooks** do not fire for these changes unless `TRACK_EXTERNAL_WEBHOOKS` is on.
+
+What it cannot see: Django only announces `save()`, `delete()` and many-to-many
+`add/remove/set/clear`. `QuerySet.update()`, `bulk_create()`, `bulk_update()` and raw SQL
+send no signal, so they leave no entry and no "before" value, and the history page will
+report the field as **cannot be worked out** instead of guessing. Reverse many-to-many
+changes (from the other side) are not recorded. Changes made while the setting was off,
+or on a model not listed, are not recovered later.
 
 ---
 
@@ -6880,6 +6926,97 @@ Anything else can call `vantage.identity.sync_roles(user, groups)` directly.
 [mozilla-django-oidc]: https://mozilla-django-oidc.readthedocs.io/
 [django-allauth]: https://docs.allauth.org/
 [python-social-auth]: https://python-social-auth.readthedocs.io/
+
+---
+
+URL: https://pythondeveloper6.github.io/django-vantage/password-reset/
+
+# Password reset
+
+An opt-in "Forgot password?" flow on the sign-in page. It uses Django's own
+`PasswordResetTokenGenerator` and your project's email backend: no new tables, no
+second token scheme. It is off by default; until you enable it the routes are 404 and
+the sign-in page shows no link.
+
+## Enabling it
+
+```python
+VANTAGE = {
+    "PASSWORD_RESET": True,
+    "PASSWORD_RESET_TIMEOUT_MINUTES": 60,                 # default; minimum 5
+    "PASSWORD_RESET_BASE_URL": "https://panel.example.com",  # recommended
+}
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"  # your mail setup
+DEFAULT_FROM_EMAIL = "panel@example.com"
+```
+
+The routes live under the panel's own prefix, for a panel mounted at `admin/`:
+`admin/_/password-reset/` (request), `.../done/`, `.../confirm/<uidb64>/<token>/` and
+`.../complete/`. Reverse them as `vantage:password_reset`, `vantage:password_reset_done`,
+`vantage:password_reset_confirm` and `vantage:password_reset_complete`. In development,
+use `django.core.mail.backends.console.EmailBackend` and read the link from the terminal.
+
+## Who gets an email
+
+Only accounts that can sign in to the panel with a password: active, `is_staff`, a usable
+password and an email address. Everyone else gets the same on-screen answer and no
+email. **Accounts that sign in only through an identity provider** (see
+[Single sign-on](single-sign-on.md)) have no usable password and are not reset here;
+their password belongs to the provider.
+
+## Customising the email
+
+Override `vantage/password_reset_email.txt` (body) and `vantage/password_reset_subject.txt`
+(subject, collapsed to one line) in your templates. Context: `user`, `username`, `link`,
+`site_title`, `valid_minutes`. The sender is `DEFAULT_FROM_EMAIL`; the backend is yours.
+The pages are `password_reset.html`, `password_reset_done.html`,
+`password_reset_confirm.html` and `password_reset_complete.html` under `vantage/`.
+
+## Security properties
+
+* **No user enumeration.** The request form redirects to the same page whether or not
+  the address has an account, is ineligible, or was rate limited. The email is sent on a
+  background thread, so a slow mail server does not make a real address slower to answer.
+* **Rate limits** through the existing `RATE_LIMITS` machinery (and so `RATE_LIMIT`,
+  `RATE_LIMIT_CACHE`): `password_reset` (20 per hour per caller address),
+  `password_reset_address` (3 per hour per target address) and `password_reset_confirm`
+  (30 per hour per caller, answered with `429`). Over a request limit nothing is sent and
+  the answer does not change. Override like any other surface; set one to `None` to turn it off.
+* **Single use, short lived.** The token hashes the password and `last_login`, so using
+  it, changing the password or signing in voids it. Tokens use their own salt (Django's
+  own reset tokens are not accepted) and Django's constant-time comparison. Lifetime is
+  `PASSWORD_RESET_TIMEOUT_MINUTES`, independent of `PASSWORD_RESET_TIMEOUT`.
+* **The token leaves the address bar.** The first visit stores it in the session and
+  redirects to `.../confirm/<uid>/set-password/`. That redirect sends
+  `Referrer-Policy: no-referrer`; every page here sends `same-origin` (a browser posts
+  `Origin: null` under `no-referrer`, which CSRF protection refuses, so the forms cannot
+  use it) and `Cache-Control: no-store`. The form pages carry no token in their URL.
+* **Links point at your host.** With `PASSWORD_RESET_BASE_URL` set, links use it.
+  Otherwise they use the request host as validated against `ALLOWED_HOSTS`
+  (`X-Forwarded-Host` only if you set `USE_X_FORWARDED_HOST`); the host is checked
+  before any lookup, so a bad `Host` fails the same for every address. A wildcard
+  `ALLOWED_HOSTS` without a base URL raises `vantage.W117` under `check --deploy`.
+* **Password rules apply.** The new password is validated with `AUTH_PASSWORD_VALIDATORS`.
+* **Sessions end.** Setting the password changes the session hash, so every other
+  session of that account is signed out. The reset itself signs nobody in.
+* **Two-factor is not bypassed.** The reset changes the password and nothing else. The
+  authenticator stays enrolled and the next sign-in still asks for a code; a half-finished
+  sign-in is dropped.
+* **Audit.** "Password reset requested" and "Password reset completed" entries name the
+  account and the caller's address (`REMOTE_ADDR`). Tokens and passwords are never recorded.
+
+## Read-only mode and tenancy
+
+Pages work under `READ_ONLY`: a reset writes the account's own password, not a record in
+a panel model, and a locked-out person must still be able to recover. Accounts are
+not tenant-scoped, so tenancy does not apply. Impersonation does not apply: the pages
+are for signed-out visitors.
+
+## Not covered
+
+Translations: the strings are marked for translation, but the Arabic catalogue has not
+been refreshed for this feature yet, so they appear in English until it is.
 
 ---
 
@@ -9427,7 +9564,7 @@ Status values:
 | Package | Status | What to do |
 |---|---|---|
 | django-import-export | Vantage equivalent | List export (CSV, TSV, JSON) and a mapping/preview import wizard are built in: [Export](lists.md#export), [Import](lists.md#import). Resource classes with custom `before_import_row`/`dehydrate_*` logic are not read; port that logic or do the cleanup in the model. `ImportExportModelAdmin` is mapped by `vantage_adopt`. |
-| django-simple-history | Vantage equivalent | Every change made through the panel is recorded with a diff and can be restored: [History](history.md). Changes made outside the panel are not seen. Existing `HistoricalXxx` tables stay in your database and stay readable, but Vantage does not import them into its own history. |
+| django-simple-history | Vantage equivalent | Every change made through the panel is recorded with a diff and can be restored: [History](history.md). Changes made outside the panel are not seen unless you opt in with `TRACK_EXTERNAL_CHANGES` ([History](history.md#changes-made-outside-the-panel)). Existing `HistoricalXxx` tables stay in your database and stay readable, but Vantage does not import them into its own history. |
 | django-reversion | Vantage equivalent (partial) | [History](history.md) and [Undo](undo.md) cover change history and reverting. Reversion's "recover deleted" view and its `VersionAdmin` mixin have no direct counterpart. Reversion itself keeps working in your code. |
 | django-filter (admin integration) | Vantage equivalent | Filters are inferred from the model and configured with `list_filter` ([Lists](lists.md#filtering)). A custom `FilterSet` is not read. django-filter used in your own API or views is unaffected. |
 | django-ckeditor, django-tinymce | Vantage equivalent (basic editor) | Fields using these open in Vantage's own editor: bold, italic, lists, links, headings, quotes and code ([Rich-text fields](rich-text.md)), with the HTML sanitised on save and on render. The package's own widget, toolbar plugins and uploads are not loaded. Content stays HTML, but only allowlisted tags survive the next save: images, tables and iframes are removed unless you widen the allowlist with `RICHTEXT_EXTRA_TAGS` first. |
@@ -9719,6 +9856,8 @@ strictness, so an item that cannot be shown is omitted.
 | `UNMANAGED_READ_ONLY` | `False` | — | Make every `Meta.managed = False` model read-only unless its panel sets `read_only = False` — see [Read-only models](permissions.md#read-only-models-and-legacy-databases) |
 | `ENVIRONMENT` | `None` | ✓ | A banner across the top of every page |
 | `AUDIT_LOG` | `True` | — | Record what people do in the panel |
+| `TRACK_EXTERNAL_CHANGES` | `False` | — | Also record saves, deletes and many-to-many changes made **outside** the panel (shell, scripts, signals, your own views): `"*"` for every registered model or a list of `"app_label.model"`. Code-only; needs `AUDIT_LOG` — see [History](history.md#changes-made-outside-the-panel) |
+| `TRACK_EXTERNAL_WEBHOOKS` | `False` | — | Let those outside changes fire [webhooks](webhooks.md) too. Off, they are logged and nothing is sent |
 | `COMMAND_PALETTE` | `True` | ✓ | The ⌘K palette |
 | `SENSITIVE_PATTERNS` | `None` | — | The words that mark a field as a secret. `None` is the built-in list; a list replaces it; `["...", "nhs_number"]` extends it — see [Sensitive fields](sensitive-fields.md#the-vocabulary) |
 | `DEFAULT_PER_PAGE` | `50` | ✓ | Rows per list page, unless a panel sets `list_per_page` |
@@ -9755,6 +9894,18 @@ None is editable from the UI. `SETTINGS_PERMISSION`, `ROLES_PERMISSION` and
 `READ_ONLY` is enforced in the permission layer, not in the views, so it covers every
 write path including ones added later — and it is checked **before** the superuser
 bypass. See [Read-only mode](permissions.md#read-only-mode).
+
+## Password reset
+
+Off unless you turn it on — see [Password reset](password-reset.md).
+
+| Key | Default | UI | Effect |
+|---|---|---|---|
+| `PASSWORD_RESET` | `False` | — | Adds "Forgot password?" to the sign-in page and serves the reset routes under `_/password-reset/`. Off, the routes are 404 |
+| `PASSWORD_RESET_TIMEOUT_MINUTES` | `60` | — | How long a reset link works. At least 5. Separate from Django's `PASSWORD_RESET_TIMEOUT`, which is left alone |
+| `PASSWORD_RESET_BASE_URL` | `""` | — | Public address links in reset emails point at, e.g. `https://panel.example.com`. Empty uses the validated request host |
+
+None is editable from the UI. Errors: `vantage.E126`; warning: `vantage.W117`.
 
 ## Two-factor sign-in
 
@@ -9940,13 +10091,16 @@ ACCESS_REVIEW_PERMISSION  BREAK_GLASS_PERMISSION  BREAK_GLASS_SELF_SERVICE
 BREAK_GLASS_MAX_MINUTES
 READ_ONLY  UNMANAGED_READ_ONLY  ROLE_MAPPING  NOTIFICATIONS
 METRICS  METRICS_TOKEN  SLOW_REQUEST_MS
-ENVIRONMENT  AUDIT_LOG  COMMAND_PALETTE  SENSITIVE_PATTERNS
+ENVIRONMENT  AUDIT_LOG  TRACK_EXTERNAL_CHANGES  TRACK_EXTERNAL_WEBHOOKS
+COMMAND_PALETTE  SENSITIVE_PATTERNS
 DEFAULT_PER_PAGE  RELATION_PICKER  MAP_TILE_URL
 RICHTEXT_EDITOR  RICHTEXT_EXTRA_TAGS  RICHTEXT_EXTRA_ATTRIBUTES  RICHTEXT_URL_SCHEMES
 LOGIN_THROTTLE  LOGIN_THROTTLE_LIMIT  LOGIN_THROTTLE_WINDOW
 LOGIN_THROTTLE_CACHE  LOGIN_THROTTLE_IP_HEADER
 RATE_LIMIT  RATE_LIMIT_CACHE  RATE_LIMITS  UPLOAD_MAX_BYTES  UPLOAD_ACTIVE_SUFFIXES
 IMPORT_MAX_BYTES  IMPORT_MAX_ROWS  EXPORT_BINARY_MAX_ROWS
+
+PASSWORD_RESET  PASSWORD_RESET_TIMEOUT_MINUTES  PASSWORD_RESET_BASE_URL
 
 TWO_FACTOR  TWO_FACTOR_REQUIRED_SUPERUSERS  TWO_FACTOR_REQUIRED_ROLES
 TWO_FACTOR_ISSUER  TWO_FACTOR_MAX_ATTEMPTS  TWO_FACTOR_LOCKOUT_SECONDS
@@ -10744,8 +10898,11 @@ on the signed-in account, never the address:
 | `export` | 12 requests / 300s | An export holds a database connection open for the whole download; a dozen concurrent ones is a capacity incident |
 | `import` | 10 requests / 300s | Every attempt parses an attacker-supplied file; the wizard is four requests per real import, so ten is "two imports and a mistake" |
 | `reveal` | 30 requests / 300s | One sensitive value per request. Enforced by the reveal view itself, so it holds even without this middleware — see [Sensitive fields](sensitive-fields.md#revealing-a-value) |
+| `password_reset` | 20 requests / 3600s | Reset requests per caller address ([Password reset](password-reset.md)). Over it the answer is unchanged and no email is sent |
+| `password_reset_address` | 3 requests / 3600s | Reset requests per *target* address, whoever asks, so the form cannot flood one inbox |
+| `password_reset_confirm` | 30 requests / 3600s | Opening or submitting a reset link, per caller address; refused with `429` |
 
-A refusal is `429` with `Retry-After` and `Cache-Control: no-store` — JSON for
+The three `password_reset*` surfaces are spent by the reset views themselves, so they hold without the middleware. A refusal is `429` with `Retry-After` and `Cache-Control: no-store` — JSON for
 autocomplete (`{"results": [], "more": false, "error": "..."}`, so a client's existing
 error branch renders it), plain text elsewhere.
 
@@ -10942,6 +11099,15 @@ are written as they are, so a negative amount stays a number. NDJSON export is n
 changed. A text value that really begins with one of these characters will show the
 `'` if the file is imported back. Vantage has no Excel export; one would need the same
 rule.
+
+## Password reset
+
+Off by default. When switched on it adds an emailed-link flow that treats the request
+form as an account-recovery path: identical answers for known and unknown addresses,
+rate limits per caller and per target, single-use links, no token in the address bar,
+`no-referrer` and `no-store` on every page, and a reset that never bypasses two-factor
+sign-in. Set `PASSWORD_RESET_BASE_URL` rather than relying on `ALLOWED_HOSTS` alone
+(`vantage.W117` flags a wildcard). See [Password reset](password-reset.md).
 
 ## The `--deploy` checks
 
@@ -11167,8 +11333,9 @@ made **through the panel** — the form views, inline edits, the JSON API's dele
 moves on a board. A soft delete (trash) is a `deleted` event with `"soft_delete": true`.
 An edit that changed nothing sends nothing.
 
-Out of scope, deliberately: changes made by `manage.py shell`, signals, imports and
-other code, and bulk-action runs (which the audit log also records as one entry, not one
+Out of scope by default: changes made by `manage.py shell`, signals, imports and
+other code (opt in with `TRACK_EXTERNAL_CHANGES` and `TRACK_EXTERNAL_WEBHOOKS`, see
+[History](history.md#changes-made-outside-the-panel)), and bulk-action runs (which the audit log also records as one entry, not one
 per row). A webhook fires whether or not `AUDIT_LOG` is on. The package's own tables
 never fire one.
 
@@ -12212,7 +12379,7 @@ carry binary data) and no bulk-action, saved-view or import/export endpoints yet
 | | Why |
 |---|---|
 | **Authentication itself** | Vantage ships *styled* sign-in, sign-out and change-password views over `django.contrib.auth`'s own forms, and no more. Password reset, MFA and SSO are the auth stack's job |
-| **Row history** | Vantage's audit log records what a *person did in the panel*. Row history means a model and a migration in **your** app and roughly double the write volume; django-simple-history is the right tool, and it is soft-detected and rendered alongside when you have chosen it |
+| **Row history** | Vantage's audit log records what a *person did in the panel* (and, opt-in per model, saves made outside it via `TRACK_EXTERNAL_CHANGES`, with no extra table or migration in your app). Row history means a model and a migration in **your** app and roughly double the write volume; django-simple-history is the right tool, and it is soft-detected and rendered alongside when you have chosen it |
 | **`raw_id_fields`, `autocomplete_fields`, `filter_horizontal` / `filter_vertical`** | The relation widget already searches above 50 rows. These are three names for one behaviour |
 | **`prepopulated_fields`** | Slug prepopulation |
 | **`save_as`, `save_on_top`, `actions_on_top` / `actions_on_bottom`** | Chrome placement is fixed |

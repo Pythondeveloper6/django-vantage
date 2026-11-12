@@ -26,9 +26,9 @@ Eleven migrations were added (`0016`–`0026`), so run `migrate` after upgrading
 
 ### Known limitations
 
-- **Only changes made through the panel count.** History, approvals and webhooks see
-  what the panel saves; the shell, scripts, signals and the project's own views are not
-  seen.
+- **Changes made outside the panel are opt-in.** With `TRACK_EXTERNAL_CHANGES` they reach
+  the audit log and history; `QuerySet.update()`, `bulk_create()` and raw SQL send no
+  signals and are never seen. Approvals still apply only to panel writes.
 - **Two-factor sign-in covers the panel.** Django's admin is held to it only when
   `vantage.twofactor.AdminTwoFactorMiddleware` is installed (`check --deploy` warns,
   `vantage.W095`), and other login views not at all. One authenticator per person,
@@ -70,6 +70,19 @@ Eleven migrations were added (`0016`–`0026`), so run `migrate` after upgrading
 - `manage.py vantage_describe` and `llms.txt` / `llms-full.txt` for coding agents.
 - Settings: `AGENTS`, `AGENT_RATE_LIMIT_PER_MINUTE`, `AGENT_MAX_FIELD_CHARS`,
   `AGENT_DEFAULT_ACCESS`, `AGENT_ALLOWED_ORIGINS` (all code-only, provisional).
+
+#### History outside the panel and password reset
+
+- `TRACK_EXTERNAL_CHANGES` (False, `"*"` or a list of models) records saves, deletes and
+  many-to-many changes made by the shell, scripts and signals in the audit log and
+  history, marked "outside the panel"; never recorded twice, no queries for untracked
+  models, never breaks the caller's save. `TRACK_EXTERNAL_WEBHOOKS` (off) sends them to
+  webhooks. The audit page gets a Source filter.
+- `PASSWORD_RESET` (off): a reset flow on the sign-in page with Django's token
+  generator and email backend, `PASSWORD_RESET_TIMEOUT_MINUTES`,
+  `PASSWORD_RESET_BASE_URL`, three `RATE_LIMITS` keys, checks `vantage.E126` and
+  `vantage.W117`. No account enumeration, single-use links, other sessions signed out,
+  two-factor never bypassed, audit entries without secrets.
 
 #### Adopting from django.contrib.admin
 
@@ -355,6 +368,9 @@ Eleven migrations were added (`0016`–`0026`), so run `migrate` after upgrading
   credentials inside URL values. Documented limits: the write budget is per caller-chosen
   run (the rate limit is the hard ceiling), the plain JSON API is not scrubbed (MCP is),
   and the MCP Origin check ignores the scheme.
+- Password reset: the answer is identical for known, unknown and rate-limited
+  addresses, the `Host` is validated before any lookup, links use their own token salt
+  and timeout, and pages send `no-store`.
 - Two-factor, several devices: adding a device to an account that already has one, and
   removing a device, both require proof (a current code, a recovery code or the
   password); a wrong proof counts toward the lockout. A device is only ever looked up

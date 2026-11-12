@@ -128,6 +128,7 @@ nav:
       - Access review and elevated access: access-review.md
       - Two-factor sign-in: two-factor.md
       - Single sign-on: single-sign-on.md
+      - Password reset: password-reset.md
       - Sensitive fields: sensitive-fields.md
       - The JSON API: api.md
       - AI agents:
