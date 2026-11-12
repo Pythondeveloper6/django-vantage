@@ -748,6 +748,7 @@ are the shortest useful reference for most of what follows.
 
 ## Where next
 
+- [Lesson projects](https://github.com/Pythondeveloper6/django-vantage/tree/main/example/lessons) — a starter and a solution to follow step by step
 - [Panels](panels.md) — every attribute you can set
 - [Inference](inference.md) — what the defaults will be, and why
 - [Lists](lists.md) — the list page in detail
@@ -7597,7 +7598,9 @@ python manage.py vantage_agent create --name order-sync --user svc-order-sync \
 ```
 
 If `--user` does not exist it is created with an unusable password, `is_staff` on and
-`is_superuser` off. Give that user a role (a group) that grants only what the agent
+`is_superuser` off. An existing account is accepted only if it also has no usable
+password: a person who can sign in with a password cannot be made into a service user (the
+token would carry their rights, and the account could still be signed in to). Give that user a role (a group) that grants only what the agent
 needs. `list`, `revoke NAME` and `rotate NAME` manage identities afterwards.
 
 The command prints the token once:
@@ -7640,7 +7643,18 @@ A token request needs no CSRF token. If the request also carries a session cooki
 token still wins (the cookie is ignored for who you are) but CSRF is enforced, so send
 tokens without cookies.
 
-`X-Vantage-Run` groups requests into a run. Without it each request is its own run.
+`X-Vantage-Run` groups requests into a run. Without it each request is its own run. The
+key is stored as sent only if it is 1 to 64 characters from `A-Z a-z 0-9 . _ : @ + = -`;
+any other value is replaced by `h-` and a digest of itself, so the same header still names
+the same run.
+
+**The write budget is per run, and the caller chooses the run.** An agent that sends a
+new `X-Vantage-Run` (or none) starts a run with a fresh budget, so `max_writes_per_run` is a
+tripwire for a well-behaved script, not a hard limit against a hostile one. The ceiling
+that holds whatever the run key is the rate limit: keep `rate_limit_per_minute` set (it is
+`60` by default; `0` means none) and use `access = read`, `require_approval` and a narrow
+role for anything you do not trust. The rate limit is counted in the cache, so with several
+processes use a shared cache backend.
 
 A bad, unknown, expired or revoked token is a `401`; it never falls back to a session.
 
@@ -7649,6 +7663,11 @@ A bad, unknown, expired or revoked token is a `401`; it never falls back to a se
 A token works on the JSON API only. Every HTML page refuses it with a `403`: the roles
 matrix, user and password management, the account and two-factor pages, impersonation,
 break-glass, webhooks, reports and settings. The service user is also never a superuser.
+
+**Tenancy.** The tenant is resolved from the service user (the default resolver) after the
+token is accepted; a tenant resolved earlier from a session cookie sent alongside is
+discarded. A `HeaderResolver` reads a header the caller controls, so with agents on make
+sure the proxy in front sets and strips it, or override `permitted()`.
 
 ## The audit trail
 
@@ -7708,6 +7727,17 @@ their text to be read by it.
 - **Hides fields.** Sensitive fields (inferred or declared, see
   [Sensitive fields](sensitive-fields.md)) and everything in `agent_hidden_fields` do not
   exist for an agent. See [Where each rule is enforced](#where-each-rule-is-enforced).
+
+Scrubbing and the envelope are applied by the MCP server. The plain JSON API with a
+bearer token returns stored values unchanged, because a client that reads a value and
+sends it back must get the same value. If you feed REST responses to a model, pass them
+through `vantage.agentdata.wrap_untrusted` yourself, or use the MCP server.
+
+Besides zero-width and bidi characters, the scrubber removes the Unicode variation
+selectors (except the text/emoji selectors U+FE0E and U+FE0F), the deprecated format
+controls, fillers and interlinear annotation marks, and line and paragraph separators
+become newlines. A value is cut to eight times `AGENT_MAX_FIELD_CHARS` before it is
+parsed, so a huge value costs little to scrub.
 
 ## What Vantage does not do
 
@@ -7853,6 +7883,12 @@ cannot see: database constraints the form does not check (a unique index, a trig
 a `save_model` hook or a signal receiver does, the effect of a model's `save()`, or a
 change someone else makes between the preview and the real call.
 
+**Import is the one exception to "no rolled-back transaction" for people**: the CSV import
+preview saves each row and rolls back. For an agent token it does not: an agent's import
+preview is validation only (each row is matched and run through the form, nothing is
+saved, no save hook or signal runs). It therefore cannot see two rows of the same file
+colliding, or a database constraint the form does not know about.
+
 ## Approval for agents
 
 When an identity has `require_approval`, its writes never take effect directly.
@@ -7898,7 +7934,8 @@ POST /admin/_/api/_agents/runs/nightly-2025-01-31/undo/        (add ?dry_run=1 t
 ```
 
 (`?agent=NAME` when two agents used the same key.) Only a superuser or the identity's owner
-may undo, and every record is checked against that person's own change or delete
+may undo; for anyone else a run does not exist (`404`, the same answer as for a key that was
+never used), and the route is `404` for everyone while `AGENTS` is off. Every record is checked against that person's own change or delete
 permission. The command acts as the owner unless `--as` names a superuser or the owner.
 
 The report is `{"reverted": [...], "skipped": [{"object", "label", "reason"}],
@@ -8197,12 +8234,17 @@ in memory.
 
 ## The page
 
-"Agent activity" in the System group of the navigation. It lists every identity (name,
-owner, service user, access, whether it may delete, whether it needs approval, scopes,
-last used, expiry, revocation, and its runs and writes over the last seven days), then
-the recent runs, which you can filter by agent. A run opens a view of the audit entries it
-made. The page offers CSV and NDJSON downloads built by the same functions as the
-command; each download is itself written to the audit log.
+"Agent activity" in the System group of the navigation. The agents table has one row per
+identity: the name (with the service user and the owner on a muted second line), badges for
+its access ("Read only", "Read and write"), "Can delete" and "Approval required", its scopes,
+when it was last used, when it expires (a revoked identity shows a "Revoked" badge with the
+date under the expiry), and its runs and writes over the last seven days. Below it are the
+recent runs, which you can filter by agent. A run opens a view of the audit entries it
+made. Cells wrap rather than truncate and dates are always shown whole; on a phone the
+tables scroll sideways inside their frame, like the panel's other tables. The page offers
+CSV and NDJSON downloads built by the same functions as the command; each download is itself
+written to the audit log. `?format=` takes `csv` (the default), `json` or `ndjson`; any
+other value answers `400` with a plain-text message naming the valid ones.
 
 The page is read-only. Revoking and rotating an identity stays in `vantage_agent`.
 
@@ -8213,9 +8255,14 @@ out fields hidden from the person downloading, as the audit page does.
 
 ## In the audit log
 
-An entry made by an agent shows an "Agent" badge next to the actor, and the run key in
-the audit list. The record history panel carries the badge too. The actor text already
-reads "Agent NAME (for OWNER)".
+An entry made by an agent shows an "Agent" badge at the start of the Who cell, then the
+actor text ("Agent NAME (for OWNER)"), which wraps if the column is narrow, and the run
+key on a second muted line ("run KEY"). The same text is the cell's tooltip. Entries made by
+people keep their one-line cell. The record history panel carries the badge too.
+
+In a declared `NAV` the page is `{"page": "agent-activity"}` and the audit log is
+`{"route": "vantage:audit"}`. An entry for the agent page is left out of the sidebar,
+without an error, while `AGENTS` is off or when the reader may not open it.
 
 ## What is recorded, and what is not
 

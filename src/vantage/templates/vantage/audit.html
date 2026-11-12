@@ -91,7 +91,7 @@
               {% comment %} The badge leads, so a narrow column cannot cut it off; the cell wraps
                  (see vantage-audit.css) and the run key sits on its own line. {% endcomment %}
               <td class="v-audit-who-agent" title="{{ row.entry.actor_repr }}{% if row.entry.agent_run %} · {% translate 'run' %} {{ row.entry.agent_run.run_key }}{% endif %}">
-                <span class="v-audit-who-line"><span class="v-badge" data-tone="primary">{% translate "Agent" %}</span> {{ row.entry.actor_repr|default:"—" }}</span>
+                <span class="v-audit-who-line"><span class="v-badge" data-tone="primary">{% translate "Agent" %}</span> {% if row.entry.actor_repr|slice:":6" == "Agent " %}{{ row.entry.actor_repr|slice:"6:" }}{% else %}{{ row.entry.actor_repr|default:"—" }}{% endif %}</span>
                 {% if row.entry.agent_run %}<code class="v-audit-name v-audit-who-run">{% translate "run" %} {{ row.entry.agent_run.run_key }}</code>{% endif %}
               </td>
             {% else %}
