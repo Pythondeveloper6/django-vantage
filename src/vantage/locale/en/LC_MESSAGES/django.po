@@ -1,11 +1,10 @@
 # English translation catalogue for django-vantage.
 # This file is distributed under the same license as the django-vantage package.
-#
 msgid ""
 msgstr ""
 "Project-Id-Version: django-vantage\n"
-"Report-Msgid-Bugs-To: https://github.com/Pythondeveloper6/django-vantage/issues\n"
-"POT-Creation-Date: 2026-10-31 13:10-0500\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-12 10:46-0600\n"
 "PO-Revision-Date: 2026-08-14 12:16-0500\n"
 "Last-Translator: django-vantage contributors\n"
 "Language-Team: English <https://github.com/Pythondeveloper6/django-vantage>\n"
@@ -19,7 +18,7 @@ msgstr ""
 msgid "You do not have permission to review access."
 msgstr "You do not have permission to review access."
 
-#: accessviews.py:104
+#: accessviews.py:104 agentactivityviews.py:115
 msgid "Format"
 msgstr "Format"
 
@@ -28,7 +27,7 @@ msgid "By"
 msgstr "By"
 
 #: accessviews.py:106 nav.py:1007 templates/vantage/access/review.html:27
-#: templates/vantage/access/review.html:56
+#: templates/vantage/access/review.html:56 templates/vantage/agents/run.html:33
 #: templates/vantage/pages/data-quality.html:43
 #: templates/vantage/partials/card_editor.html:56
 #: templates/vantage/roles/edit.html:74 templates/vantage/roles/user.html:82
@@ -45,15 +44,15 @@ msgstr "All"
 msgid "Subjects"
 msgstr "Subjects"
 
-#: accessviews.py:110 pages.py:315 templates/vantage/roles/list.html:14
+#: accessviews.py:110 pages.py:316 templates/vantage/roles/list.html:14
 msgid "Access review"
 msgstr "Access review"
 
-#: accessviews.py:123 models.py:1698
+#: accessviews.py:123 models.py:1750
 msgid "Waiting for approval"
 msgstr "Waiting for approval"
 
-#: accessviews.py:124 models.py:1402
+#: accessviews.py:124 models.py:1440
 msgid "Scheduled"
 msgstr "Scheduled"
 
@@ -70,7 +69,7 @@ msgstr "Expired"
 msgid "Revoked"
 msgstr "Revoked"
 
-#: accessviews.py:128 models.py:1700
+#: accessviews.py:128 models.py:1752
 msgid "Rejected"
 msgstr "Rejected"
 
@@ -123,7 +122,7 @@ msgid_plural "Dropped %(count)d elevated grants."
 msgstr[0] "Dropped %(count)d elevated grant."
 msgstr[1] "Dropped %(count)d elevated grants."
 
-#: actions.py:108
+#: actions.py:119
 #, python-format
 msgid "%(label)s will be applied to %(count)d record. This cannot be undone."
 msgid_plural ""
@@ -133,66 +132,66 @@ msgstr[0] ""
 msgstr[1] ""
 "%(label)s will be applied to %(count)d records. This cannot be undone."
 
-#: actions.py:158
+#: actions.py:169
 #, python-format
 msgid "%(label)s completed."
 msgstr "%(label)s completed."
 
-#: actions.py:277
+#: actions.py:288
 #, python-format
 msgid "Published %(count)s record."
 msgid_plural "Published %(count)s records."
 msgstr[0] "Published %(count)s record."
 msgstr[1] "Published %(count)s records."
 
-#: actions.py:282
+#: actions.py:293
 #, python-format
 msgid "Unpublished %(count)s record."
 msgid_plural "Unpublished %(count)s records."
 msgstr[0] "Unpublished %(count)s record."
 msgstr[1] "Unpublished %(count)s records."
 
-#: actions.py:291
+#: actions.py:302
 msgid "Publish"
 msgstr "Publish"
 
-#: actions.py:292
+#: actions.py:303
 msgid "Unpublish"
 msgstr "Unpublish"
 
-#: actions.py:401
+#: actions.py:412
 #, python-format
 msgid ""
 "Nothing was deleted: %(blockers)s still depend on some of these records."
 msgstr ""
 "Nothing was deleted: %(blockers)s still depend on some of these records."
 
-#: actions.py:412
+#: actions.py:423
 #, no-python-format
 msgid "Moved %(count)s %(model)s to the trash."
 msgid_plural "Moved %(count)s %(models)s to the trash."
 msgstr[0] "Moved %(count)s %(model)s to the trash."
 msgstr[1] "Moved %(count)s %(models)s to the trash."
 
-#: actions.py:422
+#: actions.py:433
 #, no-python-format
 msgid "Deleted %(count)s %(model)s and %(related)s related records."
 msgid_plural "Deleted %(count)s %(models)s and %(related)s related records."
 msgstr[0] "Deleted %(count)s %(model)s and %(related)s related records."
 msgstr[1] "Deleted %(count)s %(models)s and %(related)s related records."
 
-#: actions.py:431
+#: actions.py:442
 #, no-python-format
 msgid "Deleted %(count)s %(model)s."
 msgid_plural "Deleted %(count)s %(models)s."
 msgstr[0] "Deleted %(count)s %(model)s."
 msgstr[1] "Deleted %(count)s %(models)s."
 
-#: actions.py:434
+#: actions.py:445
 msgid "Nothing was deleted."
 msgstr "Nothing was deleted."
 
-#: actions.py:462 formviews.py:780 formviews.py:787
+#: actions.py:473 formviews.py:793 formviews.py:800
 #: templates/vantage/access/review.html:60 templates/vantage/detail.html:16
 #: templates/vantage/reports/list.html:93
 #: templates/vantage/roles/_header.html:15 templates/vantage/roles/edit.html:82
@@ -200,32 +199,78 @@ msgstr "Nothing was deleted."
 msgid "Delete"
 msgstr "Delete"
 
-#: actions.py:520
+#: actions.py:531
 #, python-format
 msgid "all %(count)s matching record, %(excluded)s excluded"
 msgid_plural "all %(count)s matching records, %(excluded)s excluded"
 msgstr[0] "all %(count)s matching record, %(excluded)s excluded"
 msgstr[1] "all %(count)s matching records, %(excluded)s excluded"
 
-#: actions.py:526
+#: actions.py:537
 #, python-format
 msgid "all %(count)s matching record"
 msgid_plural "all %(count)s matching records"
 msgstr[0] "all %(count)s matching record"
 msgstr[1] "all %(count)s matching records"
 
-#: actions.py:531
+#: actions.py:542
 #, python-format
 msgid "%(count)s selected record"
 msgid_plural "%(count)s selected records"
 msgstr[0] "%(count)s selected record"
 msgstr[1] "%(count)s selected records"
 
+#: agentactivityviews.py:46
+msgid "You do not have permission to read agent activity."
+msgstr "You do not have permission to read agent activity."
+
+#: agentactivityviews.py:86
+#, python-format
+msgid "Unknown format. Valid formats: %(valid)s."
+msgstr "Unknown format. Valid formats: %(valid)s."
+
+#: agentactivityviews.py:116
+#: templates/vantage/pages/_data_quality_detail.html:8
+#: templates/vantage/pages/_data_quality_detail.html:31
+#: templates/vantage/pages/data-quality.html:44
+#: templates/vantage/reports/list.html:148
+msgid "Rows"
+msgstr "Rows"
+
+#: agentactivityviews.py:116
+msgid "Runs"
+msgstr "Runs"
+
+#: agentactivityviews.py:116
+msgid "Entries"
+msgstr "Entries"
+
+#: agentactivityviews.py:119 agentactivityviews.py:141 pages.py:341
+msgid "Agent activity"
+msgstr "Agent activity"
+
+#: agentactivityviews.py:135
+msgid "Agent run"
+msgstr "Agent run"
+
+#: agentactivityviews.py:141 templates/vantage/agents/activity.html:92
+msgid "Run"
+msgstr "Run"
+
+#: agentactivityviews.py:165
+#, python-format
+msgid "Run %(key)s of %(agent)s"
+msgstr "Run %(key)s of %(agent)s"
+
+#: agentactivityviews.py:167
+msgid "The audit entries this run made, oldest first."
+msgstr "The audit entries this run made, oldest first."
+
 #: approvals.py:167
 msgid "and"
 msgstr "and"
 
-#: approvals.py:248
+#: approvals.py:287
 #, python-format
 msgid ""
 "%(fields)s cannot be changed in bulk: a change to it waits for approval, "
@@ -236,38 +281,38 @@ msgstr ""
 "which is asked for one record at a time. Change it from each record's own "
 "page, or ask someone who can approve it."
 
-#: approvals.py:330 filters.py:346 listviews/kanban.py:110 render.py:157
-#: render.py:195 stats.py:954
+#: approvals.py:369 filters.py:346 listviews/kanban.py:110 render.py:181
+#: render.py:219 stats.py:954
 msgid "Yes"
 msgstr "Yes"
 
-#: approvals.py:330 filters.py:346 listviews/kanban.py:111 render.py:157
-#: render.py:195 stats.py:954
+#: approvals.py:369 filters.py:346 listviews/kanban.py:111 render.py:181
+#: render.py:219 stats.py:954
 msgid "No"
 msgstr "No"
 
-#: approvals.py:452
+#: approvals.py:502
 msgid "Approval requested"
 msgstr "Approval requested"
 
-#: approvals.py:453
+#: approvals.py:503
 msgid "Change approved"
 msgstr "Change approved"
 
-#: approvals.py:454
+#: approvals.py:504
 msgid "Change rejected"
 msgstr "Change rejected"
 
-#: approvals.py:455
+#: approvals.py:505
 msgid "Approval request withdrawn"
 msgstr "Approval request withdrawn"
 
-#: approvals.py:470
+#: approvals.py:520
 #, python-format
 msgid "%(count)s field(s) affected."
 msgstr "%(count)s field(s) affected."
 
-#: approvals.py:520
+#: approvals.py:589
 #, python-format
 msgid ""
 "Your change to %(fields)s was sent for approval. It is not saved until "
@@ -276,7 +321,7 @@ msgstr ""
 "Your change to %(fields)s was sent for approval. It is not saved until "
 "someone who can approve it does."
 
-#: approvals.py:570 templates/vantage/approvals/review.html:47
+#: approvals.py:639 templates/vantage/approvals/review.html:47
 msgid ""
 "This request changes a field you cannot change, so you cannot approve or "
 "reject it. Someone who can change every field in it has to decide it."
@@ -284,15 +329,15 @@ msgstr ""
 "This request changes a field you cannot change, so you cannot approve or "
 "reject it. Someone who can change every field in it has to decide it."
 
-#: approvals.py:627
+#: approvals.py:696
 msgid "None of these fields can be changed any more."
 msgstr "None of these fields can be changed any more."
 
-#: approvals.py:636
+#: approvals.py:705
 msgid "The requested values are no longer valid, so nothing was saved."
 msgstr "The requested values are no longer valid, so nothing was saved."
 
-#: approvals.py:652
+#: approvals.py:723
 #, python-format
 msgid ""
 "%(fields)s has changed since this was requested, so it was not applied. "
@@ -303,16 +348,16 @@ msgstr ""
 "Compare the values again: reject it, and ask for a new request if the change "
 "is still wanted."
 
-#: approvals.py:660
+#: approvals.py:731
 msgid "Someone else has already decided this request."
 msgstr "Someone else has already decided this request."
 
-#: approvals.py:665
+#: approvals.py:736
 #, python-format
 msgid "Approved. %(fields)s is now saved."
 msgstr "Approved. %(fields)s is now saved."
 
-#: approvals.py:809
+#: approvals.py:886
 #, python-format
 msgid "%(count)s field you cannot see"
 msgid_plural "%(count)s fields you cannot see"
@@ -328,7 +373,7 @@ msgstr "No such change request."
 msgid "Change to %(record)s"
 msgstr "Change to %(record)s"
 
-#: approvalviews.py:301 pages.py:447
+#: approvalviews.py:301 pages.py:480
 msgid "Approvals"
 msgstr "Approvals"
 
@@ -364,87 +409,97 @@ msgstr "You do not have permission to do that."
 msgid "Vantage"
 msgstr "Vantage"
 
-#: auditviews.py:41 filters.py:107
+#: auditviews.py:42 filters.py:107
 #: templates/vantage/list_views/calendar.html:22
 msgid "Today"
 msgstr "Today"
 
-#: auditviews.py:42 filters.py:108
+#: auditviews.py:43 filters.py:108
 msgid "Last 7 days"
 msgstr "Last 7 days"
 
-#: auditviews.py:43 filters.py:109
+#: auditviews.py:44 filters.py:109
 msgid "Last 30 days"
 msgstr "Last 30 days"
 
-#: auditviews.py:44 filters.py:110
+#: auditviews.py:45 filters.py:110
 msgid "Last 90 days"
 msgstr "Last 90 days"
 
-#: auditviews.py:56 auditviews.py:67
+#: auditviews.py:57 auditviews.py:68
 msgid "Audit log"
 msgstr "Audit log"
 
-#: auditviews.py:57
+#: auditviews.py:58
 msgid "Everything created, changed, deleted or run from this panel."
 msgstr "Everything created, changed, deleted or run from this panel."
 
-#: auditviews.py:61
+#: auditviews.py:62
 msgid "The audit log is switched off for this panel."
 msgstr "The audit log is switched off for this panel."
 
-#: auditviews.py:63
+#: auditviews.py:64
 msgid "You do not have permission to read the audit log."
 msgstr "You do not have permission to read the audit log."
 
-#: authviews.py:326
+#: auditviews.py:140
+msgid "Through the panel"
+msgstr "Through the panel"
+
+#: auditviews.py:141 templates/vantage/audit.html:119
+#: templates/vantage/history.html:164
+#: templates/vantage/partials/history.html:38
+msgid "Outside the panel"
+msgstr "Outside the panel"
+
+#: authviews.py:331
 msgid "Your password has been changed."
 msgstr "Your password has been changed."
 
-#: authviews.py:336 authviews.py:337 templates/vantage/account.html:53
+#: authviews.py:341 authviews.py:342 templates/vantage/account.html:53
 #: templates/vantage/partials/usermenu.html:84
 #: templates/vantage/password_change.html:14
 #: templates/vantage/password_change.html:50
 msgid "Change password"
 msgstr "Change password"
 
-#: authviews.py:383
+#: authviews.py:388
 msgid "Return to the start"
 msgstr "Return to the start"
 
-#: authviews.py:399 templates/vantage/403.html:17
+#: authviews.py:404 templates/vantage/403.html:17
 msgid "Error 403"
 msgstr "Error 403"
 
-#: authviews.py:400 templates/vantage/403.html:18
+#: authviews.py:405 templates/vantage/403.html:18
 msgid "You do not have access to this"
 msgstr "You do not have access to this"
 
-#: authviews.py:401
+#: authviews.py:406
 msgid "This page exists, but your account is not permitted to open it."
 msgstr "This page exists, but your account is not permitted to open it."
 
-#: authviews.py:404 templates/vantage/404.html:16
+#: authviews.py:409 templates/vantage/404.html:16
 msgid "Error 404"
 msgstr "Error 404"
 
-#: authviews.py:405 templates/vantage/404.html:17
+#: authviews.py:410 templates/vantage/404.html:17
 msgid "We could not find that page"
 msgstr "We could not find that page"
 
-#: authviews.py:406
+#: authviews.py:411
 msgid "The address may be mistyped, or what it pointed at may be gone."
 msgstr "The address may be mistyped, or what it pointed at may be gone."
 
-#: authviews.py:412
+#: authviews.py:417
 msgid "Error 500"
 msgstr "Error 500"
 
-#: authviews.py:413
+#: authviews.py:418
 msgid "Something went wrong"
 msgstr "Something went wrong"
 
-#: authviews.py:415
+#: authviews.py:420
 msgid ""
 "The server hit an error handling that request. It has been logged; nothing "
 "you did caused it and trying again is safe."
@@ -567,17 +622,17 @@ msgstr "You may not revoke this grant."
 msgid "Revoked at"
 msgstr "Revoked at"
 
-#: concurrency.py:293
+#: concurrency.py:317
 msgctxt "value of a boolean field"
 msgid "Yes"
 msgstr "Yes"
 
-#: concurrency.py:294
+#: concurrency.py:318
 msgctxt "value of a boolean field"
 msgid "No"
 msgstr "No"
 
-#: dashboards.py:664 formviews.py:541 palette.py:323
+#: dashboards.py:664 formviews.py:554 palette.py:323
 #, python-format
 msgid "New %(model)s"
 msgstr "New %(model)s"
@@ -662,7 +717,7 @@ msgstr "Table too large to check or sample safely"
 msgid "Stopped at its time budget"
 msgstr "Stopped at its time budget"
 
-#: fieldperms.py:521
+#: fieldperms.py:546
 #, python-format
 msgid ""
 "This record cannot be created here: %(fields)s must be filled in, and you "
@@ -694,79 +749,79 @@ msgstr "From %(start)s"
 msgid "Until %(end)s"
 msgstr "Until %(end)s"
 
-#: formviews.py:237 recordviews.py:91
+#: formviews.py:250 recordviews.py:91
 #, python-format
 msgid "You do not have permission to view this %(model)s."
 msgstr "You do not have permission to view this %(model)s."
 
-#: formviews.py:238
+#: formviews.py:251
 #, python-format
 msgid "You do not have permission to add this %(model)s."
 msgstr "You do not have permission to add this %(model)s."
 
-#: formviews.py:239
+#: formviews.py:252
 #, python-format
 msgid "You do not have permission to change this %(model)s."
 msgstr "You do not have permission to change this %(model)s."
 
-#: formviews.py:240
+#: formviews.py:253
 #, python-format
 msgid "You do not have permission to delete this %(model)s."
 msgstr "You do not have permission to delete this %(model)s."
 
-#: formviews.py:249 recordviews.py:275
+#: formviews.py:262 recordviews.py:275
 #, python-format
 msgid "You do not have permission to %(action)s this %(model)s."
 msgstr "You do not have permission to %(action)s this %(model)s."
 
-#: formviews.py:537 palette.py:48 palette.py:328
+#: formviews.py:550 palette.py:48 palette.py:328
 msgid "Create"
 msgstr "Create"
 
-#: formviews.py:550
+#: formviews.py:563
 #, python-format
 msgid "Created %(model)s “%(object)s”."
 msgstr "Created %(model)s “%(object)s”."
 
-#: formviews.py:596 templates/vantage/list.html:413
+#: formviews.py:609 templates/vantage/list.html:413
 #: templates/vantage/roles/edit.html:167 templates/vantage/settings.html:169
 msgid "Save changes"
 msgstr "Save changes"
 
-#: formviews.py:601
+#: formviews.py:614
 #, python-format
 msgid "Edit %(object)s"
 msgstr "Edit %(object)s"
 
-#: formviews.py:602 formviews.py:609 templates/vantage/detail.html:20
+#: formviews.py:615 formviews.py:622 templates/vantage/detail.html:20
 #: templates/vantage/reports/list.html:90 templates/vantage/roles/list.html:56
 #: templates/vantage/webhooks/list.html:78
 msgid "Edit"
 msgstr "Edit"
 
-#: formviews.py:616
+#: formviews.py:629
 #, python-format
 msgid "Saved changes to %(model)s “%(object)s”."
 msgstr "Saved changes to %(model)s “%(object)s”."
 
-#: formviews.py:716
+#: formviews.py:729
 #, python-format
 msgid "%(model)s — %(field)s cleared"
 msgstr "%(model)s — %(field)s cleared"
 
-#: formviews.py:753
+#: formviews.py:766
 msgid ""
-"The list of what else this would affect could not be worked out, so it is not"
-" shown. The delete itself is unaffected — but check before confirming."
+"The list of what else this would affect could not be worked out, so it is "
+"not shown. The delete itself is unaffected — but check before confirming."
 msgstr ""
-"The list of what else this would affect could not be worked out, so it is not"
-" shown. The delete itself is unaffected — but check before confirming."
+"The list of what else this would affect could not be worked out, so it is "
+"not shown. The delete itself is unaffected — but check before confirming."
 
-#: formviews.py:762
+#: formviews.py:775
 msgid "other records"
 msgstr "other records"
 
-#: formviews.py:764
+#: formviews.py:777
 #, python-format
 msgid ""
 "This %(model)s cannot be deleted while %(blockers)s still reference it. "
@@ -775,50 +830,50 @@ msgstr ""
 "This %(model)s cannot be deleted while %(blockers)s still reference it. "
 "Remove or reassign those first."
 
-#: formviews.py:779
+#: formviews.py:792
 #, python-format
 msgid "Delete %(object)s"
 msgstr "Delete %(object)s"
 
-#: formviews.py:900
+#: formviews.py:913
 #, python-format
 msgid "Moved %(model)s “%(object)s” to the trash."
 msgstr "Moved %(model)s “%(object)s” to the trash."
 
-#: formviews.py:908
+#: formviews.py:921
 #, python-format
 msgid "Deleted %(model)s “%(object)s”."
 msgstr "Deleted %(model)s “%(object)s”."
 
-#: formviews.py:910
+#: formviews.py:923
 #, python-format
 msgid "Deleted %(model)s “%(object)s” and %(count)s related record."
 msgid_plural "Deleted %(model)s “%(object)s” and %(count)s related records."
 msgstr[0] "Deleted %(model)s “%(object)s” and %(count)s related record."
 msgstr[1] "Deleted %(model)s “%(object)s” and %(count)s related records."
 
-#: formviews.py:944
+#: formviews.py:957
 #, python-format
 msgid "Move %(model)s to trash"
 msgstr "Move %(model)s to trash"
 
-#: formviews.py:946
+#: formviews.py:959
 #, python-format
 msgid "Delete %(model)s"
 msgstr "Delete %(model)s"
 
-#: formviews.py:948
+#: formviews.py:961
 #, python-format
 msgid "Delete %(model)s and %(count)s related record"
 msgid_plural "Delete %(model)s and %(count)s related records"
 msgstr[0] "Delete %(model)s and %(count)s related record"
 msgstr[1] "Delete %(model)s and %(count)s related records"
 
-#: formviews.py:982
+#: formviews.py:995
 msgid "This model has no trash."
 msgstr "This model has no trash."
 
-#: formviews.py:1011 undo.py:270
+#: formviews.py:1024 undo.py:270
 #, python-format
 msgid "Restored %(model)s “%(object)s”."
 msgstr "Restored %(model)s “%(object)s”."
@@ -1084,11 +1139,11 @@ msgstr "%(size)s KB"
 
 #: importer.py:288
 msgid ""
-"That does not look like a text file. Export it as CSV — a .xlsx workbook or a"
-" PDF cannot be read here."
+"That does not look like a text file. Export it as CSV — a .xlsx workbook or "
+"a PDF cannot be read here."
 msgstr ""
-"That does not look like a text file. Export it as CSV — a .xlsx workbook or a"
-" PDF cannot be read here."
+"That does not look like a text file. Export it as CSV — a .xlsx workbook or "
+"a PDF cannot be read here."
 
 #: importer.py:298
 msgid "That file is not readable as text in utf-8 or latin-1."
@@ -1117,19 +1172,19 @@ msgstr ""
 
 #: importer.py:354
 msgid ""
-"The first row looks like data, not column names — one of its values is longer"
-" than a column name would be. Add a header row."
+"The first row looks like data, not column names — one of its values is "
+"longer than a column name would be. Add a header row."
 msgstr ""
-"The first row looks like data, not column names — one of its values is longer"
-" than a column name would be. Add a header row."
+"The first row looks like data, not column names — one of its values is "
+"longer than a column name would be. Add a header row."
 
 #: importer.py:361
 msgid ""
-"The first row is all numbers, so it looks like data rather than column names."
-" Add a header row."
+"The first row is all numbers, so it looks like data rather than column "
+"names. Add a header row."
 msgstr ""
-"The first row is all numbers, so it looks like data rather than column names."
-" Add a header row."
+"The first row is all numbers, so it looks like data rather than column "
+"names. Add a header row."
 
 #: importer.py:372
 #, python-format
@@ -1223,7 +1278,7 @@ msgid_plural "%(count)s unchanged"
 msgstr[0] "%(count)s unchanged"
 msgstr[1] "%(count)s unchanged"
 
-#: importer.py:809 jobs.py:560
+#: importer.py:809 jobs.py:563
 #, python-format
 msgid "%(count)s failed"
 msgid_plural "%(count)s failed"
@@ -1237,18 +1292,18 @@ msgid_plural "%(count)s sent for approval"
 msgstr[0] "%(count)s sent for approval"
 msgstr[1] "%(count)s sent for approval"
 
-#: importer.py:819 jobs.py:567 templates/vantage/partials/job_progress.html:34
+#: importer.py:819 jobs.py:570 templates/vantage/partials/job_progress.html:34
 msgid "nothing to do"
 msgstr "nothing to do"
 
-#: importer.py:904
+#: importer.py:906
 #, python-format
 msgid "%(width)s column"
 msgid_plural "%(width)s columns"
 msgstr[0] "%(width)s column"
 msgstr[1] "%(width)s columns"
 
-#: importer.py:913
+#: importer.py:915
 #, python-format
 msgid ""
 "This row has %(count)s value but the header has %(columns)s. A stray or "
@@ -1263,7 +1318,7 @@ msgstr[1] ""
 "This row has %(count)s values but the header has %(columns)s. A stray or "
 "missing separator shifts every value after it."
 
-#: importer.py:941
+#: importer.py:943
 #, python-format
 msgid ""
 "A %(model)s with this value already exists (#%(pk)s). This import is set to "
@@ -1272,11 +1327,11 @@ msgstr ""
 "A %(model)s with this value already exists (#%(pk)s). This import is set to "
 "create new records only."
 
-#: importer.py:954
+#: importer.py:956
 msgid "No existing record matches. This import is set to update only."
 msgstr "No existing record matches. This import is set to update only."
 
-#: importer.py:968
+#: importer.py:970
 #, python-format
 msgid ""
 "%(fields)s must have a value and no column feeds it, so this row cannot be "
@@ -1291,50 +1346,50 @@ msgstr[1] ""
 "%(fields)s must have values and no column feeds them, so this row cannot be "
 "created."
 
-#: importer.py:1073
+#: importer.py:1077
 msgid "This column identifies the record, so it cannot be empty."
 msgstr "This column identifies the record, so it cannot be empty."
 
-#: importer.py:1083
+#: importer.py:1087
 #, python-format
 msgid "“%(value)s” is not a valid value."
 msgstr "“%(value)s” is not a valid value."
 
-#: importer.py:1138
+#: importer.py:1142
 #, python-format
 msgid ""
 "“%(value)s” matches more than one %(model)s. Use the numeric id instead."
 msgstr ""
 "“%(value)s” matches more than one %(model)s. Use the numeric id instead."
 
-#: importer.py:1228
+#: importer.py:1232
 #, python-format
 msgid "No %(model)s matches “%(value)s”."
 msgstr "No %(model)s matches “%(value)s”."
 
 #. Translators: header row of the downloadable CSV listing what went wrong.
-#: importer.py:1375 jobs.py:841 templates/vantage/import_preview.html:120
+#: importer.py:1397 jobs.py:844 templates/vantage/import_preview.html:120
 msgid "Row"
 msgstr "Row"
 
-#: importer.py:1375 templates/vantage/import_preview.html:121
+#: importer.py:1397 templates/vantage/import_preview.html:121
 #: templates/vantage/partials/card_editor.html:81
 msgid "Column"
 msgstr "Column"
 
-#: importer.py:1375 jobs.py:841
+#: importer.py:1397 jobs.py:844
 msgid "Error"
 msgstr "Error"
 
-#: importer.py:1464 importer.py:1469 importer.py:1473 importer.py:1486
+#: importer.py:1486 importer.py:1491 importer.py:1495 importer.py:1508
 msgid "That upload is no longer available."
 msgstr "That upload is no longer available."
 
-#: importer.py:1476
+#: importer.py:1498
 msgid "That upload has expired. Upload the file again."
 msgstr "That upload has expired. Upload the file again."
 
-#: importer.py:1506
+#: importer.py:1528
 msgid "That report is no longer available."
 msgstr "That report is no longer available."
 
@@ -1385,7 +1440,7 @@ msgstr "That file is %(size)s MB; the limit is %(limit)s MB."
 msgid "Import finished: %(summary)s."
 msgstr "Import finished: %(summary)s."
 
-#: jobs.py:303
+#: jobs.py:304
 msgid ""
 "No task backend is configured, so this ran in the web request. Configure "
 "TASKS, Celery or RQ to move it off."
@@ -1393,85 +1448,86 @@ msgstr ""
 "No task backend is configured, so this ran in the web request. Configure "
 "TASKS, Celery or RQ to move it off."
 
-#: jobs.py:315
+#: jobs.py:316
 msgid "In-process"
 msgstr "In-process"
 
-#: jobs.py:547
+#: jobs.py:550
 msgid "Nothing ran."
 msgstr "Nothing ran."
 
-#: jobs.py:555
+#: jobs.py:558
 #, python-format
 msgid "%(count)s succeeded"
 msgid_plural "%(count)s succeeded"
 msgstr[0] "%(count)s succeeded"
 msgstr[1] "%(count)s succeeded"
 
-#: jobs.py:564
+#: jobs.py:567
 msgid "stopped: permission withdrawn"
 msgstr "stopped: permission withdrawn"
 
-#: jobs.py:566
+#: jobs.py:569
 msgid "stopped: the job could not continue"
 msgstr "stopped: the job could not continue"
 
-#: jobs.py:574
+#: jobs.py:577
 #, python-format
 msgid " (%(claimed)s was selected; %(matched)s still matched)"
 msgid_plural " (%(claimed)s were selected; %(matched)s still matched)"
 msgstr[0] " (%(claimed)s was selected; %(matched)s still matched)"
 msgstr[1] " (%(claimed)s were selected; %(matched)s still matched)"
 
-#: jobs.py:655
+#: jobs.py:658
 #, python-format
 msgid "No panel is registered for %(key)s; this job can no longer run."
 msgstr "No panel is registered for %(key)s; this job can no longer run."
 
-#: jobs.py:665
+#: jobs.py:668
 #, python-format
 msgid "The action %(action)s no longer exists on this panel."
 msgstr "The action %(action)s no longer exists on this panel."
 
-#: jobs.py:671 jobs.py:735
+#: jobs.py:674 jobs.py:738
 msgid "The account that started this job is gone or has been disabled."
 msgstr "The account that started this job is gone or has been disabled."
 
-#: jobs.py:717
+#: jobs.py:720
 #, python-format
 msgid "%(actor)s may no longer view %(records)s."
 msgstr "%(actor)s may no longer view %(records)s."
 
-#: jobs.py:718
+#: jobs.py:721
 #, python-format
 msgid "%(actor)s may no longer add %(records)s."
 msgstr "%(actor)s may no longer add %(records)s."
 
-#: jobs.py:719
+#: jobs.py:722
 #, python-format
 msgid "%(actor)s may no longer change %(records)s."
 msgstr "%(actor)s may no longer change %(records)s."
 
-#: jobs.py:720
+#: jobs.py:723
 #, python-format
 msgid "%(actor)s may no longer delete %(records)s."
 msgstr "%(actor)s may no longer delete %(records)s."
 
-#: jobs.py:725
+#: jobs.py:728
 #, python-format
 msgid "%(actor)s no longer has the “%(permission)s” permission on %(records)s."
 msgstr ""
 "%(actor)s no longer has the “%(permission)s” permission on %(records)s."
 
-#: jobs.py:745
+#: jobs.py:748
 msgid "The actor"
 msgstr "The actor"
 
-#: jobs.py:841 templates/vantage/audit.html:77
+#: jobs.py:844 templates/vantage/agents/run.html:34
+#: templates/vantage/audit.html:87
 msgid "Record"
 msgstr "Record"
 
-#: jobs.py:854
+#: jobs.py:857
 #, python-format
 msgid "%(count)s further failure was not recorded individually."
 msgid_plural "%(count)s further failures were not recorded individually."
@@ -1668,11 +1724,11 @@ msgstr ""
 #: media.py:419
 #, python-format
 msgid ""
-"%(name)s is a kind of file a browser runs rather than shows (a web page, SVG,"
-" XML or script), so it cannot be uploaded here."
+"%(name)s is a kind of file a browser runs rather than shows (a web page, "
+"SVG, XML or script), so it cannot be uploaded here."
 msgstr ""
-"%(name)s is a kind of file a browser runs rather than shows (a web page, SVG,"
-" XML or script), so it cannot be uploaded here."
+"%(name)s is a kind of file a browser runs rather than shows (a web page, "
+"SVG, XML or script), so it cannot be uploaded here."
 
 #: media.py:422 media.py:529
 msgid "That file"
@@ -1702,10 +1758,8 @@ msgid ""
 msgstr ""
 "%(name)s is not an image the panel can read. Use PNG, JPEG, WebP or GIF."
 
-#. Translators: each of these names one thing found inside an uploaded SVG, and
-#. is
-#. substituted into "That SVG contains %(hazard)s, which would run as script
-#. ...".
+#. Translators: each of these names one thing found inside an uploaded SVG, and is
+#. substituted into "That SVG contains %(hazard)s, which would run as script ...".
 #: models.py:134
 msgid "a <script> element"
 msgstr "a <script> element"
@@ -1812,7 +1866,7 @@ msgstr "deleted"
 msgid "ran an action"
 msgstr "ran an action"
 
-#: models.py:467 templates/vantage/webhooks/delivery.html:28 webhooks.py:103
+#: models.py:467 templates/vantage/webhooks/delivery.html:28 webhooks.py:104
 msgid "Created"
 msgstr "Created"
 
@@ -1820,7 +1874,7 @@ msgstr "Created"
 msgid "Updated"
 msgstr "Updated"
 
-#: models.py:469 webhooks.py:105
+#: models.py:469 webhooks.py:106
 msgid "Deleted"
 msgstr "Deleted"
 
@@ -1836,287 +1890,327 @@ msgstr "Restored"
 msgid "Ran an action"
 msgstr "Ran an action"
 
-#: models.py:526
+#: models.py:545
 msgid "log entry"
 msgstr "log entry"
 
-#: models.py:527
+#: models.py:546
 msgid "log entries"
 msgstr "log entries"
 
-#: models.py:542
+#: models.py:561
 #, python-format
 msgid "%(who)s %(did)s %(what)s"
 msgstr "%(who)s %(did)s %(what)s"
 
-#: models.py:543 templates/vantage/approvals/_request.html:17
+#: models.py:562 templates/vantage/approvals/_request.html:17
 #: templates/vantage/history.html:153
 #: templates/vantage/partials/approval_banner.html:19
 #: templates/vantage/partials/history.html:28
 msgid "Someone"
 msgstr "Someone"
 
-#: models.py:545
+#: models.py:564
 msgid "a record"
 msgstr "a record"
 
-#: models.py:637 templates/vantage/partials/saved_views.html:124
+#: models.py:581
+msgid "Created outside the panel"
+msgstr "Created outside the panel"
+
+#: models.py:582
+msgid "Updated outside the panel"
+msgstr "Updated outside the panel"
+
+#: models.py:583
+msgid "Deleted outside the panel"
+msgstr "Deleted outside the panel"
+
+#: models.py:584
+msgid "Changed outside the panel"
+msgstr "Changed outside the panel"
+
+#: models.py:675 templates/vantage/partials/saved_views.html:124
 #: templates/vantage/partials/saved_views.html:130
 msgid "Only me"
 msgstr "Only me"
 
-#: models.py:638 templates/vantage/partials/saved_views.html:125
+#: models.py:676 templates/vantage/partials/saved_views.html:125
 msgid "Everyone who can see this model"
 msgstr "Everyone who can see this model"
 
-#: models.py:641
+#: models.py:679
 msgid "Only the owner"
 msgstr "Only the owner"
 
-#: models.py:642
+#: models.py:680
 msgid "The owner and named editors"
 msgstr "The owner and named editors"
 
-#: models.py:643 templates/vantage/partials/saved_views.html:132
+#: models.py:681 templates/vantage/partials/saved_views.html:132
 msgid "Anyone who can see it"
 msgstr "Anyone who can see it"
 
-#: models.py:690
+#: models.py:728
 msgid "saved view"
 msgstr "saved view"
 
-#: models.py:691
+#: models.py:729
 msgid "saved views"
 msgstr "saved views"
 
-#: models.py:736
+#: models.py:774
 msgid "can use"
 msgstr "can use"
 
-#: models.py:737
+#: models.py:775
 msgid "can use and change"
 msgstr "can use and change"
 
-#: models.py:749
+#: models.py:787
 msgid "Can use"
 msgstr "Can use"
 
-#: models.py:750
+#: models.py:788
 msgid "Can use and change"
 msgstr "Can use and change"
 
-#: models.py:767
+#: models.py:805
 msgid "saved view grant"
 msgstr "saved view grant"
 
-#: models.py:768
+#: models.py:806
 msgid "saved view grants"
 msgstr "saved view grants"
 
-#: models.py:792
+#: models.py:830
 #, python-format
 msgid "%(subject)s — %(role)s"
 msgstr "%(subject)s — %(role)s"
 
-#: models.py:825
+#: models.py:863
 msgid "saved view state"
 msgstr "saved view state"
 
-#: models.py:826
+#: models.py:864
 msgid "saved view states"
 msgstr "saved view states"
 
-#: models.py:959
+#: models.py:997
 msgid "list preference"
 msgstr "list preference"
 
-#: models.py:960
+#: models.py:998
 msgid "list preferences"
 msgstr "list preferences"
 
-#: models.py:985 models.py:1532
+#: models.py:1023 models.py:1570
 msgid "everyone"
 msgstr "everyone"
 
-#: models.py:1057 models.py:1255 models.py:1393
+#: models.py:1095 models.py:1293 models.py:1431
 msgid "Queued"
 msgstr "Queued"
 
-#: models.py:1058 models.py:1394
+#: models.py:1096 models.py:1432
 msgid "Running"
 msgstr "Running"
 
-#: models.py:1059
+#: models.py:1097
 msgid "Finished"
 msgstr "Finished"
 
-#: models.py:1060 models.py:1258 models.py:1325 models.py:1397
+#: models.py:1098 models.py:1296 models.py:1363 models.py:1435
 #: templates/vantage/reports/list.html:45
 #: templates/vantage/webhooks/list.html:51
 msgid "Failed"
 msgstr "Failed"
 
-#: models.py:1065
+#: models.py:1103
 msgid "Stopped — permission withdrawn"
 msgstr "Stopped — permission withdrawn"
 
-#: models.py:1130
+#: models.py:1168
 msgid "background job"
 msgstr "background job"
 
-#: models.py:1131
+#: models.py:1169
 msgid "background jobs"
 msgstr "background jobs"
 
-#: models.py:1229
+#: models.py:1267
 msgid "webhook"
 msgstr "webhook"
 
-#: models.py:1230
+#: models.py:1268
 msgid "webhooks"
 msgstr "webhooks"
 
-#: models.py:1232
+#: models.py:1270
 msgid "Can manage webhooks"
 msgstr "Can manage webhooks"
 
-#: models.py:1256
+#: models.py:1294
 msgid "Waiting to retry"
 msgstr "Waiting to retry"
 
-#: models.py:1257
+#: models.py:1295
 msgid "Delivered"
 msgstr "Delivered"
 
-#: models.py:1285
+#: models.py:1323
 msgid "webhook delivery"
 msgstr "webhook delivery"
 
-#: models.py:1286
+#: models.py:1324
 msgid "webhook deliveries"
 msgstr "webhook deliveries"
 
-#: models.py:1318
+#: models.py:1356
 msgid "Every day"
 msgstr "Every day"
 
-#: models.py:1319
+#: models.py:1357
 msgid "Every week"
 msgstr "Every week"
 
-#: models.py:1320
+#: models.py:1358
 msgid "Every month"
 msgstr "Every month"
 
-#: models.py:1323 models.py:1395 templates/vantage/webhooks/delivery.html:35
+#: models.py:1361 models.py:1433 templates/vantage/webhooks/delivery.html:35
 msgid "Sent"
 msgstr "Sent"
 
-#: models.py:1324 models.py:1396
+#: models.py:1362 models.py:1434
 msgid "Skipped"
 msgstr "Skipped"
 
-#: models.py:1368
+#: models.py:1406
 msgid "report subscription"
 msgstr "report subscription"
 
-#: models.py:1369
+#: models.py:1407
 msgid "report subscriptions"
 msgstr "report subscriptions"
 
-#: models.py:1372
+#: models.py:1410
 msgid "Can manage everyone's scheduled reports"
 msgstr "Can manage everyone's scheduled reports"
 
-#: models.py:1373
+#: models.py:1411
 msgid "Can send scheduled reports to other addresses"
 msgstr "Can send scheduled reports to other addresses"
 
-#: models.py:1403 templates/vantage/reports/list.html:81
+#: models.py:1441 templates/vantage/reports/list.html:81
 msgid "Send now"
 msgstr "Send now"
 
-#: models.py:1423
+#: models.py:1461
 msgid "report run"
 msgstr "report run"
 
-#: models.py:1424
+#: models.py:1462
 msgid "report runs"
 msgstr "report runs"
 
-#: models.py:1508
+#: models.py:1546
 msgid "dashboard layout"
 msgstr "dashboard layout"
 
-#: models.py:1509
+#: models.py:1547
 msgid "dashboard layouts"
 msgstr "dashboard layouts"
 
-#: models.py:1596
+#: models.py:1634
 msgid "undo entry"
 msgstr "undo entry"
 
-#: models.py:1597
+#: models.py:1635
 msgid "undo entries"
 msgstr "undo entries"
 
-#: models.py:1641
+#: models.py:1688
 msgid "two-factor device"
 msgstr "two-factor device"
 
-#: models.py:1642
+#: models.py:1689
 msgid "two-factor devices"
 msgstr "two-factor devices"
 
-#: models.py:1664
+#: models.py:1716
 msgid "two-factor recovery code"
 msgstr "two-factor recovery code"
 
-#: models.py:1665
+#: models.py:1717
 msgid "two-factor recovery codes"
 msgstr "two-factor recovery codes"
 
-#: models.py:1699
+#: models.py:1751
 msgid "Approved"
 msgstr "Approved"
 
-#: models.py:1701
+#: models.py:1753
 msgid "Withdrawn"
 msgstr "Withdrawn"
 
-#: models.py:1738
+#: models.py:1790
 msgid "change request"
 msgstr "change request"
 
-#: models.py:1739
+#: models.py:1791
 msgid "change requests"
 msgstr "change requests"
 
-#: models.py:1776 templates/vantage/roles/_fields.html:16
+#: models.py:1828 templates/vantage/roles/_fields.html:16
 #: templates/vantage/roles/user.html:84
 msgid "Read-only"
 msgstr "Read-only"
 
-#: models.py:1777 templates/vantage/roles/_fields.html:17
+#: models.py:1829 templates/vantage/roles/_fields.html:17
 #: templates/vantage/roles/user.html:83 templates/vantage/settings_nav.html:138
 msgid "Hidden"
 msgstr "Hidden"
 
-#: models.py:1787
+#: models.py:1839
 msgid "field permission"
 msgstr "field permission"
 
-#: models.py:1788
+#: models.py:1840
 msgid "field permissions"
 msgstr "field permissions"
 
-#: models.py:1876
+#: models.py:1928
 msgid "elevated access"
 msgstr "elevated access"
 
-#: models.py:1877
+#: models.py:1929
 msgid "elevated access grants"
 msgstr "elevated access grants"
+
+#: models.py:1975
+msgid "Read only"
+msgstr "Read only"
+
+#: models.py:1976
+msgid "Read and write"
+msgstr "Read and write"
+
+#: models.py:2009
+msgid "agent identity"
+msgstr "agent identity"
+
+#: models.py:2010
+msgid "agent identities"
+msgstr "agent identities"
+
+#: models.py:2045
+msgid "agent run"
+msgstr "agent run"
+
+#: models.py:2046
+msgid "agent runs"
+msgstr "agent runs"
 
 #: nav.py:195 palette.py:297 templates/vantage/reports/list.html:183
 #: templates/vantage/webhooks/list.html:172
@@ -2143,49 +2237,49 @@ msgstr "There is no group to add that to yet. Create one first."
 #, python-format
 msgid ""
 "%(url)s was not added. A link must be a site path starting with “/”, or an "
-"http, https or mailto address — anything else, a javascript: URL most of all,"
-" is refused."
+"http, https or mailto address — anything else, a javascript: URL most of "
+"all, is refused."
 msgstr ""
 "%(url)s was not added. A link must be a site path starting with “/”, or an "
-"http, https or mailto address — anything else, a javascript: URL most of all,"
-" is refused."
+"http, https or mailto address — anything else, a javascript: URL most of "
+"all, is refused."
 
 #: nav.py:1230
 msgid "That item could not be added."
 msgstr "That item could not be added."
 
-#: pages.py:152 templates/vantage/pages/schema.html:27
+#: pages.py:153 templates/vantage/pages/schema.html:27
 msgid "Schema"
 msgstr "Schema"
 
-#: pages.py:154 pages.py:168 pages.py:170 pages.py:198 pages.py:289
-#: pages.py:320 pages.py:344 pages.py:372 pages.py:408 pages.py:426
-#: pages.py:450 templates/vantage/pages/health.html:7
+#: pages.py:155 pages.py:169 pages.py:171 pages.py:199 pages.py:290
+#: pages.py:321 pages.py:344 pages.py:377 pages.py:405 pages.py:441
+#: pages.py:459 pages.py:483 templates/vantage/pages/health.html:7
 msgid "System"
 msgstr "System"
 
-#: pages.py:196 templates/vantage/pages/data-quality.html:7
+#: pages.py:197 templates/vantage/pages/data-quality.html:7
 msgid "Data quality"
 msgstr "Data quality"
 
-#: pages.py:260
+#: pages.py:261
 msgid "Re-ran part of the audit before its time budget ran out. Run it again."
 msgstr "Re-ran part of the audit before its time budget ran out. Run it again."
 
-#: pages.py:263
+#: pages.py:264
 msgid "Data quality audit re-run."
 msgstr "Data quality audit re-run."
 
-#: pages.py:286 rolesviews.py:174 rolesviews.py:644
+#: pages.py:287 rolesviews.py:174 rolesviews.py:644
 #: templates/vantage/roles/user.html:27
 msgid "Roles"
 msgstr "Roles"
 
-#: pages.py:287
+#: pages.py:288
 msgid "Who can do what: permissions bundled into roles, and who holds them."
 msgstr "Who can do what: permissions bundled into roles, and who holds them."
 
-#: pages.py:317
+#: pages.py:318
 msgid ""
 "Who can view, add, change and delete each model, and its sensitive or "
 "restricted fields."
@@ -2193,39 +2287,44 @@ msgstr ""
 "Who can view, add, change and delete each model, and its sensitive or "
 "restricted fields."
 
-#: pages.py:341
+#: pages.py:342
+msgid "The agents that can reach this panel and what their runs have changed."
+msgstr ""
+"The agents that can reach this panel and what their runs have changed."
+
+#: pages.py:374
 msgid "Elevated access"
 msgstr "Elevated access"
 
-#: pages.py:342
+#: pages.py:375
 msgid "Hold more than your usual access for a few minutes, with a reason."
 msgstr "Hold more than your usual access for a few minutes, with a reason."
 
-#: pages.py:369 webhookviews.py:132
+#: pages.py:402 webhookviews.py:132
 msgid "Webhooks"
 msgstr "Webhooks"
 
-#: pages.py:370
+#: pages.py:403
 msgid "Tell another system, with a signed POST, when a record changes."
 msgstr "Tell another system, with a signed POST, when a record changes."
 
-#: pages.py:405 reportviews.py:248
+#: pages.py:438 reportviews.py:257
 msgid "My reports"
 msgstr "My reports"
 
-#: pages.py:406
+#: pages.py:439
 msgid "Saved views emailed to you as a CSV, and what became of each send."
 msgstr "Saved views emailed to you as a CSV, and what became of each send."
 
-#: pages.py:423
+#: pages.py:456
 msgid "Scheduled reports"
 msgstr "Scheduled reports"
 
-#: pages.py:424
+#: pages.py:457
 msgid "Everyone's scheduled reports: pause, resume, delete or send one now."
 msgstr "Everyone's scheduled reports: pause, resume, delete or send one now."
 
-#: pages.py:448
+#: pages.py:481
 msgid "Changes that wait for a second pair of eyes before they are saved."
 msgstr "Changes that wait for a second pair of eyes before they are saved."
 
@@ -2258,6 +2357,10 @@ msgstr "Search everything"
 #: palette.py:247
 msgid "Full results page"
 msgstr "Full results page"
+
+#: passwordreset.py:305
+msgid "Email address"
+msgstr "Email address"
 
 #: presets.py:282
 msgid "shadcn/ui's stock neutral theme: grey, near-black buttons, flat."
@@ -2332,7 +2435,7 @@ msgstr "%(base)s %(count)s related record(s) were copied with it."
 msgid "%(message)s (%(object)s)"
 msgstr "%(message)s (%(object)s)"
 
-#: recordviews.py:255 views.py:186
+#: recordviews.py:255 views.py:200
 msgid "That action is not available."
 msgstr "That action is not available."
 
@@ -2340,11 +2443,11 @@ msgstr "That action is not available."
 msgid "Bulk edit"
 msgstr "Bulk edit"
 
-#: recordviews.py:311 views.py:190
+#: recordviews.py:311 views.py:204
 msgid "Nothing was selected."
 msgstr "Nothing was selected."
 
-#: recordviews.py:317 views.py:198
+#: recordviews.py:317 views.py:212
 msgid "Those records no longer match."
 msgstr "Those records no longer match."
 
@@ -2474,11 +2577,11 @@ msgstr "The file is attached."
 #: reports.py:642
 #, python-format
 msgid ""
-"The file is larger than %(limit)s MB, so it is not attached. Open the view in"
-" the panel and use Export to download it."
+"The file is larger than %(limit)s MB, so it is not attached. Open the view "
+"in the panel and use Export to download it."
 msgstr ""
-"The file is larger than %(limit)s MB, so it is not attached. Open the view in"
-" the panel and use Export to download it."
+"The file is larger than %(limit)s MB, so it is not attached. Open the view "
+"in the panel and use Export to download it."
 
 #: reports.py:649
 msgid "Stop receiving this report:"
@@ -2551,30 +2654,34 @@ msgstr "Choose at least one recipient."
 msgid "Scheduled reports are switched off for this site."
 msgstr "Scheduled reports are switched off for this site."
 
-#: reportviews.py:280
+#: reportviews.py:233
+msgid "Scheduled reports cannot be set up or changed while impersonating."
+msgstr "Scheduled reports cannot be set up or changed while impersonating."
+
+#: reportviews.py:290
 #, python-format
 msgid "You can have at most %(limit)s scheduled reports."
 msgstr "You can have at most %(limit)s scheduled reports."
 
-#: reportviews.py:292
+#: reportviews.py:302
 #, python-format
 msgid "The report was not scheduled. %s"
 msgstr "The report was not scheduled. %s"
 
-#: reportviews.py:304
+#: reportviews.py:314
 #, python-format
 msgid "You will get “%(view)s” — %(when)s."
 msgstr "You will get “%(view)s” — %(when)s."
 
-#: reportviews.py:334
+#: reportviews.py:344
 msgid "When this saved view is emailed, and to whom."
 msgstr "When this saved view is emailed, and to whom."
 
-#: reportviews.py:351
+#: reportviews.py:362
 msgid "Report saved."
 msgstr "Report saved."
 
-#: reportviews.py:373
+#: reportviews.py:384
 #, python-format
 msgid "This report was sent a moment ago. Try again in %(count)s second."
 msgid_plural ""
@@ -2582,27 +2689,27 @@ msgid_plural ""
 msgstr[0] "This report was sent a moment ago. Try again in %(count)s second."
 msgstr[1] "This report was sent a moment ago. Try again in %(count)s seconds."
 
-#: reportviews.py:381
+#: reportviews.py:392
 msgid "Queued. The result will appear in the log."
 msgstr "Queued. The result will appear in the log."
 
-#: reportviews.py:395
+#: reportviews.py:406
 msgid "Report resumed."
 msgstr "Report resumed."
 
-#: reportviews.py:395
+#: reportviews.py:406
 msgid "Report paused."
 msgstr "Report paused."
 
-#: reportviews.py:409 templates/vantage/reports/confirm_delete.html:24
+#: reportviews.py:420 templates/vantage/reports/confirm_delete.html:24
 msgid "Delete report"
 msgstr "Delete report"
 
-#: reportviews.py:420
+#: reportviews.py:431
 msgid "Report deleted."
 msgstr "Report deleted."
 
-#: reportviews.py:538
+#: reportviews.py:549
 msgid "Someone used the unsubscribe link in an email."
 msgstr "Someone used the unsubscribe link in an email."
 
@@ -2630,20 +2737,25 @@ msgstr "You do not have permission to reveal this value."
 msgid "This value is stored as a hash and cannot be revealed."
 msgstr "This value is stored as a hash and cannot be revealed."
 
-#: revealviews.py:175
+#: revealviews.py:176
 msgid "This record has no password to set."
 msgstr "This record has no password to set."
 
-#: revealviews.py:178
+#: revealviews.py:179
 msgid "You cannot change this field."
 msgstr "You cannot change this field."
 
-#: revealviews.py:217
+#: revealviews.py:185
+msgid "Only a superuser can set a superuser's password."
+msgstr "Only a superuser can set a superuser's password."
+
+#: revealviews.py:224
 msgid "The password was changed."
 msgstr "The password was changed."
 
-#: revealviews.py:231 revealviews.py:241 templates/vantage/detail.html:36
+#: revealviews.py:238 revealviews.py:248 templates/vantage/detail.html:36
 #: templates/vantage/partials/field.html:15
+#: templates/vantage/password_reset_confirm.html:26
 #: templates/vantage/set_password.html:13
 #: templates/vantage/set_password.html:51
 msgid "Set password"
@@ -2757,14 +2869,14 @@ msgid ""
 "%(count)d requested change was ignored: an unknown permission, or one you do "
 "not hold yourself."
 msgid_plural ""
-"%(count)d requested changes were ignored: unknown permissions, or ones you do"
-" not hold yourself."
+"%(count)d requested changes were ignored: unknown permissions, or ones you "
+"do not hold yourself."
 msgstr[0] ""
 "%(count)d requested change was ignored: an unknown permission, or one you do "
 "not hold yourself."
 msgstr[1] ""
-"%(count)d requested changes were ignored: unknown permissions, or ones you do"
-" not hold yourself."
+"%(count)d requested changes were ignored: unknown permissions, or ones you "
+"do not hold yourself."
 
 #: rolesviews.py:413
 msgid ""
@@ -2848,31 +2960,31 @@ msgstr "Everything this account holds, and where each permission comes from."
 msgid "This panel is in read-only mode."
 msgstr "This panel is in read-only mode."
 
-#: safety.py:144
+#: safety.py:146
 msgid "Only superusers may impersonate."
 msgstr "Only superusers may impersonate."
 
-#: safety.py:146
+#: safety.py:148
 msgid "You are already signed in as that user."
 msgstr "You are already signed in as that user."
 
-#: safety.py:150
+#: safety.py:152
 msgid "Superusers cannot be impersonated."
 msgstr "Superusers cannot be impersonated."
 
-#: safety.py:152
+#: safety.py:154
 msgid "That account is inactive."
 msgstr "That account is inactive."
 
-#: safety.py:180
+#: safety.py:182
 msgid "Not currently impersonating."
 msgstr "Not currently impersonating."
 
-#: safety.py:186
+#: safety.py:188
 msgid "The original account no longer exists."
 msgstr "The original account no longer exists."
 
-#: savedviews.py:256
+#: savedviews.py:257
 #, python-format
 msgid ""
 "“%(column)s” is no longer a column on this page, so the saved ordering was "
@@ -2881,29 +2993,29 @@ msgstr ""
 "“%(column)s” is no longer a column on this page, so the saved ordering was "
 "not applied."
 
-#: savedviews.py:277
+#: savedviews.py:278
 #, python-format
 msgid ""
 "“%(field)s” can no longer arrange this view, so its default field is used."
 msgstr ""
 "“%(field)s” can no longer arrange this view, so its default field is used."
 
-#: savedviews.py:289
+#: savedviews.py:290
 #, python-format
 msgid "The “%(view)s” view is no longer offered here, so the table is shown."
 msgstr "The “%(view)s” view is no longer offered here, so the table is shown."
 
-#: savedviews.py:315
+#: savedviews.py:316
 #, python-format
 msgid "“%(field)s” no longer exists on %(records)s."
 msgstr "“%(field)s” no longer exists on %(records)s."
 
-#: savedviews.py:319
+#: savedviews.py:320
 #, python-format
 msgid "“%(field)s” is no longer one of this page's filters."
 msgstr "“%(field)s” is no longer one of this page's filters."
 
-#: savedviews.py:452
+#: savedviews.py:471
 #, python-format
 msgid ""
 "“%(name)s” was changed by someone else while this page was open. Reload to "
@@ -2912,54 +3024,54 @@ msgstr ""
 "“%(name)s” was changed by someone else while this page was open. Reload to "
 "see their version, or use Save as to keep yours."
 
-#: savedviews.py:615
+#: savedviews.py:634
 msgid "That saved view points at a model this panel does not show."
 msgstr "That saved view points at a model this panel does not show."
 
-#: savedviews.py:619 savedviews.py:786
+#: savedviews.py:638 savedviews.py:805
 msgid "You do not have permission to view those records."
 msgstr "You do not have permission to view those records."
 
-#: savedviews.py:621
+#: savedviews.py:640
 msgid "That saved view is not shared with you."
 msgstr "That saved view is not shared with you."
 
-#: savedviews.py:686
+#: savedviews.py:705
 msgid "Saved views are switched off."
 msgstr "Saved views are switched off."
 
-#: savedviews.py:690
+#: savedviews.py:709
 msgid "That is not something a saved view can do."
 msgstr "That is not something a saved view can do."
 
-#: savedviews.py:708
+#: savedviews.py:727
 msgid "You cannot change that view. Use Save as instead."
 msgstr "You cannot change that view. Use Save as instead."
 
-#: savedviews.py:713 savedviews.py:746
+#: savedviews.py:732 savedviews.py:765
 #, python-format
 msgid "Saved “%(name)s”."
 msgstr "Saved “%(name)s”."
 
-#: savedviews.py:720
+#: savedviews.py:739
 msgid "A saved view needs a name."
 msgstr "A saved view needs a name."
 
-#: savedviews.py:753
+#: savedviews.py:772
 msgid "You cannot delete that view."
 msgstr "You cannot delete that view."
 
-#: savedviews.py:756
+#: savedviews.py:775
 #, python-format
 msgid "Deleted “%(name)s”."
 msgstr "Deleted “%(name)s”."
 
-#: savedviews.py:764
+#: savedviews.py:783
 #, python-format
 msgid "“%(name)s” now opens by default for you."
 msgstr "“%(name)s” now opens by default for you."
 
-#: savedviews.py:784
+#: savedviews.py:803
 msgid "That is not a model this panel shows."
 msgstr "That is not a model this panel shows."
 
@@ -3245,12 +3357,12 @@ msgid "No role"
 msgstr "No role"
 
 #: templates/vantage/access/_grants.html:7 templates/vantage/audit.html:22
-#: templates/vantage/audit.html:75 templates/vantage/jobs.html:35
+#: templates/vantage/audit.html:85 templates/vantage/jobs.html:35
 msgid "Who"
 msgstr "Who"
 
-#: templates/vantage/access/_grants.html:8 templates/vantage/audit.html:32
-#: templates/vantage/audit.html:76
+#: templates/vantage/access/_grants.html:8 templates/vantage/agents/run.html:32
+#: templates/vantage/audit.html:32 templates/vantage/audit.html:86
 msgid "What"
 msgstr "What"
 
@@ -3341,6 +3453,7 @@ msgid "Recent"
 msgstr "Recent"
 
 #: templates/vantage/access/review.html:13
+#: templates/vantage/agents/activity.html:13
 msgid "Download CSV"
 msgstr "Download CSV"
 
@@ -3353,7 +3466,7 @@ msgid "Report by"
 msgstr "Report by"
 
 #: templates/vantage/access/review.html:22
-#: templates/vantage/two_factor_users.html:35
+#: templates/vantage/two_factor_users.html:37
 msgid "Person"
 msgstr "Person"
 
@@ -3370,11 +3483,11 @@ msgstr "Show"
 #: templates/vantage/access/review.html:37
 #, python-format
 msgid ""
-"Generated %(when)s by version %(version)s. Row-level scoping (tenants, object"
-" permissions) is not shown."
+"Generated %(when)s by version %(version)s. Row-level scoping (tenants, "
+"object permissions) is not shown."
 msgstr ""
-"Generated %(when)s by version %(version)s. Row-level scoping (tenants, object"
-" permissions) is not shown."
+"Generated %(when)s by version %(version)s. Row-level scoping (tenants, "
+"object permissions) is not shown."
 
 #: templates/vantage/access/review.html:47
 msgid "Superuser"
@@ -3454,8 +3567,8 @@ msgid "Sign out"
 msgstr "Sign out"
 
 #: templates/vantage/account.html:75
-#: templates/vantage/two_factor_verify.html:36 twofactor.py:701
-#: twofactorviews.py:157
+#: templates/vantage/two_factor_verify.html:36 twofactor.py:1007
+#: twofactorviews.py:169
 msgid "Two-factor sign-in"
 msgstr "Two-factor sign-in"
 
@@ -3469,11 +3582,11 @@ msgstr ""
 
 #: templates/vantage/account.html:81
 msgid ""
-"Off. Add a code from an app on your phone, so a leaked password is not enough"
-" on its own."
+"Off. Add a code from an app on your phone, so a leaked password is not "
+"enough on its own."
 msgstr ""
-"Off. Add a code from an app on your phone, so a leaked password is not enough"
-" on its own."
+"Off. Add a code from an app on your phone, so a leaked password is not "
+"enough on its own."
 
 #: templates/vantage/account.html:86
 msgid "Manage two-factor sign-in"
@@ -3483,7 +3596,7 @@ msgstr "Manage two-factor sign-in"
 msgid "Set up two-factor sign-in"
 msgstr "Set up two-factor sign-in"
 
-#: templates/vantage/account.html:90 twofactorviews.py:384
+#: templates/vantage/account.html:90 twofactorviews.py:483
 msgid "Two-factor sign-in for everyone"
 msgstr "Two-factor sign-in for everyone"
 
@@ -3514,11 +3627,173 @@ msgstr "Dark"
 
 #: templates/vantage/account.html:140
 msgid ""
-"Pick a look for yourself. It changes colours, corners and shadows, never your"
-" data, and nothing for anyone else."
+"Pick a look for yourself. It changes colours, corners and shadows, never "
+"your data, and nothing for anyone else."
 msgstr ""
-"Pick a look for yourself. It changes colours, corners and shadows, never your"
-" data, and nothing for anyone else."
+"Pick a look for yourself. It changes colours, corners and shadows, never "
+"your data, and nothing for anyone else."
+
+#: templates/vantage/agents/activity.html:14
+msgid "Download NDJSON"
+msgstr "Download NDJSON"
+
+#: templates/vantage/agents/activity.html:15
+msgid "Runs as CSV"
+msgstr "Runs as CSV"
+
+#: templates/vantage/agents/activity.html:19
+msgid "Agents"
+msgstr "Agents"
+
+#: templates/vantage/agents/activity.html:25
+#: templates/vantage/agents/activity.html:72
+#: templates/vantage/agents/activity.html:91 templates/vantage/audit.html:106
+#: templates/vantage/history.html:155
+#: templates/vantage/partials/history.html:30
+msgid "Agent"
+msgstr "Agent"
+
+#: templates/vantage/agents/activity.html:26
+msgid "Access"
+msgstr "Access"
+
+#: templates/vantage/agents/activity.html:27
+msgid "Scopes"
+msgstr "Scopes"
+
+#: templates/vantage/agents/activity.html:28
+#: templates/vantage/two_factor_users.html:40
+msgid "Last used"
+msgstr "Last used"
+
+#: templates/vantage/agents/activity.html:29
+msgid "Expires"
+msgstr "Expires"
+
+#: templates/vantage/agents/activity.html:30
+msgid "Runs 7d"
+msgstr "Runs 7d"
+
+#: templates/vantage/agents/activity.html:31
+msgid "Writes 7d"
+msgstr "Writes 7d"
+
+#: templates/vantage/agents/activity.html:39
+#, python-format
+msgid "runs as %(user)s, for %(owner)s"
+msgstr "runs as %(user)s, for %(owner)s"
+
+#: templates/vantage/agents/activity.html:43
+msgid "Can delete"
+msgstr "Can delete"
+
+#: templates/vantage/agents/activity.html:44
+msgid "Approval required"
+msgstr "Approval required"
+
+#: templates/vantage/agents/activity.html:46
+msgid "All the service user can see"
+msgstr "All the service user can see"
+
+#: templates/vantage/agents/activity.html:51
+#, python-format
+msgid "Revoked %(when)s"
+msgstr "Revoked %(when)s"
+
+#: templates/vantage/agents/activity.html:63
+msgid "No agents yet."
+msgstr "No agents yet."
+
+#: templates/vantage/agents/activity.html:64
+msgid "Create one with manage.py vantage_agent create."
+msgstr "Create one with manage.py vantage_agent create."
+
+#: templates/vantage/agents/activity.html:69
+msgid "Recent runs"
+msgstr "Recent runs"
+
+#: templates/vantage/agents/activity.html:70
+msgid "Filter runs"
+msgstr "Filter runs"
+
+#: templates/vantage/agents/activity.html:74
+msgid "Any agent"
+msgstr "Any agent"
+
+#: templates/vantage/agents/activity.html:81 templates/vantage/audit.html:72
+#: templates/vantage/list_views/field_picker.html:16
+msgid "Apply"
+msgstr "Apply"
+
+#: templates/vantage/agents/activity.html:82 templates/vantage/audit.html:74
+#: templates/vantage/partials/list_toolbar.html:40
+#: templates/vantage/roles/members.html:32 templates/vantage/search.html:34
+msgid "Clear"
+msgstr "Clear"
+
+#: templates/vantage/agents/activity.html:93 templates/vantage/jobs.html:34
+msgid "Started"
+msgstr "Started"
+
+#: templates/vantage/agents/activity.html:94
+msgid "Writes"
+msgstr "Writes"
+
+#: templates/vantage/agents/activity.html:95
+msgid "Deletes"
+msgstr "Deletes"
+
+#: templates/vantage/agents/activity.html:112
+msgid "No runs recorded."
+msgstr "No runs recorded."
+
+#: templates/vantage/agents/run.html:13
+msgid "All agent activity"
+msgstr "All agent activity"
+
+#: templates/vantage/agents/run.html:18
+#, python-format
+msgid "Started %(started)s, last seen %(seen)s."
+msgstr "Started %(started)s, last seen %(seen)s."
+
+#: templates/vantage/agents/run.html:21
+#, python-format
+msgid "%(writes)s writes, %(rows)s rows changed, %(deletes)s deletes."
+msgstr "%(writes)s writes, %(rows)s rows changed, %(deletes)s deletes."
+
+#: templates/vantage/agents/run.html:31 templates/vantage/audit.html:52
+#: templates/vantage/audit.html:84 templates/vantage/reports/list.html:145
+#: templates/vantage/webhooks/list.html:131
+msgid "When"
+msgstr "When"
+
+#: templates/vantage/agents/run.html:35 templates/vantage/audit.html:88
+msgid "Changes"
+msgstr "Changes"
+
+#: templates/vantage/agents/run.html:56
+msgid "This run has not changed anything."
+msgstr "This run has not changed anything."
+
+#: templates/vantage/agents/run.html:63 templates/vantage/audit.html:199
+#: templates/vantage/jobs.html:95 templates/vantage/list.html:475
+#, python-format
+msgid "%(start)s–%(end)s of %(total)s"
+msgstr "%(start)s–%(end)s of %(total)s"
+
+#: templates/vantage/agents/run.html:65 templates/vantage/audit.html:204
+#: templates/vantage/audit.html:206 templates/vantage/jobs.html:100
+#: templates/vantage/jobs.html:102 templates/vantage/list.html:480
+#: templates/vantage/list.html:482
+msgid "Previous"
+msgstr "Previous"
+
+#: templates/vantage/agents/run.html:66 templates/vantage/audit.html:210
+#: templates/vantage/audit.html:212 templates/vantage/jobs.html:106
+#: templates/vantage/jobs.html:108 templates/vantage/list.html:486
+#: templates/vantage/list.html:488 templates/vantage/reports/list.html:43
+msgid "Next"
+msgstr "Next"
 
 #: templates/vantage/approvals/_diff.html:13
 msgid "Not shown: a field permission hides it from you."
@@ -3619,105 +3894,77 @@ msgstr "Anyone"
 msgid "Anything"
 msgstr "Anything"
 
-#: templates/vantage/audit.html:42 templates/vantage/audit.html:74
-#: templates/vantage/reports/list.html:145
-#: templates/vantage/webhooks/list.html:131
-msgid "When"
-msgstr "When"
+#: templates/vantage/audit.html:42
+msgid "Source"
+msgstr "Source"
 
 #: templates/vantage/audit.html:44
+msgid "Anywhere"
+msgstr "Anywhere"
+
+#: templates/vantage/audit.html:54
 msgid "Any time"
 msgstr "Any time"
 
-#: templates/vantage/audit.html:52
+#: templates/vantage/audit.html:62
 msgctxt "start of a date range"
 msgid "From"
 msgstr "From"
 
-#: templates/vantage/audit.html:57
+#: templates/vantage/audit.html:67
 msgctxt "end of a date range"
 msgid "To"
 msgstr "To"
 
-#: templates/vantage/audit.html:62
-#: templates/vantage/list_views/field_picker.html:16
-msgid "Apply"
-msgstr "Apply"
-
-#: templates/vantage/audit.html:64
-#: templates/vantage/partials/list_toolbar.html:40
-#: templates/vantage/roles/members.html:32 templates/vantage/search.html:34
-msgid "Clear"
-msgstr "Clear"
-
-#: templates/vantage/audit.html:78
-msgid "Changes"
-msgstr "Changes"
-
-#: templates/vantage/audit.html:82
+#: templates/vantage/audit.html:92
 msgctxt "network origin of an audit entry"
 msgid "From"
 msgstr "From"
 
-#: templates/vantage/audit.html:97
+#: templates/vantage/audit.html:105 templates/vantage/audit.html:107
+msgid "run"
+msgstr "run"
+
+#: templates/vantage/audit.html:117
 #, python-format
 msgid "restored as of %(when)s"
 msgstr "restored as of %(when)s"
 
-#: templates/vantage/audit.html:123
+#: templates/vantage/audit.html:145
 #, python-format
 msgid "%(counter)s field"
 msgid_plural "%(counter)s fields"
 msgstr[0] "%(counter)s field"
 msgstr[1] "%(counter)s fields"
 
-#: templates/vantage/audit.html:135 templates/vantage/history.html:177
-#: templates/vantage/partials/history.html:53
+#: templates/vantage/audit.html:157 templates/vantage/history.html:180
+#: templates/vantage/partials/history.html:56
 msgid "changed — value not recorded"
 msgstr "changed — value not recorded"
 
-#: templates/vantage/audit.html:155
+#: templates/vantage/audit.html:177
 msgid "Nothing matches those filters."
 msgstr "Nothing matches those filters."
 
-#: templates/vantage/audit.html:156
+#: templates/vantage/audit.html:178
 msgid "Widen the date range, or clear the filters to see everything."
 msgstr "Widen the date range, or clear the filters to see everything."
 
-#: templates/vantage/audit.html:157
+#: templates/vantage/audit.html:179
 msgid "Clear filters"
 msgstr "Clear filters"
 
-#: templates/vantage/audit.html:163
+#: templates/vantage/audit.html:185
 msgid "Nothing has been recorded yet."
 msgstr "Nothing has been recorded yet."
 
-#: templates/vantage/audit.html:165
+#: templates/vantage/audit.html:187
 msgid ""
 "Entries appear here as soon as someone creates, changes or deletes a record "
 "through this panel."
 msgstr ""
 "Entries appear here as soon as someone creates, changes or deletes a record "
 "through this panel."
-
-#: templates/vantage/audit.html:177 templates/vantage/jobs.html:95
-#: templates/vantage/list.html:475
-#, python-format
-msgid "%(start)s–%(end)s of %(total)s"
-msgstr "%(start)s–%(end)s of %(total)s"
-
-#: templates/vantage/audit.html:182 templates/vantage/audit.html:184
-#: templates/vantage/jobs.html:100 templates/vantage/jobs.html:102
-#: templates/vantage/list.html:480 templates/vantage/list.html:482
-msgid "Previous"
-msgstr "Previous"
-
-#: templates/vantage/audit.html:188 templates/vantage/audit.html:190
-#: templates/vantage/jobs.html:106 templates/vantage/jobs.html:108
-#: templates/vantage/list.html:486 templates/vantage/list.html:488
-#: templates/vantage/reports/list.html:43
-msgid "Next"
-msgstr "Next"
 
 #: templates/vantage/base.html:36
 msgid "Skip to main content"
@@ -3819,7 +4066,7 @@ msgstr "Bulk edit %(label)s"
 #: templates/vantage/reports/confirm_delete.html:21
 #: templates/vantage/reports/form.html:42
 #: templates/vantage/roles/delete.html:49
-#: templates/vantage/set_password.html:50 templates/vantage/two_factor.html:156
+#: templates/vantage/set_password.html:50 templates/vantage/two_factor.html:107
 #: templates/vantage/webhooks/confirm_delete.html:21
 #: templates/vantage/webhooks/form.html:50
 msgid "Cancel"
@@ -3835,11 +4082,11 @@ msgstr[1] "This will change %(counter)s records."
 #: templates/vantage/bulk_edit.html:66
 #, python-format
 msgid ""
-"Applies to %(scope)s. Only the fields you tick below are written — everything"
-" else on every record is left exactly as it is."
+"Applies to %(scope)s. Only the fields you tick below are written — "
+"everything else on every record is left exactly as it is."
 msgstr ""
-"Applies to %(scope)s. Only the fields you tick below are written — everything"
-" else on every record is left exactly as it is."
+"Applies to %(scope)s. Only the fields you tick below are written — "
+"everything else on every record is left exactly as it is."
 
 #: templates/vantage/bulk_edit.html:77
 msgid "Fields to change"
@@ -3916,13 +4163,13 @@ msgstr "Nothing to show yet."
 
 #: templates/vantage/dashboard.html:86
 msgid ""
-"Register a model, or point <code "
-"class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</code> at a <code "
-"class=\"v-mono\">Dashboard</code> subclass to declare your own cards."
+"Register a model, or point <code class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</"
+"code> at a <code class=\"v-mono\">Dashboard</code> subclass to declare your "
+"own cards."
 msgstr ""
-"Register a model, or point <code "
-"class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</code> at a <code "
-"class=\"v-mono\">Dashboard</code> subclass to declare your own cards."
+"Register a model, or point <code class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</"
+"code> at a <code class=\"v-mono\">Dashboard</code> subclass to declare your "
+"own cards."
 
 #: templates/vantage/dashboard.html:93
 #: templates/vantage/partials/card_editor.html:50
@@ -3933,7 +4180,7 @@ msgstr "Add a card"
 msgid "Back to list"
 msgstr "Back to list"
 
-#: templates/vantage/detail.html:30 widgets.py:730
+#: templates/vantage/detail.html:30 widgets.py:802
 msgid "Details"
 msgstr "Details"
 
@@ -4091,37 +4338,37 @@ msgstr ""
 msgid "Timeline"
 msgstr "Timeline"
 
-#: templates/vantage/history.html:156
+#: templates/vantage/history.html:157
 msgid "As it was after this"
 msgstr "As it was after this"
 
-#: templates/vantage/history.html:159
-#: templates/vantage/partials/history.html:37
+#: templates/vantage/history.html:160
+#: templates/vantage/partials/history.html:40
 #, python-format
 msgid "Restored from history, as of %(when)s."
 msgstr "Restored from history, as of %(when)s."
 
-#: templates/vantage/history.html:161
-#: templates/vantage/partials/history.html:35
+#: templates/vantage/history.html:162
+#: templates/vantage/partials/history.html:36
 #, python-format
 msgid "Revealed <code>%(name)s</code>."
 msgstr "Revealed <code>%(name)s</code>."
 
-#: templates/vantage/history.html:163
-#: templates/vantage/partials/history.html:39
+#: templates/vantage/history.html:166
+#: templates/vantage/partials/history.html:42
 #, python-format
 msgid "Ran <code>%(name)s</code>."
 msgstr "Ran <code>%(name)s</code>."
 
-#: templates/vantage/history.html:189
+#: templates/vantage/history.html:192
 #, python-format
 msgid "Showing the most recent change."
 msgid_plural "Showing the most recent %(counter)s changes."
 msgstr[0] "Showing the most recent change."
 msgstr[1] "Showing the most recent %(counter)s changes."
 
-#: templates/vantage/history.html:192
-#: templates/vantage/partials/history.html:73
+#: templates/vantage/history.html:195
+#: templates/vantage/partials/history.html:76
 msgid "Nothing has been done to this record through the panel."
 msgstr "Nothing has been done to this record through the panel."
 
@@ -4291,12 +4538,12 @@ msgstr "would be sent for approval"
 #: templates/vantage/import_preview.html:72
 msgid ""
 "Some rows change a field that needs approval. Those changes are not saved by "
-"the import: each becomes a request on the approvals page, and the rest of the"
-" row is saved as usual."
+"the import: each becomes a request on the approvals page, and the rest of "
+"the row is saved as usual."
 msgstr ""
 "Some rows change a field that needs approval. Those changes are not saved by "
-"the import: each becomes a request on the approvals page, and the rest of the"
-" row is saved as usual."
+"the import: each becomes a request on the approvals page, and the rest of "
+"the row is saved as usual."
 
 #: templates/vantage/import_preview.html:82
 msgid "Some required fields have no column."
@@ -4479,10 +4726,6 @@ msgstr ""
 msgid "Queued through <strong>%(label)s</strong>."
 msgstr "Queued through <strong>%(label)s</strong>."
 
-#: templates/vantage/jobs.html:34
-msgid "Started"
-msgstr "Started"
-
 #: templates/vantage/jobs.html:36
 msgid "Action"
 msgstr "Action"
@@ -4512,14 +4755,6 @@ msgstr ""
 #: templates/vantage/list.html:26
 msgid "Export"
 msgstr "Export"
-
-#: templates/vantage/list.html:29
-msgid "TSV (spreadsheet)"
-msgstr "TSV (spreadsheet)"
-
-#: templates/vantage/list.html:30
-msgid "JSON (one per line)"
-msgstr "JSON (one per line)"
 
 #: templates/vantage/list.html:36
 msgid "Import CSV"
@@ -4641,7 +4876,7 @@ msgstr "Close preview"
 msgid "by %(field)s"
 msgstr "by %(field)s"
 
-#: templates/vantage/list_views/calendar.html:18 views.py:388
+#: templates/vantage/list_views/calendar.html:18 views.py:402
 msgid "Month"
 msgstr "Month"
 
@@ -4764,12 +4999,17 @@ msgid "Sign in · %(site_title)s"
 msgstr "Sign in · %(site_title)s"
 
 #: templates/vantage/login.html:37 templates/vantage/login.html:71
+#: templates/vantage/password_reset_complete.html:7
 msgid "Sign in"
 msgstr "Sign in"
 
 #: templates/vantage/login.html:48
 msgid "Sign-in failed."
 msgstr "Sign-in failed."
+
+#: templates/vantage/login.html:74
+msgid "Forgot password?"
+msgstr "Forgot password?"
 
 #: templates/vantage/page.html:51
 msgid "This page returned no data."
@@ -4783,13 +5023,6 @@ msgid ""
 msgstr ""
 "Return a dict from <code class=\"v-mono\">get_context()</code>, or add a "
 "template at <code class=\"v-mono\">vantage/pages/%(slug)s.html</code>."
-
-#: templates/vantage/pages/_data_quality_detail.html:8
-#: templates/vantage/pages/_data_quality_detail.html:31
-#: templates/vantage/pages/data-quality.html:44
-#: templates/vantage/reports/list.html:148
-msgid "Rows"
-msgstr "Rows"
 
 #: templates/vantage/pages/_data_quality_detail.html:10
 #, python-format
@@ -5206,7 +5439,7 @@ msgstr "Save for everyone"
 #: templates/vantage/partials/list_prefs.html:446
 #: templates/vantage/partials/saved_views.html:87
 #: templates/vantage/roles/edit.html:58
-#: templates/vantage/two_factor_users.html:38
+#: templates/vantage/two_factor_users.html:41
 msgid "Reset"
 msgstr "Reset"
 
@@ -5434,26 +5667,30 @@ msgstr "Close, and put focus back on the row"
 msgid "As it was…"
 msgstr "As it was…"
 
-#: templates/vantage/partials/history.html:68
+#: templates/vantage/partials/history.html:38
+msgid "Made by a script, the shell or other code, not through this panel."
+msgstr "Made by a script, the shell or other code, not through this panel."
+
+#: templates/vantage/partials/history.html:71
 #, python-format
 msgid ""
-"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit "
-"log</a>."
+"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit log</"
+"a>."
 msgid_plural ""
 "Showing the most recent %(counter)s entries. <a href=\"%(url)s\">Open the "
 "full audit log</a>."
 msgstr[0] ""
-"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit "
-"log</a>."
+"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit log</"
+"a>."
 msgstr[1] ""
 "Showing the most recent %(counter)s entries. <a href=\"%(url)s\">Open the "
 "full audit log</a>."
 
-#: templates/vantage/partials/history.html:79
+#: templates/vantage/partials/history.html:82
 msgid "Row history"
 msgstr "Row history"
 
-#: templates/vantage/partials/history.html:83
+#: templates/vantage/partials/history.html:86
 msgid "From django-simple-history."
 msgstr "From django-simple-history."
 
@@ -5469,6 +5706,7 @@ msgstr "Limit of %(count)s reached."
 #: templates/vantage/partials/inline_row.html:51
 #: templates/vantage/partials/inline_row.html:79
 #: templates/vantage/roles/members.html:65
+#: templates/vantage/two_factor.html:146
 msgid "Remove"
 msgstr "Remove"
 
@@ -5575,7 +5813,7 @@ msgid "Always"
 msgstr "Always"
 
 #: templates/vantage/partials/list_prefs.html:229
-#: templates/vantage/two_factor_users.html:46
+#: templates/vantage/two_factor_users.html:50
 msgid "Never"
 msgstr "Never"
 
@@ -5843,11 +6081,11 @@ msgstr "Subscribe"
 #: templates/vantage/partials/saved_views.html:162
 #, python-format
 msgid ""
-"You already get this view. <a href=\"%(report_home_url)s\">See your "
-"reports</a>."
+"You already get this view. <a href=\"%(report_home_url)s\">See your reports</"
+"a>."
 msgstr ""
-"You already get this view. <a href=\"%(report_home_url)s\">See your "
-"reports</a>."
+"You already get this view. <a href=\"%(report_home_url)s\">See your reports</"
+"a>."
 
 #: templates/vantage/partials/saved_views.html:191
 msgid ""
@@ -5906,7 +6144,7 @@ msgid "Signed in as %(name)s"
 msgstr "Signed in as %(name)s"
 
 #: templates/vantage/partials/usermenu.html:74 topbarviews.py:63
-#: topbarviews.py:67 twofactorviews.py:171 twofactorviews.py:396
+#: topbarviews.py:67 twofactorviews.py:183 twofactorviews.py:495
 msgid "Your account"
 msgstr "Your account"
 
@@ -5939,6 +6177,118 @@ msgstr ""
 #: templates/vantage/set_password.html:27
 msgid "That did not work."
 msgstr "That did not work."
+
+#: templates/vantage/password_reset.html:3
+msgid "Reset password"
+msgstr "Reset password"
+
+#: templates/vantage/password_reset.html:4
+msgid "Reset your password"
+msgstr "Reset your password"
+
+#: templates/vantage/password_reset.html:6
+msgid ""
+"Enter the email address of your account and we will send you a link to "
+"choose a new password."
+msgstr ""
+"Enter the email address of your account and we will send you a link to "
+"choose a new password."
+
+#: templates/vantage/password_reset.html:24
+msgid "Send reset link"
+msgstr "Send reset link"
+
+#: templates/vantage/password_reset_base.html:35
+msgid "Back to sign in"
+msgstr "Back to sign in"
+
+#: templates/vantage/password_reset_complete.html:3
+#: templates/vantage/password_reset_complete.html:4
+msgid "Password changed"
+msgstr "Password changed"
+
+#: templates/vantage/password_reset_complete.html:6
+msgid ""
+"Your password has been set. Sign in with it now; if you use an "
+"authenticator app you will still be asked for a code."
+msgstr ""
+"Your password has been set. Sign in with it now; if you use an "
+"authenticator app you will still be asked for a code."
+
+#: templates/vantage/password_reset_confirm.html:3
+#: templates/vantage/password_reset_confirm.html:4
+msgid "New password"
+msgstr "New password"
+
+#: templates/vantage/password_reset_confirm.html:4
+msgid "Link not valid"
+msgstr "Link not valid"
+
+#: templates/vantage/password_reset_confirm.html:7
+msgid "Too many attempts. Try again later."
+msgstr "Too many attempts. Try again later."
+
+#: templates/vantage/password_reset_confirm.html:29
+msgid ""
+"This link is no longer valid. It may have expired or already been used."
+msgstr ""
+"This link is no longer valid. It may have expired or already been used."
+
+#: templates/vantage/password_reset_confirm.html:30
+msgid "Request a new link"
+msgstr "Request a new link"
+
+#: templates/vantage/password_reset_done.html:3
+#: templates/vantage/password_reset_done.html:4
+msgid "Check your email"
+msgstr "Check your email"
+
+#: templates/vantage/password_reset_done.html:6
+msgid ""
+"If an account exists for that address, we have sent an email with a link "
+"to reset the password."
+msgstr ""
+"If an account exists for that address, we have sent an email with a link "
+"to reset the password."
+
+#: templates/vantage/password_reset_done.html:7
+msgid ""
+"The link works once and expires soon. If nothing arrives, check your spam "
+"folder or ask an administrator."
+msgstr ""
+"The link works once and expires soon. If nothing arrives, check your spam "
+"folder or ask an administrator."
+
+#: templates/vantage/password_reset_email.txt:1
+#, python-format
+msgid ""
+"Someone asked to reset the password for your %(site_title)s account "
+"(%(username)s)."
+msgstr ""
+"Someone asked to reset the password for your %(site_title)s account "
+"(%(username)s)."
+
+#: templates/vantage/password_reset_email.txt:3
+msgid "Open this link to choose a new password:"
+msgstr "Open this link to choose a new password:"
+
+#: templates/vantage/password_reset_email.txt:7
+#, python-format
+msgid "The link works once and expires in %(valid_minutes)s minutes."
+msgstr "The link works once and expires in %(valid_minutes)s minutes."
+
+#: templates/vantage/password_reset_email.txt:9
+msgid ""
+"If you did not ask for this, ignore this email; your password has not "
+"changed."
+msgstr ""
+"If you did not ask for this, ignore this email; your password has not "
+"changed."
+
+#: templates/vantage/password_reset_subject.txt:1
+#, python-format
+msgid "Reset your password for %(site_title)s"
+msgstr "Reset your password for %(site_title)s"
 
 #: templates/vantage/reports/confirm_delete.html:9
 #, python-format
@@ -5974,11 +6324,11 @@ msgstr ""
 
 #: templates/vantage/reports/list.html:22
 msgid ""
-"Reports are queued by <code class=\"v-mono\">manage.py "
-"vantage_reports</code>, which must run every minute from cron."
+"Reports are queued by <code class=\"v-mono\">manage.py vantage_reports</"
+"code>, which must run every minute from cron."
 msgstr ""
-"Reports are queued by <code class=\"v-mono\">manage.py "
-"vantage_reports</code>, which must run every minute from cron."
+"Reports are queued by <code class=\"v-mono\">manage.py vantage_reports</"
+"code>, which must run every minute from cron."
 
 #: templates/vantage/reports/list.html:27
 msgid ""
@@ -6035,11 +6385,11 @@ msgstr "No scheduled reports yet."
 
 #: templates/vantage/reports/list.html:107
 msgid ""
-"Open a saved view on a list page and choose Subscribe to get it by email as a"
-" CSV every day, week or month."
+"Open a saved view on a list page and choose Subscribe to get it by email as "
+"a CSV every day, week or month."
 msgstr ""
-"Open a saved view on a list page and choose Subscribe to get it by email as a"
-" CSV every day, week or month."
+"Open a saved view on a list page and choose Subscribe to get it by email as "
+"a CSV every day, week or month."
 
 #: templates/vantage/reports/list.html:116
 msgid "Sends"
@@ -6397,11 +6747,13 @@ msgstr "No roles yet."
 
 #: templates/vantage/roles/list.html:78
 msgid ""
-"A role bundles permissions under a name — “Support”, “Editors” — so you grant"
-" the bundle to people instead of ticking the same boxes for each of them."
+"A role bundles permissions under a name — “Support”, “Editors” — so you "
+"grant the bundle to people instead of ticking the same boxes for each of "
+"them."
 msgstr ""
-"A role bundles permissions under a name — “Support”, “Editors” — so you grant"
-" the bundle to people instead of ticking the same boxes for each of them."
+"A role bundles permissions under a name — “Support”, “Editors” — so you "
+"grant the bundle to people instead of ticking the same boxes for each of "
+"them."
 
 #: templates/vantage/roles/members.html:13
 msgid "Add people"
@@ -6546,11 +6898,11 @@ msgstr "Open list"
 #: templates/vantage/search.html:71
 #, python-format
 msgid ""
-"Type at least %(min_length)s characters to look across every section you have"
-" access to."
+"Type at least %(min_length)s characters to look across every section you "
+"have access to."
 msgstr ""
-"Type at least %(min_length)s characters to look across every section you have"
-" access to."
+"Type at least %(min_length)s characters to look across every section you "
+"have access to."
 
 #: templates/vantage/search.html:77
 msgid "Keep typing"
@@ -6653,12 +7005,12 @@ msgstr "A link, a focus ring, a selected row"
 #, python-format
 msgid ""
 "These settings live in code and are not editable here, because they decide "
-"what exists and who may reach it rather than how it looks: <code "
-"class=\"v-mono\">%(names)s</code>."
+"what exists and who may reach it rather than how it looks: <code class=\"v-"
+"mono\">%(names)s</code>."
 msgstr ""
 "These settings live in code and are not editable here, because they decide "
-"what exists and who may reach it rather than how it looks: <code "
-"class=\"v-mono\">%(names)s</code>."
+"what exists and who may reach it rather than how it looks: <code class=\"v-"
+"mono\">%(names)s</code>."
 
 #: templates/vantage/settings.html:192
 #, python-format
@@ -6681,11 +7033,11 @@ msgstr "No heading"
 
 #: templates/vantage/settings_nav.html:28
 msgid ""
-"Arrange the groups and links in the sidebar. Drag a row, or use the group box"
-" and the position box beside it — they do the same thing."
+"Arrange the groups and links in the sidebar. Drag a row, or use the group "
+"box and the position box beside it — they do the same thing."
 msgstr ""
-"Arrange the groups and links in the sidebar. Drag a row, or use the group box"
-" and the position box beside it — they do the same thing."
+"Arrange the groups and links in the sidebar. Drag a row, or use the group "
+"box and the position box beside it — they do the same thing."
 
 #: templates/vantage/settings_nav.html:35
 msgid "Arranged here, overriding the code"
@@ -6697,13 +7049,13 @@ msgstr "arranged here"
 
 #: templates/vantage/settings_nav.html:44
 msgid ""
-"This arrangement is what the panel shows. It sits on top of <code "
-"class=\"v-mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being "
-"ignored until you reset."
+"This arrangement is what the panel shows. It sits on top of <code class=\"v-"
+"mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being ignored until "
+"you reset."
 msgstr ""
-"This arrangement is what the panel shows. It sits on top of <code "
-"class=\"v-mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being "
-"ignored until you reset."
+"This arrangement is what the panel shows. It sits on top of <code class=\"v-"
+"mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being ignored until "
+"you reset."
 
 #: templates/vantage/settings_nav.html:63
 msgid "Group heading"
@@ -6861,14 +7213,14 @@ msgstr ""
 #: templates/vantage/settings_nav.html:311
 msgid ""
 "A model nobody has placed still appears, grouped by app at the end, so "
-"registering one never makes it unreachable. Set <code "
-"class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar "
-"that shows only what is arranged here."
+"registering one never makes it unreachable. Set <code class=\"v-"
+"mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar that shows "
+"only what is arranged here."
 msgstr ""
 "A model nobody has placed still appears, grouped by app at the end, so "
-"registering one never makes it unreachable. Set <code "
-"class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar "
-"that shows only what is arranged here."
+"registering one never makes it unreachable. Set <code class=\"v-"
+"mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar that shows "
+"only what is arranged here."
 
 #: templates/vantage/settings_nav.html:319
 #, python-format
@@ -6877,13 +7229,13 @@ msgstr "Appearing that way right now: %(names)s."
 
 #: templates/vantage/settings_nav.html:324
 msgid ""
-"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code "
-"class=\"v-mono\">\"hide\"</code>, so a model that is not arranged here does "
-"not appear in the sidebar at all — including one registered tomorrow."
+"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code class=\"v-"
+"mono\">\"hide\"</code>, so a model that is not arranged here does not appear "
+"in the sidebar at all — including one registered tomorrow."
 msgstr ""
-"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code "
-"class=\"v-mono\">\"hide\"</code>, so a model that is not arranged here does "
-"not appear in the sidebar at all — including one registered tomorrow."
+"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code class=\"v-"
+"mono\">\"hide\"</code>, so a model that is not arranged here does not appear "
+"in the sidebar at all — including one registered tomorrow."
 
 #: templates/vantage/settings_nav.html:333
 msgid ""
@@ -6953,7 +7305,7 @@ msgstr "Move %(name)s earlier"
 msgid "Move %(name)s later"
 msgstr "Move %(name)s later"
 
-#: templates/vantage/topbar.html:119
+#: templates/vantage/topbar.html:119 templates/vantage/two_factor.html:152
 #, python-format
 msgid "Remove %(name)s"
 msgstr "Remove %(name)s"
@@ -7010,13 +7362,14 @@ msgstr "Two-factor sign-in is now on."
 
 #: templates/vantage/two_factor.html:33
 msgid ""
-"Each code signs you in once if you lose your phone. Keep them somewhere safe,"
-" such as a password manager. They will not be shown again."
+"Each code signs you in once if you lose your phone. Keep them somewhere "
+"safe, such as a password manager. They will not be shown again."
 msgstr ""
-"Each code signs you in once if you lose your phone. Keep them somewhere safe,"
-" such as a password manager. They will not be shown again."
+"Each code signs you in once if you lose your phone. Keep them somewhere "
+"safe, such as a password manager. They will not be shown again."
 
-#: templates/vantage/two_factor.html:38 twofactor.py:648
+#: templates/vantage/two_factor.html:38 templates/vantage/two_factor.html:194
+#: twofactor.py:868
 msgid "Recovery codes"
 msgstr "Recovery codes"
 
@@ -7025,97 +7378,142 @@ msgid "I have saved them"
 msgstr "I have saved them"
 
 #: templates/vantage/two_factor.html:50
+#, python-format
+msgid "Add %(name)s"
+msgstr "Add %(name)s"
+
+#: templates/vantage/two_factor.html:50
+msgid "Set up your authenticator app"
+msgstr "Set up your authenticator app"
+
+#: templates/vantage/two_factor.html:56
+msgid ""
+"In an authenticator app — Google Authenticator, Microsoft Authenticator, "
+"1Password, Bitwarden or any other that supports time-based codes — add an "
+"account and scan this code."
+msgstr ""
+"In an authenticator app — Google Authenticator, Microsoft Authenticator, "
+"1Password, Bitwarden or any other that supports time-based codes — add an "
+"account and scan this code."
+
+#: templates/vantage/two_factor.html:64
+#, python-format
+msgid ""
+"Cannot scan it? Choose to enter a key instead, name the entry something "
+"you will recognise, such as %(issuer)s (%(name)s), and type:"
+msgstr ""
+"Cannot scan it? Choose to enter a key instead, name the entry something "
+"you will recognise, such as %(issuer)s (%(name)s), and type:"
+
+#: templates/vantage/two_factor.html:67
+#, python-format
+msgid ""
+"Cannot scan it? Choose to enter a key instead, name it %(issuer)s, and type:"
+msgstr ""
+"Cannot scan it? Choose to enter a key instead, name it %(issuer)s, and type:"
+
+#: templates/vantage/two_factor.html:73
+msgid "Or open it in an authenticator app on this device"
+msgstr "Or open it in an authenticator app on this device"
+
+#: templates/vantage/two_factor.html:99
+msgid "Confirm and add device"
+msgstr "Confirm and add device"
+
+#: templates/vantage/two_factor.html:99
+msgid "Confirm and turn on"
+msgstr "Confirm and turn on"
+
+#: templates/vantage/two_factor.html:115
 msgid "Two-factor sign-in is on"
 msgstr "Two-factor sign-in is on"
 
-#: templates/vantage/two_factor.html:54
-#, python-format
+#: templates/vantage/two_factor.html:119
 msgid ""
-"On since %(since)s. After your password, you are asked for a code from your "
-"authenticator app."
+"After your password, you are asked for a code from any of your "
+"authenticator apps below. Each change on this page asks you to confirm it "
+"is you, with a current code or your password."
 msgstr ""
-"On since %(since)s. After your password, you are asked for a code from your "
-"authenticator app."
+"After your password, you are asked for a code from any of your "
+"authenticator apps below. Each change on this page asks you to confirm it "
+"is you, with a current code or your password."
 
-#: templates/vantage/two_factor.html:60
+#: templates/vantage/two_factor.html:130
+msgid "Your devices"
+msgstr "Your devices"
+
+#: templates/vantage/two_factor.html:140
+#, python-format
+msgid "Added %(added)s"
+msgstr "Added %(added)s"
+
+#: templates/vantage/two_factor.html:142
+#, python-format
+msgid "last used %(used)s"
+msgstr "last used %(used)s"
+
+#: templates/vantage/two_factor.html:142
+msgid "never used"
+msgstr "never used"
+
+#: templates/vantage/two_factor.html:160
 #, python-format
 msgid "%(counter)s recovery code left."
 msgid_plural "%(counter)s recovery codes left."
 msgstr[0] "%(counter)s recovery code left."
 msgstr[1] "%(counter)s recovery codes left."
 
-#: templates/vantage/two_factor.html:67
-msgid "Change it"
-msgstr "Change it"
+#: templates/vantage/two_factor.html:172 templates/vantage/two_factor.html:186
+msgid "Add a device"
+msgstr "Add a device"
 
-#: templates/vantage/two_factor.html:69
-msgid ""
-"To replace your recovery codes or switch two-factor sign-in off, confirm it "
-"is you."
-msgstr ""
-"To replace your recovery codes or switch two-factor sign-in off, confirm it "
-"is you."
+#: templates/vantage/two_factor.html:197
+msgid "Replacing them makes the old ones stop working."
+msgstr "Replacing them makes the old ones stop working."
 
-#: templates/vantage/two_factor.html:71
-msgid ""
-"Your role requires two-factor sign-in, so switching it off takes you straight"
-" back to setting it up."
-msgstr ""
-"Your role requires two-factor sign-in, so switching it off takes you straight"
-" back to setting it up."
-
-#: templates/vantage/two_factor.html:89
+#: templates/vantage/two_factor.html:202
 msgid "New recovery codes"
 msgstr "New recovery codes"
 
-#: templates/vantage/two_factor.html:92
+#: templates/vantage/two_factor.html:209
+msgid "Switch off two-factor sign-in"
+msgstr "Switch off two-factor sign-in"
+
+#: templates/vantage/two_factor.html:213
+msgid ""
+"This removes every device and all recovery codes, and your account goes "
+"back to a password alone."
+msgstr ""
+"This removes every device and all recovery codes, and your account goes "
+"back to a password alone."
+
+#: templates/vantage/two_factor.html:215
+msgid ""
+"Your role requires two-factor sign-in, so switching it off takes you "
+"straight back to setting it up."
+msgstr ""
+"Your role requires two-factor sign-in, so switching it off takes you "
+"straight back to setting it up."
+
+#: templates/vantage/two_factor.html:222
 msgid "Switch off"
 msgstr "Switch off"
 
-#: templates/vantage/two_factor.html:102
-msgid "Set up your authenticator app"
-msgstr "Set up your authenticator app"
-
-#: templates/vantage/two_factor.html:108
-msgid ""
-"In an authenticator app — Google Authenticator, Microsoft Authenticator, "
-"1Password, Bitwarden or any other that supports time-based codes — add an "
-"account and scan this code."
-msgstr ""
-"In an authenticator app — Google Authenticator, Microsoft Authenticator, "
-"1Password, Bitwarden or any other that supports time-based codes — add an "
-"account and scan this code."
-
-#: templates/vantage/two_factor.html:116
-#, python-format
-msgid ""
-"Cannot scan it? Choose to enter a key instead, name it %(issuer)s, and type:"
-msgstr ""
-"Cannot scan it? Choose to enter a key instead, name it %(issuer)s, and type:"
-
-#: templates/vantage/two_factor.html:122
-msgid "Or open it in an authenticator app on this device"
-msgstr "Or open it in an authenticator app on this device"
-
-#: templates/vantage/two_factor.html:148
-msgid "Turn on"
-msgstr "Turn on"
-
-#: templates/vantage/two_factor.html:164
+#: templates/vantage/two_factor.html:230
 msgid "Two-factor sign-in is off"
 msgstr "Two-factor sign-in is off"
 
-#: templates/vantage/two_factor.html:169
+#: templates/vantage/two_factor.html:235
 msgid "Required."
 msgstr "Required."
 
-#: templates/vantage/two_factor.html:170
+#: templates/vantage/two_factor.html:236
 msgid ""
 "Your role requires two-factor sign-in. Set it up to carry on using the panel."
 msgstr ""
 "Your role requires two-factor sign-in. Set it up to carry on using the panel."
 
-#: templates/vantage/two_factor.html:174
+#: templates/vantage/two_factor.html:240
 msgid ""
 "With it on, signing in takes your password and a code from an app on your "
 "phone, so a leaked password is not enough on its own."
@@ -7123,54 +7521,65 @@ msgstr ""
 "With it on, signing in takes your password and a code from an app on your "
 "phone, so a leaked password is not enough on its own."
 
-#: templates/vantage/two_factor.html:183
+#: templates/vantage/two_factor.html:249
 msgid "Set it up"
 msgstr "Set it up"
 
 #: templates/vantage/two_factor_users.html:16
 msgid ""
-"A reset switches the person's two-factor sign-in off and is recorded in the "
-"audit log. They can sign in with their password alone until they set it up "
-"again, which they will be asked to do at once if their role requires it."
+"\"Reset\" on a device removes that one authenticator and leaves the "
+"person's other devices working. \"Reset all\" removes every device they "
+"have, which switches their two-factor sign-in off. Each reset is recorded "
+"in the audit log, and says how many devices went. After all are gone they "
+"can sign in with their password alone until they set it up again, which "
+"they will be asked to do at once if their role requires it."
 msgstr ""
-"A reset switches the person's two-factor sign-in off and is recorded in the "
-"audit log. They can sign in with their password alone until they set it up "
-"again, which they will be asked to do at once if their role requires it."
+"\"Reset\" on a device removes that one authenticator and leaves the "
+"person's other devices working. \"Reset all\" removes every device they "
+"have, which switches their two-factor sign-in off. Each reset is recorded "
+"in the audit log, and says how many devices went. After all are gone they "
+"can sign in with their password alone until they set it up again, which "
+"they will be asked to do at once if their role requires it."
 
-#: templates/vantage/two_factor_users.html:23
+#: templates/vantage/two_factor_users.html:25
 msgid ""
-"\"Set up\" is when each authenticator was last enrolled. Enrolling needs only"
-" the password, so if that time does not match when the person remembers "
+"\"Set up\" is when each authenticator was last enrolled. Enrolling needs "
+"only the password, so if that time does not match when the person remembers "
 "setting it up, someone else may have done it first: reset it, and have them "
 "set it up again."
 msgstr ""
-"\"Set up\" is when each authenticator was last enrolled. Enrolling needs only"
-" the password, so if that time does not match when the person remembers "
+"\"Set up\" is when each authenticator was last enrolled. Enrolling needs "
+"only the password, so if that time does not match when the person remembers "
 "setting it up, someone else may have done it first: reset it, and have them "
 "set it up again."
 
-#: templates/vantage/two_factor_users.html:32
+#: templates/vantage/two_factor_users.html:34
 msgid "People with two-factor sign-in on"
 msgstr "People with two-factor sign-in on"
 
-#: templates/vantage/two_factor_users.html:36
+#: templates/vantage/two_factor_users.html:38
+msgid "Device"
+msgstr "Device"
+
+#: templates/vantage/two_factor_users.html:39
 msgid "Set up"
 msgstr "Set up"
 
-#: templates/vantage/two_factor_users.html:37
-msgid "Last used"
-msgstr "Last used"
-
-#: templates/vantage/two_factor_users.html:49
+#: templates/vantage/two_factor_users.html:53
 msgid "Yours"
 msgstr "Yours"
 
-#: templates/vantage/two_factor_users.html:55
+#: templates/vantage/two_factor_users.html:60
 #, python-format
-msgid "Reset <span class=\"v-sr-only\">for %(name)s</span>"
-msgstr "Reset <span class=\"v-sr-only\">for %(name)s</span>"
+msgid "Reset <span class=\"v-sr-only\">%(device_name)s for %(name)s</span>"
+msgstr "Reset <span class=\"v-sr-only\">%(device_name)s for %(name)s</span>"
 
-#: templates/vantage/two_factor_users.html:68
+#: templates/vantage/two_factor_users.html:70
+#, python-format
+msgid "Reset all %(n)s <span class=\"v-sr-only\">devices for %(name)s</span>"
+msgstr "Reset all %(n)s <span class=\"v-sr-only\">devices for %(name)s</span>"
+
+#: templates/vantage/two_factor_users.html:84
 msgid "Nobody has two-factor sign-in on yet."
 msgstr "Nobody has two-factor sign-in on yet."
 
@@ -7185,11 +7594,11 @@ msgstr "Sign-in paused."
 
 #: templates/vantage/two_factor_verify.html:46
 msgid ""
-"Open the authenticator app on your phone and enter the code it shows for this"
-" site."
+"Open the authenticator app on your phone and enter the code it shows for "
+"this site."
 msgstr ""
-"Open the authenticator app on your phone and enter the code it shows for this"
-" site."
+"Open the authenticator app on your phone and enter the code it shows for "
+"this site."
 
 #: templates/vantage/two_factor_verify.html:71
 msgid "Verify"
@@ -7207,17 +7616,17 @@ msgstr "Delete %(name)s?"
 #: templates/vantage/webhooks/confirm_delete.html:16
 #, python-format
 msgid ""
-"This permanently deletes <strong>%(name)s</strong> and its %(counter)s logged"
-" delivery."
+"This permanently deletes <strong>%(name)s</strong> and its %(counter)s "
+"logged delivery."
 msgid_plural ""
-"This permanently deletes <strong>%(name)s</strong> and its %(counter)s logged"
-" deliveries."
+"This permanently deletes <strong>%(name)s</strong> and its %(counter)s "
+"logged deliveries."
 msgstr[0] ""
-"This permanently deletes <strong>%(name)s</strong> and its %(counter)s logged"
-" delivery."
+"This permanently deletes <strong>%(name)s</strong> and its %(counter)s "
+"logged delivery."
 msgstr[1] ""
-"This permanently deletes <strong>%(name)s</strong> and its %(counter)s logged"
-" deliveries."
+"This permanently deletes <strong>%(name)s</strong> and its %(counter)s "
+"logged deliveries."
 
 #: templates/vantage/webhooks/confirm_delete.html:18
 msgid "To stop it without losing the log, untick Active instead."
@@ -7288,21 +7697,21 @@ msgstr "Signing secret for %(name)s"
 
 #: templates/vantage/webhooks/list.html:23
 msgid ""
-"Copy it now. It is not shown again; you can generate a new one by editing the"
-" webhook."
+"Copy it now. It is not shown again; you can generate a new one by editing "
+"the webhook."
 msgstr ""
-"Copy it now. It is not shown again; you can generate a new one by editing the"
-" webhook."
+"Copy it now. It is not shown again; you can generate a new one by editing "
+"the webhook."
 
 #: templates/vantage/webhooks/list.html:35
 msgid ""
-"No task backend is configured, so deliveries are sent during the request that"
-" changed the record, and retries wait for <code class=\"v-mono\">manage.py "
-"vantage_webhooks</code>."
+"No task backend is configured, so deliveries are sent during the request "
+"that changed the record, and retries wait for <code class=\"v-"
+"mono\">manage.py vantage_webhooks</code>."
 msgstr ""
-"No task backend is configured, so deliveries are sent during the request that"
-" changed the record, and retries wait for <code class=\"v-mono\">manage.py "
-"vantage_webhooks</code>."
+"No task backend is configured, so deliveries are sent during the request "
+"that changed the record, and retries wait for <code class=\"v-"
+"mono\">manage.py vantage_webhooks</code>."
 
 #: templates/vantage/webhooks/list.html:49 webhookviews.py:87
 msgid "URL"
@@ -7510,58 +7919,72 @@ msgstr "Use a full https:// address, or a path beginning with a slash."
 msgid "Give the item a name; it is what the bar shows."
 msgstr "Give the item a name; it is what the bar shows."
 
-#: twofactor.py:404 twofactor.py:636 twofactor.py:661 twofactor.py:680
-msgid "off"
-msgstr "off"
+#: twofactor.py:460 twofactor.py:849 twofactor.py:933
+msgid "none"
+msgstr "none"
 
-#: twofactor.py:404
+#: twofactor.py:461 twofactor.py:465
 msgid "being set up"
 msgstr "being set up"
 
-#: twofactor.py:466
+#: twofactor.py:462 twofactor.py:851 twofactor.py:934
+msgid "Authenticator"
+msgstr "Authenticator"
+
+#: twofactor.py:465 twofactor.py:856 twofactor.py:898 twofactor.py:937
+#: twofactor.py:977
+msgid "off"
+msgstr "off"
+
+#: twofactor.py:550
 #, python-format
 msgid "Too many wrong codes. Wait %(minutes)s minute(s) and try again."
 msgstr "Too many wrong codes. Wait %(minutes)s minute(s) and try again."
 
-#: twofactor.py:470
+#: twofactor.py:554
 msgid "That code has already been used. Wait for the next one."
 msgstr "That code has already been used. Wait for the next one."
 
-#: twofactor.py:471
+#: twofactor.py:555
 msgid "That code is not right. Check the app and try again."
 msgstr "That code is not right. Check the app and try again."
 
-#: twofactor.py:597
+#: twofactor.py:761
 msgid "unused"
 msgstr "unused"
 
-#: twofactor.py:598
+#: twofactor.py:762
 #, python-format
 msgid "used, %(count)s left"
 msgstr "used, %(count)s left"
 
-#: twofactor.py:599
+#: twofactor.py:763
 msgid "Recovery code"
 msgstr "Recovery code"
 
-#: twofactor.py:636 twofactor.py:661 twofactor.py:680
+#: twofactor.py:856 twofactor.py:898 twofactor.py:937 twofactor.py:977
 msgid "on"
 msgstr "on"
 
-#: twofactor.py:646
+#: twofactor.py:866
 msgid "previous set"
 msgstr "previous set"
 
-#: twofactor.py:647
+#: twofactor.py:867
 #, python-format
 msgid "new set of %(count)s"
 msgstr "new set of %(count)s"
 
-#: twofactor.py:921
+#: twofactor.py:968 twofactor.py:969
+#, python-format
+msgid "%(count)s devices"
+msgstr "%(count)s devices"
+
+#: twofactor.py:1261
 msgid "Finish signing in with your authentication code first."
 msgstr "Finish signing in with your authentication code first."
 
-#: twofactor.py:923
+#: twofactor.py:1263
 msgid "Set up two-factor sign-in on your account page first."
 msgstr "Set up two-factor sign-in on your account page first."
 
@@ -7584,61 +8007,76 @@ msgid "Type the 6-digit code your app now shows, to prove it is set up."
 msgstr "Type the 6-digit code your app now shows, to prove it is set up."
 
 #: twofactorviews.py:100
+msgid "Name this device"
+msgstr "Name this device"
+
+#: twofactorviews.py:103
+msgid "For telling your devices apart, such as Phone or Spare."
+msgstr "For telling your devices apart, such as Phone or Spare."
+
+#: twofactorviews.py:112
 msgid "Authentication or recovery code"
 msgstr "Authentication or recovery code"
 
-#: twofactorviews.py:106
+#: twofactorviews.py:118
 msgid "Or your password"
 msgstr "Or your password"
 
-#: twofactorviews.py:138
+#: twofactorviews.py:150
 msgid "Two-factor settings cannot be changed while impersonating someone."
 msgstr "Two-factor settings cannot be changed while impersonating someone."
 
-#: twofactorviews.py:158
+#: twofactorviews.py:170
 msgid "A code from an app on your phone, asked for after your password."
 msgstr "A code from an app on your phone, asked for after your password."
 
-#: twofactorviews.py:166 twofactorviews.py:389
+#: twofactorviews.py:178 twofactorviews.py:488
 msgid "Two-factor sign-in is switched off for this site."
 msgstr "Two-factor sign-in is switched off for this site."
 
-#: twofactorviews.py:197
+#: twofactorviews.py:217
 msgid "QR code for your authenticator app"
 msgstr "QR code for your authenticator app"
 
-#: twofactorviews.py:238
-msgid "Two-factor sign-in is already on."
-msgstr "Two-factor sign-in is already on."
+#: twofactorviews.py:276
+msgid "This account cannot have another authenticator right now."
+msgstr "This account cannot have another authenticator right now."
 
-#: twofactorviews.py:278
-msgid "Enter a current code or your password."
-msgstr "Enter a current code or your password."
+#: twofactorviews.py:302
+#, python-format
+msgid "%(name)s was removed."
+msgstr "%(name)s was removed."
 
-#: twofactorviews.py:285
-msgid "That code or password is not right."
-msgstr "That code or password is not right."
-
-#: twofactorviews.py:296
+#: twofactorviews.py:304 twofactorviews.py:393
 msgid "Two-factor sign-in is now off."
 msgstr "Two-factor sign-in is now off."
 
-#: twofactorviews.py:385
+#: twofactorviews.py:375
+msgid "Enter a current code or your password."
+msgstr "Enter a current code or your password."
+
+#: twofactorviews.py:382
+msgid "That code or password is not right."
+msgstr "That code or password is not right."
+
+#: twofactorviews.py:484
 msgid "Who has it on, and a reset for anyone who has lost their phone."
 msgstr "Who has it on, and a reset for anyone who has lost their phone."
 
-#: twofactorviews.py:392
+#: twofactorviews.py:491
 msgid "Only superusers can reset two-factor sign-in."
 msgstr "Only superusers can reset two-factor sign-in."
 
-#: twofactorviews.py:420
+#: twofactorviews.py:540
+#, python-format
+msgid ""
+"Two-factor sign-in was reset for %(name)s: %(count)s device(s) removed."
+msgstr ""
+"Two-factor sign-in was reset for %(name)s: %(count)s device(s) removed."
+
+#: twofactorviews.py:555
 msgid "Use your own two-factor page to switch yours off."
 msgstr "Use your own two-factor page to switch yours off."
-
-#: twofactorviews.py:426
-#, python-format
-msgid "Two-factor sign-in was reset for %(name)s."
-msgstr "Two-factor sign-in was reset for %(name)s."
 
 #: undo.py:269
 #, python-format
@@ -7680,40 +8118,40 @@ msgid_plural "inline edit of %(count)s %(models)s"
 msgstr[0] "inline edit of %(count)s %(model)s"
 msgstr[1] "inline edit of %(count)s %(models)s"
 
-#: undo.py:303
+#: undo.py:305
 #, no-python-format
 msgid "Reverted the change to %(count)s %(model)s."
 msgid_plural "Reverted the changes to %(count)s %(models)s."
 msgstr[0] "Reverted the change to %(count)s %(model)s."
 msgstr[1] "Reverted the changes to %(count)s %(models)s."
 
-#: undo.py:312
+#: undo.py:314
 #, no-python-format
 msgid "“%(label)s” on %(count)s %(model)s"
 msgid_plural "“%(label)s” on %(count)s %(models)s"
 msgstr[0] "“%(label)s” on %(count)s %(model)s"
 msgstr[1] "“%(label)s” on %(count)s %(models)s"
 
-#: undo.py:316
+#: undo.py:318
 #, no-python-format
 msgid "Reverted “%(label)s” on %(count)s %(model)s."
 msgid_plural "Reverted “%(label)s” on %(count)s %(models)s."
 msgstr[0] "Reverted “%(label)s” on %(count)s %(model)s."
 msgstr[1] "Reverted “%(label)s” on %(count)s %(models)s."
 
-#: undo.py:895
+#: undo.py:897
 msgid "This undo is no longer available. Nothing was changed."
 msgstr "This undo is no longer available. Nothing was changed."
 
-#: undo.py:918 undo.py:940
+#: undo.py:920 undo.py:942
 msgid "The time to undo this has passed. Nothing was changed."
 msgstr "The time to undo this has passed. Nothing was changed."
 
-#: undo.py:926
+#: undo.py:928
 msgid "You no longer have permission to undo this. Nothing was changed."
 msgstr "You no longer have permission to undo this. Nothing was changed."
 
-#: undo.py:962
+#: undo.py:964
 msgid ""
 "This could not be undone: something else now occupies the place of what was "
 "removed. Nothing was changed."
@@ -7721,28 +8159,28 @@ msgstr ""
 "This could not be undone: something else now occupies the place of what was "
 "removed. Nothing was changed."
 
-#: undo.py:977
+#: undo.py:979
 msgid "Something went wrong while undoing this. Nothing was changed."
 msgstr "Something went wrong while undoing this. Nothing was changed."
 
-#: undo.py:991
+#: undo.py:993
 #, python-format
 msgid "undid %(change)s"
 msgstr "undid %(change)s"
 
-#: undo.py:996
+#: undo.py:998
 msgid "Undone."
 msgstr "Undone."
 
-#: undo.py:1008
+#: undo.py:1010
 msgid "This undo has already been used."
 msgstr "This undo has already been used."
 
-#: undo.py:1059
+#: undo.py:1061
 msgid "This undo cannot be applied. Nothing was changed."
 msgstr "This undo cannot be applied. Nothing was changed."
 
-#: undo.py:1073
+#: undo.py:1075
 #, python-format
 msgid ""
 "%(count)s record has been changed by someone else since, so nothing was "
@@ -7757,7 +8195,7 @@ msgstr[1] ""
 "%(count)s records have been changed by someone else since, so nothing was "
 "undone. Their changes have been kept."
 
-#: undo.py:1199
+#: undo.py:1201
 msgid "That action can no longer be undone. Nothing was changed."
 msgstr "That action can no longer be undone. Nothing was changed."
 
@@ -7781,7 +8219,19 @@ msgstr "You do not have permission to delete %(records)s."
 msgid "You do not have permission to %(action)s %(records)s."
 msgstr "You do not have permission to %(action)s %(records)s."
 
-#: views.py:207
+#: views.py:170
+msgid "TSV (spreadsheet)"
+msgstr "TSV (spreadsheet)"
+
+#: views.py:171
+msgid "JSON (one per line)"
+msgstr "JSON (one per line)"
+
+#: views.py:172
+msgid "Excel (.xlsx)"
+msgstr "Excel (.xlsx)"
+
+#: views.py:221
 #, python-format
 msgid ""
 "%(action)s is limited to %(limit)s record at a time; %(count)s were selected."
@@ -7794,92 +8244,92 @@ msgstr[1] ""
 "%(action)s is limited to %(limit)s records at a time; %(count)s were "
 "selected."
 
-#: views.py:244
+#: views.py:258
 #, python-format
 msgid "%(action)s: %(summary)s (%(scope)s)"
 msgstr "%(action)s: %(summary)s (%(scope)s)"
 
-#: views.py:254
+#: views.py:268
 #, python-format
 msgid "%(action)s is running over %(scope)s."
 msgstr "%(action)s is running over %(scope)s."
 
-#: views.py:271
+#: views.py:285
 #, python-format
 msgid "%(message)s (%(scope)s)"
 msgstr "%(message)s (%(scope)s)"
 
-#: views.py:386
+#: views.py:400
 msgid "Day"
 msgstr "Day"
 
-#: views.py:387
+#: views.py:401
 msgid "Week"
 msgstr "Week"
 
-#: views.py:389
+#: views.py:403
 msgid "Year"
 msgstr "Year"
 
-#: views.py:545
+#: views.py:559
 msgid "No date"
 msgstr "No date"
 
-#: views.py:551
+#: views.py:565
 #, python-format
 msgid "Week %(week)s, %(year)s"
 msgstr "Week %(week)s, %(year)s"
 
-#: views.py:842
+#: views.py:861
 #, python-format
 msgid "You do not have permission to view %(page)s."
 msgstr "You do not have permission to view %(page)s."
 
-#: views.py:919
+#: views.py:938
 #, python-format
 msgid "You are now acting as %(user)s."
 msgstr "You are now acting as %(user)s."
 
-#: views.py:923
+#: views.py:942
 #, python-format
 msgid "Returned to %(user)s."
 msgstr "Returned to %(user)s."
 
-#: webhooks.py:104
+#: webhooks.py:105
 msgid "Changed"
 msgstr "Changed"
 
-#: webhooks.py:367
+#: webhooks.py:395
 msgid "Webhook is disabled."
 msgstr "Webhook is disabled."
 
-#: webhooks.py:371
+#: webhooks.py:399
 msgid "Webhooks are switched off."
 msgstr "Webhooks are switched off."
 
-#: webhooks.py:548
+#: webhooks.py:577
 msgid "The address must start with http:// or https://."
 msgstr "The address must start with http:// or https://."
 
-#: webhooks.py:550
+#: webhooks.py:579
 msgid "The address has no host name."
 msgstr "The address has no host name."
 
-#: webhooks.py:552
+#: webhooks.py:581
 msgid "Put credentials in the secret, not in the address."
 msgstr "Put credentials in the secret, not in the address."
 
-#: webhooks.py:558
+#: webhooks.py:587
 msgid ""
 "That address is on a private or local network, which webhooks may not call."
 msgstr ""
 "That address is on a private or local network, which webhooks may not call."
 
-#: webhooks.py:609 webhooks.py:791 webhooks.py:796
+#: webhooks.py:638 webhooks.py:820 webhooks.py:825
 msgid "The receiver took too long."
 msgstr "The receiver took too long."
 
-#: webhooks.py:662
+#: webhooks.py:691
 #, python-format
 msgid ""
 "%(host)s resolves to a private or local address, which webhooks may not call."
@@ -7932,25 +8382,25 @@ msgstr "Webhook saved."
 msgid "Webhook deleted."
 msgstr "Webhook deleted."
 
-#: webhookviews.py:225
+#: webhookviews.py:227
 #, python-format
 msgid "Test delivered: the receiver answered %(code)s."
 msgstr "Test delivered: the receiver answered %(code)s."
 
-#: webhookviews.py:231
+#: webhookviews.py:233
 #, python-format
 msgid "Test failed: %(error)s"
 msgstr "Test failed: %(error)s"
 
-#: webhookviews.py:232
+#: webhookviews.py:234
 msgid "no answer"
 msgstr "no answer"
 
-#: webhookviews.py:257
+#: webhookviews.py:259
 msgid "Delivery"
 msgstr "Delivery"
 
-#: webhookviews.py:296
+#: webhookviews.py:300
 msgid "Queued again as a new delivery."
 msgstr "Queued again as a new delivery."
 
@@ -7974,27 +8424,27 @@ msgstr "Type to search…"
 msgid "Search %(name)s…"
 msgstr "Search %(name)s…"
 
-#: widgets.py:731
+#: widgets.py:803
 msgid "Relationships"
 msgstr "Relationships"
 
-#: widgets.py:732
+#: widgets.py:804
 msgid "Options"
 msgstr "Options"
 
-#: widgets.py:733
+#: widgets.py:805
 msgid "Metadata"
 msgstr "Metadata"
 
-#: widgets.py:991
+#: widgets.py:1074
 msgid "Unchanged — type to replace"
 msgstr "Unchanged — type to replace"
 
-#: widgets.py:993
+#: widgets.py:1076
 msgid "Not set"
 msgstr "Not set"
 
-#: widgets.py:1005
+#: widgets.py:1088
 #, python-format
 msgid "Clear %(field)s"
 msgstr "Clear %(field)s"
