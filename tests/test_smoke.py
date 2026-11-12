@@ -182,6 +182,10 @@ def _iter_requests(
                 # redirect back to step one), and exercising that path is as valid a
                 # smoke check as a happy one.
                 kwargs["token"] = "smoke-test-token"
+            elif param == "uidb64" and entry.name == "password_reset_confirm":
+                # PASSWORD_RESET is off by default, so the route answers 404; a bad link
+                # is never a crash either way.
+                kwargs["uidb64"] = "MQ"
             elif param == "run_key" and entry.name == "api-agent-run-undo":
                 # A GET is refused (405) / an unknown run is a 404; neither may 500.
                 kwargs["run_key"] = "smoke-test-run"

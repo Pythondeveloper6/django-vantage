@@ -66,11 +66,16 @@ class SimpleVantageConfig(AppConfig):
         from vantage.twofactor import on_logged_in
 
         user_logged_in.connect(on_logged_in, dispatch_uid="vantage_two_factor_login")
-        # Opt-in history for changes made outside the panel. Connected unconditionally and
-        # once; each receiver returns at once unless TRACK_EXTERNAL_CHANGES names its model.
+        # Opt-in history for changes made outside the panel. Receivers exist only for the
+        # models TRACK_EXTERNAL_CHANGES names, so Django's fast paths stay on for the rest.
         from vantage import external
 
         external.connect()
+        from django.test.signals import setting_changed
+
+        setting_changed.connect(
+            external.reconnect_on_change, dispatch_uid="vantage_external_reconnect"
+        )
         # deploy=True keeps these out of the everyday `manage.py check`. Every one of
         # them is correct on a laptop, and a check that is wrong in development is a
         # check everybody learns to scroll past.

@@ -168,3 +168,6 @@ send no signal, so they leave no entry and no "before" value, and the history pa
 report the field as **cannot be worked out** instead of guessing. Reverse many-to-many
 changes (from the other side) are not recorded. Changes made while the setting was off,
 or on a model not listed, are not recovered later.
+
+!!! note "Cost of `\"*\"`"
+    Receivers are connected only for the models `TRACK_EXTERNAL_CHANGES` names, so Django's fast delete and Vantage's single-UPDATE bulk edit stay on for every other model. `\"*\"` connects them for all models, which turns those fast paths off project-wide: prefer a list.
