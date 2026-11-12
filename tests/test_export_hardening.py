@@ -10,7 +10,14 @@ import pytest
 from django.test import override_settings
 from django.urls import reverse
 
-from tests.test_export import InMemoryRows, body_of, client_in, read, sheet_cells, text_of  # noqa: F401
+from tests.test_export import (  # noqa: F401
+    InMemoryRows,
+    body_of,
+    client_in,
+    read,
+    sheet_cells,
+    text_of,
+)
 from tests.testapp.models import Author, Post
 from vantage import export
 from vantage.export import stream_export

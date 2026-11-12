@@ -372,8 +372,9 @@ class TestWhoCell:
         cell = self.who_cell(boss.get(reverse("vantage:audit")).content.decode(), "run-xyz")
         assert 'class="v-audit-who-agent"' in cell
         line = cell[cell.index('<span class="v-audit-who-line">') :]
-        assert line.index(">Agent</span>") < line.index("Agent bot (for olivia)")
-        assert line.index("Agent bot (for olivia)") < line.index("run run-xyz")
+        assert line.index(">Agent</span>") < line.index("bot (for olivia)")
+        assert line.index("bot (for olivia)") < line.index("run run-xyz")
+        assert "Agent Agent" not in line
         assert 'class="v-audit-name v-audit-who-run">run run-xyz</code>' in cell
         assert 'title="Agent bot (for olivia) · run run-xyz"' in cell
 
