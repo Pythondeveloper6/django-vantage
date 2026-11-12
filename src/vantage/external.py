@@ -380,10 +380,67 @@ def _write(instance, action, verb: str, changes: dict, using) -> None:
         _recording.reset(token)
 
 
+_RECEIVERS = (
+    (pre_save, "_on_pre_save", "vantage_external_pre_save"),
+    (post_save, "_on_post_save", "vantage_external_post_save"),
+    (post_delete, "_on_post_delete", "vantage_external_post_delete"),
+    (m2m_changed, "_on_pre_m2m", "vantage_external_pre_m2m"),
+    (m2m_changed, "_on_post_m2m", "vantage_external_post_m2m"),
+)
+
+
+def disconnect() -> None:
+    """Remove every receiver, including the per-model ones."""
+    for signal, _name, uid in _RECEIVERS:
+        # A receiver connected with a sender has a different lookup key, so remove by
+        # uid for each sender we may have used as well as for none.
+        signal.disconnect(dispatch_uid=uid)
+        for model in django_apps.get_models():
+            signal.disconnect(sender=model, dispatch_uid=uid)
+            for field in model._meta.many_to_many:
+                through = field.remote_field.through
+                if through is not None:
+                    signal.disconnect(sender=through, dispatch_uid=uid)
+
+
 def connect() -> None:
-    """Connect the receivers. Safe to call repeatedly: every one has a ``dispatch_uid``."""
-    pre_save.connect(_on_pre_save, dispatch_uid="vantage_external_pre_save", weak=False)
-    post_save.connect(_on_post_save, dispatch_uid="vantage_external_post_save", weak=False)
-    post_delete.connect(_on_post_delete, dispatch_uid="vantage_external_post_delete", weak=False)
-    m2m_changed.connect(_on_pre_m2m, dispatch_uid="vantage_external_pre_m2m", weak=False)
-    m2m_changed.connect(_on_post_m2m, dispatch_uid="vantage_external_post_m2m", weak=False)
+    """Connect the receivers for what ``TRACK_EXTERNAL_CHANGES`` names, and only that.
+
+    A receiver connected without a sender switches off Django's fast delete and
+    Vantage's own single-UPDATE bulk paths for *every* model, so nothing is connected
+    while tracking is off, and a list of models connects per model. Safe to call
+    repeatedly: every receiver has a ``dispatch_uid``. The setting is read again when it
+    changes (see :func:`reconnect_on_change`).
+    """
+    disconnect()
+    value = _declared()
+    if not value:
+        return
+    if value != "*" and (isinstance(value, str | bytes) or not hasattr(value, "__iter__")):
+        return  # invalid; the settings validation reports it
+    tracked = [None] if value == "*" else [m for m in django_apps.get_models() if _is_tracked(m)]
+    for signal, name, uid in _RECEIVERS:
+        receiver = globals()[name]
+        if signal is m2m_changed:
+            # m2m_changed is sent with the through model as sender.
+            senders = (
+                [None]
+                if tracked == [None]
+                else [
+                    f.remote_field.through
+                    for m in tracked
+                    for f in m._meta.many_to_many
+                    if f.remote_field.through is not None
+                ]
+            )
+        else:
+            senders = tracked
+        for sender in senders:
+            kwargs = {"sender": sender} if sender is not None else {}
+            signal.connect(receiver, dispatch_uid=uid, weak=False, **kwargs)
+
+
+def reconnect_on_change(setting, **kwargs) -> None:
+    """``setting_changed`` handler so tests and runtime overrides see the new value."""
+    if setting == "VANTAGE":
+        connect()

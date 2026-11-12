@@ -364,3 +364,24 @@ def _audit_mounted() -> bool:
         return True
     except Exception:
         return False
+
+
+class TestNoCostWhenOff:
+    def test_nothing_is_connected_while_tracking_is_off(self):
+        from django.db.models.signals import post_delete, post_save, pre_save
+
+        from vantage import external
+
+        external.connect()
+        for signal in (pre_save, post_save, post_delete):
+            modules = {getattr(entry[1], "__module__", "") for entry in signal.receivers}
+            assert "vantage.external" not in modules, (
+                "a receiver on every model would switch off Django's fast paths"
+            )
+
+    def test_the_check_is_not_vacuous(self):
+        from django.db.models.signals import post_save
+
+        with override_settings(VANTAGE={"TRACK_EXTERNAL_CHANGES": "*"}):
+            modules = {getattr(e[1], "__module__", "") for e in post_save.receivers}
+            assert "vantage.external" in modules
