@@ -1,11 +1,10 @@
 # English translation catalogue for django-vantage's JavaScript strings.
 # This file is distributed under the same license as the django-vantage package.
-#
 msgid ""
 msgstr ""
 "Project-Id-Version: django-vantage\n"
-"Report-Msgid-Bugs-To: https://github.com/Pythondeveloper6/django-vantage/issues\n"
-"POT-Creation-Date: 2026-10-31 13:10-0500\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-12 10:46-0600\n"
 "PO-Revision-Date: 2026-08-15 12:00-0500\n"
 "Last-Translator: django-vantage contributors\n"
 "Language-Team: English <https://github.com/Pythondeveloper6/django-vantage>\n"
@@ -108,7 +107,7 @@ msgstr "Move %s earlier"
 msgid "Move %s later"
 msgstr "Move %s later"
 
-#: static/vantage/vantage-editors.js:26
+#: static/vantage/vantage-editors.js:26 static/vantage/vantage-richtext.js:92
 msgid "Bold"
 msgstr "Bold"
 
@@ -116,7 +115,7 @@ msgstr "Bold"
 msgid "Bold  (Ctrl+B)"
 msgstr "Bold  (Ctrl+B)"
 
-#: static/vantage/vantage-editors.js:27
+#: static/vantage/vantage-editors.js:27 static/vantage/vantage-richtext.js:93
 msgid "Italic"
 msgstr "Italic"
 
@@ -124,11 +123,11 @@ msgstr "Italic"
 msgid "Italic  (Ctrl+I)"
 msgstr "Italic  (Ctrl+I)"
 
-#: static/vantage/vantage-editors.js:28
+#: static/vantage/vantage-editors.js:28 static/vantage/vantage-richtext.js:94
 msgid "Code"
 msgstr "Code"
 
-#: static/vantage/vantage-editors.js:29
+#: static/vantage/vantage-editors.js:29 static/vantage/vantage-richtext.js:95
 msgid "Link"
 msgstr "Link"
 
@@ -136,27 +135,27 @@ msgstr "Link"
 msgid "Link  (Ctrl+K)"
 msgstr "Link  (Ctrl+K)"
 
-#: static/vantage/vantage-editors.js:30
+#: static/vantage/vantage-editors.js:30 static/vantage/vantage-richtext.js:96
 msgid "Heading"
 msgstr "Heading"
 
-#: static/vantage/vantage-editors.js:31
+#: static/vantage/vantage-editors.js:31 static/vantage/vantage-richtext.js:97
 msgid "Bullet list"
 msgstr "Bullet list"
 
-#: static/vantage/vantage-editors.js:32
+#: static/vantage/vantage-editors.js:32 static/vantage/vantage-richtext.js:98
 msgid "Numbered list"
 msgstr "Numbered list"
 
-#: static/vantage/vantage-editors.js:33
+#: static/vantage/vantage-editors.js:33 static/vantage/vantage-richtext.js:99
 msgid "Quote"
 msgstr "Quote"
 
-#: static/vantage/vantage-editors.js:82
+#: static/vantage/vantage-editors.js:82 static/vantage/vantage-richtext.js:277
 msgid "Formatting"
 msgstr "Formatting"
 
-#: static/vantage/vantage-editors.js:103
+#: static/vantage/vantage-editors.js:103 static/vantage/vantage-richtext.js:311
 msgid "%(count)s character"
 msgid_plural "%(count)s characters"
 msgstr[0] "%(count)s character"
@@ -492,6 +491,18 @@ msgid "%(count)s result for %(query)s"
 msgid_plural "%(count)s results for %(query)s"
 msgstr[0] "%(count)s result for %(query)s"
 msgstr[1] "%(count)s results for %(query)s"
+
+#: static/vantage/vantage-richtext.js:88
+msgid "%(label)s  (%(mod)s+%(key)s)"
+msgstr "%(label)s  (%(mod)s+%(key)s)"
+
+#: static/vantage/vantage-richtext.js:245
+msgid "Link address (https://…)"
+msgstr "Link address (https://…)"
+
+#: static/vantage/vantage-richtext.js:249
+msgid "Only http, https, mailto and tel links can be added."
+msgstr "Only http, https, mailto and tel links can be added."
 
 #: static/vantage/vantage-roles.js:82
 msgid "Full access"

@@ -381,3 +381,19 @@ class TestCompiledCataloguesShipInTheWheel:
                 mo = f"vantage/locale/{locale}/LC_MESSAGES/{domain}.mo"
                 assert po in names, f"{po} missing from the built wheel"
                 assert mo in names, f"{mo} missing from the built wheel — .mo is not shipping"
+
+
+class TestStringsAddedInThisRelease:
+    """The agent, password-reset and outside-the-panel strings are in the catalogue."""
+
+    def test_audit_page_shows_the_outside_the_panel_filter_in_arabic(self, client_in):
+        with translation.override("ar"):
+            body = client_in.get(reverse("vantage:audit")).content.decode()
+        assert "خارج اللوحة" in body
+        assert "Outside the panel" not in body
+
+    def test_new_password_reset_and_agent_strings_are_translated(self):
+        with translation.override("ar"):
+            assert gettext("Send reset link") == "إرسال رابط إعادة التعيين"
+            assert gettext("Agent activity") == "نشاط الوكلاء"
+            assert gettext("Forgot password?") == "نسيت كلمة المرور؟"

@@ -1,14 +1,13 @@
 # Arabic translation catalogue for django-vantage.
 # This file is distributed under the same license as the django-vantage package.
-#
 # Complete Modern Standard Arabic catalogue (all six plural forms). A string
 # added to the source later is absent here until translated and falls back to
 # English. See docs/internationalization.md.
 msgid ""
 msgstr ""
 "Project-Id-Version: django-vantage\n"
-"Report-Msgid-Bugs-To: https://github.com/Pythondeveloper6/django-vantage/issues\n"
-"POT-Creation-Date: 2026-10-31 13:10-0500\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-12 10:46-0600\n"
 "PO-Revision-Date: 2026-08-14 12:16-0500\n"
 "Last-Translator: django-vantage contributors\n"
 "Language-Team: Arabic <https://github.com/Pythondeveloper6/django-vantage>\n"
@@ -16,13 +15,14 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
 
 #: accessviews.py:86
 msgid "You do not have permission to review access."
 msgstr "ليست لديك صلاحية مراجعة الوصول."
 
-#: accessviews.py:104
+#: accessviews.py:104 agentactivityviews.py:115
 msgid "Format"
 msgstr "التنسيق"
 
@@ -31,7 +31,7 @@ msgid "By"
 msgstr "بواسطة"
 
 #: accessviews.py:106 nav.py:1007 templates/vantage/access/review.html:27
-#: templates/vantage/access/review.html:56
+#: templates/vantage/access/review.html:56 templates/vantage/agents/run.html:33
 #: templates/vantage/pages/data-quality.html:43
 #: templates/vantage/partials/card_editor.html:56
 #: templates/vantage/roles/edit.html:74 templates/vantage/roles/user.html:82
@@ -48,15 +48,15 @@ msgstr "الكل"
 msgid "Subjects"
 msgstr "الجهات"
 
-#: accessviews.py:110 pages.py:315 templates/vantage/roles/list.html:14
+#: accessviews.py:110 pages.py:316 templates/vantage/roles/list.html:14
 msgid "Access review"
 msgstr "مراجعة الوصول"
 
-#: accessviews.py:123 models.py:1698
+#: accessviews.py:123 models.py:1750
 msgid "Waiting for approval"
 msgstr "بانتظار الموافقة"
 
-#: accessviews.py:124 models.py:1402
+#: accessviews.py:124 models.py:1440
 msgid "Scheduled"
 msgstr "مجدول"
 
@@ -73,7 +73,7 @@ msgstr "منتهي"
 msgid "Revoked"
 msgstr "مسحوب"
 
-#: accessviews.py:128 models.py:1700
+#: accessviews.py:128 models.py:1752
 msgid "Rejected"
 msgstr "مرفوض"
 
@@ -130,7 +130,7 @@ msgstr[3] "تم إسقاط %(count)d منح وصول مرتفع."
 msgstr[4] "تم إسقاط %(count)d منحة وصول مرتفع."
 msgstr[5] "تم إسقاط %(count)d منحة وصول مرتفع."
 
-#: actions.py:108
+#: actions.py:119
 #, python-format
 msgid "%(label)s will be applied to %(count)d record. This cannot be undone."
 msgid_plural ""
@@ -142,12 +142,12 @@ msgstr[3] "سيتم تطبيق %(label)s على %(count)d سجلات. لا يم�
 msgstr[4] "سيتم تطبيق %(label)s على %(count)d سجلاً. لا يمكن التراجع عن ذلك."
 msgstr[5] "سيتم تطبيق %(label)s على %(count)d سجل. لا يمكن التراجع عن ذلك."
 
-#: actions.py:158
+#: actions.py:169
 #, python-format
 msgid "%(label)s completed."
 msgstr "اكتمل %(label)s."
 
-#: actions.py:277
+#: actions.py:288
 #, python-format
 msgid "Published %(count)s record."
 msgid_plural "Published %(count)s records."
@@ -158,7 +158,7 @@ msgstr[3] "تم نشر %(count)s سجلات."
 msgstr[4] "تم نشر %(count)s سجلاً."
 msgstr[5] "تم نشر %(count)s سجل."
 
-#: actions.py:282
+#: actions.py:293
 #, python-format
 msgid "Unpublished %(count)s record."
 msgid_plural "Unpublished %(count)s records."
@@ -169,21 +169,21 @@ msgstr[3] "تم إلغاء نشر %(count)s سجلات."
 msgstr[4] "تم إلغاء نشر %(count)s سجلاً."
 msgstr[5] "تم إلغاء نشر %(count)s سجل."
 
-#: actions.py:291
+#: actions.py:302
 msgid "Publish"
 msgstr "نشر"
 
-#: actions.py:292
+#: actions.py:303
 msgid "Unpublish"
 msgstr "إلغاء النشر"
 
-#: actions.py:401
+#: actions.py:412
 #, python-format
 msgid ""
 "Nothing was deleted: %(blockers)s still depend on some of these records."
 msgstr "لم يُحذف شيء: لا يزال %(blockers)s يعتمد على بعض هذه السجلات."
 
-#: actions.py:412
+#: actions.py:423
 #, no-python-format
 msgid "Moved %(count)s %(model)s to the trash."
 msgid_plural "Moved %(count)s %(models)s to the trash."
@@ -194,7 +194,7 @@ msgstr[3] "تم نقل %(count)s %(models)s إلى سلة المحذوفات."
 msgstr[4] "تم نقل %(count)s %(models)s إلى سلة المحذوفات."
 msgstr[5] "تم نقل %(count)s %(models)s إلى سلة المحذوفات."
 
-#: actions.py:422
+#: actions.py:433
 #, no-python-format
 msgid "Deleted %(count)s %(model)s and %(related)s related records."
 msgid_plural "Deleted %(count)s %(models)s and %(related)s related records."
@@ -205,7 +205,7 @@ msgstr[3] "تم حذف %(count)s %(models)s و%(related)s من السجلات ذ
 msgstr[4] "تم حذف %(count)s %(models)s و%(related)s من السجلات ذات الصلة."
 msgstr[5] "تم حذف %(count)s %(models)s و%(related)s من السجلات ذات الصلة."
 
-#: actions.py:431
+#: actions.py:442
 #, no-python-format
 msgid "Deleted %(count)s %(model)s."
 msgid_plural "Deleted %(count)s %(models)s."
@@ -216,11 +216,11 @@ msgstr[3] "تم حذف %(count)s %(models)s."
 msgstr[4] "تم حذف %(count)s %(models)s."
 msgstr[5] "تم حذف %(count)s %(models)s."
 
-#: actions.py:434
+#: actions.py:445
 msgid "Nothing was deleted."
 msgstr "لم يُحذف شيء."
 
-#: actions.py:462 formviews.py:780 formviews.py:787
+#: actions.py:473 formviews.py:793 formviews.py:800
 #: templates/vantage/access/review.html:60 templates/vantage/detail.html:16
 #: templates/vantage/reports/list.html:93
 #: templates/vantage/roles/_header.html:15 templates/vantage/roles/edit.html:82
@@ -228,7 +228,7 @@ msgstr "لم يُحذف شيء."
 msgid "Delete"
 msgstr "حذف"
 
-#: actions.py:520
+#: actions.py:531
 #, python-format
 msgid "all %(count)s matching record, %(excluded)s excluded"
 msgid_plural "all %(count)s matching records, %(excluded)s excluded"
@@ -239,7 +239,7 @@ msgstr[3] "كل %(count)s سجلات مطابقة، مع استبعاد %(exclud
 msgstr[4] "كل %(count)s سجلاً مطابقاً، مع استبعاد %(excluded)s"
 msgstr[5] "كل %(count)s سجل مطابق، مع استبعاد %(excluded)s"
 
-#: actions.py:526
+#: actions.py:537
 #, python-format
 msgid "all %(count)s matching record"
 msgid_plural "all %(count)s matching records"
@@ -250,7 +250,7 @@ msgstr[3] "كل %(count)s سجلات مطابقة"
 msgstr[4] "كل %(count)s سجلاً مطابقاً"
 msgstr[5] "كل %(count)s سجل مطابق"
 
-#: actions.py:531
+#: actions.py:542
 #, python-format
 msgid "%(count)s selected record"
 msgid_plural "%(count)s selected records"
@@ -261,11 +261,57 @@ msgstr[3] "%(count)s سجلات محددة"
 msgstr[4] "%(count)s سجلاً محدداً"
 msgstr[5] "%(count)s سجل محدد"
 
+#: agentactivityviews.py:46
+msgid "You do not have permission to read agent activity."
+msgstr "ليست لديك صلاحية قراءة نشاط الوكلاء."
+
+#: agentactivityviews.py:86
+#, python-format
+msgid "Unknown format. Valid formats: %(valid)s."
+msgstr "صيغة غير معروفة. الصيغ المتاحة: %(valid)s."
+
+#: agentactivityviews.py:116
+#: templates/vantage/pages/_data_quality_detail.html:8
+#: templates/vantage/pages/_data_quality_detail.html:31
+#: templates/vantage/pages/data-quality.html:44
+#: templates/vantage/reports/list.html:148
+msgid "Rows"
+msgstr "الصفوف"
+
+#: agentactivityviews.py:116
+msgid "Runs"
+msgstr "عمليات التشغيل"
+
+#: agentactivityviews.py:116
+msgid "Entries"
+msgstr "الإدخالات"
+
+#: agentactivityviews.py:119 agentactivityviews.py:141 pages.py:341
+msgid "Agent activity"
+msgstr "نشاط الوكلاء"
+
+#: agentactivityviews.py:135
+msgid "Agent run"
+msgstr "تشغيل وكيل"
+
+#: agentactivityviews.py:141 templates/vantage/agents/activity.html:92
+msgid "Run"
+msgstr "التشغيل"
+
+#: agentactivityviews.py:165
+#, python-format
+msgid "Run %(key)s of %(agent)s"
+msgstr "التشغيل %(key)s للوكيل %(agent)s"
+
+#: agentactivityviews.py:167
+msgid "The audit entries this run made, oldest first."
+msgstr "إدخالات التدقيق التي أنشأها هذا التشغيل، الأقدم أولًا."
+
 #: approvals.py:167
 msgid "and"
 msgstr "و"
 
-#: approvals.py:248
+#: approvals.py:287
 #, python-format
 msgid ""
 "%(fields)s cannot be changed in bulk: a change to it waits for approval, "
@@ -276,38 +322,38 @@ msgstr ""
 "الموافقة لكل سجل على حدة. غيّره من صفحة كل سجل، أو اطلب ذلك ممن يملك صلاحية "
 "الموافقة."
 
-#: approvals.py:330 filters.py:346 listviews/kanban.py:110 render.py:157
-#: render.py:195 stats.py:954
+#: approvals.py:369 filters.py:346 listviews/kanban.py:110 render.py:181
+#: render.py:219 stats.py:954
 msgid "Yes"
 msgstr "نعم"
 
-#: approvals.py:330 filters.py:346 listviews/kanban.py:111 render.py:157
-#: render.py:195 stats.py:954
+#: approvals.py:369 filters.py:346 listviews/kanban.py:111 render.py:181
+#: render.py:219 stats.py:954
 msgid "No"
 msgstr "لا"
 
-#: approvals.py:452
+#: approvals.py:502
 msgid "Approval requested"
 msgstr "تم طلب الموافقة"
 
-#: approvals.py:453
+#: approvals.py:503
 msgid "Change approved"
 msgstr "تمت الموافقة على التغيير"
 
-#: approvals.py:454
+#: approvals.py:504
 msgid "Change rejected"
 msgstr "تم رفض التغيير"
 
-#: approvals.py:455
+#: approvals.py:505
 msgid "Approval request withdrawn"
 msgstr "تم سحب طلب الموافقة"
 
-#: approvals.py:470
+#: approvals.py:520
 #, python-format
 msgid "%(count)s field(s) affected."
 msgstr "عدد الحقول المتأثرة: %(count)s."
 
-#: approvals.py:520
+#: approvals.py:589
 #, python-format
 msgid ""
 "Your change to %(fields)s was sent for approval. It is not saved until "
@@ -316,42 +362,42 @@ msgstr ""
 "تم إرسال تغييرك على %(fields)s للموافقة. لن يُحفظ حتى يوافق عليه شخص مخوّل "
 "بذلك."
 
-#: approvals.py:570 templates/vantage/approvals/review.html:47
+#: approvals.py:639 templates/vantage/approvals/review.html:47
 msgid ""
 "This request changes a field you cannot change, so you cannot approve or "
 "reject it. Someone who can change every field in it has to decide it."
 msgstr ""
-"يغيّر هذا الطلب حقلاً لا يمكنك تغييره، لذا لا يمكنك الموافقة عليه أو رفضه. "
-"يجب أن يبتّ فيه شخص يستطيع تغيير كل حقل فيه."
+"يغيّر هذا الطلب حقلاً لا يمكنك تغييره، لذا لا يمكنك الموافقة عليه أو رفضه. يجب "
+"أن يبتّ فيه شخص يستطيع تغيير كل حقل فيه."
 
-#: approvals.py:627
+#: approvals.py:696
 msgid "None of these fields can be changed any more."
 msgstr "لم يعد بالإمكان تغيير أي من هذه الحقول."
 
-#: approvals.py:636
+#: approvals.py:705
 msgid "The requested values are no longer valid, so nothing was saved."
 msgstr "لم تعد القيم المطلوبة صالحة، لذا لم يُحفظ شيء."
 
-#: approvals.py:652
+#: approvals.py:723
 #, python-format
 msgid ""
 "%(fields)s has changed since this was requested, so it was not applied. "
 "Compare the values again: reject it, and ask for a new request if the change "
 "is still wanted."
 msgstr ""
-"تغيّر %(fields)s منذ تقديم هذا الطلب، لذا لم يُطبَّق. قارن القيم مجدداً: "
-"ارفضه واطلب طلباً جديداً إن كان التغيير لا يزال مطلوباً."
+"تغيّر %(fields)s منذ تقديم هذا الطلب، لذا لم يُطبَّق. قارن القيم مجدداً: ارفضه "
+"واطلب طلباً جديداً إن كان التغيير لا يزال مطلوباً."
 
-#: approvals.py:660
+#: approvals.py:731
 msgid "Someone else has already decided this request."
 msgstr "سبق أن بتّ شخص آخر في هذا الطلب."
 
-#: approvals.py:665
+#: approvals.py:736
 #, python-format
 msgid "Approved. %(fields)s is now saved."
 msgstr "تمت الموافقة. تم حفظ %(fields)s."
 
-#: approvals.py:809
+#: approvals.py:886
 #, python-format
 msgid "%(count)s field you cannot see"
 msgid_plural "%(count)s fields you cannot see"
@@ -371,7 +417,7 @@ msgstr "لا يوجد طلب تغيير كهذا."
 msgid "Change to %(record)s"
 msgstr "تغيير على %(record)s"
 
-#: approvalviews.py:301 pages.py:447
+#: approvalviews.py:301 pages.py:480
 msgid "Approvals"
 msgstr "الموافقات"
 
@@ -407,87 +453,97 @@ msgstr "ليست لديك صلاحية للقيام بذلك."
 msgid "Vantage"
 msgstr "Vantage"
 
-#: auditviews.py:41 filters.py:107
+#: auditviews.py:42 filters.py:107
 #: templates/vantage/list_views/calendar.html:22
 msgid "Today"
 msgstr "اليوم"
 
-#: auditviews.py:42 filters.py:108
+#: auditviews.py:43 filters.py:108
 msgid "Last 7 days"
 msgstr "آخر 7 أيام"
 
-#: auditviews.py:43 filters.py:109
+#: auditviews.py:44 filters.py:109
 msgid "Last 30 days"
 msgstr "آخر 30 يوماً"
 
-#: auditviews.py:44 filters.py:110
+#: auditviews.py:45 filters.py:110
 msgid "Last 90 days"
 msgstr "آخر 90 يوماً"
 
-#: auditviews.py:56 auditviews.py:67
+#: auditviews.py:57 auditviews.py:68
 msgid "Audit log"
 msgstr "سجل التدقيق"
 
-#: auditviews.py:57
+#: auditviews.py:58
 msgid "Everything created, changed, deleted or run from this panel."
 msgstr "كل ما أُنشئ أو غُيّر أو حُذف أو شُغّل من هذه اللوحة."
 
-#: auditviews.py:61
+#: auditviews.py:62
 msgid "The audit log is switched off for this panel."
 msgstr "سجل التدقيق متوقف لهذه اللوحة."
 
-#: auditviews.py:63
+#: auditviews.py:64
 msgid "You do not have permission to read the audit log."
 msgstr "ليست لديك صلاحية قراءة سجل التدقيق."
 
-#: authviews.py:326
+#: auditviews.py:140
+msgid "Through the panel"
+msgstr "عبر اللوحة"
+
+#: auditviews.py:141 templates/vantage/audit.html:119
+#: templates/vantage/history.html:164
+#: templates/vantage/partials/history.html:38
+msgid "Outside the panel"
+msgstr "خارج اللوحة"
+
+#: authviews.py:331
 msgid "Your password has been changed."
 msgstr "تم تغيير كلمة المرور الخاصة بك."
 
-#: authviews.py:336 authviews.py:337 templates/vantage/account.html:53
+#: authviews.py:341 authviews.py:342 templates/vantage/account.html:53
 #: templates/vantage/partials/usermenu.html:84
 #: templates/vantage/password_change.html:14
 #: templates/vantage/password_change.html:50
 msgid "Change password"
 msgstr "تغيير كلمة المرور"
 
-#: authviews.py:383
+#: authviews.py:388
 msgid "Return to the start"
 msgstr "العودة إلى البداية"
 
-#: authviews.py:399 templates/vantage/403.html:17
+#: authviews.py:404 templates/vantage/403.html:17
 msgid "Error 403"
 msgstr "خطأ 403"
 
-#: authviews.py:400 templates/vantage/403.html:18
+#: authviews.py:405 templates/vantage/403.html:18
 msgid "You do not have access to this"
 msgstr "ليست لديك صلاحية الوصول إلى هذا"
 
-#: authviews.py:401
+#: authviews.py:406
 msgid "This page exists, but your account is not permitted to open it."
 msgstr "هذه الصفحة موجودة، لكن حسابك غير مصرح له بفتحها."
 
-#: authviews.py:404 templates/vantage/404.html:16
+#: authviews.py:409 templates/vantage/404.html:16
 msgid "Error 404"
 msgstr "خطأ 404"
 
-#: authviews.py:405 templates/vantage/404.html:17
+#: authviews.py:410 templates/vantage/404.html:17
 msgid "We could not find that page"
 msgstr "تعذّر العثور على هذه الصفحة"
 
-#: authviews.py:406
+#: authviews.py:411
 msgid "The address may be mistyped, or what it pointed at may be gone."
 msgstr "قد يكون العنوان مكتوبًا خطأً، أو ربما لم يعد ما يشير إليه موجودًا."
 
-#: authviews.py:412
+#: authviews.py:417
 msgid "Error 500"
 msgstr "خطأ 500"
 
-#: authviews.py:413
+#: authviews.py:418
 msgid "Something went wrong"
 msgstr "حدث خطأ ما"
 
-#: authviews.py:415
+#: authviews.py:420
 msgid ""
 "The server hit an error handling that request. It has been logged; nothing "
 "you did caused it and trying again is safe."
@@ -610,17 +666,17 @@ msgstr "لا يجوز لك سحب هذه المنحة."
 msgid "Revoked at"
 msgstr "سُحب في"
 
-#: concurrency.py:293
+#: concurrency.py:317
 msgctxt "value of a boolean field"
 msgid "Yes"
 msgstr "نعم"
 
-#: concurrency.py:294
+#: concurrency.py:318
 msgctxt "value of a boolean field"
 msgid "No"
 msgstr "لا"
 
-#: dashboards.py:664 formviews.py:541 palette.py:323
+#: dashboards.py:664 formviews.py:554 palette.py:323
 #, python-format
 msgid "New %(model)s"
 msgstr "%(model)s جديد"
@@ -713,7 +769,7 @@ msgstr "الجدول كبير جداً بحيث لا يمكن فحصه أو أخ
 msgid "Stopped at its time budget"
 msgstr "توقف عند بلوغ الحد الزمني"
 
-#: fieldperms.py:521
+#: fieldperms.py:546
 #, python-format
 msgid ""
 "This record cannot be created here: %(fields)s must be filled in, and you "
@@ -743,79 +799,79 @@ msgstr "من %(start)s"
 msgid "Until %(end)s"
 msgstr "حتى %(end)s"
 
-#: formviews.py:237 recordviews.py:91
+#: formviews.py:250 recordviews.py:91
 #, python-format
 msgid "You do not have permission to view this %(model)s."
 msgstr "ليست لديك صلاحية عرض هذا %(model)s."
 
-#: formviews.py:238
+#: formviews.py:251
 #, python-format
 msgid "You do not have permission to add this %(model)s."
 msgstr "ليست لديك صلاحية إضافة هذا %(model)s."
 
-#: formviews.py:239
+#: formviews.py:252
 #, python-format
 msgid "You do not have permission to change this %(model)s."
 msgstr "ليست لديك صلاحية تغيير هذا %(model)s."
 
-#: formviews.py:240
+#: formviews.py:253
 #, python-format
 msgid "You do not have permission to delete this %(model)s."
 msgstr "ليست لديك صلاحية حذف هذا %(model)s."
 
-#: formviews.py:249 recordviews.py:275
+#: formviews.py:262 recordviews.py:275
 #, python-format
 msgid "You do not have permission to %(action)s this %(model)s."
 msgstr "ليست لديك صلاحية %(action)s هذا %(model)s."
 
-#: formviews.py:537 palette.py:48 palette.py:328
+#: formviews.py:550 palette.py:48 palette.py:328
 msgid "Create"
 msgstr "إنشاء"
 
-#: formviews.py:550
+#: formviews.py:563
 #, python-format
 msgid "Created %(model)s “%(object)s”."
 msgstr "تم إنشاء %(model)s “%(object)s”."
 
-#: formviews.py:596 templates/vantage/list.html:413
+#: formviews.py:609 templates/vantage/list.html:413
 #: templates/vantage/roles/edit.html:167 templates/vantage/settings.html:169
 msgid "Save changes"
 msgstr "حفظ التغييرات"
 
-#: formviews.py:601
+#: formviews.py:614
 #, python-format
 msgid "Edit %(object)s"
 msgstr "تعديل %(object)s"
 
-#: formviews.py:602 formviews.py:609 templates/vantage/detail.html:20
+#: formviews.py:615 formviews.py:622 templates/vantage/detail.html:20
 #: templates/vantage/reports/list.html:90 templates/vantage/roles/list.html:56
 #: templates/vantage/webhooks/list.html:78
 msgid "Edit"
 msgstr "تعديل"
 
-#: formviews.py:616
+#: formviews.py:629
 #, python-format
 msgid "Saved changes to %(model)s “%(object)s”."
 msgstr "تم حفظ التغييرات على %(model)s “%(object)s”."
 
-#: formviews.py:716
+#: formviews.py:729
 #, python-format
 msgid "%(model)s — %(field)s cleared"
 msgstr "%(model)s — تم مسح %(field)s"
 
-#: formviews.py:753
+#: formviews.py:766
 msgid ""
-"The list of what else this would affect could not be worked out, so it is not"
-" shown. The delete itself is unaffected — but check before confirming."
+"The list of what else this would affect could not be worked out, so it is "
+"not shown. The delete itself is unaffected — but check before confirming."
 msgstr ""
-"تعذّر حساب قائمة ما سيتأثر أيضاً، لذا لا تُعرض. الحذف نفسه غير متأثر — لكن "
-"تحقق قبل التأكيد."
+"تعذّر حساب قائمة ما سيتأثر أيضاً، لذا لا تُعرض. الحذف نفسه غير متأثر — لكن تحقق "
+"قبل التأكيد."
 
-#: formviews.py:762
+#: formviews.py:775
 msgid "other records"
 msgstr "سجلات أخرى"
 
-#: formviews.py:764
+#: formviews.py:777
 #, python-format
 msgid ""
 "This %(model)s cannot be deleted while %(blockers)s still reference it. "
@@ -824,22 +880,22 @@ msgstr ""
 "لا يمكن حذف هذا %(model)s ما دام %(blockers)s يشير إليه. أزل تلك العناصر أو "
 "أعد إسنادها أولاً."
 
-#: formviews.py:779
+#: formviews.py:792
 #, python-format
 msgid "Delete %(object)s"
 msgstr "حذف %(object)s"
 
-#: formviews.py:900
+#: formviews.py:913
 #, python-format
 msgid "Moved %(model)s “%(object)s” to the trash."
 msgstr "تم نقل %(model)s “%(object)s” إلى سلة المحذوفات."
 
-#: formviews.py:908
+#: formviews.py:921
 #, python-format
 msgid "Deleted %(model)s “%(object)s”."
 msgstr "تم حذف %(model)s “%(object)s”."
 
-#: formviews.py:910
+#: formviews.py:923
 #, python-format
 msgid "Deleted %(model)s “%(object)s” and %(count)s related record."
 msgid_plural "Deleted %(model)s “%(object)s” and %(count)s related records."
@@ -850,17 +906,17 @@ msgstr[3] "تم حذف %(model)s “%(object)s” و%(count)s سجلات ذات 
 msgstr[4] "تم حذف %(model)s “%(object)s” و%(count)s سجلاً ذا صلة."
 msgstr[5] "تم حذف %(model)s “%(object)s” و%(count)s سجل ذي صلة."
 
-#: formviews.py:944
+#: formviews.py:957
 #, python-format
 msgid "Move %(model)s to trash"
 msgstr "نقل %(model)s إلى سلة المحذوفات"
 
-#: formviews.py:946
+#: formviews.py:959
 #, python-format
 msgid "Delete %(model)s"
 msgstr "حذف %(model)s"
 
-#: formviews.py:948
+#: formviews.py:961
 #, python-format
 msgid "Delete %(model)s and %(count)s related record"
 msgid_plural "Delete %(model)s and %(count)s related records"
@@ -871,11 +927,11 @@ msgstr[3] "حذف %(model)s و%(count)s سجلات ذات صلة"
 msgstr[4] "حذف %(model)s و%(count)s سجلاً ذا صلة"
 msgstr[5] "حذف %(model)s و%(count)s سجل ذي صلة"
 
-#: formviews.py:982
+#: formviews.py:995
 msgid "This model has no trash."
 msgstr "لا توجد سلة محذوفات لهذا النموذج."
 
-#: formviews.py:1011 undo.py:270
+#: formviews.py:1024 undo.py:270
 #, python-format
 msgid "Restored %(model)s “%(object)s”."
 msgstr "تمت استعادة %(model)s “%(object)s”."
@@ -916,8 +972,7 @@ msgstr "لم تُقرأ القيمة المكتوبة في ذاكرة التخز
 
 #: health.py:80
 msgid "A dummy or misconfigured backend. Faceted counts will not be cached."
-msgstr ""
-"واجهة خلفية وهمية أو مهيأة بشكل خاطئ. لن تُخزَّن الأعداد المصنفة مؤقتاً."
+msgstr "واجهة خلفية وهمية أو مهيأة بشكل خاطئ. لن تُخزَّن الأعداد المصنفة مؤقتاً."
 
 #: health.py:101 health.py:105 health.py:158
 msgid "Background tasks"
@@ -1010,8 +1065,8 @@ msgid ""
 "A bulk change ran on these records after this point, and nothing earlier in "
 "this record's history confirms the value."
 msgstr ""
-"جرى تغيير جماعي على هذه السجلات بعد هذه النقطة، ولا يؤكد أي شيء سابق في تاريخ"
-" هذا السجل القيمة."
+"جرى تغيير جماعي على هذه السجلات بعد هذه النقطة، ولا يؤكد أي شيء سابق في "
+"تاريخ هذا السجل القيمة."
 
 #: history.py:532
 msgid "You can see this field but not change it."
@@ -1056,8 +1111,7 @@ msgstr "لا يوجد ما يمكن استعادته من تلك النقطة."
 msgid ""
 "This record has changed since you opened its history, so nothing was "
 "restored. Check the values again."
-msgstr ""
-"تغيّر هذا السجل منذ فتحت تاريخه، لذا لم يُستعد شيء. تحقق من القيم مجدداً."
+msgstr "تغيّر هذا السجل منذ فتحت تاريخه، لذا لم يُستعد شيء. تحقق من القيم مجدداً."
 
 #: historyviews.py:210
 msgid "Choose at least one field to restore."
@@ -1122,8 +1176,8 @@ msgstr[0] ""
 "يحتوي هذا الملف على أكثر من %(count)s صفوف، وهو حد الاستيراد. قسّمه، أو "
 "استورده بأمر إدارة."
 msgstr[1] ""
-"يحتوي هذا الملف على أكثر من %(count)s صف، وهو حد الاستيراد. قسّمه، أو استورده"
-" بأمر إدارة."
+"يحتوي هذا الملف على أكثر من %(count)s صف، وهو حد الاستيراد. قسّمه، أو استورده "
+"بأمر إدارة."
 msgstr[2] ""
 "يحتوي هذا الملف على أكثر من %(count)s صفين، وهو حد الاستيراد. قسّمه، أو "
 "استورده بأمر إدارة."
@@ -1134,8 +1188,8 @@ msgstr[4] ""
 "يحتوي هذا الملف على أكثر من %(count)s صفاً، وهو حد الاستيراد. قسّمه، أو "
 "استورده بأمر إدارة."
 msgstr[5] ""
-"يحتوي هذا الملف على أكثر من %(count)s صف، وهو حد الاستيراد. قسّمه، أو استورده"
-" بأمر إدارة."
+"يحتوي هذا الملف على أكثر من %(count)s صف، وهو حد الاستيراد. قسّمه، أو استورده "
+"بأمر إدارة."
 
 #: importer.py:238
 #, python-format
@@ -1158,11 +1212,11 @@ msgstr "%(size)s KB"
 
 #: importer.py:288
 msgid ""
-"That does not look like a text file. Export it as CSV — a .xlsx workbook or a"
-" PDF cannot be read here."
+"That does not look like a text file. Export it as CSV — a .xlsx workbook or "
+"a PDF cannot be read here."
 msgstr ""
-"لا يبدو هذا ملفاً نصياً. صدّره بصيغة CSV — لا يمكن قراءة مصنّف .xlsx أو ملف "
-"PDF هنا."
+"لا يبدو هذا ملفاً نصياً. صدّره بصيغة CSV — لا يمكن قراءة مصنّف .xlsx أو ملف PDF "
+"هنا."
 
 #: importer.py:298
 msgid "That file is not readable as text in utf-8 or latin-1."
@@ -1201,16 +1255,16 @@ msgstr ""
 
 #: importer.py:354
 msgid ""
-"The first row looks like data, not column names — one of its values is longer"
-" than a column name would be. Add a header row."
+"The first row looks like data, not column names — one of its values is "
+"longer than a column name would be. Add a header row."
 msgstr ""
-"يبدو الصف الأول بيانات لا أسماء أعمدة — إحدى قيمه أطول من اسم عمود معتاد. أضف"
-" صف رأس."
+"يبدو الصف الأول بيانات لا أسماء أعمدة — إحدى قيمه أطول من اسم عمود معتاد. "
+"أضف صف رأس."
 
 #: importer.py:361
 msgid ""
-"The first row is all numbers, so it looks like data rather than column names."
-" Add a header row."
+"The first row is all numbers, so it looks like data rather than column "
+"names. Add a header row."
 msgstr "الصف الأول كله أرقام، لذا يبدو بيانات لا أسماء أعمدة. أضف صف رأس."
 
 #: importer.py:372
@@ -1314,7 +1368,7 @@ msgstr[3] "دون تغيير: %(count)s"
 msgstr[4] "دون تغيير: %(count)s"
 msgstr[5] "دون تغيير: %(count)s"
 
-#: importer.py:809 jobs.py:560
+#: importer.py:809 jobs.py:563
 #, python-format
 msgid "%(count)s failed"
 msgid_plural "%(count)s failed"
@@ -1336,11 +1390,11 @@ msgstr[3] "أُرسل %(count)s للموافقة"
 msgstr[4] "أُرسل %(count)s للموافقة"
 msgstr[5] "أُرسل %(count)s للموافقة"
 
-#: importer.py:819 jobs.py:567 templates/vantage/partials/job_progress.html:34
+#: importer.py:819 jobs.py:570 templates/vantage/partials/job_progress.html:34
 msgid "nothing to do"
 msgstr "لا شيء لتنفيذه"
 
-#: importer.py:904
+#: importer.py:906
 #, python-format
 msgid "%(width)s column"
 msgid_plural "%(width)s columns"
@@ -1351,7 +1405,7 @@ msgstr[3] "%(width)s أعمدة"
 msgstr[4] "%(width)s عموداً"
 msgstr[5] "%(width)s عمود"
 
-#: importer.py:913
+#: importer.py:915
 #, python-format
 msgid ""
 "This row has %(count)s value but the header has %(columns)s. A stray or "
@@ -1372,13 +1426,13 @@ msgstr[3] ""
 "يحتوي هذا الصف على %(count)s قيم بينما يحتوي الرأس على %(columns)s. أي فاصل "
 "زائد أو مفقود يزيح كل قيمة بعده."
 msgstr[4] ""
-"يحتوي هذا الصف على %(count)s قيمةً بينما يحتوي الرأس على %(columns)s. أي فاصل"
-" زائد أو مفقود يزيح كل قيمة بعده."
+"يحتوي هذا الصف على %(count)s قيمةً بينما يحتوي الرأس على %(columns)s. أي فاصل "
+"زائد أو مفقود يزيح كل قيمة بعده."
 msgstr[5] ""
 "يحتوي هذا الصف على %(count)s قيمة بينما يحتوي الرأس على %(columns)s. أي فاصل "
 "زائد أو مفقود يزيح كل قيمة بعده."
 
-#: importer.py:941
+#: importer.py:943
 #, python-format
 msgid ""
 "A %(model)s with this value already exists (#%(pk)s). This import is set to "
@@ -1387,11 +1441,11 @@ msgstr ""
 "يوجد %(model)s بهذه القيمة بالفعل (#%(pk)s). هذا الاستيراد مضبوط على إنشاء "
 "سجلات جديدة فقط."
 
-#: importer.py:954
+#: importer.py:956
 msgid "No existing record matches. This import is set to update only."
 msgstr "لا يوجد سجل موجود مطابق. هذا الاستيراد مضبوط على التحديث فقط."
 
-#: importer.py:968
+#: importer.py:970
 #, python-format
 msgid ""
 "%(fields)s must have a value and no column feeds it, so this row cannot be "
@@ -1412,50 +1466,49 @@ msgstr[4] ""
 msgstr[5] ""
 "يجب أن تحمل %(fields)s قيماً ولا يغذّيها أي عمود، لذا لا يمكن إنشاء هذا الصف."
 
-#: importer.py:1073
+#: importer.py:1077
 msgid "This column identifies the record, so it cannot be empty."
 msgstr "يحدد هذا العمود السجل، لذا لا يمكن أن يكون فارغاً."
 
-#: importer.py:1083
+#: importer.py:1087
 #, python-format
 msgid "“%(value)s” is not a valid value."
 msgstr "“%(value)s” ليست قيمة صالحة."
 
-#: importer.py:1138
+#: importer.py:1142
 #, python-format
 msgid ""
 "“%(value)s” matches more than one %(model)s. Use the numeric id instead."
-msgstr ""
-"“%(value)s” تطابق أكثر من %(model)s. استخدم المعرّف الرقمي بدلاً من ذلك."
+msgstr "“%(value)s” تطابق أكثر من %(model)s. استخدم المعرّف الرقمي بدلاً من ذلك."
 
-#: importer.py:1228
+#: importer.py:1232
 #, python-format
 msgid "No %(model)s matches “%(value)s”."
 msgstr "لا يوجد %(model)s يطابق “%(value)s”."
 
 #. Translators: header row of the downloadable CSV listing what went wrong.
-#: importer.py:1375 jobs.py:841 templates/vantage/import_preview.html:120
+#: importer.py:1397 jobs.py:844 templates/vantage/import_preview.html:120
 msgid "Row"
 msgstr "الصف"
 
-#: importer.py:1375 templates/vantage/import_preview.html:121
+#: importer.py:1397 templates/vantage/import_preview.html:121
 #: templates/vantage/partials/card_editor.html:81
 msgid "Column"
 msgstr "العمود"
 
-#: importer.py:1375 jobs.py:841
+#: importer.py:1397 jobs.py:844
 msgid "Error"
 msgstr "الخطأ"
 
-#: importer.py:1464 importer.py:1469 importer.py:1473 importer.py:1486
+#: importer.py:1486 importer.py:1491 importer.py:1495 importer.py:1508
 msgid "That upload is no longer available."
 msgstr "لم يعد هذا الرفع متاحاً."
 
-#: importer.py:1476
+#: importer.py:1498
 msgid "That upload has expired. Upload the file again."
 msgstr "انتهت صلاحية هذا الرفع. ارفع الملف مرة أخرى."
 
-#: importer.py:1506
+#: importer.py:1528
 msgid "That report is no longer available."
 msgstr "لم يعد هذا التقرير متاحاً."
 
@@ -1506,23 +1559,23 @@ msgstr "حجم هذا الملف %(size)s MB، والحد الأقصى %(limit)s
 msgid "Import finished: %(summary)s."
 msgstr "اكتمل الاستيراد: %(summary)s."
 
-#: jobs.py:303
+#: jobs.py:304
 msgid ""
 "No task backend is configured, so this ran in the web request. Configure "
 "TASKS, Celery or RQ to move it off."
 msgstr ""
-"لم تُهيّأ واجهة خلفية للمهام، لذا نُفّذ هذا ضمن طلب الويب. هيّئ TASKS أو "
-"Celery أو RQ لنقله خارجه."
+"لم تُهيّأ واجهة خلفية للمهام، لذا نُفّذ هذا ضمن طلب الويب. هيّئ TASKS أو Celery "
+"أو RQ لنقله خارجه."
 
-#: jobs.py:315
+#: jobs.py:316
 msgid "In-process"
 msgstr "داخل العملية"
 
-#: jobs.py:547
+#: jobs.py:550
 msgid "Nothing ran."
 msgstr "لم يُنفَّذ شيء."
 
-#: jobs.py:555
+#: jobs.py:558
 #, python-format
 msgid "%(count)s succeeded"
 msgid_plural "%(count)s succeeded"
@@ -1533,15 +1586,15 @@ msgstr[3] "نجح %(count)s"
 msgstr[4] "نجح %(count)s"
 msgstr[5] "نجح %(count)s"
 
-#: jobs.py:564
+#: jobs.py:567
 msgid "stopped: permission withdrawn"
 msgstr "توقف: سُحبت الصلاحية"
 
-#: jobs.py:566
+#: jobs.py:569
 msgid "stopped: the job could not continue"
 msgstr "توقف: تعذّر على المهمة المتابعة"
 
-#: jobs.py:574
+#: jobs.py:577
 #, python-format
 msgid " (%(claimed)s was selected; %(matched)s still matched)"
 msgid_plural " (%(claimed)s were selected; %(matched)s still matched)"
@@ -1552,54 +1605,55 @@ msgstr[3] " (المحدد: %(claimed)s؛ ولا يزال المطابق: %(match
 msgstr[4] " (المحدد: %(claimed)s؛ ولا يزال المطابق: %(matched)s)"
 msgstr[5] " (المحدد: %(claimed)s؛ ولا يزال المطابق: %(matched)s)"
 
-#: jobs.py:655
+#: jobs.py:658
 #, python-format
 msgid "No panel is registered for %(key)s; this job can no longer run."
 msgstr "لا توجد لوحة مسجّلة لـ %(key)s؛ لم يعد بالإمكان تشغيل هذه المهمة."
 
-#: jobs.py:665
+#: jobs.py:668
 #, python-format
 msgid "The action %(action)s no longer exists on this panel."
 msgstr "الإجراء %(action)s لم يعد موجوداً في هذه اللوحة."
 
-#: jobs.py:671 jobs.py:735
+#: jobs.py:674 jobs.py:738
 msgid "The account that started this job is gone or has been disabled."
 msgstr "الحساب الذي بدأ هذه المهمة لم يعد موجوداً أو تم تعطيله."
 
-#: jobs.py:717
+#: jobs.py:720
 #, python-format
 msgid "%(actor)s may no longer view %(records)s."
 msgstr "لم يعد مسموحاً لـ %(actor)s بعرض %(records)s."
 
-#: jobs.py:718
+#: jobs.py:721
 #, python-format
 msgid "%(actor)s may no longer add %(records)s."
 msgstr "لم يعد مسموحاً لـ %(actor)s بإضافة %(records)s."
 
-#: jobs.py:719
+#: jobs.py:722
 #, python-format
 msgid "%(actor)s may no longer change %(records)s."
 msgstr "لم يعد مسموحاً لـ %(actor)s بتغيير %(records)s."
 
-#: jobs.py:720
+#: jobs.py:723
 #, python-format
 msgid "%(actor)s may no longer delete %(records)s."
 msgstr "لم يعد مسموحاً لـ %(actor)s بحذف %(records)s."
 
-#: jobs.py:725
+#: jobs.py:728
 #, python-format
 msgid "%(actor)s no longer has the “%(permission)s” permission on %(records)s."
 msgstr "لم تعد لدى %(actor)s صلاحية “%(permission)s” على %(records)s."
 
-#: jobs.py:745
+#: jobs.py:748
 msgid "The actor"
 msgstr "المنفّذ"
 
-#: jobs.py:841 templates/vantage/audit.html:77
+#: jobs.py:844 templates/vantage/agents/run.html:34
+#: templates/vantage/audit.html:87
 msgid "Record"
 msgstr "السجل"
 
-#: jobs.py:854
+#: jobs.py:857
 #, python-format
 msgid "%(count)s further failure was not recorded individually."
 msgid_plural "%(count)s further failures were not recorded individually."
@@ -1798,8 +1852,8 @@ msgstr "%(name)s ليس صورة حقاً. محتواه لا يطابق امتد
 #: media.py:419
 #, python-format
 msgid ""
-"%(name)s is a kind of file a browser runs rather than shows (a web page, SVG,"
-" XML or script), so it cannot be uploaded here."
+"%(name)s is a kind of file a browser runs rather than shows (a web page, "
+"SVG, XML or script), so it cannot be uploaded here."
 msgstr ""
 "%(name)s نوع من الملفات يشغّله المتصفح بدلاً من عرضه (صفحة ويب أو SVG أو XML "
 "أو نص برمجي)، لذا لا يمكن رفعه هنا."
@@ -1814,8 +1868,8 @@ msgid ""
 "%(name)s contains %(hazard)s, which would run as script for anyone who opens "
 "it from the panel. Export it without the script, or convert it to a PNG."
 msgstr ""
-"يحتوي %(name)s على %(hazard)s، مما سيُنفَّذ كنص برمجي لأي شخص يفتحه من "
-"اللوحة. صدّره بدون النص البرمجي، أو حوّله إلى PNG."
+"يحتوي %(name)s على %(hazard)s، مما سيُنفَّذ كنص برمجي لأي شخص يفتحه من اللوحة. "
+"صدّره بدون النص البرمجي، أو حوّله إلى PNG."
 
 #: media.py:522
 msgid ""
@@ -1832,10 +1886,8 @@ msgid ""
 msgstr ""
 "%(name)s ليس صورة تستطيع اللوحة قراءتها. استخدم PNG أو JPEG أو WebP أو GIF."
 
-#. Translators: each of these names one thing found inside an uploaded SVG, and
-#. is
-#. substituted into "That SVG contains %(hazard)s, which would run as script
-#. ...".
+#. Translators: each of these names one thing found inside an uploaded SVG, and is
+#. substituted into "That SVG contains %(hazard)s, which would run as script ...".
 #: models.py:134
 msgid "a <script> element"
 msgstr "عنصر <script>"
@@ -1887,8 +1939,8 @@ msgid ""
 "That SVG contains %(hazard)s, which would run as script on every page of the "
 "panel. Export it without scripting, or upload a PNG."
 msgstr ""
-"يحتوي ملف SVG هذا على %(hazard)s، مما سيُنفَّذ كنص برمجي في كل صفحة من "
-"اللوحة. صدّره بدون برمجة نصية، أو ارفع ملف PNG."
+"يحتوي ملف SVG هذا على %(hazard)s، مما سيُنفَّذ كنص برمجي في كل صفحة من اللوحة. "
+"صدّره بدون برمجة نصية، أو ارفع ملف PNG."
 
 #: models.py:220
 #, python-format
@@ -1940,7 +1992,7 @@ msgstr "حذف"
 msgid "ran an action"
 msgstr "نفّذ إجراءً"
 
-#: models.py:467 templates/vantage/webhooks/delivery.html:28 webhooks.py:103
+#: models.py:467 templates/vantage/webhooks/delivery.html:28 webhooks.py:104
 msgid "Created"
 msgstr "إنشاء"
 
@@ -1948,7 +2000,7 @@ msgstr "إنشاء"
 msgid "Updated"
 msgstr "تحديث"
 
-#: models.py:469 webhooks.py:105
+#: models.py:469 webhooks.py:106
 msgid "Deleted"
 msgstr "حذف"
 
@@ -1964,287 +2016,327 @@ msgstr "استعادة"
 msgid "Ran an action"
 msgstr "تنفيذ إجراء"
 
-#: models.py:526
+#: models.py:545
 msgid "log entry"
 msgstr "إدخال سجل"
 
-#: models.py:527
+#: models.py:546
 msgid "log entries"
 msgstr "إدخالات السجل"
 
-#: models.py:542
+#: models.py:561
 #, python-format
 msgid "%(who)s %(did)s %(what)s"
 msgstr "%(who)s %(did)s %(what)s"
 
-#: models.py:543 templates/vantage/approvals/_request.html:17
+#: models.py:562 templates/vantage/approvals/_request.html:17
 #: templates/vantage/history.html:153
 #: templates/vantage/partials/approval_banner.html:19
 #: templates/vantage/partials/history.html:28
 msgid "Someone"
 msgstr "شخص ما"
 
-#: models.py:545
+#: models.py:564
 msgid "a record"
 msgstr "سجل"
 
-#: models.py:637 templates/vantage/partials/saved_views.html:124
+#: models.py:581
+msgid "Created outside the panel"
+msgstr "أُنشئ خارج اللوحة"
+
+#: models.py:582
+msgid "Updated outside the panel"
+msgstr "حُدّث خارج اللوحة"
+
+#: models.py:583
+msgid "Deleted outside the panel"
+msgstr "حُذف خارج اللوحة"
+
+#: models.py:584
+msgid "Changed outside the panel"
+msgstr "تغيّر خارج اللوحة"
+
+#: models.py:675 templates/vantage/partials/saved_views.html:124
 #: templates/vantage/partials/saved_views.html:130
 msgid "Only me"
 msgstr "أنا فقط"
 
-#: models.py:638 templates/vantage/partials/saved_views.html:125
+#: models.py:676 templates/vantage/partials/saved_views.html:125
 msgid "Everyone who can see this model"
 msgstr "كل من يستطيع رؤية هذا النموذج"
 
-#: models.py:641
+#: models.py:679
 msgid "Only the owner"
 msgstr "المالك فقط"
 
-#: models.py:642
+#: models.py:680
 msgid "The owner and named editors"
 msgstr "المالك والمحررون المحددون"
 
-#: models.py:643 templates/vantage/partials/saved_views.html:132
+#: models.py:681 templates/vantage/partials/saved_views.html:132
 msgid "Anyone who can see it"
 msgstr "كل من يستطيع رؤيته"
 
-#: models.py:690
+#: models.py:728
 msgid "saved view"
 msgstr "عرض محفوظ"
 
-#: models.py:691
+#: models.py:729
 msgid "saved views"
 msgstr "العروض المحفوظة"
 
-#: models.py:736
+#: models.py:774
 msgid "can use"
 msgstr "يمكنه الاستخدام"
 
-#: models.py:737
+#: models.py:775
 msgid "can use and change"
 msgstr "يمكنه الاستخدام والتغيير"
 
-#: models.py:749
+#: models.py:787
 msgid "Can use"
 msgstr "يمكنه الاستخدام"
 
-#: models.py:750
+#: models.py:788
 msgid "Can use and change"
 msgstr "يمكنه الاستخدام والتغيير"
 
-#: models.py:767
+#: models.py:805
 msgid "saved view grant"
 msgstr "منح عرض محفوظ"
 
-#: models.py:768
+#: models.py:806
 msgid "saved view grants"
 msgstr "منح العروض المحفوظة"
 
-#: models.py:792
+#: models.py:830
 #, python-format
 msgid "%(subject)s — %(role)s"
 msgstr "%(subject)s — %(role)s"
 
-#: models.py:825
+#: models.py:863
 msgid "saved view state"
 msgstr "حالة عرض محفوظ"
 
-#: models.py:826
+#: models.py:864
 msgid "saved view states"
 msgstr "حالات العروض المحفوظة"
 
-#: models.py:959
+#: models.py:997
 msgid "list preference"
 msgstr "تفضيل القائمة"
 
-#: models.py:960
+#: models.py:998
 msgid "list preferences"
 msgstr "تفضيلات القائمة"
 
-#: models.py:985 models.py:1532
+#: models.py:1023 models.py:1570
 msgid "everyone"
 msgstr "الجميع"
 
-#: models.py:1057 models.py:1255 models.py:1393
+#: models.py:1095 models.py:1293 models.py:1431
 msgid "Queued"
 msgstr "في الانتظار"
 
-#: models.py:1058 models.py:1394
+#: models.py:1096 models.py:1432
 msgid "Running"
 msgstr "قيد التشغيل"
 
-#: models.py:1059
+#: models.py:1097
 msgid "Finished"
 msgstr "مكتملة"
 
-#: models.py:1060 models.py:1258 models.py:1325 models.py:1397
+#: models.py:1098 models.py:1296 models.py:1363 models.py:1435
 #: templates/vantage/reports/list.html:45
 #: templates/vantage/webhooks/list.html:51
 msgid "Failed"
 msgstr "فاشلة"
 
-#: models.py:1065
+#: models.py:1103
 msgid "Stopped — permission withdrawn"
 msgstr "متوقفة — سُحبت الصلاحية"
 
-#: models.py:1130
+#: models.py:1168
 msgid "background job"
 msgstr "مهمة خلفية"
 
-#: models.py:1131
+#: models.py:1169
 msgid "background jobs"
 msgstr "المهام الخلفية"
 
-#: models.py:1229
+#: models.py:1267
 msgid "webhook"
 msgstr "ويب هوك"
 
-#: models.py:1230
+#: models.py:1268
 msgid "webhooks"
 msgstr "ويب هوكات"
 
-#: models.py:1232
+#: models.py:1270
 msgid "Can manage webhooks"
 msgstr "يمكنه إدارة ويب هوكات"
 
-#: models.py:1256
+#: models.py:1294
 msgid "Waiting to retry"
 msgstr "بانتظار إعادة المحاولة"
 
-#: models.py:1257
+#: models.py:1295
 msgid "Delivered"
 msgstr "تم التسليم"
 
-#: models.py:1285
+#: models.py:1323
 msgid "webhook delivery"
 msgstr "تسليم ويب هوك"
 
-#: models.py:1286
+#: models.py:1324
 msgid "webhook deliveries"
 msgstr "عمليات تسليم ويب هوك"
 
-#: models.py:1318
+#: models.py:1356
 msgid "Every day"
 msgstr "كل يوم"
 
-#: models.py:1319
+#: models.py:1357
 msgid "Every week"
 msgstr "كل أسبوع"
 
-#: models.py:1320
+#: models.py:1358
 msgid "Every month"
 msgstr "كل شهر"
 
-#: models.py:1323 models.py:1395 templates/vantage/webhooks/delivery.html:35
+#: models.py:1361 models.py:1433 templates/vantage/webhooks/delivery.html:35
 msgid "Sent"
 msgstr "تم الإرسال"
 
-#: models.py:1324 models.py:1396
+#: models.py:1362 models.py:1434
 msgid "Skipped"
 msgstr "تم التخطي"
 
-#: models.py:1368
+#: models.py:1406
 msgid "report subscription"
 msgstr "اشتراك في تقرير"
 
-#: models.py:1369
+#: models.py:1407
 msgid "report subscriptions"
 msgstr "الاشتراكات في التقارير"
 
-#: models.py:1372
+#: models.py:1410
 msgid "Can manage everyone's scheduled reports"
 msgstr "يمكنه إدارة التقارير المجدولة للجميع"
 
-#: models.py:1373
+#: models.py:1411
 msgid "Can send scheduled reports to other addresses"
 msgstr "يمكنه إرسال التقارير المجدولة إلى عناوين أخرى"
 
-#: models.py:1403 templates/vantage/reports/list.html:81
+#: models.py:1441 templates/vantage/reports/list.html:81
 msgid "Send now"
 msgstr "إرسال الآن"
 
-#: models.py:1423
+#: models.py:1461
 msgid "report run"
 msgstr "تشغيل تقرير"
 
-#: models.py:1424
+#: models.py:1462
 msgid "report runs"
 msgstr "عمليات تشغيل التقارير"
 
-#: models.py:1508
+#: models.py:1546
 msgid "dashboard layout"
 msgstr "تخطيط لوحة المعلومات"
 
-#: models.py:1509
+#: models.py:1547
 msgid "dashboard layouts"
 msgstr "تخطيطات لوحات المعلومات"
 
-#: models.py:1596
+#: models.py:1634
 msgid "undo entry"
 msgstr "إدخال تراجع"
 
-#: models.py:1597
+#: models.py:1635
 msgid "undo entries"
 msgstr "إدخالات التراجع"
 
-#: models.py:1641
+#: models.py:1688
 msgid "two-factor device"
 msgstr "جهاز المصادقة الثنائية"
 
-#: models.py:1642
+#: models.py:1689
 msgid "two-factor devices"
 msgstr "أجهزة المصادقة الثنائية"
 
-#: models.py:1664
+#: models.py:1716
 msgid "two-factor recovery code"
 msgstr "رمز استرداد المصادقة الثنائية"
 
-#: models.py:1665
+#: models.py:1717
 msgid "two-factor recovery codes"
 msgstr "رموز استرداد المصادقة الثنائية"
 
-#: models.py:1699
+#: models.py:1751
 msgid "Approved"
 msgstr "تمت الموافقة"
 
-#: models.py:1701
+#: models.py:1753
 msgid "Withdrawn"
 msgstr "تم السحب"
 
-#: models.py:1738
+#: models.py:1790
 msgid "change request"
 msgstr "طلب تغيير"
 
-#: models.py:1739
+#: models.py:1791
 msgid "change requests"
 msgstr "طلبات التغيير"
 
-#: models.py:1776 templates/vantage/roles/_fields.html:16
+#: models.py:1828 templates/vantage/roles/_fields.html:16
 #: templates/vantage/roles/user.html:84
 msgid "Read-only"
 msgstr "للقراءة فقط"
 
-#: models.py:1777 templates/vantage/roles/_fields.html:17
+#: models.py:1829 templates/vantage/roles/_fields.html:17
 #: templates/vantage/roles/user.html:83 templates/vantage/settings_nav.html:138
 msgid "Hidden"
 msgstr "مخفي"
 
-#: models.py:1787
+#: models.py:1839
 msgid "field permission"
 msgstr "صلاحية حقل"
 
-#: models.py:1788
+#: models.py:1840
 msgid "field permissions"
 msgstr "صلاحيات الحقول"
 
-#: models.py:1876
+#: models.py:1928
 msgid "elevated access"
 msgstr "وصول مرتفع الصلاحيات"
 
-#: models.py:1877
+#: models.py:1929
 msgid "elevated access grants"
 msgstr "منح الوصول المرتفع الصلاحيات"
+
+#: models.py:1975
+msgid "Read only"
+msgstr "للقراءة فقط"
+
+#: models.py:1976
+msgid "Read and write"
+msgstr "قراءة وكتابة"
+
+#: models.py:2009
+msgid "agent identity"
+msgstr "هوية وكيل"
+
+#: models.py:2010
+msgid "agent identities"
+msgstr "هويات الوكلاء"
+
+#: models.py:2045
+msgid "agent run"
+msgstr "تشغيل وكيل"
+
+#: models.py:2046
+msgid "agent runs"
+msgstr "عمليات تشغيل الوكلاء"
 
 #: nav.py:195 palette.py:297 templates/vantage/reports/list.html:183
 #: templates/vantage/webhooks/list.html:172
@@ -2271,8 +2363,8 @@ msgstr "لا توجد مجموعة لإضافته إليها بعد. أنشئ م
 #, python-format
 msgid ""
 "%(url)s was not added. A link must be a site path starting with “/”, or an "
-"http, https or mailto address — anything else, a javascript: URL most of all,"
-" is refused."
+"http, https or mailto address — anything else, a javascript: URL most of "
+"all, is refused."
 msgstr ""
 "لم تتم إضافة %(url)s. يجب أن يكون الرابط مسارًا داخل الموقع يبدأ بـ “/”، أو "
 "عنوان http أو https أو mailto — أي شيء آخر، وخاصةً عنوان javascript:، مرفوض."
@@ -2281,79 +2373,83 @@ msgstr ""
 msgid "That item could not be added."
 msgstr "تعذرت إضافة هذا العنصر."
 
-#: pages.py:152 templates/vantage/pages/schema.html:27
+#: pages.py:153 templates/vantage/pages/schema.html:27
 msgid "Schema"
 msgstr "المخطط"
 
-#: pages.py:154 pages.py:168 pages.py:170 pages.py:198 pages.py:289
-#: pages.py:320 pages.py:344 pages.py:372 pages.py:408 pages.py:426
-#: pages.py:450 templates/vantage/pages/health.html:7
+#: pages.py:155 pages.py:169 pages.py:171 pages.py:199 pages.py:290
+#: pages.py:321 pages.py:344 pages.py:377 pages.py:405 pages.py:441
+#: pages.py:459 pages.py:483 templates/vantage/pages/health.html:7
 msgid "System"
 msgstr "النظام"
 
-#: pages.py:196 templates/vantage/pages/data-quality.html:7
+#: pages.py:197 templates/vantage/pages/data-quality.html:7
 msgid "Data quality"
 msgstr "جودة البيانات"
 
-#: pages.py:260
+#: pages.py:261
 msgid "Re-ran part of the audit before its time budget ran out. Run it again."
 msgstr "أُعيد تشغيل جزء من التدقيق قبل انتهاء الوقت المخصص له. شغّله مرة أخرى."
 
-#: pages.py:263
+#: pages.py:264
 msgid "Data quality audit re-run."
 msgstr "أُعيد تشغيل تدقيق جودة البيانات."
 
-#: pages.py:286 rolesviews.py:174 rolesviews.py:644
+#: pages.py:287 rolesviews.py:174 rolesviews.py:644
 #: templates/vantage/roles/user.html:27
 msgid "Roles"
 msgstr "الأدوار"
 
-#: pages.py:287
+#: pages.py:288
 msgid "Who can do what: permissions bundled into roles, and who holds them."
 msgstr "من يستطيع فعل ماذا: الصلاحيات المجمّعة في أدوار، ومن يملكها."
 
-#: pages.py:317
+#: pages.py:318
 msgid ""
 "Who can view, add, change and delete each model, and its sensitive or "
 "restricted fields."
 msgstr ""
 "من يمكنه عرض كل نموذج وإضافته وتغييره وحذفه، وحقوله الحساسة أو المقيّدة."
 
-#: pages.py:341
+#: pages.py:342
+msgid "The agents that can reach this panel and what their runs have changed."
+msgstr "الوكلاء الذين يمكنهم الوصول إلى هذه اللوحة وما غيّرته عمليات تشغيلهم."
+
+#: pages.py:374
 msgid "Elevated access"
 msgstr "وصول مرتفع الصلاحيات"
 
-#: pages.py:342
+#: pages.py:375
 msgid "Hold more than your usual access for a few minutes, with a reason."
 msgstr "احصل على صلاحيات أكثر من المعتاد لبضع دقائق، مع ذكر السبب."
 
-#: pages.py:369 webhookviews.py:132
+#: pages.py:402 webhookviews.py:132
 msgid "Webhooks"
 msgstr "ويب هوك"
 
-#: pages.py:370
+#: pages.py:403
 msgid "Tell another system, with a signed POST, when a record changes."
 msgstr "أبلغ نظامًا آخر، عبر طلب POST موقّع، عند تغيّر أي سجل."
 
-#: pages.py:405 reportviews.py:248
+#: pages.py:438 reportviews.py:257
 msgid "My reports"
 msgstr "تقاريري"
 
-#: pages.py:406
+#: pages.py:439
 msgid "Saved views emailed to you as a CSV, and what became of each send."
 msgstr "العروض المحفوظة المرسلة إليك بالبريد كملف CSV، وما آل إليه كل إرسال."
 
-#: pages.py:423
+#: pages.py:456
 msgid "Scheduled reports"
 msgstr "التقارير المجدولة"
 
-#: pages.py:424
+#: pages.py:457
 msgid "Everyone's scheduled reports: pause, resume, delete or send one now."
 msgstr ""
 "التقارير المجدولة للجميع: أوقف أي تقرير مؤقتًا أو استأنفه أو احذفه أو أرسله "
 "الآن."
 
-#: pages.py:448
+#: pages.py:481
 msgid "Changes that wait for a second pair of eyes before they are saved."
 msgstr "تغييرات تنتظر مراجعة شخص آخر قبل حفظها."
 
@@ -2386,6 +2482,10 @@ msgstr "ابحث في كل شيء"
 #: palette.py:247
 msgid "Full results page"
 msgstr "صفحة النتائج الكاملة"
+
+#: passwordreset.py:305
+msgid "Email address"
+msgstr "عنوان البريد الإلكتروني"
 
 #: presets.py:282
 msgid "shadcn/ui's stock neutral theme: grey, near-black buttons, flat."
@@ -2462,7 +2562,7 @@ msgstr "%(base)s نُسخ معه %(count)s من السجلات المرتبطة.
 msgid "%(message)s (%(object)s)"
 msgstr "%(message)s (%(object)s)"
 
-#: recordviews.py:255 views.py:186
+#: recordviews.py:255 views.py:200
 msgid "That action is not available."
 msgstr "هذا الإجراء غير متاح."
 
@@ -2470,11 +2570,11 @@ msgstr "هذا الإجراء غير متاح."
 msgid "Bulk edit"
 msgstr "تعديل جماعي"
 
-#: recordviews.py:311 views.py:190
+#: recordviews.py:311 views.py:204
 msgid "Nothing was selected."
 msgstr "لم يتم تحديد أي شيء."
 
-#: recordviews.py:317 views.py:198
+#: recordviews.py:317 views.py:212
 msgid "Those records no longer match."
 msgstr "لم تعد هذه السجلات مطابقة."
 
@@ -2612,8 +2712,8 @@ msgstr "الملف مرفق."
 #: reports.py:642
 #, python-format
 msgid ""
-"The file is larger than %(limit)s MB, so it is not attached. Open the view in"
-" the panel and use Export to download it."
+"The file is larger than %(limit)s MB, so it is not attached. Open the view "
+"in the panel and use Export to download it."
 msgstr ""
 "حجم الملف أكبر من %(limit)s MB، لذا لم يُرفق. افتح العرض في اللوحة واستخدم "
 "«تصدير» لتنزيله."
@@ -2689,30 +2789,34 @@ msgstr "اختر مستلمًا واحدًا على الأقل."
 msgid "Scheduled reports are switched off for this site."
 msgstr "التقارير المجدولة معطّلة لهذا الموقع."
 
-#: reportviews.py:280
+#: reportviews.py:233
+msgid "Scheduled reports cannot be set up or changed while impersonating."
+msgstr "لا يمكن إعداد التقارير المجدولة أو تغييرها أثناء انتحال الهوية."
+
+#: reportviews.py:290
 #, python-format
 msgid "You can have at most %(limit)s scheduled reports."
 msgstr "يمكنك امتلاك %(limit)s تقارير مجدولة كحد أقصى."
 
-#: reportviews.py:292
+#: reportviews.py:302
 #, python-format
 msgid "The report was not scheduled. %s"
 msgstr "لم تتم جدولة التقرير. %s"
 
-#: reportviews.py:304
+#: reportviews.py:314
 #, python-format
 msgid "You will get “%(view)s” — %(when)s."
 msgstr "ستصلك “%(view)s” — %(when)s."
 
-#: reportviews.py:334
+#: reportviews.py:344
 msgid "When this saved view is emailed, and to whom."
 msgstr "متى يُرسل هذا العرض المحفوظ بالبريد، ولمن."
 
-#: reportviews.py:351
+#: reportviews.py:362
 msgid "Report saved."
 msgstr "تم حفظ التقرير."
 
-#: reportviews.py:373
+#: reportviews.py:384
 #, python-format
 msgid "This report was sent a moment ago. Try again in %(count)s second."
 msgid_plural ""
@@ -2724,27 +2828,27 @@ msgstr[3] "أُرسل هذا التقرير للتو. حاول مرة أخرى �
 msgstr[4] "أُرسل هذا التقرير للتو. حاول مرة أخرى بعد %(count)s ثانية."
 msgstr[5] "أُرسل هذا التقرير للتو. حاول مرة أخرى بعد %(count)s ثانية."
 
-#: reportviews.py:381
+#: reportviews.py:392
 msgid "Queued. The result will appear in the log."
 msgstr "تمت الإضافة إلى قائمة الانتظار. ستظهر النتيجة في السجل."
 
-#: reportviews.py:395
+#: reportviews.py:406
 msgid "Report resumed."
 msgstr "تم استئناف التقرير."
 
-#: reportviews.py:395
+#: reportviews.py:406
 msgid "Report paused."
 msgstr "تم إيقاف التقرير مؤقتًا."
 
-#: reportviews.py:409 templates/vantage/reports/confirm_delete.html:24
+#: reportviews.py:420 templates/vantage/reports/confirm_delete.html:24
 msgid "Delete report"
 msgstr "حذف التقرير"
 
-#: reportviews.py:420
+#: reportviews.py:431
 msgid "Report deleted."
 msgstr "تم حذف التقرير."
 
-#: reportviews.py:538
+#: reportviews.py:549
 msgid "Someone used the unsubscribe link in an email."
 msgstr "استخدم شخص ما رابط إلغاء الاشتراك في رسالة بريد إلكتروني."
 
@@ -2772,20 +2876,25 @@ msgstr "ليست لديك صلاحية إظهار هذه القيمة."
 msgid "This value is stored as a hash and cannot be revealed."
 msgstr "هذه القيمة مخزّنة في صورة تجزئة (hash) ولا يمكن إظهارها."
 
-#: revealviews.py:175
+#: revealviews.py:176
 msgid "This record has no password to set."
 msgstr "لا توجد كلمة مرور لتعيينها في هذا السجل."
 
-#: revealviews.py:178
+#: revealviews.py:179
 msgid "You cannot change this field."
 msgstr "لا يمكنك تغيير هذا الحقل."
 
-#: revealviews.py:217
+#: revealviews.py:185
+msgid "Only a superuser can set a superuser's password."
+msgstr "وحده المستخدم المميز يمكنه تعيين كلمة مرور مستخدم مميز."
+
+#: revealviews.py:224
 msgid "The password was changed."
 msgstr "تم تغيير كلمة المرور."
 
-#: revealviews.py:231 revealviews.py:241 templates/vantage/detail.html:36
+#: revealviews.py:238 revealviews.py:248 templates/vantage/detail.html:36
 #: templates/vantage/partials/field.html:15
+#: templates/vantage/password_reset_confirm.html:26
 #: templates/vantage/set_password.html:13
 #: templates/vantage/set_password.html:51
 msgid "Set password"
@@ -2903,8 +3012,8 @@ msgid ""
 "%(count)d requested change was ignored: an unknown permission, or one you do "
 "not hold yourself."
 msgid_plural ""
-"%(count)d requested changes were ignored: unknown permissions, or ones you do"
-" not hold yourself."
+"%(count)d requested changes were ignored: unknown permissions, or ones you "
+"do not hold yourself."
 msgstr[0] ""
 "تم تجاهل %(count)d تغيير مطلوب: صلاحيات غير معروفة أو لا تملكها بنفسك."
 msgstr[1] ""
@@ -2995,61 +3104,60 @@ msgstr "كل ما يملكه هذا الحساب، ومصدر كل صلاحية.
 msgid "This panel is in read-only mode."
 msgstr "هذه اللوحة في وضع القراءة فقط."
 
-#: safety.py:144
+#: safety.py:146
 msgid "Only superusers may impersonate."
 msgstr "الدخول بصفة مستخدم آخر مقصور على المستخدمين المميزين."
 
-#: safety.py:146
+#: safety.py:148
 msgid "You are already signed in as that user."
 msgstr "أنت مسجّل الدخول بالفعل بصفة هذا المستخدم."
 
-#: safety.py:150
+#: safety.py:152
 msgid "Superusers cannot be impersonated."
 msgstr "لا يمكن الدخول بصفة المستخدمين المميزين."
 
-#: safety.py:152
+#: safety.py:154
 msgid "That account is inactive."
 msgstr "هذا الحساب غير نشط."
 
-#: safety.py:180
+#: safety.py:182
 msgid "Not currently impersonating."
 msgstr "لا يوجد دخول بصفة مستخدم آخر حاليًا."
 
-#: safety.py:186
+#: safety.py:188
 msgid "The original account no longer exists."
 msgstr "الحساب الأصلي لم يعد موجودًا."
 
-#: savedviews.py:256
+#: savedviews.py:257
 #, python-format
 msgid ""
 "“%(column)s” is no longer a column on this page, so the saved ordering was "
 "not applied."
-msgstr ""
-"لم يعد “%(column)s” عمودًا في هذه الصفحة، لذا لم يُطبَّق الترتيب المحفوظ."
+msgstr "لم يعد “%(column)s” عمودًا في هذه الصفحة، لذا لم يُطبَّق الترتيب المحفوظ."
 
-#: savedviews.py:277
+#: savedviews.py:278
 #, python-format
 msgid ""
 "“%(field)s” can no longer arrange this view, so its default field is used."
 msgstr ""
 "لم يعد “%(field)s” قادرًا على ترتيب هذا العرض، لذا يُستخدم حقله الافتراضي."
 
-#: savedviews.py:289
+#: savedviews.py:290
 #, python-format
 msgid "The “%(view)s” view is no longer offered here, so the table is shown."
 msgstr "لم يعد عرض “%(view)s” متاحًا هنا، لذا يُعرض الجدول."
 
-#: savedviews.py:315
+#: savedviews.py:316
 #, python-format
 msgid "“%(field)s” no longer exists on %(records)s."
 msgstr "لم يعد “%(field)s” موجودًا في %(records)s."
 
-#: savedviews.py:319
+#: savedviews.py:320
 #, python-format
 msgid "“%(field)s” is no longer one of this page's filters."
 msgstr "لم يعد “%(field)s” من عوامل التصفية في هذه الصفحة."
 
-#: savedviews.py:452
+#: savedviews.py:471
 #, python-format
 msgid ""
 "“%(name)s” was changed by someone else while this page was open. Reload to "
@@ -3058,54 +3166,54 @@ msgstr ""
 "غيّر شخص آخر “%(name)s” أثناء فتح هذه الصفحة. أعد التحميل لرؤية نسخته، أو "
 "استخدم «حفظ باسم» للاحتفاظ بنسختك."
 
-#: savedviews.py:615
+#: savedviews.py:634
 msgid "That saved view points at a model this panel does not show."
 msgstr "يشير هذا العرض المحفوظ إلى نموذج لا تعرضه هذه اللوحة."
 
-#: savedviews.py:619 savedviews.py:786
+#: savedviews.py:638 savedviews.py:805
 msgid "You do not have permission to view those records."
 msgstr "ليست لديك صلاحية عرض هذه السجلات."
 
-#: savedviews.py:621
+#: savedviews.py:640
 msgid "That saved view is not shared with you."
 msgstr "هذا العرض المحفوظ غير مشارك معك."
 
-#: savedviews.py:686
+#: savedviews.py:705
 msgid "Saved views are switched off."
 msgstr "العروض المحفوظة معطّلة."
 
-#: savedviews.py:690
+#: savedviews.py:709
 msgid "That is not something a saved view can do."
 msgstr "هذا ليس مما يمكن للعرض المحفوظ فعله."
 
-#: savedviews.py:708
+#: savedviews.py:727
 msgid "You cannot change that view. Use Save as instead."
 msgstr "لا يمكنك تغيير هذا العرض. استخدم «حفظ باسم» بدلاً من ذلك."
 
-#: savedviews.py:713 savedviews.py:746
+#: savedviews.py:732 savedviews.py:765
 #, python-format
 msgid "Saved “%(name)s”."
 msgstr "تم حفظ “%(name)s”."
 
-#: savedviews.py:720
+#: savedviews.py:739
 msgid "A saved view needs a name."
 msgstr "يحتاج العرض المحفوظ إلى اسم."
 
-#: savedviews.py:753
+#: savedviews.py:772
 msgid "You cannot delete that view."
 msgstr "لا يمكنك حذف هذا العرض."
 
-#: savedviews.py:756
+#: savedviews.py:775
 #, python-format
 msgid "Deleted “%(name)s”."
 msgstr "تم حذف “%(name)s”."
 
-#: savedviews.py:764
+#: savedviews.py:783
 #, python-format
 msgid "“%(name)s” now opens by default for you."
 msgstr "أصبح “%(name)s” يُفتح افتراضيًا لك."
 
-#: savedviews.py:784
+#: savedviews.py:803
 msgid "That is not a model this panel shows."
 msgstr "هذا ليس نموذجًا تعرضه هذه اللوحة."
 
@@ -3276,9 +3384,9 @@ msgid ""
 "you entered it."
 msgstr ""
 "لا يستطيع %(color)s حمل نص مقروء عند درجة الإضاءة التي تستخدمها هذه اللوحة "
-"للأزرار: تبلغ نسبة التباين %(requested_ratio)s:1 مع لون النص الذي سيوضع عليه،"
-" بينما يتطلب WCAG AA نسبة %(required_ratio)s:1. وقد تم تغميق لون الزر المشتق "
-"حتى بلغ %(ratio)s:1. يُخزَّن لونك تمامًا كما أدخلته."
+"للأزرار: تبلغ نسبة التباين %(requested_ratio)s:1 مع لون النص الذي سيوضع "
+"عليه، بينما يتطلب WCAG AA نسبة %(required_ratio)s:1. وقد تم تغميق لون الزر "
+"المشتق حتى بلغ %(ratio)s:1. يُخزَّن لونك تمامًا كما أدخلته."
 
 #: settingsview.py:236
 #, python-format
@@ -3290,9 +3398,9 @@ msgid ""
 "you entered it."
 msgstr ""
 "لا يستطيع %(color)s حمل نص مقروء عند درجة الإضاءة التي تستخدمها هذه اللوحة "
-"للأزرار: تبلغ نسبة التباين %(requested_ratio)s:1 مع لون النص الذي سيوضع عليه،"
-" بينما يتطلب WCAG AA نسبة %(required_ratio)s:1. وقد تم تفتيح لون الزر المشتق "
-"حتى بلغ %(ratio)s:1. يُخزَّن لونك تمامًا كما أدخلته."
+"للأزرار: تبلغ نسبة التباين %(requested_ratio)s:1 مع لون النص الذي سيوضع "
+"عليه، بينما يتطلب WCAG AA نسبة %(required_ratio)s:1. وقد تم تفتيح لون الزر "
+"المشتق حتى بلغ %(ratio)s:1. يُخزَّن لونك تمامًا كما أدخلته."
 
 #: settingsview.py:295
 msgid "Use the code default (on)"
@@ -3387,12 +3495,12 @@ msgid "No role"
 msgstr "بلا دور"
 
 #: templates/vantage/access/_grants.html:7 templates/vantage/audit.html:22
-#: templates/vantage/audit.html:75 templates/vantage/jobs.html:35
+#: templates/vantage/audit.html:85 templates/vantage/jobs.html:35
 msgid "Who"
 msgstr "من"
 
-#: templates/vantage/access/_grants.html:8 templates/vantage/audit.html:32
-#: templates/vantage/audit.html:76
+#: templates/vantage/access/_grants.html:8 templates/vantage/agents/run.html:32
+#: templates/vantage/audit.html:32 templates/vantage/audit.html:86
 msgid "What"
 msgstr "ماذا"
 
@@ -3487,6 +3595,7 @@ msgid "Recent"
 msgstr "الأخيرة"
 
 #: templates/vantage/access/review.html:13
+#: templates/vantage/agents/activity.html:13
 msgid "Download CSV"
 msgstr "تنزيل CSV"
 
@@ -3499,7 +3608,7 @@ msgid "Report by"
 msgstr "التقرير حسب"
 
 #: templates/vantage/access/review.html:22
-#: templates/vantage/two_factor_users.html:35
+#: templates/vantage/two_factor_users.html:37
 msgid "Person"
 msgstr "الشخص"
 
@@ -3516,8 +3625,8 @@ msgstr "عرض"
 #: templates/vantage/access/review.html:37
 #, python-format
 msgid ""
-"Generated %(when)s by version %(version)s. Row-level scoping (tenants, object"
-" permissions) is not shown."
+"Generated %(when)s by version %(version)s. Row-level scoping (tenants, "
+"object permissions) is not shown."
 msgstr ""
 "تم الإنشاء %(when)s بواسطة الإصدار %(version)s. لا يُعرض النطاق على مستوى "
 "الصف (المستأجرون وصلاحيات الكائنات)."
@@ -3600,8 +3709,8 @@ msgid "Sign out"
 msgstr "تسجيل الخروج"
 
 #: templates/vantage/account.html:75
-#: templates/vantage/two_factor_verify.html:36 twofactor.py:701
-#: twofactorviews.py:157
+#: templates/vantage/two_factor_verify.html:36 twofactor.py:1007
+#: twofactorviews.py:169
 msgid "Two-factor sign-in"
 msgstr "تسجيل الدخول بخطوتين"
 
@@ -3613,11 +3722,10 @@ msgstr "مفعّل. يطلب تسجيل الدخول رمزًا من تطبيق 
 
 #: templates/vantage/account.html:81
 msgid ""
-"Off. Add a code from an app on your phone, so a leaked password is not enough"
-" on its own."
+"Off. Add a code from an app on your phone, so a leaked password is not "
+"enough on its own."
 msgstr ""
-"معطّل. أضف رمزًا من تطبيق على هاتفك، حتى لا تكون كلمة مرور مسرّبة كافية "
-"وحدها."
+"معطّل. أضف رمزًا من تطبيق على هاتفك، حتى لا تكون كلمة مرور مسرّبة كافية وحدها."
 
 #: templates/vantage/account.html:86
 msgid "Manage two-factor sign-in"
@@ -3627,7 +3735,7 @@ msgstr "إدارة تسجيل الدخول بخطوتين"
 msgid "Set up two-factor sign-in"
 msgstr "إعداد تسجيل الدخول بخطوتين"
 
-#: templates/vantage/account.html:90 twofactorviews.py:384
+#: templates/vantage/account.html:90 twofactorviews.py:483
 msgid "Two-factor sign-in for everyone"
 msgstr "تسجيل الدخول بخطوتين للجميع"
 
@@ -3641,8 +3749,8 @@ msgid ""
 "Your choice, stored on this device and in a cookie. It changes nothing for "
 "anyone else."
 msgstr ""
-"اختيارك، يُخزَّن على هذا الجهاز وفي ملف تعريف ارتباط (cookie). ولا يغيّر "
-"شيئًا لدى أي شخص آخر."
+"اختيارك، يُخزَّن على هذا الجهاز وفي ملف تعريف ارتباط (cookie). ولا يغيّر شيئًا "
+"لدى أي شخص آخر."
 
 #: templates/vantage/account.html:117
 #: templates/vantage/partials/usermenu.html:107
@@ -3658,11 +3766,174 @@ msgstr "داكن"
 
 #: templates/vantage/account.html:140
 msgid ""
-"Pick a look for yourself. It changes colours, corners and shadows, never your"
-" data, and nothing for anyone else."
+"Pick a look for yourself. It changes colours, corners and shadows, never "
+"your data, and nothing for anyone else."
 msgstr ""
-"اختر مظهرًا لنفسك. يغيّر الألوان والزوايا والظلال، ولا يمس بياناتك أبدًا، ولا"
-" يغيّر شيئًا لدى أي شخص آخر."
+"اختر مظهرًا لنفسك. يغيّر الألوان والزوايا والظلال، ولا يمس بياناتك أبدًا، ولا "
+"يغيّر شيئًا لدى أي شخص آخر."
+
+#: templates/vantage/agents/activity.html:14
+msgid "Download NDJSON"
+msgstr "تنزيل NDJSON"
+
+#: templates/vantage/agents/activity.html:15
+msgid "Runs as CSV"
+msgstr "عمليات التشغيل بصيغة CSV"
+
+#: templates/vantage/agents/activity.html:19
+msgid "Agents"
+msgstr "الوكلاء"
+
+#: templates/vantage/agents/activity.html:25
+#: templates/vantage/agents/activity.html:72
+#: templates/vantage/agents/activity.html:91 templates/vantage/audit.html:106
+#: templates/vantage/history.html:155
+#: templates/vantage/partials/history.html:30
+msgid "Agent"
+msgstr "الوكيل"
+
+#: templates/vantage/agents/activity.html:26
+msgid "Access"
+msgstr "الوصول"
+
+#: templates/vantage/agents/activity.html:27
+msgid "Scopes"
+msgstr "النطاقات"
+
+#: templates/vantage/agents/activity.html:28
+#: templates/vantage/two_factor_users.html:40
+msgid "Last used"
+msgstr "آخر استخدام"
+
+#: templates/vantage/agents/activity.html:29
+msgid "Expires"
+msgstr "ينتهي"
+
+#: templates/vantage/agents/activity.html:30
+msgid "Runs 7d"
+msgstr "التشغيلات (7 أيام)"
+
+#: templates/vantage/agents/activity.html:31
+msgid "Writes 7d"
+msgstr "الكتابات (7 أيام)"
+
+#: templates/vantage/agents/activity.html:39
+#, python-format
+msgid "runs as %(user)s, for %(owner)s"
+msgstr "يعمل بصفة %(user)s، لصالح %(owner)s"
+
+#: templates/vantage/agents/activity.html:43
+msgid "Can delete"
+msgstr "يمكنه الحذف"
+
+#: templates/vantage/agents/activity.html:44
+msgid "Approval required"
+msgstr "الموافقة مطلوبة"
+
+#: templates/vantage/agents/activity.html:46
+msgid "All the service user can see"
+msgstr "كل ما يستطيع مستخدم الخدمة رؤيته"
+
+#: templates/vantage/agents/activity.html:51
+#, python-format
+msgid "Revoked %(when)s"
+msgstr "سُحب %(when)s"
+
+#: templates/vantage/agents/activity.html:63
+msgid "No agents yet."
+msgstr "لا يوجد وكلاء بعد."
+
+#: templates/vantage/agents/activity.html:64
+msgid "Create one with manage.py vantage_agent create."
+msgstr "أنشئ وكيلًا بالأمر manage.py vantage_agent create."
+
+#: templates/vantage/agents/activity.html:69
+msgid "Recent runs"
+msgstr "أحدث عمليات التشغيل"
+
+#: templates/vantage/agents/activity.html:70
+msgid "Filter runs"
+msgstr "تصفية عمليات التشغيل"
+
+#: templates/vantage/agents/activity.html:74
+msgid "Any agent"
+msgstr "أي وكيل"
+
+#: templates/vantage/agents/activity.html:81 templates/vantage/audit.html:72
+#: templates/vantage/list_views/field_picker.html:16
+msgid "Apply"
+msgstr "تطبيق"
+
+#: templates/vantage/agents/activity.html:82 templates/vantage/audit.html:74
+#: templates/vantage/partials/list_toolbar.html:40
+#: templates/vantage/roles/members.html:32 templates/vantage/search.html:34
+msgid "Clear"
+msgstr "مسح"
+
+#: templates/vantage/agents/activity.html:93 templates/vantage/jobs.html:34
+msgid "Started"
+msgstr "بدأت"
+
+#: templates/vantage/agents/activity.html:94
+msgid "Writes"
+msgstr "الكتابات"
+
+#: templates/vantage/agents/activity.html:95
+msgid "Deletes"
+msgstr "عمليات الحذف"
+
+#: templates/vantage/agents/activity.html:112
+msgid "No runs recorded."
+msgstr "لا توجد عمليات تشغيل مسجّلة."
+
+#: templates/vantage/agents/run.html:13
+msgid "All agent activity"
+msgstr "كل نشاط الوكلاء"
+
+#: templates/vantage/agents/run.html:18
+#, python-format
+msgid "Started %(started)s, last seen %(seen)s."
+msgstr "بدأ %(started)s، وآخر ظهور %(seen)s."
+
+#: templates/vantage/agents/run.html:21
+#, python-format
+msgid "%(writes)s writes, %(rows)s rows changed, %(deletes)s deletes."
+msgstr ""
+"%(writes)s عمليات كتابة، وتغيّر %(rows)s صفوف، و%(deletes)s عمليات حذف."
+
+#: templates/vantage/agents/run.html:31 templates/vantage/audit.html:52
+#: templates/vantage/audit.html:84 templates/vantage/reports/list.html:145
+#: templates/vantage/webhooks/list.html:131
+msgid "When"
+msgstr "متى"
+
+#: templates/vantage/agents/run.html:35 templates/vantage/audit.html:88
+msgid "Changes"
+msgstr "التغييرات"
+
+#: templates/vantage/agents/run.html:56
+msgid "This run has not changed anything."
+msgstr "لم يغيّر هذا التشغيل أي شيء."
+
+#: templates/vantage/agents/run.html:63 templates/vantage/audit.html:199
+#: templates/vantage/jobs.html:95 templates/vantage/list.html:475
+#, python-format
+msgid "%(start)s–%(end)s of %(total)s"
+msgstr "%(start)s–%(end)s من %(total)s"
+
+#: templates/vantage/agents/run.html:65 templates/vantage/audit.html:204
+#: templates/vantage/audit.html:206 templates/vantage/jobs.html:100
+#: templates/vantage/jobs.html:102 templates/vantage/list.html:480
+#: templates/vantage/list.html:482
+msgid "Previous"
+msgstr "السابق"
+
+#: templates/vantage/agents/run.html:66 templates/vantage/audit.html:210
+#: templates/vantage/audit.html:212 templates/vantage/jobs.html:106
+#: templates/vantage/jobs.html:108 templates/vantage/list.html:486
+#: templates/vantage/list.html:488 templates/vantage/reports/list.html:43
+msgid "Next"
+msgstr "التالي"
 
 #: templates/vantage/approvals/_diff.html:13
 msgid "Not shown: a field permission hides it from you."
@@ -3762,52 +4033,43 @@ msgstr "أي شخص"
 msgid "Anything"
 msgstr "أي شيء"
 
-#: templates/vantage/audit.html:42 templates/vantage/audit.html:74
-#: templates/vantage/reports/list.html:145
-#: templates/vantage/webhooks/list.html:131
-msgid "When"
-msgstr "متى"
+#: templates/vantage/audit.html:42
+msgid "Source"
+msgstr "المصدر"
 
 #: templates/vantage/audit.html:44
+msgid "Anywhere"
+msgstr "أي مكان"
+
+#: templates/vantage/audit.html:54
 msgid "Any time"
 msgstr "أي وقت"
 
-#: templates/vantage/audit.html:52
+#: templates/vantage/audit.html:62
 msgctxt "start of a date range"
 msgid "From"
 msgstr "من"
 
-#: templates/vantage/audit.html:57
+#: templates/vantage/audit.html:67
 msgctxt "end of a date range"
 msgid "To"
 msgstr "إلى"
 
-#: templates/vantage/audit.html:62
-#: templates/vantage/list_views/field_picker.html:16
-msgid "Apply"
-msgstr "تطبيق"
-
-#: templates/vantage/audit.html:64
-#: templates/vantage/partials/list_toolbar.html:40
-#: templates/vantage/roles/members.html:32 templates/vantage/search.html:34
-msgid "Clear"
-msgstr "مسح"
-
-#: templates/vantage/audit.html:78
-msgid "Changes"
-msgstr "التغييرات"
-
-#: templates/vantage/audit.html:82
+#: templates/vantage/audit.html:92
 msgctxt "network origin of an audit entry"
 msgid "From"
 msgstr "المصدر"
 
-#: templates/vantage/audit.html:97
+#: templates/vantage/audit.html:105 templates/vantage/audit.html:107
+msgid "run"
+msgstr "تشغيل"
+
+#: templates/vantage/audit.html:117
 #, python-format
 msgid "restored as of %(when)s"
 msgstr "استُعيد وفق حالته في %(when)s"
 
-#: templates/vantage/audit.html:123
+#: templates/vantage/audit.html:145
 #, python-format
 msgid "%(counter)s field"
 msgid_plural "%(counter)s fields"
@@ -3818,53 +4080,34 @@ msgstr[3] "%(counter)s حقول"
 msgstr[4] "%(counter)s حقلًا"
 msgstr[5] "%(counter)s حقل"
 
-#: templates/vantage/audit.html:135 templates/vantage/history.html:177
-#: templates/vantage/partials/history.html:53
+#: templates/vantage/audit.html:157 templates/vantage/history.html:180
+#: templates/vantage/partials/history.html:56
 msgid "changed — value not recorded"
 msgstr "تغيّر — لم تُسجَّل القيمة"
 
-#: templates/vantage/audit.html:155
+#: templates/vantage/audit.html:177
 msgid "Nothing matches those filters."
 msgstr "لا شيء يطابق عوامل التصفية هذه."
 
-#: templates/vantage/audit.html:156
+#: templates/vantage/audit.html:178
 msgid "Widen the date range, or clear the filters to see everything."
 msgstr "وسّع النطاق الزمني، أو امسح عوامل التصفية لعرض كل شيء."
 
-#: templates/vantage/audit.html:157
+#: templates/vantage/audit.html:179
 msgid "Clear filters"
 msgstr "مسح عوامل التصفية"
 
-#: templates/vantage/audit.html:163
+#: templates/vantage/audit.html:185
 msgid "Nothing has been recorded yet."
 msgstr "لم يُسجَّل شيء بعد."
 
-#: templates/vantage/audit.html:165
+#: templates/vantage/audit.html:187
 msgid ""
 "Entries appear here as soon as someone creates, changes or deletes a record "
 "through this panel."
 msgstr ""
 "تظهر الإدخالات هنا فور قيام أحدهم بإنشاء سجل أو تغييره أو حذفه عبر هذه "
 "اللوحة."
-
-#: templates/vantage/audit.html:177 templates/vantage/jobs.html:95
-#: templates/vantage/list.html:475
-#, python-format
-msgid "%(start)s–%(end)s of %(total)s"
-msgstr "%(start)s–%(end)s من %(total)s"
-
-#: templates/vantage/audit.html:182 templates/vantage/audit.html:184
-#: templates/vantage/jobs.html:100 templates/vantage/jobs.html:102
-#: templates/vantage/list.html:480 templates/vantage/list.html:482
-msgid "Previous"
-msgstr "السابق"
-
-#: templates/vantage/audit.html:188 templates/vantage/audit.html:190
-#: templates/vantage/jobs.html:106 templates/vantage/jobs.html:108
-#: templates/vantage/list.html:486 templates/vantage/list.html:488
-#: templates/vantage/reports/list.html:43
-msgid "Next"
-msgstr "التالي"
 
 #: templates/vantage/base.html:36
 msgid "Skip to main content"
@@ -3970,7 +4213,7 @@ msgstr "تعديل جماعي لـ %(label)s"
 #: templates/vantage/reports/confirm_delete.html:21
 #: templates/vantage/reports/form.html:42
 #: templates/vantage/roles/delete.html:49
-#: templates/vantage/set_password.html:50 templates/vantage/two_factor.html:156
+#: templates/vantage/set_password.html:50 templates/vantage/two_factor.html:107
 #: templates/vantage/webhooks/confirm_delete.html:21
 #: templates/vantage/webhooks/form.html:50
 msgid "Cancel"
@@ -3990,11 +4233,11 @@ msgstr[5] "سيؤدي هذا إلى تغيير %(counter)s سجل."
 #: templates/vantage/bulk_edit.html:66
 #, python-format
 msgid ""
-"Applies to %(scope)s. Only the fields you tick below are written — everything"
-" else on every record is left exactly as it is."
+"Applies to %(scope)s. Only the fields you tick below are written — "
+"everything else on every record is left exactly as it is."
 msgstr ""
-"ينطبق على %(scope)s. تُكتب الحقول التي تحدّدها أدناه فقط — وكل ما عداها في كل"
-" سجل يبقى كما هو تمامًا."
+"ينطبق على %(scope)s. تُكتب الحقول التي تحدّدها أدناه فقط — وكل ما عداها في كل "
+"سجل يبقى كما هو تمامًا."
 
 #: templates/vantage/bulk_edit.html:77
 msgid "Fields to change"
@@ -4026,8 +4269,7 @@ msgid ""
 "This moves <strong>%(object)s</strong> to the trash. You can restore it "
 "later."
 msgstr ""
-"سينقل هذا <strong>%(object)s</strong> إلى سلة المهملات. يمكنك استعادته "
-"لاحقًا."
+"سينقل هذا <strong>%(object)s</strong> إلى سلة المهملات. يمكنك استعادته لاحقًا."
 
 #: templates/vantage/confirm_delete.html:39
 msgid "Related records are not affected."
@@ -4038,8 +4280,7 @@ msgstr "لا تتأثر السجلات المرتبطة."
 msgid ""
 "This permanently deletes <strong>%(object)s</strong>. It cannot be undone."
 msgstr ""
-"سيؤدي هذا إلى حذف <strong>%(object)s</strong> نهائيًا. لا يمكن التراجع عن "
-"هذا."
+"سيؤدي هذا إلى حذف <strong>%(object)s</strong> نهائيًا. لا يمكن التراجع عن هذا."
 
 #: templates/vantage/confirm_delete.html:52
 msgid "These will be destroyed too"
@@ -4076,13 +4317,12 @@ msgstr "لا شيء لعرضه بعد."
 
 #: templates/vantage/dashboard.html:86
 msgid ""
-"Register a model, or point <code "
-"class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</code> at a <code "
-"class=\"v-mono\">Dashboard</code> subclass to declare your own cards."
+"Register a model, or point <code class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</"
+"code> at a <code class=\"v-mono\">Dashboard</code> subclass to declare your "
+"own cards."
 msgstr ""
-"سجّل نموذجًا، أو وجّه <code class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</code> "
-"إلى صنف فرعي من <code class=\"v-mono\">Dashboard</code> لتعريف بطاقاتك "
-"الخاصة."
+"سجّل نموذجًا، أو وجّه <code class=\"v-mono\">VANTAGE[\"DASHBOARD\"]</code> إلى "
+"صنف فرعي من <code class=\"v-mono\">Dashboard</code> لتعريف بطاقاتك الخاصة."
 
 #: templates/vantage/dashboard.html:93
 #: templates/vantage/partials/card_editor.html:50
@@ -4093,7 +4333,7 @@ msgstr "إضافة بطاقة"
 msgid "Back to list"
 msgstr "العودة إلى القائمة"
 
-#: templates/vantage/detail.html:30 widgets.py:730
+#: templates/vantage/detail.html:30 widgets.py:802
 msgid "Details"
 msgstr "التفاصيل"
 
@@ -4136,8 +4376,7 @@ msgid ""
 "Nothing has been done to this record through the panel, so there is no "
 "history to go back to."
 msgstr ""
-"لم يُجرَ أي إجراء على هذا السجل عبر اللوحة، لذا لا يوجد سجل تاريخي للرجوع "
-"إليه."
+"لم يُجرَ أي إجراء على هذا السجل عبر اللوحة، لذا لا يوجد سجل تاريخي للرجوع إليه."
 
 #: templates/vantage/history.html:46
 #, python-format
@@ -4194,29 +4433,29 @@ msgid_plural ""
 "logged once for each run, not per record, so the fields they could have "
 "touched are only shown where the history confirms them."
 msgstr[0] ""
-"أُجري %(counter)s تغيير جماعي على هذه السجلات بعد هذه النقطة. يُسجَّل مرة "
-"واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّها إلا حيث "
-"يؤكدها السجل التاريخي."
+"أُجري %(counter)s تغيير جماعي على هذه السجلات بعد هذه النقطة. يُسجَّل مرة واحدة "
+"لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّها إلا حيث يؤكدها "
+"السجل التاريخي."
 msgstr[1] ""
-"أُجري تغيير جماعي واحد (%(counter)s) على هذه السجلات بعد هذه النقطة. يُسجَّل "
-"مرة واحدة للتشغيل كاملًا، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّها إلا"
-" حيث يؤكدها السجل التاريخي."
+"أُجري تغيير جماعي واحد (%(counter)s) على هذه السجلات بعد هذه النقطة. يُسجَّل مرة "
+"واحدة للتشغيل كاملًا، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّها إلا حيث "
+"يؤكدها السجل التاريخي."
 msgstr[2] ""
-"أُجري تغييران جماعيان (%(counter)s) على هذه السجلات بعد هذه النقطة. يُسجَّلان"
-" مرة واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّاها إلا "
-"حيث يؤكدها السجل التاريخي."
+"أُجري تغييران جماعيان (%(counter)s) على هذه السجلات بعد هذه النقطة. يُسجَّلان "
+"مرة واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّاها إلا حيث "
+"يؤكدها السجل التاريخي."
 msgstr[3] ""
-"أُجريت %(counter)s تغييرات جماعية على هذه السجلات بعد هذه النقطة. تُسجَّل مرة"
-" واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّتها إلا حيث "
-"يؤكدها السجل التاريخي."
-msgstr[4] ""
-"أُجري %(counter)s تغييرًا جماعيًا على هذه السجلات بعد هذه النقطة. تُسجَّل مرة"
-" واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّتها إلا حيث "
-"يؤكدها السجل التاريخي."
-msgstr[5] ""
-"أُجري %(counter)s تغيير جماعي على هذه السجلات بعد هذه النقطة. تُسجَّل مرة "
+"أُجريت %(counter)s تغييرات جماعية على هذه السجلات بعد هذه النقطة. تُسجَّل مرة "
 "واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّتها إلا حيث "
 "يؤكدها السجل التاريخي."
+msgstr[4] ""
+"أُجري %(counter)s تغييرًا جماعيًا على هذه السجلات بعد هذه النقطة. تُسجَّل مرة "
+"واحدة لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّتها إلا حيث "
+"يؤكدها السجل التاريخي."
+msgstr[5] ""
+"أُجري %(counter)s تغيير جماعي على هذه السجلات بعد هذه النقطة. تُسجَّل مرة واحدة "
+"لكل تشغيل، لا لكل سجل، لذا لا تُعرض الحقول التي ربما مسّتها إلا حيث يؤكدها "
+"السجل التاريخي."
 
 #: templates/vantage/history.html:66
 msgid "Nothing was restored, because these old values are no longer accepted:"
@@ -4248,8 +4487,7 @@ msgstr "استعادة الحقول المحددة"
 msgid ""
 "Restoring saves the record through its edit form, and is recorded in the "
 "audit log."
-msgstr ""
-"تحفظ الاستعادة السجل عبر نموذج التعديل الخاص به، وتُسجَّل في سجل التدقيق."
+msgstr "تحفظ الاستعادة السجل عبر نموذج التعديل الخاص به، وتُسجَّل في سجل التدقيق."
 
 #: templates/vantage/history.html:123
 msgid "Every field that can be worked out held the same value then as now."
@@ -4275,29 +4513,29 @@ msgstr "اختر تغييرًا أدناه، أو تاريخًا ووقتًا، 
 msgid "Timeline"
 msgstr "الخط الزمني"
 
-#: templates/vantage/history.html:156
+#: templates/vantage/history.html:157
 msgid "As it was after this"
 msgstr "كما كان بعد هذا"
 
-#: templates/vantage/history.html:159
-#: templates/vantage/partials/history.html:37
+#: templates/vantage/history.html:160
+#: templates/vantage/partials/history.html:40
 #, python-format
 msgid "Restored from history, as of %(when)s."
 msgstr "تمت الاستعادة من السجل التاريخي، وفق حالته في %(when)s."
 
-#: templates/vantage/history.html:161
-#: templates/vantage/partials/history.html:35
+#: templates/vantage/history.html:162
+#: templates/vantage/partials/history.html:36
 #, python-format
 msgid "Revealed <code>%(name)s</code>."
 msgstr "تم إظهار <code>%(name)s</code>."
 
-#: templates/vantage/history.html:163
-#: templates/vantage/partials/history.html:39
+#: templates/vantage/history.html:166
+#: templates/vantage/partials/history.html:42
 #, python-format
 msgid "Ran <code>%(name)s</code>."
 msgstr "تم تشغيل <code>%(name)s</code>."
 
-#: templates/vantage/history.html:189
+#: templates/vantage/history.html:192
 #, python-format
 msgid "Showing the most recent change."
 msgid_plural "Showing the most recent %(counter)s changes."
@@ -4308,8 +4546,8 @@ msgstr[3] "عرض آخر %(counter)s تغييرات."
 msgstr[4] "عرض آخر %(counter)s تغييرًا."
 msgstr[5] "عرض آخر %(counter)s تغيير."
 
-#: templates/vantage/history.html:192
-#: templates/vantage/partials/history.html:73
+#: templates/vantage/history.html:195
+#: templates/vantage/partials/history.html:76
 msgid "Nothing has been done to this record through the panel."
 msgstr "لم يُجرَ أي إجراء على هذا السجل عبر اللوحة."
 
@@ -4483,11 +4721,11 @@ msgstr "ستُرسل للموافقة"
 #: templates/vantage/import_preview.html:72
 msgid ""
 "Some rows change a field that needs approval. Those changes are not saved by "
-"the import: each becomes a request on the approvals page, and the rest of the"
-" row is saved as usual."
+"the import: each becomes a request on the approvals page, and the rest of "
+"the row is saved as usual."
 msgstr ""
-"بعض الصفوف تغيّر حقلاً يتطلب موافقة. لا يحفظ الاستيراد هذه التغييرات: يتحول "
-"كل منها إلى طلب في صفحة الموافقات، ويُحفظ باقي الصف كالمعتاد."
+"بعض الصفوف تغيّر حقلاً يتطلب موافقة. لا يحفظ الاستيراد هذه التغييرات: يتحول كل "
+"منها إلى طلب في صفحة الموافقات، ويُحفظ باقي الصف كالمعتاد."
 
 #: templates/vantage/import_preview.html:82
 msgid "Some required fields have no column."
@@ -4541,8 +4779,8 @@ msgid ""
 "%(errors_hidden)s more not shown. The CSV above has every one, with its row "
 "number and column."
 msgstr ""
-"%(errors_hidden)s أخرى غير معروضة. يحتوي ملف CSV أعلاه على جميعها مع رقم الصف"
-" والعمود."
+"%(errors_hidden)s أخرى غير معروضة. يحتوي ملف CSV أعلاه على جميعها مع رقم "
+"الصف والعمود."
 
 #: templates/vantage/import_preview.html:151
 msgid "What changed"
@@ -4670,10 +4908,9 @@ msgid ""
 "field's label works as well as its name. Anything unrecognised can be mapped "
 "by hand on the next screen."
 msgstr ""
-"الملف المصدَّر من قائمة %(plural_label)s سيطابق تلقائيًا. تُطابَق أسماء "
-"الأعمدة بمرونة — يتم تجاهل حالة الأحرف والمسافات والشرطات السفلية، ويصلح اسم "
-"الحقل الظاهر مثل اسمه الفعلي. يمكن ربط أي عمود غير معروف يدويًا في الشاشة "
-"التالية."
+"الملف المصدَّر من قائمة %(plural_label)s سيطابق تلقائيًا. تُطابَق أسماء الأعمدة "
+"بمرونة — يتم تجاهل حالة الأحرف والمسافات والشرطات السفلية، ويصلح اسم الحقل "
+"الظاهر مثل اسمه الفعلي. يمكن ربط أي عمود غير معروف يدويًا في الشاشة التالية."
 
 #: templates/vantage/import_upload.html:76
 msgid "identifier only"
@@ -4695,10 +4932,6 @@ msgstr ""
 #, python-format
 msgid "Queued through <strong>%(label)s</strong>."
 msgstr "وُضعت في الطابور عبر <strong>%(label)s</strong>."
-
-#: templates/vantage/jobs.html:34
-msgid "Started"
-msgstr "بدأت"
 
 #: templates/vantage/jobs.html:36
 msgid "Action"
@@ -4722,20 +4955,12 @@ msgid ""
 "moving off the request. Smaller ones run immediately and are recorded in the "
 "audit log instead."
 msgstr ""
-"يظهر هنا الإجراء الجماعي عندما يكون التحديد كبيرًا بما يكفي لنقله خارج الطلب."
-" أما الإجراءات الأصغر فتعمل فورًا وتُسجَّل في سجل التدقيق بدلاً من ذلك."
+"يظهر هنا الإجراء الجماعي عندما يكون التحديد كبيرًا بما يكفي لنقله خارج الطلب. "
+"أما الإجراءات الأصغر فتعمل فورًا وتُسجَّل في سجل التدقيق بدلاً من ذلك."
 
 #: templates/vantage/list.html:26
 msgid "Export"
 msgstr "تصدير"
-
-#: templates/vantage/list.html:29
-msgid "TSV (spreadsheet)"
-msgstr "TSV (جدول بيانات)"
-
-#: templates/vantage/list.html:30
-msgid "JSON (one per line)"
-msgstr "JSON (واحد في كل سطر)"
 
 #: templates/vantage/list.html:36
 msgid "Import CSV"
@@ -4861,7 +5086,7 @@ msgstr "إغلاق المعاينة"
 msgid "by %(field)s"
 msgstr "حسب %(field)s"
 
-#: templates/vantage/list_views/calendar.html:18 views.py:388
+#: templates/vantage/list_views/calendar.html:18 views.py:402
 msgid "Month"
 msgstr "الشهر"
 
@@ -4998,12 +5223,17 @@ msgid "Sign in · %(site_title)s"
 msgstr "تسجيل الدخول · %(site_title)s"
 
 #: templates/vantage/login.html:37 templates/vantage/login.html:71
+#: templates/vantage/password_reset_complete.html:7
 msgid "Sign in"
 msgstr "تسجيل الدخول"
 
 #: templates/vantage/login.html:48
 msgid "Sign-in failed."
 msgstr "فشل تسجيل الدخول."
+
+#: templates/vantage/login.html:74
+msgid "Forgot password?"
+msgstr "نسيت كلمة المرور؟"
 
 #: templates/vantage/page.html:51
 msgid "This page returned no data."
@@ -5017,13 +5247,6 @@ msgid ""
 msgstr ""
 "أرجِع قاموسًا (dict) من <code class=\"v-mono\">get_context()</code>، أو أضف "
 "قالبًا في <code class=\"v-mono\">vantage/pages/%(slug)s.html</code>."
-
-#: templates/vantage/pages/_data_quality_detail.html:8
-#: templates/vantage/pages/_data_quality_detail.html:31
-#: templates/vantage/pages/data-quality.html:44
-#: templates/vantage/reports/list.html:148
-msgid "Rows"
-msgstr "الصفوف"
 
 #: templates/vantage/pages/_data_quality_detail.html:10
 #, python-format
@@ -5121,14 +5344,14 @@ msgstr[1] ""
 "لم يُدقَّق %(counter)s نموذج بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل تشغيل "
 "بحدّه الزمني."
 msgstr[2] ""
-"لم يُدقَّق %(counter)s نموذجان بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل "
-"تشغيل بحدّه الزمني."
+"لم يُدقَّق %(counter)s نموذجان بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل تشغيل "
+"بحدّه الزمني."
 msgstr[3] ""
 "لم تُدقَّق %(counter)s نماذج بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل تشغيل "
 "بحدّه الزمني."
 msgstr[4] ""
-"لم يُدقَّق %(counter)s نموذجًا بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل "
-"تشغيل بحدّه الزمني."
+"لم يُدقَّق %(counter)s نموذجًا بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل تشغيل "
+"بحدّه الزمني."
 msgstr[5] ""
 "لم يُدقَّق %(counter)s نموذج بعد. أعد تشغيل التدقيق للمتابعة؛ يلتزم كل تشغيل "
 "بحدّه الزمني."
@@ -5460,7 +5683,7 @@ msgstr "احفظ للجميع"
 #: templates/vantage/partials/list_prefs.html:446
 #: templates/vantage/partials/saved_views.html:87
 #: templates/vantage/roles/edit.html:58
-#: templates/vantage/two_factor_users.html:38
+#: templates/vantage/two_factor_users.html:41
 msgid "Reset"
 msgstr "إعادة تعيين"
 
@@ -5688,34 +5911,37 @@ msgstr "إغلاق وإعادة التركيز إلى الصف"
 msgid "As it was…"
 msgstr "كما كان…"
 
-#: templates/vantage/partials/history.html:68
+#: templates/vantage/partials/history.html:38
+msgid "Made by a script, the shell or other code, not through this panel."
+msgstr ""
+"أُنشئ بواسطة سكربت أو الصدفة (shell) أو شيفرة أخرى، وليس عبر هذه اللوحة."
+
+#: templates/vantage/partials/history.html:71
 #, python-format
 msgid ""
-"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit "
-"log</a>."
+"Showing the most recent entry. <a href=\"%(url)s\">Open the full audit log</"
+"a>."
 msgid_plural ""
 "Showing the most recent %(counter)s entries. <a href=\"%(url)s\">Open the "
 "full audit log</a>."
 msgstr[0] ""
-"يُعرض أحدث %(counter)s إدخال. <a href=\"%(url)s\">افتح سجل التدقيق "
-"الكامل</a>."
+"يُعرض أحدث %(counter)s إدخال. <a href=\"%(url)s\">افتح سجل التدقيق الكامل</a>."
 msgstr[1] "يُعرض أحدث إدخال. <a href=\"%(url)s\">افتح سجل التدقيق الكامل</a>."
 msgstr[2] "يُعرض أحدث إدخالين. <a href=\"%(url)s\">افتح سجل التدقيق الكامل</a>."
 msgstr[3] ""
-"يُعرض أحدث %(counter)s إدخالات. <a href=\"%(url)s\">افتح سجل التدقيق "
-"الكامل</a>."
+"يُعرض أحدث %(counter)s إدخالات. <a href=\"%(url)s\">افتح سجل التدقيق الكامل</"
+"a>."
 msgstr[4] ""
-"يُعرض أحدث %(counter)s إدخالاً. <a href=\"%(url)s\">افتح سجل التدقيق "
-"الكامل</a>."
+"يُعرض أحدث %(counter)s إدخالاً. <a href=\"%(url)s\">افتح سجل التدقيق الكامل</"
+"a>."
 msgstr[5] ""
-"يُعرض أحدث %(counter)s إدخال. <a href=\"%(url)s\">افتح سجل التدقيق "
-"الكامل</a>."
+"يُعرض أحدث %(counter)s إدخال. <a href=\"%(url)s\">افتح سجل التدقيق الكامل</a>."
 
-#: templates/vantage/partials/history.html:79
+#: templates/vantage/partials/history.html:82
 msgid "Row history"
 msgstr "سجل الصف"
 
-#: templates/vantage/partials/history.html:83
+#: templates/vantage/partials/history.html:86
 msgid "From django-simple-history."
 msgstr "من django-simple-history."
 
@@ -5731,6 +5957,7 @@ msgstr "تم بلوغ الحد الأقصى (%(count)s)."
 #: templates/vantage/partials/inline_row.html:51
 #: templates/vantage/partials/inline_row.html:79
 #: templates/vantage/roles/members.html:65
+#: templates/vantage/two_factor.html:146
 msgid "Remove"
 msgstr "إزالة"
 
@@ -5837,7 +6064,7 @@ msgid "Always"
 msgstr "دائمًا"
 
 #: templates/vantage/partials/list_prefs.html:229
-#: templates/vantage/two_factor_users.html:46
+#: templates/vantage/two_factor_users.html:50
 msgid "Never"
 msgstr "أبدًا"
 
@@ -6030,8 +6257,7 @@ msgstr "%(label)s %(obj)s"
 msgid ""
 "Part of this view no longer applies, so the results may be broader than "
 "intended."
-msgstr ""
-"جزء من هذا العرض لم يعد منطبقًا، لذا قد تكون النتائج أوسع مما هو مقصود."
+msgstr "جزء من هذا العرض لم يعد منطبقًا، لذا قد تكون النتائج أوسع مما هو مقصود."
 
 #: templates/vantage/partials/saved_views.html:32
 msgid "Part of this view no longer applies."
@@ -6104,8 +6330,8 @@ msgstr "اشترك"
 #: templates/vantage/partials/saved_views.html:162
 #, python-format
 msgid ""
-"You already get this view. <a href=\"%(report_home_url)s\">See your "
-"reports</a>."
+"You already get this view. <a href=\"%(report_home_url)s\">See your reports</"
+"a>."
 msgstr ""
 "أنت تتلقى هذا العرض بالفعل. <a href=\"%(report_home_url)s\">اطّلع على "
 "تقاريرك</a>."
@@ -6165,7 +6391,7 @@ msgid "Signed in as %(name)s"
 msgstr "تم تسجيل الدخول باسم %(name)s"
 
 #: templates/vantage/partials/usermenu.html:74 topbarviews.py:63
-#: topbarviews.py:67 twofactorviews.py:171 twofactorviews.py:396
+#: topbarviews.py:67 twofactorviews.py:183 twofactorviews.py:495
 msgid "Your account"
 msgstr "حسابك"
 
@@ -6199,6 +6425,114 @@ msgstr ""
 msgid "That did not work."
 msgstr "لم تنجح العملية."
 
+#: templates/vantage/password_reset.html:3
+msgid "Reset password"
+msgstr "إعادة تعيين كلمة المرور"
+
+#: templates/vantage/password_reset.html:4
+msgid "Reset your password"
+msgstr "أعد تعيين كلمة مرورك"
+
+#: templates/vantage/password_reset.html:6
+msgid ""
+"Enter the email address of your account and we will send you a link to "
+"choose a new password."
+msgstr ""
+"أدخل عنوان البريد الإلكتروني لحسابك وسنرسل إليك رابطًا لاختيار كلمة مرور "
+"جديدة."
+
+#: templates/vantage/password_reset.html:24
+msgid "Send reset link"
+msgstr "إرسال رابط إعادة التعيين"
+
+#: templates/vantage/password_reset_base.html:35
+msgid "Back to sign in"
+msgstr "العودة إلى تسجيل الدخول"
+
+#: templates/vantage/password_reset_complete.html:3
+#: templates/vantage/password_reset_complete.html:4
+msgid "Password changed"
+msgstr "تم تغيير كلمة المرور"
+
+#: templates/vantage/password_reset_complete.html:6
+msgid ""
+"Your password has been set. Sign in with it now; if you use an "
+"authenticator app you will still be asked for a code."
+msgstr ""
+"تم تعيين كلمة مرورك. سجّل الدخول بها الآن؛ وإذا كنت تستخدم تطبيق مصادقة "
+"فسيُطلب منك رمز أيضًا."
+
+#: templates/vantage/password_reset_confirm.html:3
+#: templates/vantage/password_reset_confirm.html:4
+msgid "New password"
+msgstr "كلمة المرور الجديدة"
+
+#: templates/vantage/password_reset_confirm.html:4
+msgid "Link not valid"
+msgstr "الرابط غير صالح"
+
+#: templates/vantage/password_reset_confirm.html:7
+msgid "Too many attempts. Try again later."
+msgstr "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا."
+
+#: templates/vantage/password_reset_confirm.html:29
+msgid ""
+"This link is no longer valid. It may have expired or already been used."
+msgstr "لم يعد هذا الرابط صالحًا. ربما انتهت صلاحيته أو سبق استخدامه."
+
+#: templates/vantage/password_reset_confirm.html:30
+msgid "Request a new link"
+msgstr "طلب رابط جديد"
+
+#: templates/vantage/password_reset_done.html:3
+#: templates/vantage/password_reset_done.html:4
+msgid "Check your email"
+msgstr "تحقق من بريدك الإلكتروني"
+
+#: templates/vantage/password_reset_done.html:6
+msgid ""
+"If an account exists for that address, we have sent an email with a link "
+"to reset the password."
+msgstr ""
+"إذا كان هناك حساب لهذا العنوان، فقد أرسلنا رسالة تحتوي على رابط لإعادة "
+"تعيين كلمة المرور."
+
+#: templates/vantage/password_reset_done.html:7
+msgid ""
+"The link works once and expires soon. If nothing arrives, check your spam "
+"folder or ask an administrator."
+msgstr ""
+"يعمل الرابط مرة واحدة وتنتهي صلاحيته قريبًا. إذا لم تصلك رسالة، فتحقق من "
+"مجلد الرسائل غير المرغوب فيها أو اطلب المساعدة من مسؤول."
+
+#: templates/vantage/password_reset_email.txt:1
+#, python-format
+msgid ""
+"Someone asked to reset the password for your %(site_title)s account "
+"(%(username)s)."
+msgstr ""
+"طلب أحدهم إعادة تعيين كلمة المرور لحسابك في %(site_title)s (%(username)s)."
+
+#: templates/vantage/password_reset_email.txt:3
+msgid "Open this link to choose a new password:"
+msgstr "افتح هذا الرابط لاختيار كلمة مرور جديدة:"
+
+#: templates/vantage/password_reset_email.txt:7
+#, python-format
+msgid "The link works once and expires in %(valid_minutes)s minutes."
+msgstr "يعمل الرابط مرة واحدة وتنتهي صلاحيته خلال %(valid_minutes)s دقيقة."
+
+#: templates/vantage/password_reset_email.txt:9
+msgid ""
+"If you did not ask for this, ignore this email; your password has not "
+"changed."
+msgstr "إذا لم تطلب ذلك، فتجاهل هذه الرسالة؛ لم تتغير كلمة مرورك."
+
+#: templates/vantage/password_reset_subject.txt:1
+#, python-format
+msgid "Reset your password for %(site_title)s"
+msgstr "إعادة تعيين كلمة مرورك في %(site_title)s"
+
 #: templates/vantage/reports/confirm_delete.html:9
 #, python-format
 msgid "Delete the report of %(name)s?"
@@ -6213,23 +6547,23 @@ msgid_plural ""
 "This stops the scheduled report of <strong>%(name)s</strong> and deletes its "
 "%(counter)s logged sends."
 msgstr[0] ""
-"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف %(counter)s"
-" عملية إرسال مسجّلة."
+"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف "
+"%(counter)s عملية إرسال مسجّلة."
 msgstr[1] ""
-"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف %(counter)s"
-" عملية إرسال مسجّلة."
+"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف "
+"%(counter)s عملية إرسال مسجّلة."
 msgstr[2] ""
-"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف %(counter)s"
-" عمليتي إرسال مسجّلتين."
+"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف "
+"%(counter)s عمليتي إرسال مسجّلتين."
 msgstr[3] ""
-"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف %(counter)s"
-" عمليات إرسال مسجّلة."
+"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف "
+"%(counter)s عمليات إرسال مسجّلة."
 msgstr[4] ""
-"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف %(counter)s"
-" عملية إرسال مسجّلة."
+"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف "
+"%(counter)s عملية إرسال مسجّلة."
 msgstr[5] ""
-"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف %(counter)s"
-" عملية إرسال مسجّلة."
+"سيوقف هذا التقرير المجدول الخاص بـ<strong>%(name)s</strong> ويحذف "
+"%(counter)s عملية إرسال مسجّلة."
 
 #: templates/vantage/reports/confirm_delete.html:18
 msgid "To stop it without losing the log, pause it instead."
@@ -6245,8 +6579,8 @@ msgstr ""
 
 #: templates/vantage/reports/list.html:22
 msgid ""
-"Reports are queued by <code class=\"v-mono\">manage.py "
-"vantage_reports</code>, which must run every minute from cron."
+"Reports are queued by <code class=\"v-mono\">manage.py vantage_reports</"
+"code>, which must run every minute from cron."
 msgstr ""
 "تُوضع التقارير في الطابور بواسطة <code class=\"v-mono\">manage.py "
 "vantage_reports</code>، ويجب تشغيله كل دقيقة من cron."
@@ -6305,8 +6639,8 @@ msgstr "لا توجد تقارير مجدولة بعد."
 
 #: templates/vantage/reports/list.html:107
 msgid ""
-"Open a saved view on a list page and choose Subscribe to get it by email as a"
-" CSV every day, week or month."
+"Open a saved view on a list page and choose Subscribe to get it by email as "
+"a CSV every day, week or month."
 msgstr ""
 "افتح عرضًا محفوظًا في صفحة قائمة واختر «اشترك» لتتلقاه بالبريد الإلكتروني "
 "بصيغة CSV كل يوم أو أسبوع أو شهر."
@@ -6681,8 +7015,9 @@ msgstr "لا توجد أدوار بعد."
 
 #: templates/vantage/roles/list.html:78
 msgid ""
-"A role bundles permissions under a name — “Support”, “Editors” — so you grant"
-" the bundle to people instead of ticking the same boxes for each of them."
+"A role bundles permissions under a name — “Support”, “Editors” — so you "
+"grant the bundle to people instead of ticking the same boxes for each of "
+"them."
 msgstr ""
 "الدور يجمع الصلاحيات تحت اسم — “الدعم”، “المحررون” — فتمنح المجموعة للأشخاص "
 "بدلاً من تحديد المربعات نفسها لكل منهم."
@@ -6752,8 +7087,7 @@ msgstr "لا أحد يملك هذا الدور بعد."
 msgid ""
 "This account is a superuser: it holds every permission, whatever is listed "
 "below."
-msgstr ""
-"هذا الحساب مستخدم خارق: يملك كل الصلاحيات بغض النظر عمّا هو مدرج أدناه."
+msgstr "هذا الحساب مستخدم خارق: يملك كل الصلاحيات بغض النظر عمّا هو مدرج أدناه."
 
 #: templates/vantage/roles/user.html:23
 msgid "This account is inactive, so none of these permissions currently apply."
@@ -6839,8 +7173,8 @@ msgstr "فتح القائمة"
 #: templates/vantage/search.html:71
 #, python-format
 msgid ""
-"Type at least %(min_length)s characters to look across every section you have"
-" access to."
+"Type at least %(min_length)s characters to look across every section you "
+"have access to."
 msgstr ""
 "اكتب %(min_length)s أحرف على الأقل للبحث في كل قسم لديك صلاحية الوصول إليه."
 
@@ -6925,8 +7259,8 @@ msgid ""
 "Empty means <code class=\"v-mono\">%(inherited)s</code>, from <code "
 "class=\"v-mono\">settings.py</code>."
 msgstr ""
-"الفراغ يعني <code class=\"v-mono\">%(inherited)s</code>، من <code "
-"class=\"v-mono\">settings.py</code>."
+"الفراغ يعني <code class=\"v-mono\">%(inherited)s</code>، من <code class=\"v-"
+"mono\">settings.py</code>."
 
 #: templates/vantage/settings.html:129
 msgid "Derived palette"
@@ -6945,8 +7279,8 @@ msgstr "رابط، وحلقة تركيز، وصف محدد"
 #, python-format
 msgid ""
 "These settings live in code and are not editable here, because they decide "
-"what exists and who may reach it rather than how it looks: <code "
-"class=\"v-mono\">%(names)s</code>."
+"what exists and who may reach it rather than how it looks: <code class=\"v-"
+"mono\">%(names)s</code>."
 msgstr ""
 "هذه الإعدادات موجودة في الشيفرة ولا يمكن تعديلها هنا، لأنها تحدد ما هو موجود "
 "ومن يمكنه الوصول إليه وليس مظهره: <code class=\"v-mono\">%(names)s</code>."
@@ -6958,8 +7292,8 @@ msgid ""
 "SVG containing script or event handlers is refused: it would run on every "
 "page of this panel."
 msgstr ""
-"يمكن أن تكون الشعارات وأيقونات المواقع بصيغة SVG أو PNG أو JPEG أو WebP، بحجم"
-" يصل إلى %(kilobytes)s KB. يُرفض ملف SVG الذي يحتوي على سكربت أو معالجات "
+"يمكن أن تكون الشعارات وأيقونات المواقع بصيغة SVG أو PNG أو JPEG أو WebP، "
+"بحجم يصل إلى %(kilobytes)s KB. يُرفض ملف SVG الذي يحتوي على سكربت أو معالجات "
 "أحداث: لأنه سيعمل في كل صفحة من هذه اللوحة."
 
 #: templates/vantage/settings.html:198
@@ -6972,11 +7306,11 @@ msgstr "بلا عنوان"
 
 #: templates/vantage/settings_nav.html:28
 msgid ""
-"Arrange the groups and links in the sidebar. Drag a row, or use the group box"
-" and the position box beside it — they do the same thing."
+"Arrange the groups and links in the sidebar. Drag a row, or use the group "
+"box and the position box beside it — they do the same thing."
 msgstr ""
-"رتّب المجموعات والروابط في الشريط الجانبي. اسحب صفًا، أو استخدم مربع المجموعة"
-" ومربع الموضع بجانبه — فهما يؤديان الغرض نفسه."
+"رتّب المجموعات والروابط في الشريط الجانبي. اسحب صفًا، أو استخدم مربع المجموعة "
+"ومربع الموضع بجانبه — فهما يؤديان الغرض نفسه."
 
 #: templates/vantage/settings_nav.html:35
 msgid "Arranged here, overriding the code"
@@ -6988,13 +7322,13 @@ msgstr "مرتّب هنا"
 
 #: templates/vantage/settings_nav.html:44
 msgid ""
-"This arrangement is what the panel shows. It sits on top of <code "
-"class=\"v-mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being "
-"ignored until you reset."
+"This arrangement is what the panel shows. It sits on top of <code class=\"v-"
+"mono\">VANTAGE[\"NAV\"]</code>, so that declaration is being ignored until "
+"you reset."
 msgstr ""
-"هذا الترتيب هو ما تعرضه اللوحة. وهو يعلو <code "
-"class=\"v-mono\">VANTAGE[\"NAV\"]</code>، لذا يتم تجاهل ذلك التصريح إلى أن "
-"تعيد التعيين."
+"هذا الترتيب هو ما تعرضه اللوحة. وهو يعلو <code class=\"v-"
+"mono\">VANTAGE[\"NAV\"]</code>، لذا يتم تجاهل ذلك التصريح إلى أن تعيد "
+"التعيين."
 
 #: templates/vantage/settings_nav.html:63
 msgid "Group heading"
@@ -7152,14 +7486,14 @@ msgstr ""
 #: templates/vantage/settings_nav.html:311
 msgid ""
 "A model nobody has placed still appears, grouped by app at the end, so "
-"registering one never makes it unreachable. Set <code "
-"class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar "
-"that shows only what is arranged here."
+"registering one never makes it unreachable. Set <code class=\"v-"
+"mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> for a sidebar that shows "
+"only what is arranged here."
 msgstr ""
-"النموذج الذي لم يضعه أحد يظل ظاهرًا، مجمّعًا حسب التطبيق في النهاية، فلا يصبح"
-" تسجيل نموذج سببًا في تعذّر الوصول إليه. اضبط <code "
-"class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> للحصول على شريط "
-"جانبي لا يعرض سوى ما رُتّب هنا."
+"النموذج الذي لم يضعه أحد يظل ظاهرًا، مجمّعًا حسب التطبيق في النهاية، فلا يصبح "
+"تسجيل نموذج سببًا في تعذّر الوصول إليه. اضبط <code class=\"v-"
+"mono\">VANTAGE[\"NAV_UNLISTED\"] = \"hide\"</code> للحصول على شريط جانبي لا "
+"يعرض سوى ما رُتّب هنا."
 
 #: templates/vantage/settings_nav.html:319
 #, python-format
@@ -7168,9 +7502,9 @@ msgstr "يظهر بهذه الصورة الآن: %(names)s."
 
 #: templates/vantage/settings_nav.html:324
 msgid ""
-"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code "
-"class=\"v-mono\">\"hide\"</code>, so a model that is not arranged here does "
-"not appear in the sidebar at all — including one registered tomorrow."
+"<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> is <code class=\"v-"
+"mono\">\"hide\"</code>, so a model that is not arranged here does not appear "
+"in the sidebar at all — including one registered tomorrow."
 msgstr ""
 "<code class=\"v-mono\">VANTAGE[\"NAV_UNLISTED\"]</code> تساوي <code "
 "class=\"v-mono\">\"hide\"</code>، لذا لا يظهر أي نموذج غير مرتّب هنا في "
@@ -7184,8 +7518,8 @@ msgid ""
 "them, whatever is arranged here."
 msgstr ""
 "<strong>مخفي</strong> يُبقي مكان العنصر ويوقف عرضه. <strong>إزالة</strong> "
-"تُخرجه من الترتيب كليًا. لا أيّ منهما يمنح صلاحية: فالرابط إلى نموذج لا "
-"يستطيع شخص ما فتحه لا يظهر له أبدًا، مهما كان الترتيب هنا."
+"تُخرجه من الترتيب كليًا. لا أيّ منهما يمنح صلاحية: فالرابط إلى نموذج لا يستطيع "
+"شخص ما فتحه لا يظهر له أبدًا، مهما كان الترتيب هنا."
 
 #: templates/vantage/settings_nav.html:343
 msgid "Save sidebar"
@@ -7243,7 +7577,7 @@ msgstr "انقل %(name)s إلى الأمام"
 msgid "Move %(name)s later"
 msgstr "انقل %(name)s إلى الخلف"
 
-#: templates/vantage/topbar.html:119
+#: templates/vantage/topbar.html:119 templates/vantage/two_factor.html:152
 #, python-format
 msgid "Remove %(name)s"
 msgstr "أزل %(name)s"
@@ -7299,13 +7633,14 @@ msgstr "تسجيل الدخول بخطوتين مفعّل الآن."
 
 #: templates/vantage/two_factor.html:33
 msgid ""
-"Each code signs you in once if you lose your phone. Keep them somewhere safe,"
-" such as a password manager. They will not be shown again."
+"Each code signs you in once if you lose your phone. Keep them somewhere "
+"safe, such as a password manager. They will not be shown again."
 msgstr ""
 "يسجّل كل رمز دخولك مرة واحدة إذا فقدت هاتفك. احتفظ بها في مكان آمن، مثل مدير "
 "كلمات المرور. لن تُعرض مرة أخرى."
 
-#: templates/vantage/two_factor.html:38 twofactor.py:648
+#: templates/vantage/two_factor.html:38 templates/vantage/two_factor.html:194
+#: twofactor.py:868
 msgid "Recovery codes"
 msgstr "رموز الاسترداد"
 
@@ -7314,17 +7649,83 @@ msgid "I have saved them"
 msgstr "لقد حفظتها"
 
 #: templates/vantage/two_factor.html:50
+#, python-format
+msgid "Add %(name)s"
+msgstr "إضافة %(name)s"
+
+#: templates/vantage/two_factor.html:50
+msgid "Set up your authenticator app"
+msgstr "إعداد تطبيق المصادقة"
+
+#: templates/vantage/two_factor.html:56
+msgid ""
+"In an authenticator app — Google Authenticator, Microsoft Authenticator, "
+"1Password, Bitwarden or any other that supports time-based codes — add an "
+"account and scan this code."
+msgstr ""
+"في تطبيق مصادقة — Google Authenticator أو Microsoft Authenticator أو "
+"1Password أو Bitwarden أو أي تطبيق آخر يدعم الرموز المبنية على الوقت — أضف "
+"حسابًا وامسح هذا الرمز."
+
+#: templates/vantage/two_factor.html:64
+#, python-format
+msgid ""
+"Cannot scan it? Choose to enter a key instead, name the entry something "
+"you will recognise, such as %(issuer)s (%(name)s), and type:"
+msgstr ""
+"تعذّر المسح؟ اختر إدخال مفتاح بدلًا من ذلك، وسمِّ الإدخال باسم تتعرّف "
+"عليه، مثل %(issuer)s (%(name)s)، ثم اكتب:"
+
+#: templates/vantage/two_factor.html:67
+#, python-format
+msgid ""
+"Cannot scan it? Choose to enter a key instead, name it %(issuer)s, and type:"
+msgstr "تعذّر المسح؟ اختر إدخال مفتاح بدلًا من ذلك، وسمّه %(issuer)s، واكتب:"
+
+#: templates/vantage/two_factor.html:73
+msgid "Or open it in an authenticator app on this device"
+msgstr "أو افتحه في تطبيق مصادقة على هذا الجهاز"
+
+#: templates/vantage/two_factor.html:99
+msgid "Confirm and add device"
+msgstr "تأكيد وإضافة الجهاز"
+
+#: templates/vantage/two_factor.html:99
+msgid "Confirm and turn on"
+msgstr "تأكيد وتفعيل"
+
+#: templates/vantage/two_factor.html:115
 msgid "Two-factor sign-in is on"
 msgstr "تسجيل الدخول بخطوتين مفعّل"
 
-#: templates/vantage/two_factor.html:54
-#, python-format
+#: templates/vantage/two_factor.html:119
 msgid ""
-"On since %(since)s. After your password, you are asked for a code from your "
-"authenticator app."
-msgstr "مفعّل منذ %(since)s. بعد كلمة المرور، يُطلب منك رمز من تطبيق المصادقة."
+"After your password, you are asked for a code from any of your "
+"authenticator apps below. Each change on this page asks you to confirm it "
+"is you, with a current code or your password."
+msgstr ""
+"بعد كلمة المرور، يُطلب منك رمز من أي من تطبيقات المصادقة أدناه. يطلب منك "
+"كل تغيير في هذه الصفحة تأكيد هويتك برمز حالي أو بكلمة مرورك."
 
-#: templates/vantage/two_factor.html:60
+#: templates/vantage/two_factor.html:130
+msgid "Your devices"
+msgstr "أجهزتك"
+
+#: templates/vantage/two_factor.html:140
+#, python-format
+msgid "Added %(added)s"
+msgstr "أُضيف %(added)s"
+
+#: templates/vantage/two_factor.html:142
+#, python-format
+msgid "last used %(used)s"
+msgstr "آخر استخدام %(used)s"
+
+#: templates/vantage/two_factor.html:142
+msgid "never used"
+msgstr "لم يُستخدم قط"
+
+#: templates/vantage/two_factor.html:160
 #, python-format
 msgid "%(counter)s recovery code left."
 msgid_plural "%(counter)s recovery codes left."
@@ -7335,97 +7736,84 @@ msgstr[3] "%(counter)s رموز استرداد متبقية."
 msgstr[4] "%(counter)s رمز استرداد متبقٍ."
 msgstr[5] "%(counter)s رمز استرداد متبقٍ."
 
-#: templates/vantage/two_factor.html:67
-msgid "Change it"
-msgstr "غيّره"
+#: templates/vantage/two_factor.html:172 templates/vantage/two_factor.html:186
+msgid "Add a device"
+msgstr "إضافة جهاز"
 
-#: templates/vantage/two_factor.html:69
-msgid ""
-"To replace your recovery codes or switch two-factor sign-in off, confirm it "
-"is you."
-msgstr "لاستبدال رموز الاسترداد أو إيقاف تسجيل الدخول بخطوتين، أكّد أنك أنت."
+#: templates/vantage/two_factor.html:197
+msgid "Replacing them makes the old ones stop working."
+msgstr "يؤدي استبدالها إلى توقف القديمة عن العمل."
 
-#: templates/vantage/two_factor.html:71
-msgid ""
-"Your role requires two-factor sign-in, so switching it off takes you straight"
-" back to setting it up."
-msgstr "يتطلب دورك تسجيل الدخول بخطوتين، لذا إيقافه يعيدك مباشرة إلى إعداده."
-
-#: templates/vantage/two_factor.html:89
+#: templates/vantage/two_factor.html:202
 msgid "New recovery codes"
 msgstr "رموز استرداد جديدة"
 
-#: templates/vantage/two_factor.html:92
+#: templates/vantage/two_factor.html:209
+msgid "Switch off two-factor sign-in"
+msgstr "إيقاف تسجيل الدخول بخطوتين"
+
+#: templates/vantage/two_factor.html:213
+msgid ""
+"This removes every device and all recovery codes, and your account goes "
+"back to a password alone."
+msgstr ""
+"يؤدي هذا إلى إزالة كل الأجهزة وجميع رموز الاسترداد، ويعود حسابك إلى كلمة "
+"المرور وحدها."
+
+#: templates/vantage/two_factor.html:215
+msgid ""
+"Your role requires two-factor sign-in, so switching it off takes you "
+"straight back to setting it up."
+msgstr "يتطلب دورك تسجيل الدخول بخطوتين، لذا إيقافه يعيدك مباشرة إلى إعداده."
+
+#: templates/vantage/two_factor.html:222
 msgid "Switch off"
 msgstr "إيقاف"
 
-#: templates/vantage/two_factor.html:102
-msgid "Set up your authenticator app"
-msgstr "إعداد تطبيق المصادقة"
-
-#: templates/vantage/two_factor.html:108
-msgid ""
-"In an authenticator app — Google Authenticator, Microsoft Authenticator, "
-"1Password, Bitwarden or any other that supports time-based codes — add an "
-"account and scan this code."
-msgstr ""
-"في تطبيق مصادقة — Google Authenticator أو Microsoft Authenticator أو "
-"1Password أو Bitwarden أو أي تطبيق آخر يدعم الرموز المبنية على الوقت — أضف "
-"حسابًا وامسح هذا الرمز."
-
-#: templates/vantage/two_factor.html:116
-#, python-format
-msgid ""
-"Cannot scan it? Choose to enter a key instead, name it %(issuer)s, and type:"
-msgstr "تعذّر المسح؟ اختر إدخال مفتاح بدلًا من ذلك، وسمّه %(issuer)s، واكتب:"
-
-#: templates/vantage/two_factor.html:122
-msgid "Or open it in an authenticator app on this device"
-msgstr "أو افتحه في تطبيق مصادقة على هذا الجهاز"
-
-#: templates/vantage/two_factor.html:148
-msgid "Turn on"
-msgstr "تفعيل"
-
-#: templates/vantage/two_factor.html:164
+#: templates/vantage/two_factor.html:230
 msgid "Two-factor sign-in is off"
 msgstr "تسجيل الدخول بخطوتين متوقف"
 
-#: templates/vantage/two_factor.html:169
+#: templates/vantage/two_factor.html:235
 msgid "Required."
 msgstr "مطلوب."
 
-#: templates/vantage/two_factor.html:170
+#: templates/vantage/two_factor.html:236
 msgid ""
 "Your role requires two-factor sign-in. Set it up to carry on using the panel."
 msgstr "يتطلب دورك تسجيل الدخول بخطوتين. أعدّه لمتابعة استخدام اللوحة."
 
-#: templates/vantage/two_factor.html:174
+#: templates/vantage/two_factor.html:240
 msgid ""
 "With it on, signing in takes your password and a code from an app on your "
 "phone, so a leaked password is not enough on its own."
 msgstr ""
-"عند تفعيله، يتطلب تسجيل الدخول كلمة مرورك ورمزًا من تطبيق على هاتفك، فلا تكفي"
-" كلمة مرور مسرّبة وحدها."
+"عند تفعيله، يتطلب تسجيل الدخول كلمة مرورك ورمزًا من تطبيق على هاتفك، فلا تكفي "
+"كلمة مرور مسرّبة وحدها."
 
-#: templates/vantage/two_factor.html:183
+#: templates/vantage/two_factor.html:249
 msgid "Set it up"
 msgstr "أعدّه"
 
 #: templates/vantage/two_factor_users.html:16
 msgid ""
-"A reset switches the person's two-factor sign-in off and is recorded in the "
-"audit log. They can sign in with their password alone until they set it up "
-"again, which they will be asked to do at once if their role requires it."
+"\"Reset\" on a device removes that one authenticator and leaves the "
+"person's other devices working. \"Reset all\" removes every device they "
+"have, which switches their two-factor sign-in off. Each reset is recorded "
+"in the audit log, and says how many devices went. After all are gone they "
+"can sign in with their password alone until they set it up again, which "
+"they will be asked to do at once if their role requires it."
 msgstr ""
-"يؤدي إعادة التعيين إلى إيقاف تسجيل الدخول بخطوتين للشخص، ويُسجَّل في سجل "
-"التدقيق. يمكنه تسجيل الدخول بكلمة المرور وحدها إلى أن يعيد إعداده، وسيُطلب "
-"منه ذلك فورًا إذا كان دوره يتطلبه."
+"يؤدي «إعادة التعيين» على جهاز إلى إزالة تطبيق المصادقة هذا فقط مع بقاء "
+"بقية أجهزة الشخص تعمل. أما «إعادة تعيين الكل» فيزيل كل أجهزته، ما يوقف "
+"تسجيل دخوله بخطوتين. تُسجَّل كل عملية إعادة تعيين في سجل التدقيق مع عدد "
+"الأجهزة التي أُزيلت. وبعد إزالتها كلها يمكنه تسجيل الدخول بكلمة المرور "
+"وحدها إلى أن يعيد الإعداد، وسيُطلب منه ذلك فورًا إذا كان دوره يشترط ذلك."
 
-#: templates/vantage/two_factor_users.html:23
+#: templates/vantage/two_factor_users.html:25
 msgid ""
-"\"Set up\" is when each authenticator was last enrolled. Enrolling needs only"
-" the password, so if that time does not match when the person remembers "
+"\"Set up\" is when each authenticator was last enrolled. Enrolling needs "
+"only the password, so if that time does not match when the person remembers "
 "setting it up, someone else may have done it first: reset it, and have them "
 "set it up again."
 msgstr ""
@@ -7433,28 +7821,35 @@ msgstr ""
 "المرور، فإذا لم يطابق ذلك الوقت ما يتذكره الشخص عن إعداده، فقد يكون شخص آخر "
 "سبقه: أعد تعيينه واطلب منه إعداده من جديد."
 
-#: templates/vantage/two_factor_users.html:32
+#: templates/vantage/two_factor_users.html:34
 msgid "People with two-factor sign-in on"
 msgstr "الأشخاص المفعّل لديهم تسجيل الدخول بخطوتين"
 
-#: templates/vantage/two_factor_users.html:36
+#: templates/vantage/two_factor_users.html:38
+msgid "Device"
+msgstr "الجهاز"
+
+#: templates/vantage/two_factor_users.html:39
 msgid "Set up"
 msgstr "الإعداد"
 
-#: templates/vantage/two_factor_users.html:37
-msgid "Last used"
-msgstr "آخر استخدام"
-
-#: templates/vantage/two_factor_users.html:49
+#: templates/vantage/two_factor_users.html:53
 msgid "Yours"
 msgstr "لك"
 
-#: templates/vantage/two_factor_users.html:55
+#: templates/vantage/two_factor_users.html:60
 #, python-format
-msgid "Reset <span class=\"v-sr-only\">for %(name)s</span>"
-msgstr "إعادة التعيين <span class=\"v-sr-only\">لـ %(name)s</span>"
+msgid "Reset <span class=\"v-sr-only\">%(device_name)s for %(name)s</span>"
+msgstr ""
+"إعادة تعيين <span class=\"v-sr-only\">%(device_name)s لـ %(name)s</span>"
 
-#: templates/vantage/two_factor_users.html:68
+#: templates/vantage/two_factor_users.html:70
+#, python-format
+msgid "Reset all %(n)s <span class=\"v-sr-only\">devices for %(name)s</span>"
+msgstr ""
+"إعادة تعيين كل الأجهزة (%(n)s) <span class=\"v-sr-only\">لـ %(name)s</span>"
+
+#: templates/vantage/two_factor_users.html:84
 msgid "Nobody has two-factor sign-in on yet."
 msgstr "لم يفعّل أحد تسجيل الدخول بخطوتين بعد."
 
@@ -7469,8 +7864,8 @@ msgstr "تسجيل الدخول متوقف مؤقتًا."
 
 #: templates/vantage/two_factor_verify.html:46
 msgid ""
-"Open the authenticator app on your phone and enter the code it shows for this"
-" site."
+"Open the authenticator app on your phone and enter the code it shows for "
+"this site."
 msgstr "افتح تطبيق المصادقة على هاتفك وأدخل الرمز الذي يعرضه لهذا الموقع."
 
 #: templates/vantage/two_factor_verify.html:71
@@ -7489,17 +7884,15 @@ msgstr "حذف %(name)s؟"
 #: templates/vantage/webhooks/confirm_delete.html:16
 #, python-format
 msgid ""
-"This permanently deletes <strong>%(name)s</strong> and its %(counter)s logged"
-" delivery."
+"This permanently deletes <strong>%(name)s</strong> and its %(counter)s "
+"logged delivery."
 msgid_plural ""
-"This permanently deletes <strong>%(name)s</strong> and its %(counter)s logged"
-" deliveries."
+"This permanently deletes <strong>%(name)s</strong> and its %(counter)s "
+"logged deliveries."
 msgstr[0] ""
-"سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليم "
-"مسجّل."
+"سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليم مسجّل."
 msgstr[1] ""
-"سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليم "
-"مسجّل."
+"سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليم مسجّل."
 msgstr[2] ""
 "سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليمين "
 "مسجّلين."
@@ -7510,8 +7903,7 @@ msgstr[4] ""
 "سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليمًا "
 "مسجّلًا."
 msgstr[5] ""
-"سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليم "
-"مسجّل."
+"سيؤدي هذا إلى حذف <strong>%(name)s</strong> نهائيًا مع %(counter)s تسليم مسجّل."
 
 #: templates/vantage/webhooks/confirm_delete.html:18
 msgid "To stop it without losing the log, untick Active instead."
@@ -7582,18 +7974,18 @@ msgstr "سر التوقيع لـ %(name)s"
 
 #: templates/vantage/webhooks/list.html:23
 msgid ""
-"Copy it now. It is not shown again; you can generate a new one by editing the"
-" webhook."
+"Copy it now. It is not shown again; you can generate a new one by editing "
+"the webhook."
 msgstr "انسخه الآن. لن يُعرض مرة أخرى؛ يمكنك إنشاء سر جديد بتعديل ويب هوك."
 
 #: templates/vantage/webhooks/list.html:35
 msgid ""
-"No task backend is configured, so deliveries are sent during the request that"
-" changed the record, and retries wait for <code class=\"v-mono\">manage.py "
-"vantage_webhooks</code>."
+"No task backend is configured, so deliveries are sent during the request "
+"that changed the record, and retries wait for <code class=\"v-"
+"mono\">manage.py vantage_webhooks</code>."
 msgstr ""
-"لم يُضبط أي مشغّل مهام، لذا تُرسل عمليات التسليم أثناء الطلب الذي غيّر السجل،"
-" وتنتظر إعادة المحاولات تشغيل <code class=\"v-mono\">manage.py "
+"لم يُضبط أي مشغّل مهام، لذا تُرسل عمليات التسليم أثناء الطلب الذي غيّر السجل، "
+"وتنتظر إعادة المحاولات تشغيل <code class=\"v-mono\">manage.py "
 "vantage_webhooks</code>."
 
 #: templates/vantage/webhooks/list.html:49 webhookviews.py:87
@@ -7713,8 +8105,8 @@ msgid ""
 "%(label)s: %(shape)s of %(period)s, %(first)s to %(last)s, from %(low)s to "
 "%(high)s."
 msgstr ""
-"%(label)s: %(shape)s لـ %(period)s، من %(first)s إلى %(last)s، من %(low)s إلى"
-" %(high)s."
+"%(label)s: %(shape)s لـ %(period)s، من %(first)s إلى %(last)s، من %(low)s "
+"إلى %(high)s."
 
 #: templatetags/vantage_list.py:254
 #, python-format
@@ -7821,58 +8213,72 @@ msgstr "استخدم عنوان https:// كاملًا، أو مسارًا يبد
 msgid "Give the item a name; it is what the bar shows."
 msgstr "امنح العنصر اسمًا؛ فهو ما يعرضه الشريط."
 
-#: twofactor.py:404 twofactor.py:636 twofactor.py:661 twofactor.py:680
-msgid "off"
-msgstr "متوقف"
+#: twofactor.py:460 twofactor.py:849 twofactor.py:933
+msgid "none"
+msgstr "لا شيء"
 
-#: twofactor.py:404
+#: twofactor.py:461 twofactor.py:465
 msgid "being set up"
 msgstr "قيد الإعداد"
 
-#: twofactor.py:466
+#: twofactor.py:462 twofactor.py:851 twofactor.py:934
+msgid "Authenticator"
+msgstr "تطبيق المصادقة"
+
+#: twofactor.py:465 twofactor.py:856 twofactor.py:898 twofactor.py:937
+#: twofactor.py:977
+msgid "off"
+msgstr "متوقف"
+
+#: twofactor.py:550
 #, python-format
 msgid "Too many wrong codes. Wait %(minutes)s minute(s) and try again."
 msgstr "محاولات خاطئة كثيرة. انتظر %(minutes)s دقيقة وحاول مجددًا."
 
-#: twofactor.py:470
+#: twofactor.py:554
 msgid "That code has already been used. Wait for the next one."
 msgstr "استُخدم هذا الرمز من قبل. انتظر الرمز التالي."
 
-#: twofactor.py:471
+#: twofactor.py:555
 msgid "That code is not right. Check the app and try again."
 msgstr "هذا الرمز غير صحيح. تحقق من التطبيق وحاول مجددًا."
 
-#: twofactor.py:597
+#: twofactor.py:761
 msgid "unused"
 msgstr "غير مستخدم"
 
-#: twofactor.py:598
+#: twofactor.py:762
 #, python-format
 msgid "used, %(count)s left"
 msgstr "مستخدم، المتبقي %(count)s"
 
-#: twofactor.py:599
+#: twofactor.py:763
 msgid "Recovery code"
 msgstr "رمز استرداد"
 
-#: twofactor.py:636 twofactor.py:661 twofactor.py:680
+#: twofactor.py:856 twofactor.py:898 twofactor.py:937 twofactor.py:977
 msgid "on"
 msgstr "مفعّل"
 
-#: twofactor.py:646
+#: twofactor.py:866
 msgid "previous set"
 msgstr "المجموعة السابقة"
 
-#: twofactor.py:647
+#: twofactor.py:867
 #, python-format
 msgid "new set of %(count)s"
 msgstr "مجموعة جديدة من %(count)s"
 
-#: twofactor.py:921
+#: twofactor.py:968 twofactor.py:969
+#, python-format
+msgid "%(count)s devices"
+msgstr "%(count)s أجهزة"
+
+#: twofactor.py:1261
 msgid "Finish signing in with your authentication code first."
 msgstr "أكمل تسجيل الدخول برمز المصادقة أولًا."
 
-#: twofactor.py:923
+#: twofactor.py:1263
 msgid "Set up two-factor sign-in on your account page first."
 msgstr "أعدّ تسجيل الدخول بخطوتين من صفحة حسابك أولًا."
 
@@ -7894,61 +8300,76 @@ msgid "Type the 6-digit code your app now shows, to prove it is set up."
 msgstr "اكتب الرمز المكوّن من 6 أرقام الذي يعرضه تطبيقك الآن، لإثبات أنه جاهز."
 
 #: twofactorviews.py:100
+msgid "Name this device"
+msgstr "سمِّ هذا الجهاز"
+
+#: twofactorviews.py:103
+msgid "For telling your devices apart, such as Phone or Spare."
+msgstr "للتمييز بين أجهزتك، مثل «الهاتف» أو «الاحتياطي»."
+
+#: twofactorviews.py:112
 msgid "Authentication or recovery code"
 msgstr "رمز المصادقة أو الاسترداد"
 
-#: twofactorviews.py:106
+#: twofactorviews.py:118
 msgid "Or your password"
 msgstr "أو كلمة مرورك"
 
-#: twofactorviews.py:138
+#: twofactorviews.py:150
 msgid "Two-factor settings cannot be changed while impersonating someone."
 msgstr "لا يمكن تغيير إعدادات الخطوتين أثناء انتحال هوية شخص آخر."
 
-#: twofactorviews.py:158
+#: twofactorviews.py:170
 msgid "A code from an app on your phone, asked for after your password."
 msgstr "رمز من تطبيق على هاتفك، يُطلب بعد كلمة المرور."
 
-#: twofactorviews.py:166 twofactorviews.py:389
+#: twofactorviews.py:178 twofactorviews.py:488
 msgid "Two-factor sign-in is switched off for this site."
 msgstr "تسجيل الدخول بخطوتين متوقف لهذا الموقع."
 
-#: twofactorviews.py:197
+#: twofactorviews.py:217
 msgid "QR code for your authenticator app"
 msgstr "رمز QR لتطبيق المصادقة"
 
-#: twofactorviews.py:238
-msgid "Two-factor sign-in is already on."
-msgstr "تسجيل الدخول بخطوتين مفعّل بالفعل."
+#: twofactorviews.py:276
+msgid "This account cannot have another authenticator right now."
+msgstr "لا يمكن لهذا الحساب إضافة تطبيق مصادقة آخر الآن."
 
-#: twofactorviews.py:278
-msgid "Enter a current code or your password."
-msgstr "أدخل رمزًا حاليًا أو كلمة مرورك."
+#: twofactorviews.py:302
+#, python-format
+msgid "%(name)s was removed."
+msgstr "تمت إزالة %(name)s."
 
-#: twofactorviews.py:285
-msgid "That code or password is not right."
-msgstr "هذا الرمز أو كلمة المرور غير صحيحة."
-
-#: twofactorviews.py:296
+#: twofactorviews.py:304 twofactorviews.py:393
 msgid "Two-factor sign-in is now off."
 msgstr "تسجيل الدخول بخطوتين متوقف الآن."
 
-#: twofactorviews.py:385
+#: twofactorviews.py:375
+msgid "Enter a current code or your password."
+msgstr "أدخل رمزًا حاليًا أو كلمة مرورك."
+
+#: twofactorviews.py:382
+msgid "That code or password is not right."
+msgstr "هذا الرمز أو كلمة المرور غير صحيحة."
+
+#: twofactorviews.py:484
 msgid "Who has it on, and a reset for anyone who has lost their phone."
 msgstr "من فعّله، وإعادة تعيين لمن فقد هاتفه."
 
-#: twofactorviews.py:392
+#: twofactorviews.py:491
 msgid "Only superusers can reset two-factor sign-in."
 msgstr "يمكن للمستخدمين الخارقين فقط إعادة تعيين تسجيل الدخول بخطوتين."
 
-#: twofactorviews.py:420
+#: twofactorviews.py:540
+#, python-format
+msgid ""
+"Two-factor sign-in was reset for %(name)s: %(count)s device(s) removed."
+msgstr ""
+"أُعيد تعيين تسجيل الدخول بخطوتين لـ %(name)s: أُزيل %(count)s من الأجهزة."
+
+#: twofactorviews.py:555
 msgid "Use your own two-factor page to switch yours off."
 msgstr "استخدم صفحة الخطوتين الخاصة بك لإيقافه عن حسابك."
-
-#: twofactorviews.py:426
-#, python-format
-msgid "Two-factor sign-in was reset for %(name)s."
-msgstr "أُعيد تعيين تسجيل الدخول بخطوتين لـ %(name)s."
 
 #: undo.py:269
 #, python-format
@@ -8010,7 +8431,7 @@ msgstr[3] "تعديل مضمّن لـ %(count)s %(models)s"
 msgstr[4] "تعديل مضمّن لـ %(count)s %(models)s"
 msgstr[5] "تعديل مضمّن لـ %(count)s %(models)s"
 
-#: undo.py:303
+#: undo.py:305
 #, no-python-format
 msgid "Reverted the change to %(count)s %(model)s."
 msgid_plural "Reverted the changes to %(count)s %(models)s."
@@ -8021,7 +8442,7 @@ msgstr[3] "تم التراجع عن تغيير %(count)s %(models)s."
 msgstr[4] "تم التراجع عن تغيير %(count)s %(models)s."
 msgstr[5] "تم التراجع عن تغيير %(count)s %(models)s."
 
-#: undo.py:312
+#: undo.py:314
 #, no-python-format
 msgid "“%(label)s” on %(count)s %(model)s"
 msgid_plural "“%(label)s” on %(count)s %(models)s"
@@ -8032,7 +8453,7 @@ msgstr[3] "“%(label)s” على %(count)s %(models)s"
 msgstr[4] "“%(label)s” على %(count)s %(models)s"
 msgstr[5] "“%(label)s” على %(count)s %(models)s"
 
-#: undo.py:316
+#: undo.py:318
 #, no-python-format
 msgid "Reverted “%(label)s” on %(count)s %(model)s."
 msgid_plural "Reverted “%(label)s” on %(count)s %(models)s."
@@ -8043,46 +8464,46 @@ msgstr[3] "تم التراجع عن “%(label)s” على %(count)s %(models)s.
 msgstr[4] "تم التراجع عن “%(label)s” على %(count)s %(models)s."
 msgstr[5] "تم التراجع عن “%(label)s” على %(count)s %(models)s."
 
-#: undo.py:895
+#: undo.py:897
 msgid "This undo is no longer available. Nothing was changed."
 msgstr "لم يعد هذا التراجع متاحًا. لم يتغير شيء."
 
-#: undo.py:918 undo.py:940
+#: undo.py:920 undo.py:942
 msgid "The time to undo this has passed. Nothing was changed."
 msgstr "انقضى وقت التراجع عن هذا. لم يتغير شيء."
 
-#: undo.py:926
+#: undo.py:928
 msgid "You no longer have permission to undo this. Nothing was changed."
 msgstr "لم تعد لديك صلاحية التراجع عن هذا. لم يتغير شيء."
 
-#: undo.py:962
+#: undo.py:964
 msgid ""
 "This could not be undone: something else now occupies the place of what was "
 "removed. Nothing was changed."
 msgstr "تعذّر التراجع: يشغل شيء آخر الآن مكان ما أُزيل. لم يتغير شيء."
 
-#: undo.py:977
+#: undo.py:979
 msgid "Something went wrong while undoing this. Nothing was changed."
 msgstr "حدث خطأ أثناء التراجع. لم يتغير شيء."
 
-#: undo.py:991
+#: undo.py:993
 #, python-format
 msgid "undid %(change)s"
 msgstr "تم التراجع عن %(change)s"
 
-#: undo.py:996
+#: undo.py:998
 msgid "Undone."
 msgstr "تم التراجع."
 
-#: undo.py:1008
+#: undo.py:1010
 msgid "This undo has already been used."
 msgstr "تم استخدام هذا التراجع بالفعل."
 
-#: undo.py:1059
+#: undo.py:1061
 msgid "This undo cannot be applied. Nothing was changed."
 msgstr "لا يمكن تطبيق هذا التراجع. لم يتغير شيء."
 
-#: undo.py:1073
+#: undo.py:1075
 #, python-format
 msgid ""
 "%(count)s record has been changed by someone else since, so nothing was "
@@ -8097,19 +8518,19 @@ msgstr[1] ""
 "غيّر شخص آخر %(count)s سجل منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم الاحتفاظ "
 "بتغييره."
 msgstr[2] ""
-"غيّر شخص آخر %(count)s سجلين منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم "
-"الاحتفاظ بتغييرهما."
+"غيّر شخص آخر %(count)s سجلين منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم الاحتفاظ "
+"بتغييرهما."
 msgstr[3] ""
-"غيّر شخص آخر %(count)s سجلات منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم "
-"الاحتفاظ بتغييراتها."
+"غيّر شخص آخر %(count)s سجلات منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم الاحتفاظ "
+"بتغييراتها."
 msgstr[4] ""
-"غيّر شخص آخر %(count)s سجلًا منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم "
-"الاحتفاظ بتغييراتها."
+"غيّر شخص آخر %(count)s سجلًا منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم الاحتفاظ "
+"بتغييراتها."
 msgstr[5] ""
 "غيّر شخص آخر %(count)s سجل منذ ذلك الحين، لذا لم يُتراجع عن شيء. تم الاحتفاظ "
 "بتغييراتها."
 
-#: undo.py:1199
+#: undo.py:1201
 msgid "That action can no longer be undone. Nothing was changed."
 msgstr "لم يعد بالإمكان التراجع عن هذا الإجراء. لم يتغير شيء."
 
@@ -8133,7 +8554,19 @@ msgstr "ليست لديك صلاحية حذف %(records)s."
 msgid "You do not have permission to %(action)s %(records)s."
 msgstr "ليست لديك صلاحية تنفيذ «%(action)s» على %(records)s."
 
-#: views.py:207
+#: views.py:170
+msgid "TSV (spreadsheet)"
+msgstr "TSV (جدول بيانات)"
+
+#: views.py:171
+msgid "JSON (one per line)"
+msgstr "JSON (واحد في كل سطر)"
+
+#: views.py:172
+msgid "Excel (.xlsx)"
+msgstr "Excel (.xlsx)"
+
+#: views.py:221
 #, python-format
 msgid ""
 "%(action)s is limited to %(limit)s record at a time; %(count)s were selected."
@@ -8153,96 +8586,95 @@ msgstr[4] ""
 msgstr[5] ""
 "%(action)s محدود بـ %(limit)s سجل في المرة الواحدة؛ تم تحديد %(count)s."
 
-#: views.py:244
+#: views.py:258
 #, python-format
 msgid "%(action)s: %(summary)s (%(scope)s)"
 msgstr "%(action)s: %(summary)s (%(scope)s)"
 
-#: views.py:254
+#: views.py:268
 #, python-format
 msgid "%(action)s is running over %(scope)s."
 msgstr "%(action)s قيد التنفيذ على %(scope)s."
 
-#: views.py:271
+#: views.py:285
 #, python-format
 msgid "%(message)s (%(scope)s)"
 msgstr "%(message)s (%(scope)s)"
 
-#: views.py:386
+#: views.py:400
 msgid "Day"
 msgstr "يوم"
 
-#: views.py:387
+#: views.py:401
 msgid "Week"
 msgstr "أسبوع"
 
-#: views.py:389
+#: views.py:403
 msgid "Year"
 msgstr "سنة"
 
-#: views.py:545
+#: views.py:559
 msgid "No date"
 msgstr "بلا تاريخ"
 
-#: views.py:551
+#: views.py:565
 #, python-format
 msgid "Week %(week)s, %(year)s"
 msgstr "الأسبوع %(week)s، %(year)s"
 
-#: views.py:842
+#: views.py:861
 #, python-format
 msgid "You do not have permission to view %(page)s."
 msgstr "ليست لديك صلاحية عرض %(page)s."
 
-#: views.py:919
+#: views.py:938
 #, python-format
 msgid "You are now acting as %(user)s."
 msgstr "أنت تتصرف الآن بصفة %(user)s."
 
-#: views.py:923
+#: views.py:942
 #, python-format
 msgid "Returned to %(user)s."
 msgstr "تمت العودة إلى %(user)s."
 
-#: webhooks.py:104
+#: webhooks.py:105
 msgid "Changed"
 msgstr "تم التغيير"
 
-#: webhooks.py:367
+#: webhooks.py:395
 msgid "Webhook is disabled."
 msgstr "ويب هوك معطّل."
 
-#: webhooks.py:371
+#: webhooks.py:399
 msgid "Webhooks are switched off."
 msgstr "ميزة ويب هوك متوقفة."
 
-#: webhooks.py:548
+#: webhooks.py:577
 msgid "The address must start with http:// or https://."
 msgstr "يجب أن يبدأ العنوان بـ http:// أو https://."
 
-#: webhooks.py:550
+#: webhooks.py:579
 msgid "The address has no host name."
 msgstr "العنوان لا يحتوي على اسم مضيف."
 
-#: webhooks.py:552
+#: webhooks.py:581
 msgid "Put credentials in the secret, not in the address."
 msgstr "ضع بيانات الاعتماد في السر، لا في العنوان."
 
-#: webhooks.py:558
+#: webhooks.py:587
 msgid ""
 "That address is on a private or local network, which webhooks may not call."
 msgstr "هذا العنوان على شبكة خاصة أو محلية، ولا يُسمح لـ ويب هوك بالاتصال بها."
 
-#: webhooks.py:609 webhooks.py:791 webhooks.py:796
+#: webhooks.py:638 webhooks.py:820 webhooks.py:825
 msgid "The receiver took too long."
 msgstr "استغرق المستقبِل وقتًا طويلًا."
 
-#: webhooks.py:662
+#: webhooks.py:691
 #, python-format
 msgid ""
 "%(host)s resolves to a private or local address, which webhooks may not call."
-msgstr ""
-"%(host)s يُحلّ إلى عنوان خاص أو محلي، ولا يُسمح لـ ويب هوك بالاتصال به."
+msgstr "%(host)s يُحلّ إلى عنوان خاص أو محلي، ولا يُسمح لـ ويب هوك بالاتصال به."
 
 #: webhookviews.py:70
 msgid "Leave all unticked to be told about every model."
@@ -8289,25 +8721,25 @@ msgstr "تم حفظ ويب هوك."
 msgid "Webhook deleted."
 msgstr "تم حذف ويب هوك."
 
-#: webhookviews.py:225
+#: webhookviews.py:227
 #, python-format
 msgid "Test delivered: the receiver answered %(code)s."
 msgstr "تم تسليم الاختبار: أجاب المستقبِل بـ %(code)s."
 
-#: webhookviews.py:231
+#: webhookviews.py:233
 #, python-format
 msgid "Test failed: %(error)s"
 msgstr "فشل الاختبار: %(error)s"
 
-#: webhookviews.py:232
+#: webhookviews.py:234
 msgid "no answer"
 msgstr "لا إجابة"
 
-#: webhookviews.py:257
+#: webhookviews.py:259
 msgid "Delivery"
 msgstr "التسليم"
 
-#: webhookviews.py:296
+#: webhookviews.py:300
 msgid "Queued again as a new delivery."
 msgstr "أُعيد إدراجه في قائمة الانتظار كتسليم جديد."
 
@@ -8319,8 +8751,7 @@ msgstr "أيام وساعات ودقائق وثوانٍ، مثل '3 12:30:00' أ
 #, python-format
 msgid ""
 "Showing the first %(count)s of many. Turn on JavaScript to search the rest."
-msgstr ""
-"يتم عرض أول %(count)s من أصل عدد كبير. فعّل JavaScript للبحث في الباقي."
+msgstr "يتم عرض أول %(count)s من أصل عدد كبير. فعّل JavaScript للبحث في الباقي."
 
 #: widgets.py:475
 msgid "Type to search…"
@@ -8331,27 +8762,27 @@ msgstr "اكتب للبحث…"
 msgid "Search %(name)s…"
 msgstr "ابحث في %(name)s…"
 
-#: widgets.py:731
+#: widgets.py:803
 msgid "Relationships"
 msgstr "العلاقات"
 
-#: widgets.py:732
+#: widgets.py:804
 msgid "Options"
 msgstr "الخيارات"
 
-#: widgets.py:733
+#: widgets.py:805
 msgid "Metadata"
 msgstr "البيانات الوصفية"
 
-#: widgets.py:991
+#: widgets.py:1074
 msgid "Unchanged — type to replace"
 msgstr "دون تغيير — اكتب للاستبدال"
 
-#: widgets.py:993
+#: widgets.py:1076
 msgid "Not set"
 msgstr "غير محدد"
 
-#: widgets.py:1005
+#: widgets.py:1088
 #, python-format
 msgid "Clear %(field)s"
 msgstr "مسح %(field)s"
