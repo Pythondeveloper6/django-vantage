@@ -103,12 +103,14 @@ class VantageSite:
 
     @property
     def urls(self):
-        from vantage import agents, twofactor
+        from vantage import agents, external, twofactor
 
         # Here as well as in vantage.urls.build: a subclass's get_urls() may add routes
         # after super()'s, and those are behind the two-factor gate too.
         return (
-            twofactor.guard_patterns(agents.guard_patterns(self.get_urls())),
+            twofactor.guard_patterns(
+                agents.guard_patterns(external.guard_patterns(self.get_urls()))
+            ),
             "vantage",
             self.name,
         )

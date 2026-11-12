@@ -30,9 +30,9 @@ Each change the log records carries the value it replaced and the value it wrote
 Starting from the record as it stands now, the page walks those changes backwards to
 the point you chose.
 
-That only tells the truth about changes made **through the panel**. The audit log is
-not row history: a script, an import, a data migration or a `shell` session writes
-nothing to it. So a value is only shown as known when the log is consistent with
+That only tells the truth about changes the log saw. By default that means changes made
+**through the panel**: a script, an import, a data migration or a `shell` session writes
+nothing to it unless you [opt in](#changes-made-outside-the-panel). So a value is only shown as known when the log is consistent with
 itself — every change's "from" matches the previous change's "to", and the last "to"
 matches what the record holds today. If something the panel never saw moved the field
 in between, the chain breaks, and the page says the value **cannot be worked out**
@@ -123,3 +123,48 @@ The log is "what people did in the panel". If you need every write from every so
 workers, imports, the shell — install
 [django-simple-history](https://django-simple-history.readthedocs.io/); its timeline
 renders next to Vantage's own on the detail page.
+
+## Changes made outside the panel
+
+By default the log records what people do **in the panel** and nothing else. If you want
+saves and deletes made by the shell, scripts, signal handlers, your own views or another
+admin to show up too, opt in per model (code-only; not editable from the settings
+screen):
+
+```python
+VANTAGE = {
+    "TRACK_EXTERNAL_CHANGES": ["shop.order", "shop.invoice"],   # or "*" for every registered model
+    "TRACK_EXTERNAL_WEBHOOKS": False,                           # default: logged, nothing sent
+}
+```
+
+Those changes become ordinary entries in the same timeline, so the point-in-time view
+above works across them. They are marked **Outside the panel** (a badge on the record's
+history and on the audit page, which also gains a *Source* filter) and are named
+"Created / Updated / Deleted outside the panel".
+
+How it behaves:
+
+* **Never twice.** Every panel route, and every background job the panel runs, is marked
+  as the panel writing; the receivers stand down for it and the panel records its own
+  entry with the real actor and form diff. A side effect the panel triggers on a
+  different model (a signal that saves a second row) is therefore not recorded either.
+* **The actor.** If the project's own view runs under `vantage.tenancy.TenantMiddleware`
+  (which publishes the request, and can be installed without tenancy), the signed-in
+  user is the actor. Otherwise the entry reads "system / unknown".
+* **Secrets.** A [sensitive field](sensitive-fields.md) is noted as changed and its value
+  is never stored; field permissions apply when the log is read, as for any entry.
+* **Cheap and safe.** A model that is not tracked costs a settings read and a lookup, no
+  query. A tracked update reads the stored row once to get the "before" values. The
+  entry is written in its own savepoint; any error is logged and the caller's save is
+  never affected. `AUDIT_LOG = False` records nothing.
+* **Skipped.** Fixture loads (`loaddata`, `raw=True`), historical models inside
+  migrations, and the package's own tables.
+* **Webhooks** do not fire for these changes unless `TRACK_EXTERNAL_WEBHOOKS` is on.
+
+What it cannot see: Django only announces `save()`, `delete()` and many-to-many
+`add/remove/set/clear`. `QuerySet.update()`, `bulk_create()`, `bulk_update()` and raw SQL
+send no signal, so they leave no entry and no "before" value, and the history page will
+report the field as **cannot be worked out** instead of guessing. Reverse many-to-many
+changes (from the other side) are not recorded. Changes made while the setting was off,
+or on a model not listed, are not recovered later.
