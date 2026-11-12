@@ -26,6 +26,7 @@ from vantage import (
     listprefsview,
     listviews,
     mcp,
+    passwordreset,
     recordviews,
     reportviews,
     revealviews,
@@ -90,6 +91,8 @@ def build(site) -> list:
     # Two-factor set-up and the second step for sessions signed in elsewhere. Under
     # "_/account/", so before the page loop for the same reason.
     urlpatterns += twofactorviews.build_urls(site)
+    # The opt-in password reset flow; each route 404s while PASSWORD_RESET is off.
+    urlpatterns += passwordreset.build_urls(site)
 
     # The roles screens hang off the roles page's path, and only exist while it does.
     urlpatterns += rolesviews.build_urls(site)
