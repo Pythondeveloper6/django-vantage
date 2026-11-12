@@ -45,6 +45,10 @@ runs `check`, `migrate` and `seed`, and loads the panel as the seeded admin.
 The panel gates on `is_staff`, so both accounts get in and see the same thing — the
 second one is there for when permissions land.
 
+To try the password reset flow, set `"PASSWORD_RESET": True` in `config/settings.py`
+and restart. The demo uses the console email backend, so the reset link is printed in
+the terminal running the server instead of being sent.
+
 ## What the seed creates
 
 Deterministic, from a fixed RNG seed, so two people looking at this demo are looking at

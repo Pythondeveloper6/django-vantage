@@ -79,6 +79,8 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/admin/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 VANTAGE = {
     # Also record saves and deletes made outside the panel (shell, scripts, signals):
     # "TRACK_EXTERNAL_CHANGES": ["app_label.model"],  # or "*"
@@ -91,6 +93,10 @@ VANTAGE = {
     # to True to try them: it turns on `manage.py vantage_agent` and the "Agent activity"
     # page in the System group.
     "AGENTS": False,
+    # "Forgot password?" on the sign-in page. Off by default. To try it, set this to True
+    # and use the console email backend below, which prints the reset link in the
+    # terminal running the server.
+    "PASSWORD_RESET": False,
     "ENVIRONMENT": "Demo data — nothing here is real",
     # The sidebar, stated rather than derived: groups in the order you want them,
     # items in the order you want them, renamed where the model name is not the word
