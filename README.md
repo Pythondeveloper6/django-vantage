@@ -11,7 +11,7 @@
 Zero config to start. One line to override anything.
 
 [![PyPI](https://img.shields.io/pypi/v/django-vantage?include_prereleases&color=4f46e5&label=pypi&logo=pypi&logoColor=white)](https://pypi.org/project/django-vantage/)
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/django-vantage?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/django-vantage)
+[![Downloads](https://api.pepy.tech/personalized-badge/django-vantage?period=TOTAL&units=NONE&left_text=Downloads&right_color=BLUE)](https://pepy.tech/projects/django-vantage)
 [![Python](https://img.shields.io/pypi/pyversions/django-vantage?color=4f46e5&logo=python&logoColor=white)](https://pypi.org/project/django-vantage/)
 [![Django](https://img.shields.io/pypi/frameworkversions/django/django-vantage?color=0c4b33&label=django&logo=django&logoColor=white)](https://pypi.org/project/django-vantage/)
 [![CI](https://github.com/Pythondeveloper6/django-vantage/actions/workflows/ci.yml/badge.svg)](https://github.com/Pythondeveloper6/django-vantage/actions/workflows/ci.yml)
